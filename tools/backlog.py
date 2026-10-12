@@ -11,21 +11,25 @@ Examples (paths may also be supplied with --db):
 
 The SQLite file is canonical. Status updates write an audit event in the same
 transaction and refresh its sibling .sql snapshot. With the default database,
-they also refresh the Korean report. Completion requires recorded evidence,
-at least two acceptance criteria, and completed prerequisites.
+they also refresh the Korean report. Starting or completing a task requires
+completed prerequisites. Completion additionally requires recorded evidence
+and at least two acceptance criteria.
 """
 
 from __future__ import annotations
 
 import argparse
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
+import errno
 import os
 from pathlib import Path
 import shutil
 import sqlite3
+import stat
 import sys
 import tempfile
+import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +53,169 @@ REQUIRED_COLUMNS = {
     "task_evidence": "id task_id kind reference summary recorded_at",
 }
 REQUIRED_VIEWS = ("v_backlog", "v_ready_tasks", "v_milestone_summary")
+SCHEMA_VERSION = 1
+REQUIRED_METADATA = (
+    "schema_version", "project", "created_at", "updated_at", "baseline_commit",
+    "canonical_data", "review_snapshot", "ownership_policy",
+)
+NONEMPTY_COLUMNS = {
+    "metadata": "key",
+    "sources": "id title kind",
+    "requirements": "id origin title description",
+    "milestones": "id name scope exit_criteria",
+    "epics": "id name description",
+    "tasks": "id title description deliverable verification epic_id milestone_id priority status work_type owner_component created_at updated_at",
+    "task_dependencies": "task_id depends_on",
+    "task_requirements": "task_id requirement_id",
+    "task_sources": "task_id source_id",
+    "acceptance_criteria": "task_id criterion",
+    "decisions": "id title status decision rationale source_id",
+    "task_decisions": "task_id decision_id",
+    "task_events": "task_id event_type note occurred_at",
+    "task_evidence": "id task_id kind reference summary recorded_at",
+}
+ENUM_COLUMNS = {
+    ("sources", "kind"): ("user", "repository", "official_doc"),
+    ("requirements", "origin"): ("user", "derived"),
+    ("milestones", "scope"): ("first_release", "follow_up", "future"),
+    ("tasks", "priority"): ("P0", "P1", "P2"),
+    ("tasks", "status"): STATUSES,
+    ("tasks", "work_type"): ("decision", "feature", "integration", "validation", "documentation", "research"),
+    ("decisions", "status"): ("confirmed", "proposed", "open"),
+    ("task_events", "old_status"): STATUSES,
+    ("task_events", "new_status"): STATUSES,
+}
+INTEGER_COLUMNS = {
+    ("tasks", "sequence"): 0,
+    ("milestones", "sequence"): 0,
+    ("acceptance_criteria", "ordinal"): 1,
+    ("task_events", "id"): 1,
+}
+
+
+def normalized_schema_sql(sql: str) -> str:
+    """Ignore SQL layout/case while preserving quoted values and identifiers."""
+    result: list[str] = []
+    quote: str | None = None
+    position = 0
+    while position < len(sql):
+        char = sql[position]
+        if quote is not None:
+            result.append(char)
+            if char == quote:
+                if position + 1 < len(sql) and sql[position + 1] == quote:
+                    result.append(sql[position + 1])
+                    position += 1
+                else:
+                    quote = None
+        elif char in "\"'`[":
+            quote = "]" if char == "[" else char
+            result.append(char)
+        elif char.isspace():
+            if result and result[-1] != " ":
+                result.append(" ")
+        else:
+            result.append(char.lower())
+        position += 1
+    return "".join(result).strip()
+
+
+def schema_contract_issues(conn: sqlite3.Connection) -> list[str]:
+    """Compare with the trusted versioned schema, including constraints/views."""
+    query = (
+        "SELECT name, type, sql FROM sqlite_master "
+        "WHERE name NOT GLOB 'sqlite_*' ORDER BY name"
+    )
+    with closing(sqlite3.connect(":memory:")) as expected:
+        expected.executescript((ROOT / "planning" / "schema.sql").read_text(encoding="utf-8"))
+        if expected.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+            raise BacklogError("The bundled schema.sql has an unsupported schema version.")
+        canonical = {row[0]: (row[1], normalized_schema_sql(row[2] or ""))
+                     for row in expected.execute(query)}
+    actual = {row[0]: (row[1], normalized_schema_sql(row[2] or ""))
+              for row in conn.execute(query)}
+    issues = []
+    for name in sorted(canonical.keys() | actual.keys()):
+        if name not in canonical:
+            issues.append(f"Unexpected schema object for version {SCHEMA_VERSION}: {name}")
+        elif name not in actual:
+            issues.append(f"Missing schema object for version {SCHEMA_VERSION}: {name}")
+        elif actual[name] != canonical[name]:
+            issues.append(f"Schema definition differs from version {SCHEMA_VERSION}: {name}")
+    return issues
+
+
+def value_domain_issues(conn: sqlite3.Connection) -> list[str]:
+    """Validate values independently of SQLite's CHECK enforcement setting."""
+    issues: list[str] = []
+    for table, columns in NONEMPTY_COLUMNS.items():
+        for column in columns.split():
+            query = (f'SELECT rowid FROM "{table}" WHERE typeof("{column}") <> \'text\' '
+                     f'OR length(trim("{column}")) = 0')
+            issues.extend(f"{table} rowid={row[0]}: {column} must be nonempty text"
+                          for row in conn.execute(query))
+    for (table, column), choices in ENUM_COLUMNS.items():
+        placeholders = ",".join("?" for _ in choices)
+        query = f'SELECT rowid, "{column}" FROM "{table}" WHERE "{column}" NOT IN ({placeholders})'
+        issues.extend(f"{table} rowid={row[0]}: invalid {column} {row[1]!r}"
+                      for row in conn.execute(query, choices))
+    for (table, column), minimum in INTEGER_COLUMNS.items():
+        query = (f'SELECT rowid, "{column}" FROM "{table}" '
+                 f'WHERE typeof("{column}") <> \'integer\' OR "{column}" < ?')
+        issues.extend(f"{table} rowid={row[0]}: {column} must be an integer >= {minimum}"
+                      for row in conn.execute(query, (minimum,)))
+    return issues
+
+
+def metadata_issues(conn: sqlite3.Connection) -> list[str]:
+    issues: list[str] = []
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version != SCHEMA_VERSION:
+        issues.append(f"Unsupported schema user_version: {version}; expected {SCHEMA_VERSION}")
+    metadata = dict(conn.execute("SELECT key, value FROM metadata"))
+    for key in REQUIRED_METADATA:
+        value = metadata.get(key)
+        if not isinstance(value, str) or not value.strip():
+            issues.append(f"Missing or empty required metadata: {key}")
+    if metadata.get("schema_version") != str(SCHEMA_VERSION):
+        issues.append(f"metadata.schema_version must equal supported user_version {SCHEMA_VERSION}")
+    if metadata.get("project") != "AI-Kubernetes":
+        issues.append("metadata.project must identify AI-Kubernetes")
+    return issues
+
+
+def event_history_issues(conn: sqlite3.Connection) -> list[str]:
+    """Check relational audit continuity; this is not a tamper-proof log."""
+    issues: list[str] = []
+    histories: dict[str, list[sqlite3.Row]] = {}
+    for row in conn.execute("SELECT * FROM task_events ORDER BY task_id, id"):
+        histories.setdefault(row["task_id"], []).append(row)
+    for task in conn.execute("SELECT id, status FROM tasks ORDER BY id"):
+        task_id = task["id"]
+        history = histories.get(task_id, [])
+        created = [event for event in history if event["event_type"] == "created"]
+        if len(created) != 1:
+            issues.append(f"{task_id}: expected one created event, found {len(created)}")
+        if not history:
+            continue
+        first = history[0]
+        if (first["event_type"] != "created" or first["old_status"] is not None
+                or first["new_status"] != "todo"):
+            issues.append(f"{task_id}: history must begin with a created event from null to todo")
+        current = "todo"
+        for event in history[1:]:
+            old, new = event["old_status"], event["new_status"]
+            if event["event_type"] == "status_change":
+                if old != current or new not in STATUSES or old == new:
+                    issues.append(f"{task_id}: event {event['id']} has a broken status transition "
+                                  f"({old!r} -> {new!r}; expected old_status {current!r})")
+                if new in STATUSES:
+                    current = new
+            elif (old, new) not in ((None, None), (current, current)):
+                issues.append(f"{task_id}: non-status event {event['id']} changes or mismatches state")
+        if current != task["status"]:
+            issues.append(f"{task_id}: task status {task['status']!r} differs from last event status {current!r}")
+    return issues
 
 
 class BacklogError(Exception):
@@ -123,6 +290,14 @@ def validate_connection(conn: sqlite3.Connection) -> list[str]:
     if any("missing columns" in issue for issue in issues):
         return issues
 
+    schema_issues = schema_contract_issues(conn)
+    if schema_issues:
+        return issues + schema_issues
+    issues.extend(metadata_issues(conn))
+    domain_issues = value_domain_issues(conn)
+    if domain_issues:
+        return issues + domain_issues
+
     for row in conn.execute("PRAGMA foreign_key_check"):
         issues.append(
             f"Foreign key violation: table={row[0]}, rowid={row[1]}, parent={row[2]}"
@@ -169,6 +344,8 @@ def validate_connection(conn: sqlite3.Connection) -> list[str]:
     for query, message in checks:
         issues.extend(f"{row[0]}: {message}" for row in conn.execute(query))
 
+    issues.extend(event_history_issues(conn))
+
     graph = {task_id: [] for task_id in task_ids}
     for task_id, prerequisite in conn.execute(
         "SELECT task_id, depends_on FROM task_dependencies"
@@ -191,9 +368,9 @@ def validate_connection(conn: sqlite3.Connection) -> list[str]:
     )
     for row in dependency_rows:
         task_id, prerequisite, status, prior_status = row[:4]
-        if status == "done" and prior_status != "done":
+        if status in ("in_progress", "done") and prior_status != "done":
             issues.append(
-                f"{task_id}: done while prerequisite {prerequisite} is {prior_status}"
+                f"{task_id}: {status} while prerequisite {prerequisite} is {prior_status}"
             )
         if row[5] > row[4]:
             issues.append(
@@ -437,9 +614,140 @@ def stage_text(destination: Path, text: str) -> Path:
     return temporary
 
 
-def check_snapshot_path(database: Path, snapshot: Path) -> None:
-    if database.resolve() == snapshot.resolve():
-        raise BacklogError("The SQL snapshot path must differ from the SQLite database.")
+@contextmanager
+def maintenance_lock(database: Path, *, timeout: float = 10.0):
+    """Serialize this tool's DB changes and snapshot publication across processes.
+
+    The stable lockfile is deliberately retained: unlinking it lets a waiter
+    and a new process acquire locks on different files. Symlinks to the DB use
+    the same resolved path. Hardlinked DB aliases are rejected because separate
+    names cannot share a reliable adjacent lockfile (or SQLite journal path).
+    """
+    canonical = database.resolve()
+    if not canonical.is_file():
+        raise BacklogError(f"Database does not exist: {database}")
+    if canonical.stat().st_nlink > 1:
+        raise BacklogError(
+            "Maintenance commands do not support hardlinked database aliases. "
+            "Use one canonical database path or an independent file copy."
+        )
+    lockfile = canonical.with_name(canonical.name + ".maintenance.lock")
+    if lockfile.is_symlink():
+        raise BacklogError(f"The maintenance lockfile must not be a symlink: {lockfile}")
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(lockfile, flags, 0o600)
+    with os.fdopen(descriptor, "r+b", buffering=0) as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or lockfile.is_symlink():
+            raise BacklogError(f"The maintenance lockfile must be a regular file without link aliases: {lockfile}")
+        if os.name == "nt":
+            import msvcrt
+
+            def acquire():
+                stream.seek(0)
+                # Windows permits byte-range locking beyond EOF, including an
+                # initially empty lockfile. Initialize it only after acquiring.
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+
+            def release():
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            def acquire():
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+            def release():
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+        deadline = time.monotonic() + max(0.0, timeout)
+        while True:
+            try:
+                acquire()
+                break
+            except OSError as error:
+                if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                    raise
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise BacklogError(
+                        f"Timed out waiting for another backlog maintenance operation: {canonical}. "
+                        "The database and generated snapshots were not changed."
+                    ) from error
+                time.sleep(min(0.05, remaining))
+        try:
+            if os.fstat(stream.fileno()).st_size == 0:
+                stream.write(b"\0")
+                os.fsync(stream.fileno())
+            yield
+        finally:
+            release()
+
+
+def snapshot_import_authorizer(action, first, second, _database, _trigger):
+    """Accept portable backlog SQL without filesystem or extension side effects."""
+    if action in (
+        sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH,
+        sqlite3.SQLITE_CREATE_VTABLE, sqlite3.SQLITE_DROP_VTABLE,
+        sqlite3.SQLITE_CREATE_TRIGGER, sqlite3.SQLITE_CREATE_TEMP_TRIGGER,
+    ):
+        return sqlite3.SQLITE_DENY
+    if action == sqlite3.SQLITE_PRAGMA:
+        # These are the only settings needed by our SQL snapshot and supported
+        # WAL imports. In particular, never inherit writable_schema,
+        # ignore_check_constraints, temp_store_directory, or journal_mode=OFF.
+        name = (first or "").lower()
+        if name not in ("foreign_keys", "user_version", "journal_mode"):
+            return sqlite3.SQLITE_DENY
+        if name == "journal_mode" and second is not None and second.lower() not in ("delete", "wal"):
+            return sqlite3.SQLITE_DENY
+    if action == sqlite3.SQLITE_FUNCTION:
+        if (second or first or "").lower() in ("load_extension", "readfile", "writefile", "fts3_tokenizer"):
+            return sqlite3.SQLITE_DENY
+    return sqlite3.SQLITE_OK
+
+
+def same_path(first: Path, second: Path) -> bool:
+    """Recognize existing hard links as well as lexical and symbolic aliases."""
+    return first.resolve() == second.resolve() or (
+        first.exists() and second.exists() and first.samefile(second)
+    )
+
+
+def default_sql_path(database: Path) -> Path:
+    return database.resolve().with_suffix(".sql")
+
+
+def default_report_path(database: Path) -> Path:
+    return DEFAULT_REPORT if same_path(database, DEFAULT_DB) else database.resolve().with_suffix(".md")
+
+
+def check_snapshot_path(database: Path, snapshot: Path, *, kind: str = "sql") -> None:
+    """Keep generated text away from databases, locks and authoritative schema."""
+    expected_suffix = {"sql": ".sql", "report": ".md"}[kind]
+    protected = [ROOT / "planning" / "schema.sql"]
+    for candidate in (database.resolve(), DEFAULT_DB.resolve()):
+        protected.append(candidate)
+        protected.extend(candidate.with_name(candidate.name + suffix) for suffix in (
+            "-wal", "-shm", "-journal", ".maintenance.lock",
+        ))
+    for candidate in protected:
+        if same_path(snapshot, candidate):
+            raise BacklogError(f"The generated output must not overwrite a database, sidecar, lock, or schema: {snapshot}")
+    if not same_path(database, DEFAULT_DB):
+        for canonical_output in (default_sql_path(DEFAULT_DB), DEFAULT_REPORT):
+            if same_path(snapshot, canonical_output):
+                raise BacklogError(
+                    "A custom database must not overwrite the repository's canonical generated outputs. "
+                    "Use a sibling output or a separate --output path."
+                )
+    if snapshot.suffix.lower() != expected_suffix:
+        raise BacklogError(f"The {kind} output must use a {expected_suffix} extension: {snapshot}")
+    if snapshot.is_file():
+        with snapshot.open("rb") as stream:
+            if stream.read(16) == b"SQLite format 3\0":
+                raise BacklogError(f"Refusing to overwrite a SQLite database with generated text: {snapshot}")
 
 
 def command_validate(args: argparse.Namespace) -> None:
@@ -456,11 +764,11 @@ def command_validate(args: argparse.Namespace) -> None:
 
 
 def command_export(args: argparse.Namespace) -> None:
-    destination = args.output or args.db.with_suffix(".sql")
+    destination = args.output or default_sql_path(args.db)
     check_snapshot_path(args.db, destination)
     temporary = None
     try:
-        with closing(connect_database(args.db)) as conn:
+        with maintenance_lock(args.db), closing(connect_database(args.db)) as conn:
             conn.execute("BEGIN")
             require_valid(conn)
             temporary = stage_text(destination, sql_snapshot(conn))
@@ -473,12 +781,11 @@ def command_export(args: argparse.Namespace) -> None:
 
 
 def command_report(args: argparse.Namespace) -> None:
-    destination = args.output or DEFAULT_REPORT
-    if args.db.resolve() == destination.resolve():
-        raise BacklogError("The report path must differ from the SQLite database.")
+    destination = args.output or default_report_path(args.db)
+    check_snapshot_path(args.db, destination, kind="report")
     temporary = None
     try:
-        with closing(connect_database(args.db)) as conn:
+        with maintenance_lock(args.db), closing(connect_database(args.db)) as conn:
             conn.execute("BEGIN")
             require_valid(conn)
             temporary = stage_text(destination, markdown_report(conn, args.db, destination))
@@ -506,17 +813,13 @@ def command_restore(args: argparse.Namespace) -> None:
     try:
         with closing(sqlite3.connect(temporary, isolation_level=None)) as conn:
             conn.row_factory = sqlite3.Row
-            # A backlog snapshot never needs to attach an external database.
-            conn.set_authorizer(
-                lambda action, _a, _b, _db, _trigger: (
-                    sqlite3.SQLITE_DENY
-                    if action in (sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH)
-                    else sqlite3.SQLITE_OK
-                )
-            )
+            conn.execute("PRAGMA trusted_schema = OFF")
+            conn.set_authorizer(snapshot_import_authorizer)
             conn.executescript(source.read_text(encoding="utf-8"))
             if conn.in_transaction:
                 conn.commit()
+            conn.set_authorizer(None)
+            conn.execute("PRAGMA ignore_check_constraints = OFF")
             conn.execute("PRAGMA foreign_keys = ON")
             require_valid(conn)
             # Produce one portable database file, including after a WAL import.
@@ -542,6 +845,7 @@ def command_list(args: argparse.Namespace) -> None:
     view = "v_ready_tasks" if args.ready else "v_backlog"
     with closing(connect_database(args.db)) as conn:
         conn.execute("BEGIN")
+        require_valid(conn)
         if args.milestone and not conn.execute(
             "SELECT 1 FROM milestones WHERE id = ?", (args.milestone,)
         ).fetchone():
@@ -565,17 +869,19 @@ def command_list(args: argparse.Namespace) -> None:
 def command_status(args: argparse.Namespace) -> None:
     if not args.note.strip():
         raise BacklogError("A nonempty --note is required for a status change.")
-    snapshot = args.snapshot or args.db.with_suffix(".sql")
+    snapshot = args.snapshot or default_sql_path(args.db)
     check_snapshot_path(args.db, snapshot)
     temporary = None
     report_temporary = None
     report_path = DEFAULT_REPORT if args.db.resolve() == DEFAULT_DB.resolve() else None
+    if report_path is not None:
+        check_snapshot_path(args.db, report_path, kind="report")
     if report_path is not None and snapshot.resolve() == report_path.resolve():
         raise BacklogError("The SQL snapshot and Markdown report paths must differ.")
     committed = False
     previous_status = None
     try:
-        with closing(connect_database(args.db, writable=True)) as conn:
+        with maintenance_lock(args.db), closing(connect_database(args.db, writable=True)) as conn:
             conn.execute("BEGIN IMMEDIATE")
             task = conn.execute("SELECT status FROM tasks WHERE id = ?", (args.task_id,)).fetchone()
             if task is None:
@@ -641,7 +947,7 @@ def build_parser() -> argparse.ArgumentParser:
     export = command("export", "Atomically export a reviewable SQL snapshot", command_export)
     export.add_argument("--output", type=Path, help="SQL output; defaults to the database's sibling .sql")
     report = command("report", "Generate the complete Korean development report from SQLite", command_report)
-    report.add_argument("--output", type=Path, help="Markdown output; defaults to docs/development-backlog.ko.md")
+    report.add_argument("--output", type=Path, help=".md output; canonical DB uses docs/development-backlog.ko.md, custom DB uses its sibling .md")
     restore = command("restore", "Restore and validate SQL into a new database", command_restore)
     restore.add_argument("--source", type=Path, required=True)
     restore.add_argument("--output", type=Path, required=True)

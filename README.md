@@ -9,7 +9,7 @@
 
 > **상태: 설계·개발 태스크 수립(Pre-implementation).** 첫 제품은 **Windows GUI**로 제공한다. 멀티벤더 인증 관리와 **총괄 에이전트의 실행 모델 지정**을 필수 기능으로 구체화했다. 개발 장부는 작성됐으며 제품 기능의 구현·연동·출시 검증은 앞으로 진행한다.
 
-[개발 계획·검토](docs/development-plan.ko.md) · [전체 개발 태스크](docs/development-backlog.ko.md) · [SQLite 장부](planning/backlog.sqlite3) · [최초 설계문서](docs/initial-design.ko.md) · [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite) · [VibeMarshal](https://github.com/jaeseongs95/vibemarshal)
+[개발 계획·검토](docs/development-plan.ko.md) · [다각도 감사 결과](docs/audit-2026-10-12.ko.md) · [전체 개발 태스크](docs/development-backlog.ko.md) · [SQLite 장부](planning/backlog.sqlite3) · [최초 설계문서](docs/initial-design.ko.md) · [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite) · [VibeMarshal](https://github.com/jaeseongs95/vibemarshal)
 
 ## 첫 제품의 사용자 경험
 
@@ -111,7 +111,7 @@ VM과 AGS의 **현재 구현 상태는 각 원본 저장소 문서가 기준**�
 
 ## 개발 장부
 
-`planning/backlog.sqlite3`가 개발 태스크 정본이다. 요구사항·출처·단계·우선순위·담당 구성요소·의존성·완료 기준·검증 방법·상태 이력·증거를 연결한다. **82개 태스크, 246개 완료 기준, 300개 의존성**을 등록했다. 초기 상태는 전부 `todo`다.
+`planning/backlog.sqlite3`가 개발 태스크 정본이다. 요구사항·출처·단계·우선순위·담당 구성요소·의존성·완료 기준·검증 방법·상태 이력·증거를 연결한다. **82개 태스크, 246개 완료 기준, 296개 의존성**을 관리한다. 상태는 전부 `todo`다. 다각도 감사에서 20개 태스크의 완료 기준을 보강했고, adapter 구현 완료와 실제 경로 qualification을 구분했다.
 
 | 단계 | 범위 | 태스크 |
 | --- | --- | ---: |
@@ -131,6 +131,7 @@ VM과 AGS의 **현재 구현 상태는 각 원본 저장소 문서가 기준**�
 python tools/backlog.py validate
 python tools/backlog.py list --ready
 python tools/backlog.py list --milestone M1
+python -m unittest discover -s tests -v
 ```
 
 유지보수·복원·상태 변경 절차는 [개발 계획](docs/development-plan.ko.md#개발-장부-사용법)에 있다.
@@ -143,7 +144,7 @@ python tools/backlog.py list --milestone M1
 
 ## 프로젝트 상태
 
-**2026-10-12 · 개발 계획 v0.2.** 최초 아키텍처를 검토하고 Windows GUI·인증 관리·총괄 모델 설정을 개발 태스크로 구체화했다. AGS/VM의 실제 설치형 호환성과 실행 관측은 선행 qualification 태스크로 추적한다. 장부 검증 통과는 제품 또는 upstream 실행 검증 통과를 의미하지 않는다.
+**2026-10-12 · 개발 계획 v0.3.** 독립 감사에서 장부 도구의 동시 저장·복원·검증·출력 경로 결함을 수정했다. 제품 계획은 필수/선택 경로의 출시 조건, 원격 입력 준비, Windows vault와 native worker의 신뢰 범위를 보강했다. AGS/VM의 실제 설치형 호환성과 실행 관측은 미완료 qualification 태스크로 추적한다. 장부 도구의 회귀 통과는 Windows 제품 또는 upstream 실행 검증 통과를 의미하지 않는다.
 
 ## 라이선스
 

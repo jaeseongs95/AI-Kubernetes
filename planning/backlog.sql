@@ -11,14 +11,14 @@ CREATE TABLE acceptance_criteria (
 );
 INSERT INTO "acceptance_criteria" VALUES('AIK-001',1,'VM Goal/Plan/Task/Attempt와 AIK lease/placement의 단일 소유자 및 상호 참조 필드가 명시된다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-001',2,'AGS manifest 실제 경로·entrypoint·digest와 VM schema4/façade 계약을 확인하며 GUI schema2 예시 차이를 기록한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-001',3,'문서상 구현·실행 미검증·호환 미완료를 구분하고 첫 출시 provider/runtime/역할 지원 matrix의 필수·선택·미지원 경로 및 upstream 변경 재검증 조건을 정한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-001',3,'문서상 구현·실행 미검증·호환 미완료를 구분한다. 첫 출시 matrix에 route_id·provider·auth_kind·role·required/optional·adapter 구현 상태·qualification 상태·사유·관측 시각·evidence_ref와 revision/digest를 기록한다. 두 벤더 및 API/지원 구독·총괄/worker 도구 실행이라는 DEC12 제안 범위와 필수 조합의 대응을 명시하며 범위 또는 upstream 변경 시 결정·영향·재검증 근거를 남긴다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-002',1,'VM React/TypeScript 화면·EngineClient 재사용 범위와 Tauri/대안의 선택 이유를 적는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-002',2,'창 표시→typed IPC→테스트 worker 호출→OS vault 왕복을 Windows에서 재현한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-002',3,'AIK 스택·엔진 runtime 버전·bundle 전략을 ADR에 명시하고 mock 성공을 제품 연동 성공으로 기록하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-003',1,'지원 Windows 버전·CPU·최소 자원과 선택한 설치 형식을 명시한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-003',2,'개발 도구가 없는 환경에서 필요한 runtime을 어떻게 공급할지 검증한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-003',3,'서명·업데이트 신뢰·제거 후 데이터 처리 기준을 정하며 macOS/Linux를 첫 출시 gate로 넣지 않는다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-004',1,'GUI renderer가 arbitrary shell·전체 filesystem·raw secret API에 직접 접근하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-004',1,'GUI renderer가 arbitrary shell·전체 filesystem·raw secret API에 직접 접근하지 않는다. API 제한 도구 경로와 trusted same-user native 경로의 OS principal·trust profile을 구분하며 앱 IPC 제한을 OS 프로세스 격리로 광고하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-004',2,'명령마다 schema·발신자·workspace·request_id를 검증하고 응답에 민감 값을 넣지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-004',3,'호환되지 않는 frontend/backend 버전은 구체적인 연결 오류로 표시한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-005',1,'pool/credential_ref/profile/placement/lease와 VM/AGS 외부 ID를 저장하고 실비밀·VM 권위 Task 사본은 저장하지 않는다.');
@@ -33,7 +33,7 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-007',3,'설정 내보내기는 비
 INSERT INTO "acceptance_criteria" VALUES('AIK-008',1,'현재 compatible/incompatible/unverified 상태와 manifest·버전·digest를 진단 결과로 남긴다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-008',2,'첫 출시 지원 matrix에 따라 A2 호환 plugin과 각 runtime의 model/effort 관측을 AIK-081/082에 연결한다. 개별 미지원 경로와 다른 qualified 경로의 상태를 분리한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-008',3,'문서·mock 통과만으로 실제 gate를 PASS 처리하지 않으며 실행불가 원인을 GUI가 소비할 수 있게 반환한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-009',1,'Credential Manager 또는 사용자 범위 DPAPI 후보를 검증해 선택하고 머신 공유 범위를 기본으로 사용하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-009',1,'Credential Manager 또는 사용자 범위 DPAPI 후보를 검증해 선택하고 머신 공유 범위를 기본으로 사용하지 않는다. 저장 보호·다른 OS 사용자 경계와 동일 사용자 native 프로세스의 직접 접근 범위를 ADR에 명시한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-009',2,'저장·교체·삭제와 앱 재시작 후 참조 회수가 동작한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-009',3,'SQLite·설정·로그·지원 번들에서 테스트 비밀 평문이 검출되지 않으며 저장소 접근 실패를 정확히 반환한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-010',1,'provider/account label/auth_kind/execution_kind/credential_ref와 확인 시각을 저장한다.');
@@ -42,18 +42,18 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-010',3,'이름 변경으로 기존
 INSERT INTO "acceptance_criteria" VALUES('AIK-011',1,'auth 연결 성공과 job 실행·관측·중단 지원을 별도 capability로 반환한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-011',2,'공식 호스트의 계정별 인증 context 격리 지원을 capability로 반환한다. 격리 불가 호스트의 충돌 동시 사용과 다른 계정으로의 묵시적 전환을 막고 구독 인증을 API 키로 변환하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-011',3,'벤더 고유 오류·rate limit·확인 불가능 상태를 보존하는 표준 오류를 정의한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-012',1,'키 등록→인증 확인→지원 모델 호출→키 교체→연결 해제 흐름을 통과한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-012',2,'실제 request/job·model·usage와 API 도구 요청/결과 메시지를 공통 계약으로 변환한다. AIK-035가 이 계약으로 bounded agent tool loop를 구성할 수 있다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-012',3,'잘못된 키/권한/모델은 실행 가능 자원으로 광고하지 않고 구독 잔여량과 과금을 분리한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-013',1,'키 등록→인증 확인→지원 모델 호출→키 교체→연결 해제 흐름을 통과한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-013',2,'실제 model·usage·cache 지원 및 API 도구 요청/결과 메시지를 공통 계약으로 변환한다. 잘린 결과를 완료로 승격하지 않고 AIK-035의 agent tool loop와 연결 가능하다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-013',3,'API 401/429/timeout과 모델 불가 상태를 공통 오류 및 확인 시각과 함께 노출한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-014',1,'GUI 명령으로 공식 인증 흐름 시작·상태 회수·재연결·해제를 수행한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-014',2,'공식 호스트 소유 인증은 host handle로 연결하며 원문 토큰을 범용 API 비밀로 재사용하지 않는다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-014',3,'기존 VM runtime을 재사용한다. 실행 전 connection의 비민감 계정 binding revision을 대조하고 외부 로그인 변경은 stale/재연결로 표시한다. auth 연결과 governed 적합성을 분리한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-015',1,'GUI에서 공식 인증 시작→상태 확인→지원 실행→해제→재연결을 완료한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-015',2,'호스트가 보유한 로그인 비밀을 이중 복제하지 않고 host handle과 지원 capability를 보관한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-015',3,'configured catalog와 runtime 실측을 구분한다. 실행 전 선택 계정 binding을 검증하고 외부 로그인 변경·계정 격리 불가 상태를 capability/재연결 필요로 표시한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-012',1,'키 등록·인증 확인·모델 호출·교체·해제의 코드 경로를 구현하고 성공 및 실패 protocol fixture를 통과한다. 미지원 응답만 반환하는 stub은 구현 완료가 아니다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-012',2,'provider request/job·model·usage와 도구 요청/결과 메시지를 공통 계약으로 변환하며 AIK-035의 bounded agent tool loop에 연결 가능하다. fixture 결과를 provider 실측으로 기록하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-012',3,'잘못된 키/권한/모델을 실행 가능 자원으로 광고하지 않고 구독 잔여량과 API 과금을 구분한다. adapter 구현 상태와 route qualification 상태를 별도로 보관하며 실제 지원은 AIK-022/082의 근거로만 판정한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-013',1,'키 등록·인증 확인·모델 호출·교체·해제의 코드 경로를 구현하고 성공 및 실패 protocol fixture를 통과한다. 미지원 응답만 반환하는 stub은 구현 완료가 아니다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-013',2,'provider model·usage·cache 및 API 도구 요청/결과 메시지를 공통 계약으로 변환한다. 잘린 결과를 완료로 승격하지 않고 AIK-035의 agent tool loop와 연결 가능하며 fixture 결과를 실측으로 기록하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-013',3,'401/429/timeout과 모델 불가 상태를 공통 오류로 노출한다. adapter 구현 상태와 route qualification 상태를 분리하고 실제 지원은 AIK-022/082의 근거로만 판정한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-014',1,'GUI command에 대응하는 공식 인증 시작·상태 회수·재연결·해제 코드 경로를 구현하고 성공/실패 host fixture를 통과한다. unsupported만 반환하는 stub이나 fixture 통과를 실제 로그인 성공으로 기록하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-014',2,'공식 호스트 소유 인증은 host handle로 연결하며 원문 토큰을 범용 API 비밀로 재사용하지 않는다. host absent/unsupported와 인증 만료를 별도 capability로 반환한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-014',3,'기존 VM runtime을 재사용하고 실행 전 비민감 계정 binding revision을 대조한다. 외부 로그인 변경은 stale/재연결로 표시하며 bridge 구현·실제 auth 성공·governed 적합성을 구분한다. 라이브 근거는 AIK-022/082로 연결한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-015',1,'공식 인증 시작·상태 확인·실행 요청·해제·재연결의 코드 경로를 구현하고 성공/실패 host fixture를 통과한다. unsupported만 반환하는 stub이나 fixture 통과를 실제 실행 성공으로 기록하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-015',2,'호스트의 로그인 비밀을 이중 복제하지 않고 host handle과 capability를 보관한다. host absent/unsupported와 인증 만료를 구분한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-015',3,'configured catalog와 runtime 실측을 분리하고 선택 계정 binding을 검증한다. 외부 로그인 변경·계정 격리 불가를 capability/재연결 필요로 표시한다. bridge 구현과 라이브 지원 판정을 분리하고 실제 근거는 AIK-022/082로 연결한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-016',1,'만료/잠금/해제 자원은 신규 배치에서 제외하고 재인증 후 재검증한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-016',2,'키 교체 뒤 새 실행은 새 참조 버전을 사용하며 이전 실행은 실제 상태를 회수한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-016',3,'사용자가 설정한 vault 잠금·Windows 세션 잠금 정책이 동작하고 강제 로그아웃을 완료/환불로 간주하지 않는다.');
@@ -61,10 +61,10 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-017',1,'prompt/IPC response/PEER/e
 INSERT INTO "acceptance_criteria" VALUES('AIK-017',2,'부분 키·Authorization 헤더·중첩 오류 객체·URL query에 대한 제거 규칙을 검증한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-017',3,'redaction 후에도 connection/task/request ID로 오류와 감사 이력을 추적할 수 있다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-018',1,'총괄과 worker에는 connection_id 또는 credential_ref만 전달한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-018',2,'허용된 adapter·workspace·작업 범위가 일치할 때만 비밀을 해석하고 임의 비밀 열람 요청을 거절한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-018',2,'허용된 adapter·workspace·작업 범위가 일치할 때만 broker 경로에서 비밀을 해석하고 임의 열람 요청을 거절한다. 같은 OS 사용자 native 프로세스의 직접 저장소 접근까지 이 검사로 격리된다고 주장하지 않으며 해당 경로의 trust profile을 연결한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-018',3,'비밀을 명령행 인수나 지속 설정파일에 남기지 않고 자식 프로세스 전달·정리 범위를 검증한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-019',1,'pool_id와 connection_id를 분리하고 같은 모델의 구독/API 경로를 각각 조회한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-019',2,'auth 계정 binding·runtime 지원·governance 적합성·최종 확인 시각을 별도 필드로 노출하고 외부 로그인 변경 시 해당 자원의 실행 가능성을 재검증한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-019',2,'adapter 구현 상태·auth 계정 binding·runtime 지원·governance 적합성·최종 확인 시각·matrix revision을 별도 필드로 노출한다. 외부 로그인 변경은 재검증하며 선택 경로 unsupported가 다른 qualified 경로를 덮지 않는다. 구현 완료만으로 실행 가능 광고를 하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-019',3,'오래되거나 확인할 수 없는 값은 unknown/stale로 표시하며 0이나 무제한 용량으로 만들지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-020',1,'모델 이름을 제품 코드에 고정하지 않고 자원별 목록/검증된 수동 등록을 지원한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-020',2,'추론 수준·도구·context 제한 등 확인 가능한 항목의 출처와 시각을 기록한다.');
@@ -72,9 +72,9 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-020',3,'requested/provider_observe
 INSERT INTO "acceptance_criteria" VALUES('AIK-021',1,'workspace가 사용할 연결을 명시하고 미허용 connection 참조를 차단한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-021',2,'내보낸 설정은 API 키나 공식 호스트 토큰을 포함하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-021',3,'새 사용자/기기에서 해석할 수 없는 비밀 참조는 재인증 필요 상태로 복원한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-022',1,'두 벤더 API 및 지원 구독 호스트에서 등록·호출·회전·해제·재연결을 검증한다. 같은 벤더의 두 연결을 번갈아 선택하거나 외부 로그인을 변경해도 다른 계정으로 묵시 실행되지 않는다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-022',2,'다른 사용자·잠금·손상된 참조·인증 만료·로그 제거 조건을 통과한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-022',3,'auth 성공과 governed 실행 준비 여부를 별도 판정하며 미지원 경로의 이유를 기록한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-022',1,'동일 matrix revision의 필수 API/지원 구독 인증 경로마다 실제 Windows 등록·호출·회전·해제·재연결을 통과한다. 같은 벤더의 두 연결과 외부 로그인 변경에서 다른 계정으로 묵시 실행되지 않는다. adapter fixture만으로 이 기준을 통과하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-022',2,'다른 사용자·잠금·손상된 참조·인증 만료·로그 제거 조건을 합성 비밀로 검증한다. 실제 계정 비밀은 장부/검증 산출물에 저장하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-022',3,'auth 성공과 governed 실행 준비 여부를 별도 판정한다. 선택/미지원 경로의 사유·관측 시각·NOT_RUN 및 근거를 기록하며 필수 경로가 미지원/미검증이면 이 태스크는 완료할 수 없다. matrix 변경은 결정·영향·재검증 기록을 요구한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-023',1,'총괄 실행 자원·모델·지원 effort·도구·호출 한도와 허용 대체 프로필을 저장한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-023',2,'총괄 설정을 바꾸어도 worker/검토자 프로필은 덮어쓰지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-023',3,'실행 직전 실제 capability를 검증하고 요청 프로필과 실제 binding/provenance를 함께 남긴다.');
@@ -105,7 +105,7 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-040',3,'한도 도달 시 신규 �
 INSERT INTO "acceptance_criteria" VALUES('AIK-081',1,'A2 same-user profile·manifest entrypoint·key/pin/digest 계약이 VM 기대와 맞는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-081',2,'호환 배포물의 provenance와 conformance PASS 증거가 확보되기 전 완료 처리하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-081',3,'upstream 수정 필요 시 해당 저장소 변경/릴리스 참조를 남기고 AIK 구현 완료와 구분한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-082',1,'첫 출시 matrix에 필수 지정된 API/구독 runtime별 실제 model/effort 관측과 receipt를 확보한다. Codex GOVERNANCE_PROVIDER_UNSUPPORTED가 남은 경로는 미지원/차단 상태로 유지한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-082',1,'동일 첫 출시 matrix의 필수 API/구독 runtime·역할 조합마다 실제 model/effort 관측과 receipt를 확보한다. adapter 구현·fixture 통과는 실제 qualification이 아니다. Codex GOVERNANCE_PROVIDER_UNSUPPORTED 등 필수 경로 미지원/NOT_RUN이 남으면 이 태스크는 완료할 수 없고 선택 경로 결과는 별도로 유지한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-082',2,'Claude configured catalog와 실제 provider 관측을 분리하고 API 경로를 포함한 각 필수 runtime이 해당 AGS/VM 관측 계약을 충족하는지 검증한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-082',3,'미관측 필드를 추정으로 채우지 않는다. 비필수 미지원 경로는 qualified 경로와 상태를 분리하고, 필수 matrix를 변경하면 결정·영향·재검증 근거를 남긴다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-032',1,'before_execution/before_completion gate를 모두 통과해야 governed 작업이 진행된다.');
@@ -122,7 +122,7 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-034',2,'lease는 VM task/attempt�
 INSERT INTO "acceptance_criteria" VALUES('AIK-034',3,'만료와 실제 provider 종료를 구분하며 살아 있는 불명확 job은 즉시 재발사하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-035',1,'request_id/contract digest/attempt/lease/provider job identity를 연결한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-035',2,'예약 완료·전송 ACK·실제 실행 시작을 별도 상태로 남긴다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-035',3,'native 경로는 기존 VM runtime을 재사용한다. API 경로는 도구 요청→AIK-029 권한 gateway→VM/AGS 공개 command 또는 허용 도구→결과 반환→후속 모델 호출을 수행하며 budget/중단·기존 Task/재시도 권위를 보존한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-035',3,'native 경로는 기존 VM runtime을 재사용하고 관측된 실제 권한과 trusted same-user 여부를 기록한다. API 경로는 도구 요청→AIK-029 권한 gateway→VM/AGS 공개 command 또는 허용 도구→결과 반환→후속 모델 호출을 수행한다. 제한 도구 경로와 native OS 권한을 혼동하지 않으며 budget/중단·기존 Task/재시도 권위를 보존한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-036',1,'provider observed 모델/effort/job 상태와 요청 설정을 분리해 저장한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-036',2,'이벤트 cursor gap과 중복을 감지하고 재조회로 복원한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-036',3,'usage 미제공과 실제 0을 구분하고 부분 출력이나 HTTP 성공만으로 완료 처리하지 않는다.');
@@ -144,7 +144,7 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-042',3,'VM 최종 권위와 기존
 INSERT INTO "acceptance_criteria" VALUES('AIK-043',1,'VM Goal/Task/Attempt, AGS workflow/peer/session, AIK placement/lease를 연결한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-043',2,'읽기 projection은 재생 가능하고 VM의 권위 원장으로 사용되지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-043',3,'AGS 로컬 PEER의 전달/claim/ACK/result와 worker 주소를 연결하며 같은 사용자 범위를 보존한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-044',1,'총괄이 한 Goal을 받아 두 벤더의 qualified 자원에 독립 Task를 배치한다. 지원 matrix의 API·구독 경로에서 허용된 읽기 도구 요청→실행→모델에 결과 반환을 검증한다. VM 직렬 제약을 보존하고 동시 실행은 qualified 경로에서만 수행한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-044',1,'총괄이 한 Goal을 받아 두 벤더의 qualified 자원에 독립 Task를 배치한다. 동일 지원 matrix의 필수 API/구독·총괄/worker 조합마다 허용 읽기 도구 요청→실행→결과 반환→후속 모델 응답을 실제 검증한다. 선택 경로의 미지원은 별도 기록하며 필수 경로 미지원/NOT_RUN은 통과하지 않는다. VM 직렬 제약과 qualified 경로의 동시성 조건을 보존한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-044',2,'실제 모델/effort/job·usage·evidence·VM verdict와 AGS 검토 조건을 확인한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-044',3,'재시작 후 동일 결과를 조회하고 lease 반환·중복 실행 없음까지 확인한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-045',1,'연결 관리·총괄·Goal·worker·근거·사용량·설정 화면으로 이동할 수 있다.');
@@ -189,23 +189,23 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-057',3,'설치·첫 실행·정상
 INSERT INTO "acceptance_criteria" VALUES('AIK-058',1,'AIK 데이터 migration 실패 시 원본을 유지하며 VM 원장 migration 정책을 임의로 변경하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-058',2,'연결 metadata·프로필·작업 참조가 보존되고 해석 불가능한 비밀은 재인증 필요로 표시한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-058',3,'업데이트 출처/무결성을 검증하고 실행 중 worker 처리·재개 정책을 적용한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-059',1,'터미널 명령 없이 두 벤더 연결→총괄 지정→역할별 worker→근거 조회를 완료한다. 지원 matrix의 API/구독 경로 각각에서 읽기 도구 실행과 결과를 반영한 후속 모델 응답을 확인한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-059',1,'터미널 명령 없이 두 벤더 연결→총괄 지정→역할별 worker→근거 조회를 완료한다. 동일 matrix의 필수 API/구독·총괄/worker 조합마다 실제 읽기 도구 실행과 후속 모델 응답을 확인한다. 선택 unsupported 경로는 정확히 안내하며 필수 경로 미지원/NOT_RUN은 이 태스크를 차단한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-059',2,'요청/실제 model·effort와 VM/AGS 판정을 확인하고 실행 완료 뒤 lease가 회수된다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-059',3,'창 닫기/재열기와 재시작 후 상태·기존 목표·인증 연결을 복원한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-060',1,'전달 전/후 crash·callback 중복/역전·취소 경쟁·unknown 결과를 재현한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-060',2,'auth expiry·budget exhausted·capacity 고갈·stale input에서 신규 실행과 재시도를 통제한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-060',3,'검증 실패/근거 부족을 완료로 표시하지 않고 회복 뒤 같은 외부 효과를 중복 실행하지 않는다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-061',1,'vault·로그·prompt·IPC·support bundle의 비밀 경계를 확인한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-061',2,'결과 화면 콘텐츠/임의 IPC가 실행·시크릿 권한을 우회하지 못함을 검증한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-061',1,'합성 비밀로 vault·로그·prompt·IPC·support bundle의 노출을 점검하고 broker 범위 거부·다른 OS 사용자 접근·native 실행 principal과 실제 권한을 확인한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-061',2,'결과 화면 콘텐츠/임의 IPC가 앱의 실행·시크릿 권한을 우회하지 못함을 검증한다. OS 격리를 광고한 경로는 실제 경계를 시험하며 trusted same-user 경로의 통과를 강한 프로세스 격리 PASS로 기록하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-061',3,'AGS/VM qualification과 AIK GUI 출시 판정을 분리하고 발견 결함의 해결 증거를 남긴다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-062',1,'queue/startup/inference/gather/audit와 전체 완료 시간을 구분한다. VM 프로젝트별 직렬 제약을 유지하며 병렬 비교는 해당 capability qualification 근거가 있는 경로에서만 수행한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-062',2,'총괄/worker 토큰·실제 비용·캐시 사용량을 지원 범위에서 측정한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-062',3,'병렬 속도 향상과 비용 절감은 각각 실측 결과로 판정하고 GUI 정지/메모리 과다 기준을 확인한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-063',1,'연결·모델 지정·목표 실행·중단·재연결·오류 해결을 실제 화면 기준으로 설명한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-063',2,'지원하지 않는 경로·확인 불가 usage·데이터 보관/삭제 정책을 구체적으로 안내한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-063',2,'지원 matrix revision/digest에 따라 구현 상태와 실지원/미지원/NOT_RUN 경로, 확인 불가 usage, 데이터 보관/삭제 및 native same-user 신뢰 범위를 안내한다. 문서의 지원 주장은 실제 qualification 근거와 일치한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-063',3,'AIK 자체 라이선스를 확정하고 배포하는 upstream 구성요소의 notice를 포함한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-064',1,'두 벤더 실제 E2E·upstream conformance·복구·독립 검토를 동일 후보에 연결한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-064',2,'미해결 필수 조건이 있으면 출시 완료로 표시하지 않고 정확한 차단 조건을 남긴다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-064',1,'같은 installer identity와 지원 matrix revision/digest에 두 벤더 실제 E2E·필수 auth/runtime/역할 경로의 live evidence·upstream conformance·복구·독립 검토를 연결한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-064',2,'필수 경로 미지원/NOT_RUN 또는 다른 미해결 필수 조건이 있으면 출시 완료로 표시하지 않는다. 선택 경로 미지원은 구현 완료와 별개로 기록하고 실제 지원으로 광고하지 않는다. 필수 범위 변경은 결정·영향·재검증 근거 없이 gate를 완화할 수 없다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-064',3,'선택된 서명/무결성·지원 환경·알려진 제한과 배포물 hash를 포함해 출시한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-065',1,'provider/model/account/workspace/TTL별 cache 경계를 보존한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-065',2,'실제 usage와 가격/credit 출처·시각에 따라 지연·비용·기한 정책을 적용한다.');
@@ -215,7 +215,7 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-066',2,'직접 생성 worker와 �
 INSERT INTO "acceptance_criteria" VALUES('AIK-066',3,'생성 API가 없는 경로는 unsupported로 표시하고 로컬 성공을 Cloud 성공으로 대체하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-067',1,'hello/capability/offer/accept/result/cancel/lease 메시지와 schema 협상을 정의한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-067',2,'상호 인증·짧은 작업 권한·key rotation/revoke·재전송/만료 조건을 정한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-067',3,'VM Goal 권위, 전역 cluster placement, 로컬 pool/lease의 소유자·복구 규칙을 명시한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-067',3,'VM Goal 권위, 전역 cluster placement, 로컬 pool/lease의 소유자·복구 규칙을 명시한다. Task 입력 manifest의 논리 대상 ID·source revision·상대경로·내용 digest·허용 artifact 참조와 수신 경로 projection·입력 준비 책임을 정의한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-068',1,'cluster_id와 신뢰 identity를 연결하고 양쪽이 허용한 scope를 기록한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-068',2,'provider 자격증명 원문을 교환하지 않고 작업 위임 권한만 사용한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-068',3,'peer 회수/인증 만료 뒤 신규 위임을 중단하고 진행 중 실행의 관측/복구를 구분한다.');
@@ -225,8 +225,8 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-069',3,'재연결 시 cursor/seque
 INSERT INTO "acceptance_criteria" VALUES('AIK-070',1,'모델 능력·도구·검증 등급·용량·비용 힌트·데이터 범위와 갱신 시각을 교환한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-070',2,'원문 secret·내부 계정·private filesystem 경로를 광고하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-070',3,'오래된 광고를 배치 확정으로 신뢰하지 않고 수락 시 로컬에서 용량·정책을 재검사한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-071',1,'상위 Goal/Task/contract revision과 하위 lease/실행 identity를 연결한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-071',2,'하위가 로컬 정책·capability·capacity를 재검사하고 요청을 거절할 수 있다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-071',1,'상위 Goal/Task/contract revision·input manifest digest를 하위 lease/실행 identity에 결속한다. 허용 artifact만 수신 측 허용 root에 준비하고 bytes/digest/freshness를 실행 전에 검증한다. 원본 논리 대상과 수신 경로 projection을 구분하며 VM 권위를 복제하지 않는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-071',2,'하위가 로컬 정책·capability·capacity와 입력 접근권한을 재검사한다. 상대경로 탈출·symlink 우회·누락·변조·stale 입력은 실행 전에 거절하고 구체 사유를 반환한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-071',3,'budget·권한·데이터 범위를 위임 시 축소할 수 있으나 임의 확대하거나 새 Task 권위를 만들지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-072',1,'결과의 원격 attempt·lease·model provenance·artifact digest를 대조한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-072',2,'원시 private 경로나 credential 원문을 전달하지 않고 범위가 제한된 artifact 접근을 사용한다.');
@@ -234,8 +234,8 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-072',3,'상위는 하위 완료 �
 INSERT INTO "acceptance_criteria" VALUES('AIK-073',1,'fencing token과 실행 identity를 수신 측에서 검증한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-073',2,'lease 만료/peer offline과 provider job 종료를 구분하고 unknown 실행을 먼저 관측한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-073',3,'coordinator 회복·취소 경합·재위임에서 단일 권위와 기존 evidence를 유지한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-074',1,'각 클러스터가 자기 credential로 실행하며 offer/accept/ACK/result/audit를 구분한다.');
-INSERT INTO "acceptance_criteria" VALUES('AIK-074',2,'단절·중복/역전 callback·취소·재시작 후 결과와 권위 상태를 회복한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-074',1,'각 클러스터가 자기 credential로 실행하며 offer/accept/ACK/result/audit를 구분한다. 송신 측에만 있는 파일과 선행 산출물을 빈/다른 root에 준비한 뒤 수신 bytes/digest·Task 입력 binding을 확인하고 실제 읽기 Task를 실행한다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-074',2,'단절·중복/역전 callback·취소·재시작 후 결과와 권위를 회복한다. 누락·변조·stale·접근불가 입력은 실행/완료를 차단하며 재조회로 사유와 입력 identity를 확인한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-074',3,'양측 실제 모델·usage·근거·lease 반환을 확인하고 로컬 mock을 원격 성공으로 기록하지 않는다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-075',1,'GUI에서 peer 연결/회수·capacity·위임 상태·원격 근거·unknown 사유를 조회한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-075',2,'전송/queue/startup/실행/gather/감사 비용과 시간을 분리 측정한다.');
@@ -271,10 +271,10 @@ INSERT INTO "decisions" VALUES('DEC05','JEV 보조와 AGENT 최종 선택','conf
 INSERT INTO "decisions" VALUES('DEC06','첫 Windows 단일 클러스터 이후 연합 확장','proposed','M0~M4는 Windows 첫 배포, M5는 두 클러스터 연합, M6는 확장으로 단계화한다.','GUI/인증/설치형 gate를 먼저 실증하기 위한 개발 순서 제안. 사용자 확정 OS 요구와 구분하며 연합 목표를 제거하지 않음.','S-DESIGN');
 INSERT INTO "decisions" VALUES('DEC07','GUI 구현 스택','open','VM의 Tauri 2+React/TypeScript+Python sidecar 제안을 우선 검토하고 Windows spike 후 ADR로 선택한다.','기존 UI 자산을 검토하되 AIK 스택으로 자동 확정하지 않음.','S-VM-GUI');
 INSERT INTO "decisions" VALUES('DEC08','Windows 지원 범위·설치 형식','open','Windows 버전·CPU 아키텍처·설치/업데이트/서명 방식을 AIK-003에서 확정한다.','사용자는 Windows만 확정했으며 x64/ARM64나 MSI/MSIX/EXE는 지정하지 않음.','S-USER');
-INSERT INTO "decisions" VALUES('DEC09','Windows 시크릿 backend','proposed','사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다.','비밀 참조만 노출하는 vault broker가 필요하며 저장소 API는 ADR에서 확정.','S-DPAPI');
+INSERT INTO "decisions" VALUES('DEC09','Windows 시크릿 backend','proposed','사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다.','비밀 참조 broker는 앱의 접근 범위를 통제한다. Windows 사용자 vault의 저장/사용자 경계와 trusted same-user native 프로세스의 직접 OS 접근 범위를 별도 명시하고 실제 보장만 검증한다.','S-DPAPI');
 INSERT INTO "decisions" VALUES('DEC10','AI-Kubernetes 라이선스','open','AIK 자체 라이선스와 재배포 notice를 배포 전에 확정한다.','최초 README는 미정. upstream 라이선스를 AIK 전체에 자동 적용하지 않음.','S-README');
-INSERT INTO "decisions" VALUES('DEC11','원격 PEER 전송과 신뢰 계약','open','버전·상호 인증·키 회수·메시지 수명·권위 회복 계약을 연합 구현 전에 확정한다.','현재 AGS 동일 사용자 로컬 PEER를 원격 신뢰 도메인과 구분.','S-AGS');
-INSERT INTO "decisions" VALUES('DEC12','첫 출시 provider/runtime·역할 지원 matrix','proposed','OpenAI/Anthropic API와 지원 Codex/Claude Code 구독 연결을 초기 대상으로 삼고, 두 벤더 및 API/구독의 총괄·worker 도구 실행 경로를 검증한다. 필수/선택/미지원 조합은 AIK-001에서 명시한다.','사용자 장착형 자원 비전을 구현하기 위한 초기 범위 제안. 개별 호스트 미지원이 다른 qualified 경로의 상태를 덮지 않도록 한다.','S-DESIGN');
+INSERT INTO "decisions" VALUES('DEC11','원격 PEER 전송과 신뢰 계약','open','버전·상호 인증·키 회수·메시지 수명·권위 회복과 입력 manifest/수신 경로 projection·준비 책임을 연합 구현 전에 확정한다.','현재 AGS 동일 사용자 로컬 PEER를 원격 신뢰 도메인과 구분.','S-AGS');
+INSERT INTO "decisions" VALUES('DEC12','첫 출시 provider/runtime·역할 지원 matrix','proposed','OpenAI/Anthropic API와 지원 Codex/Claude Code 구독 bridge를 초기 구현 대상으로 삼는다. 두 벤더 및 API/지원 구독·총괄/worker 도구 실행의 필수 조합을 AIK-001의 판본형 matrix에서 명시한다. 012~015의 adapter 구현 완료와 022/082/044/059의 라이브 qualification을 구분하고 064는 동일 matrix의 필수 경로를 모두 검증해야 완료한다.','초기 범위는 제안이며 사용자 확정 요구와 구분한다. 선택 경로의 미지원은 다른 qualified 경로를 막지 않지만 미구현 adapter를 완료 처리하거나 필수 경로를 임의 축소하지 않는다. 범위 변경 시 결정·영향·재검증 기록을 남긴다.','S-DESIGN');
 CREATE TABLE epics (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     name TEXT NOT NULL CHECK (length(trim(name)) > 0),
@@ -299,8 +299,8 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-12T05:43:24Z');
-INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T05:43:24Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-12T06:02:41Z');
+INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T06:02:41Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
 INSERT INTO "metadata" VALUES('upstream_ags_commit','56fef8bd189377b80f4020f506e717ab292b260a');
@@ -308,11 +308,12 @@ INSERT INTO "metadata" VALUES('upstream_vm_commit','32bb0f9dd9f024045d24487312b5
 INSERT INTO "metadata" VALUES('canonical_data','planning/backlog.sqlite3');
 INSERT INTO "metadata" VALUES('review_snapshot','planning/backlog.sql');
 INSERT INTO "metadata" VALUES('product_status','pre_implementation');
-INSERT INTO "metadata" VALUES('task_status_policy','All tasks start todo; planning is not implementation evidence.');
+INSERT INTO "metadata" VALUES('task_status_policy','All product tasks remain todo; planning is not implementation evidence. in_progress/done require all prerequisites done; done also requires reviewed evidence. Adapter implementation and route qualification are distinct.');
 INSERT INTO "metadata" VALUES('scope_policy','Windows GUI confirmed; local-first release staging proposed in DEC06; federation retained in M5.');
 INSERT INTO "metadata" VALUES('evidence_policy','Repository contents were read; no upstream product code or Windows product tests were executed.');
 INSERT INTO "metadata" VALUES('secret_policy','Development metadata only; runtime credentials and operational ledgers never belong in this database.');
 INSERT INTO "metadata" VALUES('ownership_policy','VM owns Goal/Task/Attempt/verdict; AGS governance/peer; AIK owns pool/placement/lease.');
+INSERT INTO "metadata" VALUES('audit_baseline_commit','019cccf0bd63684d893f50d239d54fbc2bf7b033');
 CREATE TABLE milestones (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     name TEXT NOT NULL CHECK (length(trim(name)) > 0),
@@ -321,11 +322,11 @@ CREATE TABLE milestones (
     exit_criteria TEXT NOT NULL CHECK (length(trim(exit_criteria)) > 0)
 );
 INSERT INTO "milestones" VALUES('M0','통합 계약·Windows 기반 결정',0,'first_release','엔진 책임·지원 환경·GUI 구조·설치형 계약을 확정하고 런타임 기반을 준비한다.');
-INSERT INTO "milestones" VALUES('M1','인증 보관·멀티벤더 자원 연결',1,'first_release','두 벤더의 API/지원 구독 호스트 연결과 비밀 보관·회수·능력 검증을 통과한다.');
-INSERT INTO "milestones" VALUES('M2','총괄 에이전트·AGS/VM 실행 통합',2,'first_release','총괄이 VM/AGS 계약을 따라 두 벤더 worker를 실행·검증·회수하고 재시작/한도 경계를 보존한다.');
+INSERT INTO "milestones" VALUES('M1','인증 보관·멀티벤더 자원 연결',1,'first_release','후보 adapter 코드를 구현하고, 같은 지원 matrix의 필수 두 벤더 API/지원 구독 인증 경로와 vault를 실제 Windows에서 검증한다. 선택 미지원 경로는 별도 결과로 유지한다.');
+INSERT INTO "milestones" VALUES('M2','총괄 에이전트·AGS/VM 실행 통합',2,'first_release','총괄이 같은 지원 matrix의 필수 runtime/역할과 두 벤더 worker를 실제 실행·검증·회수하고 VM/AGS 및 재시작/한도 경계를 보존한다.');
 INSERT INTO "milestones" VALUES('M3','Windows GUI 실제 연결',3,'first_release','처음 연결부터 총괄 모델 지정·목표 실행·근거 확인·중단·복구까지 GUI로 수행한다.');
 INSERT INTO "milestones" VALUES('M4','Windows 첫 배포 검증',4,'first_release','깨끗한 지원 Windows 환경의 설치본에서 실제 E2E·실패 복구·독립 검토를 통과해 배포한다.');
-INSERT INTO "milestones" VALUES('M5','탄력 운영·원격 PEER 연합',5,'follow_up','두 물리적 실행 환경의 클러스터에서 위임·결과·취소·단절 복구·비용 측정을 검증한다.');
+INSERT INTO "milestones" VALUES('M5','탄력 운영·원격 PEER 연합',5,'follow_up','두 물리적 환경에서 원격 입력 준비·위임·결과·취소·단절 복구·비용을 검증한다. 수신 측 입력 사전 복제를 성공의 전제로 삼지 않는다.');
 INSERT INTO "milestones" VALUES('M6','추가 자원·조직·배포 확장',6,'future','로컬 모델과 추가 제공자·조직 경계·선택적 Kubernetes 실행환경을 검증해 확장한다.');
 CREATE TABLE requirements (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
@@ -370,6 +371,7 @@ INSERT INTO "sources" VALUES('S-VM-GUI','VM GUI 인터페이스 설계','reposit
 INSERT INTO "sources" VALUES('S-VM-CORE','VM orchestration 권위 설계','repository','https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md','32bb0f9dd9f024045d24487312b50f5b703573a3','Goal/Plan/Task/Attempt 및 verdict는 VM 권위. README와 일부 freeze/qualification 상태 서술 차이는 설치본 증거로 해결.');
 INSERT INTO "sources" VALUES('S-DPAPI','Microsoft CryptProtectData','official_doc','https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata','accessed 2026-10-12','Windows 사용자 범위 DPAPI 검토 근거. 머신 범위를 기본으로 선택하지 않음. 일반적인 동일 사용자/기기 경계와 예외를 구분.');
 INSERT INTO "sources" VALUES('S-CRED','Microsoft Credential Manager CredWrite','official_doc','https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritea','accessed 2026-10-12','Windows 사용자 자격 증명 생성·교체 API 후보. 구체 vault backend는 ADR로 확정.');
+INSERT INTO "sources" VALUES('S-CREDREAD','Microsoft CredRead: 현재 로그온 token의 사용자 자격 증명 조회','official_doc','https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada','2026-10-12 조회','Windows 사용자 저장소의 접근 경계에 관한 공식 문서. 앱 broker scope가 동일 사용자 native 프로세스의 OS API 접근을 자동으로 제한한다는 근거는 아니다.');
 CREATE TABLE task_decisions (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     decision_id TEXT NOT NULL REFERENCES decisions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -417,6 +419,9 @@ INSERT INTO "task_decisions" VALUES('AIK-032','DEC12');
 INSERT INTO "task_decisions" VALUES('AIK-044','DEC12');
 INSERT INTO "task_decisions" VALUES('AIK-059','DEC12');
 INSERT INTO "task_decisions" VALUES('AIK-082','DEC12');
+INSERT INTO "task_decisions" VALUES('AIK-019','DEC12');
+INSERT INTO "task_decisions" VALUES('AIK-063','DEC12');
+INSERT INTO "task_decisions" VALUES('AIK-064','DEC12');
 CREATE TABLE task_dependencies (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     depends_on TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -458,10 +463,6 @@ INSERT INTO "task_dependencies" VALUES('AIK-018','AIK-009');
 INSERT INTO "task_dependencies" VALUES('AIK-018','AIK-010');
 INSERT INTO "task_dependencies" VALUES('AIK-018','AIK-017');
 INSERT INTO "task_dependencies" VALUES('AIK-019','AIK-011');
-INSERT INTO "task_dependencies" VALUES('AIK-019','AIK-012');
-INSERT INTO "task_dependencies" VALUES('AIK-019','AIK-013');
-INSERT INTO "task_dependencies" VALUES('AIK-019','AIK-014');
-INSERT INTO "task_dependencies" VALUES('AIK-019','AIK-015');
 INSERT INTO "task_dependencies" VALUES('AIK-019','AIK-016');
 INSERT INTO "task_dependencies" VALUES('AIK-020','AIK-019');
 INSERT INTO "task_dependencies" VALUES('AIK-021','AIK-010');
@@ -836,6 +837,26 @@ INSERT INTO "task_events" VALUES(101,'AIK-062','review_refined','todo','todo','�
 INSERT INTO "task_events" VALUES(102,'AIK-081','review_refined','todo','todo','독립 설계 검토 반영: 실제 계정 바인딩, API agent 도구 반복, VM 직렬/권위, 경로별 적합성, JEV 구현 상태 및 evidence identity 경계를 보완.','2026-10-12T05:41:54Z');
 INSERT INTO "task_events" VALUES(103,'AIK-082','review_refined','todo','todo','독립 설계 검토 반영: 실제 계정 바인딩, API agent 도구 반복, VM 직렬/권위, 경로별 적합성, JEV 구현 상태 및 evidence identity 경계를 보완.','2026-10-12T05:41:54Z');
 INSERT INTO "task_events" VALUES(104,'AIK-041','review_refined','todo','todo','탄력 병렬화의 실제 복수 worker 실행을 명시적 완료 기준으로 추가. VM 직렬 경로 제약은 그대로 보존.','2026-10-12T05:43:24Z');
+INSERT INTO "task_events" VALUES(105,'AIK-001','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: 구현 상태와 실제 경로 qualification 및 판본형 출시 matrix 구분. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(106,'AIK-004','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-03: 앱 접근 통제와 native OS 신뢰 경계 명시. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(107,'AIK-009','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-03: vault가 보장하는 사용자 경계와 동일 사용자 접근 한계 명시. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(108,'AIK-012','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: adapter 구현 완료 기준과 live qualification 분리. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(109,'AIK-013','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: adapter 구현 완료 기준과 live qualification 분리. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(110,'AIK-014','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: optional host 미지원과 bridge 코드 미구현을 구분. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(111,'AIK-015','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: optional host 미지원과 bridge 코드 미구현을 구분. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(112,'AIK-018','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-03: scoped broker 검사와 동일 사용자 OS 직접 접근 분리. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(113,'AIK-019','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: registry의 전체 adapter 선행 제거 및 구현/지원 상태 분리. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(114,'AIK-022','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01/AP-03: 필수 인증 경로만 live gate, 선택 상태 및 비밀 시험 경계 명시. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(115,'AIK-035','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-03: API 도구 제한과 native 실제 권한 관측 분리. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(116,'AIK-044','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: E2E를 동일 matrix의 필수 경로에 결속하고 두 벤더 기준 유지. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(117,'AIK-059','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: 설치본 E2E와 필수 지원 matrix 결속. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(118,'AIK-061','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-03: 실제 보장 경계에 맞춘 Windows 합성 비밀·권한 검증. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(119,'AIK-063','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01/AP-03: 구현과 지원 주장 및 신뢰 범위의 문서 일치. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(120,'AIK-064','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: 코드 완료만으로 제품 출시 gate를 통과할 수 없도록 명시. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(121,'AIK-067','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-02: 원격 입력 identity·준비·경로 매핑 계약 추가. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(122,'AIK-071','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-02: 원격 입력 materialization 구현과 실패 조건 추가. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(123,'AIK-074','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-02: 사전 수동 복제 없이 원격 입력 전달을 실증하는 E2E 추가. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
+INSERT INTO "task_events" VALUES(124,'AIK-082','review_refined','todo','todo','2026-10-12 독립 다각도 감사: AP-01: 실제 runtime/역할 qualification과 코드 구현 상태 분리. 설계 기준 보강이며 제품 구현 완료 근거가 아님.','2026-10-12T06:02:41Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1312,6 +1333,11 @@ INSERT INTO "task_sources" VALUES('AIK-078','S-JEV');
 INSERT INTO "task_sources" VALUES('AIK-078','S-DESIGN');
 INSERT INTO "task_sources" VALUES('AIK-079','S-DESIGN');
 INSERT INTO "task_sources" VALUES('AIK-080','S-DESIGN');
+INSERT INTO "task_sources" VALUES('AIK-004','S-CREDREAD');
+INSERT INTO "task_sources" VALUES('AIK-009','S-CREDREAD');
+INSERT INTO "task_sources" VALUES('AIK-018','S-CREDREAD');
+INSERT INTO "task_sources" VALUES('AIK-035','S-CREDREAD');
+INSERT INTO "task_sources" VALUES('AIK-061','S-CREDREAD');
 CREATE TABLE tasks (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     title TEXT NOT NULL CHECK (length(trim(title)) > 0),
@@ -1328,28 +1354,28 @@ CREATE TABLE tasks (
     created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
     updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0)
 );
-INSERT INTO "tasks" VALUES('AIK-001','AGS·VM 책임·설치형 인터페이스 기준선 확정','현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.','버전별 integration-contract와 capability/오류 매핑표','고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록','E05','M0','P0','todo','integration','Integration',1,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
+INSERT INTO "tasks" VALUES('AIK-001','AGS·VM 책임·설치형 인터페이스 기준선 확정','현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.','버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix','고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록','E05','M0','P0','todo','integration','Integration',1,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-002','Windows GUI 스택과 엔진 sidecar 검증','VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.','GUI 스택 ADR와 폐기 가능한 Windows spike','지원 후보별 설치성·IPC·worker 기동·메모리 비교','E01','M0','P0','todo','decision','Desktop',2,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-003','Windows 지원 환경·설치·서명 방식 결정','첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.','Windows support matrix와 packaging ADR','깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토','E09','M0','P0','todo','decision','Release',3,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-004','GUI·총괄·실행·시크릿 프로세스와 IPC 경계','GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다.','프로세스 구획·버전형 IPC 스키마·명령 라우터','잘못된 발신자·입력·권한에 대한 IPC 통합 검증','E01','M0','P0','todo','feature','Desktop backend',4,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
+INSERT INTO "tasks" VALUES('AIK-004','GUI·총괄·실행·시크릿 프로세스와 IPC 경계','GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다. 실행 경로별 OS principal·trust profile·실제 권한과 격리 보장 범위를 명시한다.','프로세스 구획·버전형 IPC 스키마·명령 라우터','잘못된 발신자·입력·권한에 대한 IPC 통합 검증','E01','M0','P0','todo','feature','Desktop backend',4,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-005','AIK 설정·placement·lease 저장소와 마이그레이션','제품 runtime 저장소를 개발 태스크 DB와 분리하고 VM 원장을 복제하지 않는 AIK 상태를 영속화한다.','runtime DB schema·migration·참조 repository','transaction crash와 버전 변경 rollback 검증','E01','M0','P0','todo','feature','Storage',5,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-006','로컬 supervisor와 단일 총괄 인스턴스','GUI 창과 런타임 수명을 분리하고 사용자 세션 내에서 총괄·sidecar 중복 기동을 막는다.','supervisor·instance lock·재연결 endpoint','동시 앱 실행·창 재열기·강제 종료 재기동 검증','E01','M0','P0','todo','feature','Supervisor',6,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-007','프로젝트·연결·프로필 설정과 권한 기본값','workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한다.','설정 repository·typed settings API','설정 재시작 유지·잘못된 참조·revision 충돌 검증','E01','M0','P0','todo','feature','Configuration',7,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-008','AGS·VM 설치형 적합성 진단과 upstream 결함 목록','기준선 문서에 남은 A2 gate·관측·freeze 상태를 설치형 진단으로 확인하고 필요한 upstream 작업을 분리한다.','compatibility report·진단 command·upstream blocker 목록','빈 임시 workspace의 문서 대조와 설치형 conformance 실행','E05','M0','P0','todo','integration','Integration',8,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
-INSERT INTO "tasks" VALUES('AIK-009','Windows 사용자 범위 시크릿 vault 구현','API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaque credential_ref로 접근한다.','vault backend·CRUD·OS 사용자 경계','실제 Windows vault 왕복·다른 사용자·재시작·오류 검증','E02','M1','P0','todo','feature','Credential broker',9,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
+INSERT INTO "tasks" VALUES('AIK-009','Windows 사용자 범위 시크릿 vault 구현','API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaque credential_ref로 접근한다.','vault backend·CRUD·OS 사용자 경계','실제 Windows vault 왕복·다른 사용자·재시작·오류 검증','E02','M1','P0','todo','feature','Credential broker',9,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-010','다중 계정·구독·API 연결 metadata 관리','같은 벤더의 여러 계정과 구독/API 실행 경로를 별도 connection으로 등록하고 resource와 연결한다.','ConnectionProfile schema·CRUD API','다중 계정 등록·이름 변경·중복·삭제 시 참조 검증','E02','M1','P0','todo','feature','Connections',10,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
 INSERT INTO "tasks" VALUES('AIK-011','인증·실행 adapter 공통 계약','API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력을 공통 형식으로 노출한다.','ProviderAdapter 인터페이스·오류/capability 스키마','가짜 adapter와 실제 호스트 계약 대조 검증','E03','M1','P0','todo','integration','Provider adapters',11,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
-INSERT INTO "tasks" VALUES('AIK-012','OpenAI API 자원 연결 adapter','공식 API 키 연결을 공통 자원·usage·실행 관측 계약에 연결하고 기존 구현 재사용 범위를 확인한다.','OpenAI API connection/runtime adapter','사용자가 연결한 테스트 자원의 제한된 실제 호출','E03','M1','P0','todo','feature','OpenAI API adapter',12,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
-INSERT INTO "tasks" VALUES('AIK-013','Anthropic API 자원 연결 adapter','공식 API 키 연결을 공통 자원·usage·실행 관측 계약에 연결한다.','Anthropic API connection/runtime adapter','테스트 자원 실제 호출 및 출력/usage·오류 fixture 검증','E03','M1','P0','todo','feature','Anthropic API adapter',13,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
-INSERT INTO "tasks" VALUES('AIK-014','Codex 구독 호스트 로그인·세션 연결','공식 Codex 호스트 인증과 VM의 기존 runtime 경로를 연결하고 지원되는 기능만 자원으로 노출한다.','Codex host auth bridge·connection capability','지원 Windows 호스트의 로그인·실행·만료·해제 검증','E03','M1','P0','todo','integration','Codex host bridge',14,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
-INSERT INTO "tasks" VALUES('AIK-015','Claude Code 구독 호스트 로그인·세션 연결','공식 Claude Code 인증과 VM CLI runtime을 자원 등록·재연결 인터페이스로 연결한다.','Claude host auth bridge·connection capability','지원 Windows 호스트의 로그인·실행·만료·해제 검증','E03','M1','P0','todo','integration','Claude host bridge',15,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
+INSERT INTO "tasks" VALUES('AIK-012','OpenAI API 연결 adapter 구현·계약 검증','공식 API 키 연결을 공통 자원·usage·실행 관측 계약으로 변환하는 adapter 코드를 구현하고 기존 구현 재사용 범위를 확인한다. 이 태스크의 구현 완료와 실제 계정 qualification을 구분한다.','OpenAI API adapter 코드·provider protocol fixture·구현 적합성 결과','가짜 비밀과 protocol fixture로 성공/실패 계약 검증; 실제 인증은 AIK-022, runtime/도구 실행은 AIK-082/044에서 검증','E03','M1','P0','todo','feature','OpenAI API adapter',12,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
+INSERT INTO "tasks" VALUES('AIK-013','Anthropic API 연결 adapter 구현·계약 검증','공식 API 키 연결을 공통 자원·usage·실행 관측 계약으로 변환하는 adapter 코드를 구현한다. 실제 계정 지원 여부는 별도 qualification으로 판정한다.','Anthropic API adapter 코드·provider protocol fixture·구현 적합성 결과','가짜 비밀로 인증·호출·usage·도구/오류 fixture 검증; 실제 인증은 AIK-022, runtime/도구 실행은 AIK-082/044에서 검증','E03','M1','P0','todo','feature','Anthropic API adapter',13,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
+INSERT INTO "tasks" VALUES('AIK-014','Codex 구독 호스트 인증 bridge 구현·계약 검증','공식 Codex 호스트 인증과 기존 VM runtime을 연결하는 bridge를 구현한다. 호스트 설치·인증·governance 미지원은 경로별 qualification 상태이며 bridge 코드의 구현 상태와 구분한다.','Codex host auth bridge 코드·host protocol fixture·connection capability','host fixture로 공식 인증 시작·상태·만료·해제·계정 변경 계약 검증; 실제 Windows 인증/실행은 AIK-022/082/044에서 검증','E03','M1','P0','todo','integration','Codex host bridge',14,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
+INSERT INTO "tasks" VALUES('AIK-015','Claude Code 구독 호스트 인증 bridge 구현·계약 검증','공식 Claude Code 인증과 기존 VM CLI runtime을 자원 등록·재연결 계약으로 연결하는 bridge를 구현한다. 코드 구현과 실제 Windows 호스트 qualification을 구분한다.','Claude host auth bridge 코드·host protocol fixture·connection capability','host fixture로 공식 인증·실행 요청·만료·해제·계정 변경 계약 검증; 실제 Windows 인증/실행은 AIK-022/082/044에서 검증','E03','M1','P0','todo','integration','Claude host bridge',15,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-016','인증 만료·키 회전·잠금·로그아웃 수명','연결 자격이 바뀌었을 때 신규 배치와 진행 중 작업을 구분해 처리한다.','auth state machine·재인증/잠금 이벤트','만료·동시 회전·잠금 중 실행·연결 삭제 경합 검증','E02','M1','P0','todo','feature','Credential broker',16,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-017','프롬프트·로그·오류·내보내기 시크릿 제거','비밀이 통과할 수 있는 모든 제품 출력 경로에서 실제 값과 민감 헤더를 제거한다.','redaction policy·sanitized error envelope·검증 fixture','식별 가능한 가짜 비밀로 전체 출력 경로 검사','E02','M1','P0','todo','feature','Credential broker',17,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-018','작업 범위 credential broker와 실행 시점 주입','어댑터가 인가된 연결에 한해 호출 시점에 필요한 비밀을 해석하도록 한다.','scoped secret resolution API·adapter injection','다른 workspace/임의 renderer/종료된 lease의 접근 검증','E02','M1','P0','todo','feature','Credential broker',18,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-019','ResourcePool 레지스트리·건강 상태·발견','연결별 모델/host/tools와 현재 실행 가능 상태를 용량 광고로 만든다.','resource inventory·health probe·TTL 갱신','두 벤더·다중 계정·expired/unknown capability 검증','E03','M1','P0','todo','feature','Resource registry',19,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
+INSERT INTO "tasks" VALUES('AIK-018','작업 범위 credential broker와 실행 시점 주입','어댑터가 인가된 연결에 한해 호출 시점에 필요한 비밀을 해석하도록 한다.','scoped secret resolution API·adapter injection','다른 workspace/임의 renderer/종료된 lease의 접근 검증','E02','M1','P0','todo','feature','Credential broker',18,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
+INSERT INTO "tasks" VALUES('AIK-019','ResourcePool 레지스트리·건강 상태·발견','공통 연결·capability 계약에 따라 모델/host/tools와 현재 실행 가능 상태를 광고한다. 공통 registry 개발은 모든 후보 adapter의 완성을 기다리지 않으며 구현 여부와 실제 qualification을 분리한다.','resource inventory·health probe·TTL 갱신','공통 fake adapter로 qualified/unsupported/NOT_RUN/stale와 다중 계정 상태를 검증; 실제 경로는 AIK-022/082에서 qualification','E03','M1','P0','todo','feature','Resource registry',19,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-020','모델·추론 수준·도구 capability 조회와 검증','계정별 이용 가능한 모델과 runtime 옵션을 조회하여 총괄·worker 설정의 유효 조합을 만든다.','model inventory·capability validator','변경된 모델 목록·지원 안 되는 effort/tool 조합 검증','E03','M1','P0','todo','feature','Model inventory',20,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-021','workspace별 연결 사용 범위·안전한 설정 이동','여러 프로젝트가 연결을 공유하는 범위와 설정의 import/export 정책을 구현한다.','connection scope policy·설정 export/import','다른 workspace·다른 Windows 사용자/기기의 복원 검증','E02','M1','P1','todo','feature','Connections',21,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-022','Windows 멀티벤더 인증·vault qualification','인증 화면을 붙이기 전 실제 Windows 환경에서 두 벤더의 지원 인증 경로와 비밀 경계를 검증한다.','auth/vault qualification report·재현 절차','실제 Windows 사용자 환경과 가짜 비밀의 실패 경로 검증','E02','M1','P0','todo','validation','Windows qualification',22,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
+INSERT INTO "tasks" VALUES('AIK-022','Windows 멀티벤더 인증·vault qualification','AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualification을 구분하고 선택 경로의 미지원은 독립 결과로 보관한다.','matrix revision/digest별 auth/vault qualification·경로별 live evidence·재현 절차','실제 Windows 사용자 환경과 가짜 비밀의 실패 경로 검증','E02','M1','P0','todo','validation','Windows qualification',22,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-023','총괄·worker 역할별 실행 프로필과 모델 지정','총괄의 connection/model/effort/tool/budget/fallback을 설정하고 worker/검토 역할과 독립 유지한다.','DirectorProfile·RoleProfile schema·검증 명령','다중 벤더 프로필·옵션 불일치·역할 분리 검증','E04','M2','P0','todo','feature','Director',23,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-024','총괄 에이전트 bootstrap·시작·정지','사용자가 지정한 자원으로 총괄을 실행하고 미설정 상태에서 로그인·모델 선택으로 이어지는 초기 흐름을 만든다.','director bootstrap·runtime binding·health endpoint','미설정/정상/인증불가 상태와 중복 시작 검증','E04','M2','P0','todo','feature','Director',24,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-025','총괄 inbox·callback·wake 큐','사용자 지시와 AGS/VM 이벤트를 영속 수신하고 필요한 때 총괄을 깨운다.','durable inbox/outbox·consumer·wake 정책','중복·순서 역전·재시작·빈 큐 유휴 검증','E04','M2','P0','todo','feature','Director event loop',25,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
@@ -1360,12 +1386,12 @@ INSERT INTO "tasks" VALUES('AIK-027','총괄 문맥·지시·작업 연속성','
 INSERT INTO "tasks" VALUES('AIK-028','총괄 모델 교체·허용 fallback·handoff','모델을 바꾸거나 장애 시 허용된 대체 자원을 사용할 때 문맥·권한·실제 실행 이력을 보존한다.','profile switch state machine·fallback policy','호출 중 변경·지원 도구 부족·인증 장애·handoff 검증','E04','M2','P1','todo','feature','Director',30,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-040','예산·쿼터·동시성 admission과 정산','총괄과 worker 전체 사용량을 추적하고 신규 실행 전 한도를 예약한다.','admission guard·usage reserve/settlement·quota status','경합 예약·429·잔여량 미확인·청구 지연 검증','E07','M2','P0','todo','feature','Admission and usage',31,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-081','Upstream A2 호환 AGS plugin 확보·적합성 통과','기준선 VM 문서의 실제 gate 미개방 원인을 별도 upstream 선행 작업으로 추적한다. AIK에서 gate를 우회하지 않는다.','호환 AGS 설치 artifact·A2 conformance receipt·해결 변경 참조','실제 설치 plugin의 check-plugin·A2 계약 적합성 검사와 PASS receipt 확인','E05','M2','P0','todo','integration','Upstream AGS/VM coordination',32,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
-INSERT INTO "tasks" VALUES('AIK-082','첫 출시 runtime의 모델·effort 관측 qualification','지원 matrix의 필수 API/호스트 경로에 실제 model/effort 관측과 AGS/VM 적합성 receipt를 확보한다. Codex 관측 gap과 Claude catalog/실측 차이는 경로별 준비 조건으로 추적한다.','runtime attestation compatibility report·provider별 receipt','지원 matrix의 API/구독 runtime별 설정값·실측 모델/effort·receipt 대조','E05','M2','P0','todo','integration','Upstream runtime coordination',33,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
+INSERT INTO "tasks" VALUES('AIK-082','첫 출시 runtime의 모델·effort 관측 qualification','지원 matrix의 필수 API/호스트 경로에 실제 model/effort 관측과 AGS/VM 적합성 receipt를 확보한다. Codex 관측 gap과 Claude catalog/실측 차이는 경로별 준비 조건으로 추적한다.','지원 matrix revision/digest별 runtime/role attestation report·경로별 실제 receipt','지원 matrix의 API/구독 runtime별 설정값·실측 모델/effort·receipt 대조','E05','M2','P0','todo','integration','Upstream runtime coordination',33,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-032','AGS 실행 전·완료 전 gate bridge','설치형 AGS의 적합성과 실제 실행 관측을 VM의 필수 차단 조건으로 연결한다.','VM 기존 governance gate·conformance 결과/cache·receipt를 소비하는 bridge와 상태 projection','호환 plugin과 manifest/관측 불일치의 설치형 검증','E05','M2','P0','todo','integration','AGS bridge',34,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
 INSERT INTO "tasks" VALUES('AIK-030','JEV RAW·metadata·AGENT 선택 계약 연결','사용자가 확정한 AGS/VM 내부 JEV 설계 원칙에 따라 실제 공개 입출력 계약·배포 상태를 확인하고 총괄/worker에 연결한다.','JEV bridge·RAW/REQ provenance·agent choice 기록','ON/OFF/실패·RAW 보존·최종 선택 차이 검증','E05','M2','P0','todo','integration','JEV integration',35,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
 INSERT INTO "tasks" VALUES('AIK-033','VM ready Task의 자원 placement','VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제 자원 능력에 맞게 배치한다.','placement planner·eligibility filter·결정 근거','의존성·tool/model·capacity 조건별 배치 검증','E06','M2','P0','todo','feature','Placement',36,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
 INSERT INTO "tasks" VALUES('AIK-034','worker lease·동시성 예약·fencing','기간과 작업 범위를 가진 사용권을 원자적으로 예약하고 중복 점유를 막는다.','lease manager·reservation transaction·fence counter','동시 예약·TTL 만료·stale owner·중단 경합 검증','E06','M2','P0','todo','feature','Lease manager',37,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-035','native·API 에이전트 실행과 도구 반복 연결','VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다. 모델의 도구 요청은 인가된 gateway를 통해 처리하고 결과를 다음 호출에 전달한다.','native dispatch bridge·bounded API tool loop·provider job handle·receipt','전달 전/후 crash 및 중복 dispatch 검증','E06','M2','P0','todo','integration','Runtime dispatch',38,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
+INSERT INTO "tasks" VALUES('AIK-035','native·API 에이전트 실행과 도구 반복 연결','VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다. 모델의 도구 요청은 인가된 gateway를 통해 처리하고 결과를 다음 호출에 전달한다.','native dispatch bridge·bounded API tool loop·provider job handle·receipt','전달 전/후 crash 및 중복 dispatch 검증','E06','M2','P0','todo','integration','Runtime dispatch',38,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-036','worker 실행 관측·스트림·usage 회수','실제 job 상태, 결과, 모델/effort와 사용량을 adapter를 통해 관측한다.','observer·event cursor·usage normalizer','스트림 단절·재접속·부분 결과·usage 누락 검증','E06','M2','P0','todo','feature','Runtime observer',39,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-037','결과·artifact·evidence 수집과 digest 검증','worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AGS 판정 근거에 연결한다.','evidence relay·artifact manifest·checksum 검증','유실·변조·중복 callback·다른 workspace 경로 검증','E07','M2','P0','todo','feature','Evidence relay',40,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
 INSERT INTO "tasks" VALUES('AIK-038','일시정지·취소·drain·자원 반환','신규 배치를 멈추는 동작과 실제 provider job 취소·종료를 구분해 처리한다.','cancel/drain/release controller','취소 직전 결과·지원 안 되는 취소·borrowed host 검증','E06','M2','P0','todo','feature','Worker lifecycle',41,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
@@ -1373,7 +1399,7 @@ INSERT INTO "tasks" VALUES('AIK-039','재시작·unknown 결과·재시도 recon
 INSERT INTO "tasks" VALUES('AIK-041','단일 클러스터 탄력 병렬화와 idle 정리','ready 작업과 검증된 용량에 맞춰 worker 수를 늘리고 유휴 사용권을 반환한다.','local elasticity controller·backpressure','순차/제한 병렬·capacity 고갈·idle lease 검증','E06','M2','P0','todo','feature','Elasticity',43,'2026-10-12T05:36:30Z','2026-10-12T05:43:24Z');
 INSERT INTO "tasks" VALUES('AIK-042','AGS 독립검토와 VM 완료 판정 연결','작업자의 완료 선언과 실제 validation/audit/verdict를 연결해 근거 기반 완료를 만든다.','validation/audit bridge·결과 요약 계약','실행 성공/근거 부족/감사 실패/통과 상태별 검증','E05','M2','P0','todo','integration','Validation bridge',44,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-043','VM·AGS·AIK 이벤트 상호 참조와 조회 projection','GUI가 상태를 통합해서 읽도록 각 권위 원장을 ID·revision·cursor로 연결한다.','read model·이벤트 재생·AGS session/worker 주소 매핑','중복·순서 역전·cursor gap·projection 재구축 검증','E07','M2','P0','todo','feature','Observability',45,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-044','두 벤더 단일 클러스터 실제 E2E','GUI 연결 전에 한 Windows 논리 클러스터의 총괄→VM→AGS→두 벤더→근거→반환을 실증한다.','local E2E fixture·실측 report·설치형 identity','인가된 read-only Goal 1개·독립 Task 2개 실제 실행','E05','M2','P0','todo','validation','Integration qualification',46,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
+INSERT INTO "tasks" VALUES('AIK-044','두 벤더 단일 클러스터 실제 E2E','GUI 연결 전에 한 Windows 논리 클러스터의 총괄→VM→AGS→두 벤더→근거→반환을 실증한다.','지원 matrix revision/digest별 local E2E·실측 report·설치형 identity','인가된 read-only Goal 1개·독립 Task 2개 실제 실행','E05','M2','P0','todo','validation','Integration qualification',46,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-045','Windows GUI shell·내비게이션·엔진 연결','기존 VM UI 자산을 검토해 실제 backend와 연결되는 데스크톱 shell을 만든다.','GUI shell·connection indicator·route 구조','엔진 연결/재연결·버전 오류·화면 이동 검증','E08','M3','P0','todo','feature','Desktop GUI',47,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-046','첫 실행 온보딩·벤더 로그인 GUI','설치 후 연결 추가와 공식 로그인/API 키 등록을 터미널 명령 없이 수행하게 한다.','onboarding·API/구독 연결 wizard','처음 사용하는 Windows 사용자의 전체 연결 흐름 검증','E08','M3','P0','todo','feature','Desktop GUI',48,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-047','시크릿 공간·계정·연결 관리 GUI','여러 벤더 연결을 한곳에서 확인·교체·해제하며 사용 중인 작업과의 관계를 보여준다.','credentials/connections 관리 화면','다중 계정·이름 변경·키 회전·사용 중 삭제 GUI 검증','E08','M3','P0','todo','feature','Desktop GUI',49,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
@@ -1388,22 +1414,22 @@ INSERT INTO "tasks" VALUES('AIK-055','총괄·worker 비용·quota·한도 GUI',
 INSERT INTO "tasks" VALUES('AIK-056','Windows 트레이·재접속·한글·접근성','일상 운영에서 GUI 창의 수명과 총괄 실행을 구분하고 Windows 입력/표시 품질을 검증한다.','tray/lifecycle UI·keyboard/a11y·Korean support','다중 DPI·한글 IME·키보드 이동·창 닫힘/재열기 검증','E08','M3','P1','todo','feature','Desktop GUI',58,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-057','Windows installer·runtime bundle·기동 구성','선택한 배포 형식으로 GUI와 검증된 엔진/adapter 의존성을 설치 가능하게 묶는다.','Windows installer build·runtime manifest·hash','개발 도구 없는 지원 Windows 환경의 설치/제거 검증','E09','M4','P0','todo','feature','Windows release',59,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-058','업데이트·데이터 migration·복구·설정 백업','제품 업그레이드 실패에도 기존 설정·연결 참조·작업 이력을 복구할 수 있게 한다.','update/rollback path·backup/restore·version check','중간 실패·구버전·새 Windows 사용자 복원 검증','E09','M4','P1','todo','feature','Windows release',60,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-059','Windows GUI 설치본 사용자 E2E','사용자 관점에서 인증·총괄 모델 지정·목표 실행·근거 회수·재시작을 실제 설치본으로 통과한다.','Windows installation E2E report·재현 기록','지원 matrix의 깨끗한 Windows 이미지에서 실사용 시나리오','E09','M4','P0','todo','validation','Windows qualification',61,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
+INSERT INTO "tasks" VALUES('AIK-059','Windows GUI 설치본 사용자 E2E','사용자 관점에서 인증·총괄 모델 지정·목표 실행·근거 회수·재시작을 실제 설치본으로 통과한다.','지원 matrix revision/digest 및 installer identity별 Windows GUI E2E·재현 기록','지원 matrix의 깨끗한 Windows 이미지에서 실사용 시나리오','E09','M4','P0','todo','validation','Windows qualification',61,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-060','실패·취소·중복·quota 장애 통합 검증','실제 실행 경계의 실패를 주입해 잘못된 성공과 중복 외부 효과가 생기지 않는지 검증한다.','fault qualification matrix·evidence','프로세스 crash·API timeout/429·늦은 결과·인가 변경 시나리오','E09','M4','P0','todo','validation','Integration qualification',62,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-061','Windows 시크릿·권한·출시 독립 검토','구현 담당과 구분된 검토 경로에서 인증·IPC·권한·실행 근거를 확인한다.','independent audit report·수정 및 재검증 근거','설치본의 비밀 노출·권한·증거 연결 검토','E09','M4','P0','todo','validation','Independent review',63,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
+INSERT INTO "tasks" VALUES('AIK-061','Windows 시크릿·권한·출시 독립 검토','구현 담당과 구분된 검토 경로에서 인증·IPC·권한·실행 근거를 확인한다.','independent audit report·수정 및 재검증 근거','설치본의 합성 비밀·broker 거부·OS 사용자/native 권한·증거 연결을 독립 검토','E09','M4','P0','todo','validation','Independent review',63,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-062','단일 클러스터 병렬성·응답성·사용량 실측','같은 성공 조건에서 순차/제한 병렬 실행과 GUI 운영 부담을 측정한다.','performance/cost report·measurement fixture','동일 작업·모델·품질 기준의 비교 실험','E09','M4','P1','todo','validation','Performance qualification',64,'2026-10-12T05:36:30Z','2026-10-12T05:41:54Z');
-INSERT INTO "tasks" VALUES('AIK-063','제품 사용 안내·문제 해결·라이선스 정리','GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내와 배포 문서를 제공한다.','in-app help·운영 가이드·license/third-party notices','설치본 화면·실제 support matrix와 문서 일치 검토','E09','M4','P1','todo','documentation','Product documentation',65,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-064','Windows 첫 릴리스 최종 gate·배포','완료 근거를 하나의 설치본 identity에 묶어 첫 Windows 릴리스 판정을 내린다.','release manifest·qualified installer·release notes','고정 installer hash/commit의 최종 qualification 검토','E09','M4','P0','todo','validation','Release lead',66,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
+INSERT INTO "tasks" VALUES('AIK-063','제품 사용 안내·문제 해결·라이선스 정리','GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내와 배포 문서를 제공한다.','in-app help·운영 가이드·license/third-party notices','설치본 화면·실제 support matrix와 문서 일치 검토','E09','M4','P1','todo','documentation','Product documentation',65,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
+INSERT INTO "tasks" VALUES('AIK-064','Windows 첫 릴리스 최종 gate·배포','완료 근거를 하나의 설치본 identity에 묶어 첫 Windows 릴리스 판정을 내린다.','release manifest·qualified installer·release notes','고정 installer hash/commit의 최종 qualification 검토','E09','M4','P0','todo','validation','Release lead',66,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-065','cache·rate limit·크레딧 기한 기반 배치 최적화','관측된 비용과 유효기간에 따라 허용된 작업의 배치 전략을 최적화한다.','measured scheduling policies·cache-aware queue','동일 품질 작업의 cache/rate-limit/기한 시나리오 비교','E07','M5','P1','todo','feature','Scheduling optimization',67,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-066','지원 Cloud worker 생성·재연결·종료 adapter','공식 실행 경로가 제공하는 Cloud worker 수명주기를 조사하고 실제 지원 부분을 연결한다.','Cloud lifecycle adapter·지원 capability matrix','공식 호스트 contract 확인과 제한된 실제 job 수명 검증','E03','M5','P1','todo','integration','Cloud adapters',68,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-067','원격 PEER protocol·신뢰·권위 계약 결정','현재 AGS 로컬 PEER를 보존하면서 클러스터 간 신뢰·위임·상태 규약을 확정한다.','versioned federation protocol ADR·message schemas','AGS/VM 계약 대조·위협/실패 모델 설계 검토','E10','M5','P1','todo','decision','Federation',69,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
+INSERT INTO "tasks" VALUES('AIK-067','원격 PEER protocol·신뢰·권위 계약 결정','현재 AGS 로컬 PEER를 보존하면서 클러스터 간 신뢰·위임·상태 규약을 확정한다.','versioned federation protocol ADR·message/input manifest schema·경로 projection 계약','AGS/VM 계약 대조·위협/실패 모델 설계 검토','E10','M5','P1','todo','decision','Federation',69,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-068','클러스터 identity·pairing·상호 인증·회수','독립 AIK 설치본을 peer로 등록하고 제한된 위임 권한을 부여·회수한다.','peer registry·pairing handshake·trust controls','미등록/만료/회수 peer·key rotation 검증','E10','M5','P1','todo','feature','Federation identity',70,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-069','원격 PEER durable 전송·ACK·중복 처리','네트워크를 넘는 message 전달·처리 ACK·결과 회신을 영속 큐로 연결한다.','PEER gateway·inbox/outbox·재전송·dedup','단절·지연·역전·중복·replay·version mismatch 검증','E10','M5','P1','todo','feature','Federation transport',71,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-070','클러스터 capability·가용 용량 광고','원격 클러스터 내부 계정 정보를 노출하지 않고 배치에 필요한 능력만 광고한다.','federated registry·TTL advertisement·health','stale/offline/정책 변경·동시 capacity 예약 검증','E10','M5','P1','todo','feature','Federation registry',72,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-071','전역 클러스터 배치·하위 작업 위임','상위는 실행 클러스터를, 하위는 자기 pool을 선택하며 VM 권위 계약을 보존한다.','global placement·subtree contract·delegation routing','거절/부분 수락·예산 상한·권한 범위·중복 위임 검증','E10','M5','P1','todo','feature','Federation placement',73,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
+INSERT INTO "tasks" VALUES('AIK-071','전역 클러스터 배치·입력 준비·하위 작업 위임','상위는 실행 클러스터를, 하위는 자기 pool을 선택한다. 위임 입력을 수신 환경에 준비하고 원본 입력 계약과 결속하며 VM의 Goal/Task 권위는 보존한다.','global placement·subtree contract·input materialization·delegation routing','다른 root의 입력 준비·digest/freshness·경로 탈출 거부·부분 수락·예산/권한·중복 위임 검증','E10','M5','P1','todo','feature','Federation placement',73,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-072','원격 결과·evidence·사용량 회수','클러스터 간 결과를 digest와 접근권한으로 회수하고 원래 VM/AGS 판정에 연결한다.','remote evidence relay·usage settlement','원격 artifact 접근 실패/변조/중복·지연 usage 검증','E10','M5','P1','todo','feature','Federation evidence',74,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-073','원격 lease fencing·partition·권위 회복','클러스터 단절과 coordinator 재시작에서 이중 배치·중복 외부 효과를 막는다.','distributed recovery/fencing·cancel protocol','양쪽 재시작·partition·stale owner·늦은 성공 검증','E10','M5','P1','todo','feature','Federation recovery',75,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
-INSERT INTO "tasks" VALUES('AIK-074','두 클러스터 실제 연합 E2E·장애 qualification','서로 다른 실행 환경에 설치된 두 AIK 클러스터가 한 Goal을 분담하도록 실증한다.','federation qualification·peer identity·evidence bundle','실제 네트워크를 통한 읽기 전용 두 클러스터 시나리오','E10','M5','P1','todo','validation','Federation qualification',76,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
+INSERT INTO "tasks" VALUES('AIK-074','두 클러스터 실제 연합 E2E·장애 qualification','서로 다른 실행 환경에 설치된 두 AIK 클러스터가 한 Goal을 분담하도록 실증한다.','federation qualification·peer identity·evidence bundle','송신 측에만 있는 파일/선행 산출물을 수신 측 빈 workspace·다른 root로 전달한 실제 네트워크 읽기 Task 및 실패 검증','E10','M5','P1','todo','validation','Federation qualification',76,'2026-10-12T05:36:30Z','2026-10-12T06:02:41Z');
 INSERT INTO "tasks" VALUES('AIK-075','연합 비용·성능·운영 화면과 가이드','단일/다중 클러스터 운영의 차이를 실측하고 GUI에 peer 상태·위임·복구를 노출한다.','federation GUI·benchmark·운영 가이드','동일 과제 단일/다중 cluster 비교와 peer 관리 흐름 검증','E10','M5','P1','todo','feature','Federation product',77,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-076','로컬 LLM 자원 adapter·GUI 장착','로컬 모델 서버를 계정 비밀 없는 또는 별도 인증 자원으로 연결한다.','local inference adapter·resource UI·qualification','지원 로컬 endpoint의 실행/취소/usage/한도 검증','E11','M6','P2','todo','feature','Local adapters',78,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
 INSERT INTO "tasks" VALUES('AIK-077','추가 벤더 adapter SDK·적합성 suite','새 벤더가 같은 인증·실행·관측·취소 계약으로 편입될 수 있도록 확장 규약을 제공한다.','adapter SDK·conformance kit·추가 vendor example','새 provider의 credential/model/job/error/usage 계약 검증','E11','M6','P2','todo','feature','Adapter SDK',79,'2026-10-12T05:36:30Z','2026-10-12T05:36:30Z');
@@ -1451,6 +1477,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',104);
+INSERT INTO "sqlite_sequence" VALUES('task_events',124);
 COMMIT;
 PRAGMA foreign_keys = ON;

@@ -1,6 +1,7 @@
 -- AI-Kubernetes development backlog, schema version 1.
 -- Canonical data: planning/backlog.sqlite3; review snapshot: planning/backlog.sql.
 PRAGMA foreign_keys = ON;
+PRAGMA user_version = 1;
 
 CREATE TABLE metadata (
     key TEXT PRIMARY KEY NOT NULL CHECK (length(trim(key)) > 0),

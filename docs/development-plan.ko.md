@@ -1,7 +1,9 @@
 # AI-Kubernetes 개발 계획과 설계 검토
 
 - 작성일: **2026-10-12**
-- 계획 버전: **v0.2**
+- 계획 버전: **v0.3 · 독립 다각도 감사 반영**
+- 감사 대상 개발 장부: [`019cccf0bd63684d893f50d239d54fbc2bf7b033`](https://github.com/jaeseongs95/AI-Kubernetes/commit/019cccf0bd63684d893f50d239d54fbc2bf7b033)
+- 발견 결함·수정·재검증: [2026-10-12 감사 보고서](audit-2026-10-12.ko.md)
 - 검토한 AI-Kubernetes 기준선: [`0367932ce2fa9369a3420a4867283167ea319188`](https://github.com/jaeseongs95/AI-Kubernetes/commit/0367932ce2fa9369a3420a4867283167ea319188)
 - 개발 태스크 정본: [planning/backlog.sqlite3](../planning/backlog.sqlite3)
 - 읽기용 전체 태스크: [development-backlog.ko.md](development-backlog.ko.md)
@@ -45,11 +47,29 @@ SQLite `requirements.origin`은 `user`와 `derived`를 구분한다. `sources`�
 
 Windows Credential Manager와 사용자 범위 DPAPI를 backend 후보로 검증한다. Microsoft 문서는 DPAPI의 일반적인 사용자 로그인 경계와 Credential Manager의 사용자 자격 증명 보관을 설명한다. 구체 backend는 AIK-009에서 결정하며 Windows 머신 전체 공유 범위를 기본값으로 사용하지 않는다. [CryptProtectData](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata) · [CredWrite](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritea)
 
+**저장 보호·앱 접근 통제·OS 실행 신뢰를 구분한다.** CredRead는 현재 token의 로그온 세션에 연결된 사용자 자격 증명을 읽고, DPAPI의 일반적인 복호화 경계도 사용자 로그온 자격이다. 따라서 앱의 broker scope 검사만으로 동일 OS 사용자 native 프로세스의 직접 저장소 접근이 격리된다고 가정하지 않는다. 기존 native 경로는 실제 principal·권한·`trusted same-user` 여부를 기록하고, 제한 도구를 사용하는 API 경로 및 별도 검증된 격리 capability와 구분한다. AIK-004/009/018/035/061이 이 보장 범위를 선언하고 합성 비밀로 실제 Windows 경계를 검증한다. [CredRead](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) · [VM의 A2 신뢰 경계](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md)
+
 제품 runtime DB에는 비밀 참조와 metadata만 둔다. **이 저장소의 개발 장부에는 실제 계정, API 키, 로그인 토큰, runtime 작업 데이터를 넣지 않는다.**
 
 관련 태스크: **AIK-009~022, AIK-046~048**. 첫 구현 대상으로 OpenAI/Anthropic API와 지원되는 Codex/Claude Code 구독 호스트를 계획했다. 모델 이름과 실지원 기능은 구현 시 계정·호스트별 조회 및 qualification 결과로 결정한다.
 
 초기 provider/runtime/역할 범위는 `DEC12: proposed`다. AIK-001에서 첫 출시의 필수·선택·미지원 조합을 명시한다. 개별 경로의 미지원 상태를 다른 qualified 자원의 상태와 섞지 않는다. API 자원도 단순 모델 호출을 넘어 **도구 요청→권한 gateway→허용 도구 실행→결과 반환→후속 모델 호출**을 AIK-035/044/059에서 검증한다.
+
+### 어댑터 구현과 실제 지원 판정
+
+이전 장부는 선택 경로도 실제 로그인에 성공해야 공통 registry와 출시 작업을 진행할 수 있게 연결돼 있었다. v0.3에서는 다음과 같이 완료 기준을 구분한다.
+
+| 작업 | 완료의 의미 | 완료만으로 주장할 수 없는 것 |
+| --- | --- | --- |
+| AIK-012~015 | adapter/bridge 코드와 성공·실패 protocol fixture 검증 | 실제 Windows 로그인·모델 실행 지원 |
+| AIK-019 | 공통 연결·capability 계약의 registry 및 상태 구분 | 모든 provider의 실제 지원 |
+| AIK-022 | 고정 matrix의 모든 필수 인증 경로가 실제 Windows에서 검증됨 | runtime·AGS/VM 적합성 전체 통과 |
+| AIK-082 | 필수 runtime·역할의 실제 model/effort 관측·receipt 확보 | GUI 설치본 출시 완료 |
+| AIK-044/059/064 | 같은 matrix와 배포 후보의 실제 도구 실행·GUI·출시 증거 | 미지원 또는 미검증 경로의 지원 |
+
+matrix는 `route_id`, provider, 인증 유형, 역할, 필수/선택, **adapter 구현 상태와 qualification 상태**, 사유·시각·근거 및 revision/digest를 가진다. 012~015는 미지원 응답만 반환하는 stub으로 완료할 수 없다. 019의 공통 개발은 모든 후보 adapter를 기다리지 않도록 의존성 4개를 제거했다. 선택 경로가 미지원이어도 다른 qualified 경로를 계속 검증할 수 있지만, **필수 경로가 미지원 또는 `NOT_RUN`이면 해당 qualification과 출시 작업은 완료할 수 없다.**
+
+두 벤더 및 API/지원 구독·총괄/worker 실행이라는 제안 범위는 유지한다. 필수 matrix를 바꾸면 DEC12와 영향·재검증 근거를 함께 갱신한다. 이 matrix는 앞으로 AIK-001에서 만드는 제품 산출물이며, 개발 장부 도구가 실제 provider의 지원을 자동 판정하는 기능은 아니다.
 
 ## 2. 총괄 에이전트 모델 지정과 지속 운영
 
@@ -132,16 +152,22 @@ VM의 기존 conformance 결과/cache와 gate 공개 경로를 소비한다. 또
 
 evidence를 표시용으로 정제할 때는 원본 identity/digest를 덮지 않는다. 별도 derivative identity와 digest·변환 provenance를 연결한다. 원본 보관이 정책상 허용되지 않으면 처음부터 비밀 없는 근거를 생산하도록 AIK-037에 반영했다.
 
+### 후속 연합의 입력 준비
+
+원격 실행은 결과 회수뿐 아니라 **원래 작업 입력을 수신 환경에 준비하는 과정**도 포함한다. AIK-067은 입력 manifest의 논리 대상·revision·상대경로·digest·허용 artifact 참조 및 수신 경로 매핑의 책임을 정한다. AIK-071은 허용 root에 입력을 준비하고 내용·freshness·접근권한을 확인한 뒤 기존 VM Task에 결속한다. 경로 탈출, 누락, 변조, stale 입력은 실행 전에 거절한다.
+
+AIK-074의 실제 E2E는 송신 측에만 존재하는 파일과 선행 산출물을 수신 측의 빈 workspace·다른 root에 전달해 읽도록 한다. 양쪽에 같은 파일을 수동으로 미리 복제한 시험만으로 이 기준을 통과할 수 없다. 이 작업은 기존 M5 범위에 포함하며 VM의 Goal/Task 권위를 새로 만들지 않는다.
+
 ## 5. 개발 단계와 우선순위
 
 | 단계 | 범위 | 수 | 종료 기준 |
 | --- | --- | ---: | --- |
 | M0 | 통합 계약·Windows 기반 결정 | 8 | 소유권·실제 인터페이스·지원 환경·GUI/IPC·저장 기반 확정 |
-| M1 | 인증·멀티벤더 자원 | 14 | vault 및 두 벤더 API/지원 구독 경로 검증 |
+| M1 | 인증·멀티벤더 자원 | 14 | 후보 adapter 구현과 고정 matrix의 필수 인증·vault 실제 검증 |
 | M2 | 총괄·실행·검증·회수 | 24 | 실제 총괄→VM→AGS→두 벤더의 단일 클러스터 E2E |
 | M3 | GUI 실제 연결 | 12 | 연결·총괄 지정·목표 운영·근거 확인·재접속을 GUI로 수행 |
 | M4 | Windows 첫 배포 | 8 | 설치본 E2E·실패 복구·독립 검토·서명/무결성 |
-| M5 | 탄력 운영·원격 연합 | 11 | 독립 두 클러스터 위임·결과·단절 회복·측정 |
+| M5 | 탄력 운영·원격 연합 | 11 | 독립 두 클러스터 입력 준비·위임·결과·단절 회복·측정 |
 | M6 | 추가 자원·조직·배포 | 5 | 로컬 LLM·추가 provider·정책 템플릿·조직·선택적 K8s |
 
 M0~M4의 **66개**가 현재 제안한 첫 Windows 배포 범위다. M5의 **11개**는 원격 연합과 운영 확장이고, M6의 **5개**는 추가 자원 확장이다. 단계 순서는 `DEC06: proposed`이며 독립 작업의 실제 착수 가능 여부는 `task_dependencies`가 결정한다. 예를 들어 로컬 모델 adapter는 첫 배포 검증 뒤 원격 연합과 병렬 착수할 수 있도록 직접 의존성만 둔다.
@@ -169,7 +195,7 @@ M0~M4의 **66개**가 현재 제안한 첫 Windows 배포 범위다. M5의 **11�
 | `task_evidence` | 완료 근거의 참조와 요약 |
 | `metadata` | schema·기준선·작성 시각·소유권 및 정본 정책 |
 
-현재 **82개 태스크, 17개 요구사항(사용자 9·파생 8), 12개 결정, 12개 출처, 246개 완료 기준, 300개 의존성**이다. 태스크당 완료 기준은 3개다. 초기 상태는 모두 `todo`이고 실제 완료 증거는 0개다. `created`와 `review_refined` 이력은 장부 등록 및 설계 검토 사실만 나타낸다.
+현재 **82개 태스크, 17개 요구사항(사용자 9·파생 8), 12개 결정, 13개 출처, 246개 완료 기준, 296개 의존성**이다. 태스크당 완료 기준은 3개다. 상태는 모두 `todo`이고 실제 제품 완료 증거는 0개다. `created` 82건과 `review_refined` 42건, 총 124건의 이력은 장부 등록 및 설계 검토 사실만 나타낸다.
 
 `v_backlog`는 작업별 선행 잔여 수·기준 수·증거 수를 보여준다. `v_ready_tasks`는 `todo`이면서 모든 선행 작업이 `done`인 항목이다. `v_milestone_summary`는 단계별 상태·착수 가능 수를 집계한다.
 
@@ -178,7 +204,7 @@ M0~M4의 **66개**가 현재 제안한 첫 Windows 배포 범위다. M5의 **11�
 Python 표준 라이브러리만 사용하며 제품 runtime을 설치하거나 실행하지 않는다. 아래 명령은 저장소 루트 기준이다.
 
 ```bash
-# 무결성·외래키·순환·필수 메타정보·범위 역전·완료 근거 검증
+# 버전·스키마·값·이력·외래키·순환·범위·선행·완료 근거 검증
 python tools/backlog.py validate
 
 # 다음 착수 가능한 태스크와 단계별 목록
@@ -197,11 +223,15 @@ python tools/backlog.py restore --source planning/backlog.sql --output /absolute
 python tools/backlog.py --db /absolute/path/backlog-restored.sqlite3 validate
 ```
 
-Windows에서는 복원 경로로 `C:/work/backlog-restored.sqlite3`처럼 원하는 새 경로를 사용한다. `--db`로 다른 사본을 지정할 수 있다.
+Windows에서는 복원 경로로 `C:/work/backlog-restored.sqlite3`처럼 원하는 새 경로를 사용한다. `--db`로 다른 사본을 지정할 수 있다. 기본 DB의 보고서는 `docs/development-backlog.ko.md`에 생성하고, 다른 DB의 보고서는 해당 DB 옆의 같은 이름 `.md` 파일로 생성한다. SQL 기본 출력도 실제 DB 옆의 `.sql` 파일이다. symlink로 접근해도 기본 출력은 실제 DB 경로를 따른다.
+
+`export --output`과 `status --snapshot`은 `.sql`, `report --output`은 `.md`를 사용한다. DB·저널·유지보수 잠금·schema 파일을 출력으로 덮어쓸 수 없으며, 다른 DB에서 저장소의 기본 SQL/보고서를 덮어쓰는 것도 거절한다. 복원은 도구의 portable SQL 스냅샷을 대상으로 하며 외부 DB 연결, 확장 실행, 제약 우회 PRAGMA 등을 허용하지 않는다.
 
 태스크의 요구·산출물·기준·의존성을 수정할 때는 SQLite 정본을 변경한 뒤 `validate`, `export`, `report`를 실행한다. Git에는 SQLite와 SQL/Markdown 생성본을 함께 반영한다. `schema.sql`은 새 장부의 구조 정의이고, `backlog.sql`은 데이터까지 포함한 생성 스냅샷이다. SQL 스냅샷 또는 보고서만 수동 편집해 정본과 다르게 만들지 않는다.
 
 실제 완료 시 `task_evidence`에 코드/커밋/검증 결과의 참조·요약·시각을 먼저 기록하고 모든 완료 기준을 검토한 뒤 상태를 `done`으로 변경한다. 도구는 증거 존재·선행 완료·기준 개수와 DB 관계를 확인한다. **증거 내용이 충분한지와 제품이 기준을 만족하는지는 실제 검토로 판정한다.**
+
+`in_progress`와 `done`은 모든 선행 태스크가 `done`이어야 한다. `blocked` 또는 `cancelled`는 선행 완료로 계산하지 않는다. 이미 진행/완료 중인 후행 작업의 선행을 다시 미완료로 바꾸려면 영향받는 후행 상태도 먼저 검토해야 한다. 상태 변경은 `status` 명령으로 이력과 함께 기록한다. 생성 이력 삭제, 앞뒤 상태 불일치, 상태를 바꾸는 검토 이벤트는 검증에서 거절한다.
 
 ```sql
 -- 사용자 요구별 개발 범위
@@ -225,10 +255,14 @@ WHERE p.status <> 'done'
 ORDER BY d.task_id, d.depends_on;
 ```
 
-DB와 SQL/Markdown은 서로 다른 파일이다. 상태 변경 후 스냅샷 생성이 실패하면 도구가 정본 반영 여부와 재생성 명령을 알린다. 정본의 최신 변경을 보존한 채 `export`/`report`로 복구한다. 여러 작업자가 병렬로 장부를 수정할 때는 같은 DB 파일에 별도 Git 변경을 덮어쓰지 말고 사본의 변경을 검토·병합한 뒤 생성본을 다시 만든다.
+`status`, `export`, `report`는 같은 실제 DB 경로의 유지보수 잠금을 공유하고, DB를 읽는 시점부터 커밋·생성본 게시까지 직렬화한다. 잠금 대기는 최대 10초이며 시간 초과 시 정본과 생성본을 변경하지 않는다. DB hardlink 별칭은 지원하지 않으므로 독립 사본을 사용한다. 사용 중인 `.maintenance.lock` 파일을 삭제하지 않는다.
+
+DB와 SQL/Markdown은 서로 다른 파일이라 하나의 원자적 커밋은 아니다. 커밋 전 생성 실패는 롤백하고, DB 커밋 뒤 파일 교체가 실패하면 반영 사실과 재생성 명령을 명확히 알린다. 프로세스 강제 종료 등으로 생성본 갱신이 중단됐을 때도 최신 DB를 보존하고 `export`/`report`로 복구한다. OS 파일 잠금은 이 도구를 사용하는 협력 프로세스 간 보호이며 임의의 직접 SQLite 편집까지 통제하지 않는다. 직접 데이터 편집·Git 병합 중에는 유지보수 명령을 동시에 실행하지 말고 편집을 마친 뒤 검증·재생성한다.
+
+회귀 검증은 저장소 루트에서 `python -m unittest discover -s tests -v`로 실행한다. 테스트는 별도 임시 DB와 합성 데이터만 사용한다.
 
 ## 검증 범위
 
-이 변경에서는 **개발 장부와 장부 유지보수 도구**를 검증한다. SQLite `integrity_check`, 외래키, 중복/순환 의존성, 첫 배포→후속 단계 역전, 누락 요구/출처/완료 기준, 근거 없는 완료 전환, SQL 복원과 원본 보전 등을 확인한다.
+이 변경에서는 **개발 장부와 장부 유지보수 도구**를 검증한다. SQLite `integrity_check` 외에도 신뢰 스키마·버전·metadata·실제 값의 제약·상태 이력·선행 조건을 독립 검사한다. 동시 생성본 게시, 위험한 SQL 복원, 출력 경로 충돌, 실패 전후 롤백/복구도 재현한다. 실제 실행 결과와 환경·파일 해시는 [검증 기록](../planning/validation.json), 발견 결함과 제품 설계 재검토는 [감사 보고서](audit-2026-10-12.ko.md)에 남긴다.
 
 Windows 제품 설치, 실제 벤더 로그인, 모델 실행, AGS/VM gate, 원격 클러스터 E2E는 이 변경의 실행 결과가 아니며 각각 장부의 미완료 개발/검증 태스크다.

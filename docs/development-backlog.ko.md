@@ -3,10 +3,10 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-12T05:43:24Z`
-- 검토일 (UTC): `2026-10-12T05:43:24Z`
+- 수정일 (UTC): `2026-10-12T06:02:41Z`
+- 검토일 (UTC): `2026-10-12T06:02:41Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
-- 태스크 82개 · 요구사항 17개 · 결정 12개 · 출처 12개
+- 태스크 82개 · 요구사항 17개 · 결정 12개 · 출처 13개
 - 상태: 미착수 82개 · 진행 중 0개 · 진행 차단 0개 · 완료 0개 · 취소 0개
 
 ## 유지보수 방법
@@ -60,11 +60,11 @@ python tools/backlog.py report
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E05 · AGS·VM 통합 |
 | 실행 순서 | 1 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.
 
-- **산출물:** 버전별 integration-contract와 capability/오류 매핑표
+- **산출물:** 버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix
 - **검증 방법:** 고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록
 - **선행 작업:** 없음
 - **요구사항:** [D04](#d04), [D08](#d08), [U08](#u08)
@@ -75,7 +75,7 @@ python tools/backlog.py report
 
 1. VM Goal/Plan/Task/Attempt와 AIK lease/placement의 단일 소유자 및 상호 참조 필드가 명시된다.
 2. AGS manifest 실제 경로·entrypoint·digest와 VM schema4/façade 계약을 확인하며 GUI schema2 예시 차이를 기록한다.
-3. 문서상 구현·실행 미검증·호환 미완료를 구분하고 첫 출시 provider/runtime/역할 지원 matrix의 필수·선택·미지원 경로 및 upstream 변경 재검증 조건을 정한다.
+3. 문서상 구현·실행 미검증·호환 미완료를 구분한다. 첫 출시 matrix에 route_id·provider·auth_kind·role·required/optional·adapter 구현 상태·qualification 상태·사유·관측 시각·evidence_ref와 revision/digest를 기록한다. 두 벤더 및 API/지원 구독·총괄/worker 도구 실행이라는 DEC12 제안 범위와 필수 조합의 대응을 명시하며 범위 또는 upstream 변경 시 결정·영향·재검증 근거를 남긴다.
 
 **기록된 증거**
 
@@ -159,20 +159,20 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 4 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
-GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다.
+GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다. 실행 경로별 OS principal·trust profile·실제 권한과 격리 보장 범위를 명시한다.
 
 - **산출물:** 프로세스 구획·버전형 IPC 스키마·명령 라우터
 - **검증 방법:** 잘못된 발신자·입력·권한에 대한 IPC 통합 검증
 - **선행 작업:** [AIK-001](#aik-001), [AIK-002](#aik-002)
 - **요구사항:** [D01](#d01), [D04](#d04), [U03](#u03)
-- **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
+- **출처:** [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** [DEC04](#dec04) (확정), [DEC07](#dec07) (미정)
 
 **완료 기준**
 
-1. GUI renderer가 arbitrary shell·전체 filesystem·raw secret API에 직접 접근하지 않는다.
+1. GUI renderer가 arbitrary shell·전체 filesystem·raw secret API에 직접 접근하지 않는다. API 제한 도구 경로와 trusted same-user native 경로의 OS principal·trust profile을 구분하며 앱 IPC 제한을 OS 프로세스 격리로 광고하지 않는다.
 2. 명령마다 schema·발신자·workspace·request_id를 검증하고 응답에 민감 값을 넣지 않는다.
 3. 호환되지 않는 frontend/backend 버전은 구체적인 연결 오류로 표시한다.
 
@@ -316,7 +316,7 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 
 **범위:** 첫 출시 (`first_release`)
 
-**단계 완료 조건:** 두 벤더의 API/지원 구독 호스트 연결과 비밀 보관·회수·능력 검증을 통과한다.
+**단계 완료 조건:** 후보 adapter 코드를 구현하고, 같은 지원 matrix의 필수 두 벤더 API/지원 구독 인증 경로와 vault를 실제 Windows에서 검증한다. 선택 미지원 경로는 별도 결과로 유지한다.
 
 ### AIK-009
 
@@ -330,7 +330,7 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 9 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaque credential_ref로 접근한다.
 
@@ -338,12 +338,12 @@ API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaq
 - **검증 방법:** 실제 Windows vault 왕복·다른 사용자·재시작·오류 검증
 - **선행 작업:** [AIK-002](#aik-002), [AIK-003](#aik-003), [AIK-004](#aik-004), [AIK-005](#aik-005)
 - **요구사항:** [D01](#d01), [U01](#u01), [U04](#u04)
-- **출처:** [S-CRED](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritea) ([색인](#s-cred)), [S-DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata) ([색인](#s-dpapi)), [S-USER](#s-user)
+- **출처:** [S-CRED](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritea) ([색인](#s-cred)), [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata) ([색인](#s-dpapi)), [S-USER](#s-user)
 - **관련 결정:** [DEC03](#dec03) (확정), [DEC09](#dec09) (제안)
 
 **완료 기준**
 
-1. Credential Manager 또는 사용자 범위 DPAPI 후보를 검증해 선택하고 머신 공유 범위를 기본으로 사용하지 않는다.
+1. Credential Manager 또는 사용자 범위 DPAPI 후보를 검증해 선택하고 머신 공유 범위를 기본으로 사용하지 않는다. 저장 보호·다른 OS 사용자 경계와 동일 사용자 native 프로세스의 직접 접근 범위를 ADR에 명시한다.
 2. 저장·교체·삭제와 앱 재시작 후 참조 회수가 동작한다.
 3. SQLite·설정·로그·지원 번들에서 테스트 비밀 평문이 검출되지 않으며 저장소 접근 실패를 정확히 반환한다.
 
@@ -419,7 +419,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 ### AIK-012
 
-**OpenAI API 자원 연결 adapter**
+**OpenAI API 연결 adapter 구현·계약 검증**
 
 | 항목 | 내용 |
 |---|---|
@@ -429,12 +429,12 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 12 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
-공식 API 키 연결을 공통 자원·usage·실행 관측 계약에 연결하고 기존 구현 재사용 범위를 확인한다.
+공식 API 키 연결을 공통 자원·usage·실행 관측 계약으로 변환하는 adapter 코드를 구현하고 기존 구현 재사용 범위를 확인한다. 이 태스크의 구현 완료와 실제 계정 qualification을 구분한다.
 
-- **산출물:** OpenAI API connection/runtime adapter
-- **검증 방법:** 사용자가 연결한 테스트 자원의 제한된 실제 호출
+- **산출물:** OpenAI API adapter 코드·provider protocol fixture·구현 적합성 결과
+- **검증 방법:** 가짜 비밀과 protocol fixture로 성공/실패 계약 검증; 실제 인증은 AIK-022, runtime/도구 실행은 AIK-082/044에서 검증
 - **선행 작업:** [AIK-009](#aik-009), [AIK-011](#aik-011)
 - **요구사항:** [D02](#d02), [U01](#u01), [U05](#u05)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
@@ -442,9 +442,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **완료 기준**
 
-1. 키 등록→인증 확인→지원 모델 호출→키 교체→연결 해제 흐름을 통과한다.
-2. 실제 request/job·model·usage와 API 도구 요청/결과 메시지를 공통 계약으로 변환한다. AIK-035가 이 계약으로 bounded agent tool loop를 구성할 수 있다.
-3. 잘못된 키/권한/모델은 실행 가능 자원으로 광고하지 않고 구독 잔여량과 과금을 분리한다.
+1. 키 등록·인증 확인·모델 호출·교체·해제의 코드 경로를 구현하고 성공 및 실패 protocol fixture를 통과한다. 미지원 응답만 반환하는 stub은 구현 완료가 아니다.
+2. provider request/job·model·usage와 도구 요청/결과 메시지를 공통 계약으로 변환하며 AIK-035의 bounded agent tool loop에 연결 가능하다. fixture 결과를 provider 실측으로 기록하지 않는다.
+3. 잘못된 키/권한/모델을 실행 가능 자원으로 광고하지 않고 구독 잔여량과 API 과금을 구분한다. adapter 구현 상태와 route qualification 상태를 별도로 보관하며 실제 지원은 AIK-022/082의 근거로만 판정한다.
 
 **기록된 증거**
 
@@ -452,7 +452,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 ### AIK-013
 
-**Anthropic API 자원 연결 adapter**
+**Anthropic API 연결 adapter 구현·계약 검증**
 
 | 항목 | 내용 |
 |---|---|
@@ -462,12 +462,12 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 13 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
-공식 API 키 연결을 공통 자원·usage·실행 관측 계약에 연결한다.
+공식 API 키 연결을 공통 자원·usage·실행 관측 계약으로 변환하는 adapter 코드를 구현한다. 실제 계정 지원 여부는 별도 qualification으로 판정한다.
 
-- **산출물:** Anthropic API connection/runtime adapter
-- **검증 방법:** 테스트 자원 실제 호출 및 출력/usage·오류 fixture 검증
+- **산출물:** Anthropic API adapter 코드·provider protocol fixture·구현 적합성 결과
+- **검증 방법:** 가짜 비밀로 인증·호출·usage·도구/오류 fixture 검증; 실제 인증은 AIK-022, runtime/도구 실행은 AIK-082/044에서 검증
 - **선행 작업:** [AIK-009](#aik-009), [AIK-011](#aik-011)
 - **요구사항:** [D02](#d02), [U01](#u01), [U05](#u05)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
@@ -475,9 +475,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **완료 기준**
 
-1. 키 등록→인증 확인→지원 모델 호출→키 교체→연결 해제 흐름을 통과한다.
-2. 실제 model·usage·cache 지원 및 API 도구 요청/결과 메시지를 공통 계약으로 변환한다. 잘린 결과를 완료로 승격하지 않고 AIK-035의 agent tool loop와 연결 가능하다.
-3. API 401/429/timeout과 모델 불가 상태를 공통 오류 및 확인 시각과 함께 노출한다.
+1. 키 등록·인증 확인·모델 호출·교체·해제의 코드 경로를 구현하고 성공 및 실패 protocol fixture를 통과한다. 미지원 응답만 반환하는 stub은 구현 완료가 아니다.
+2. provider model·usage·cache 및 API 도구 요청/결과 메시지를 공통 계약으로 변환한다. 잘린 결과를 완료로 승격하지 않고 AIK-035의 agent tool loop와 연결 가능하며 fixture 결과를 실측으로 기록하지 않는다.
+3. 401/429/timeout과 모델 불가 상태를 공통 오류로 노출한다. adapter 구현 상태와 route qualification 상태를 분리하고 실제 지원은 AIK-022/082의 근거로만 판정한다.
 
 **기록된 증거**
 
@@ -485,7 +485,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 ### AIK-014
 
-**Codex 구독 호스트 로그인·세션 연결**
+**Codex 구독 호스트 인증 bridge 구현·계약 검증**
 
 | 항목 | 내용 |
 |---|---|
@@ -495,12 +495,12 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 14 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
-공식 Codex 호스트 인증과 VM의 기존 runtime 경로를 연결하고 지원되는 기능만 자원으로 노출한다.
+공식 Codex 호스트 인증과 기존 VM runtime을 연결하는 bridge를 구현한다. 호스트 설치·인증·governance 미지원은 경로별 qualification 상태이며 bridge 코드의 구현 상태와 구분한다.
 
-- **산출물:** Codex host auth bridge·connection capability
-- **검증 방법:** 지원 Windows 호스트의 로그인·실행·만료·해제 검증
+- **산출물:** Codex host auth bridge 코드·host protocol fixture·connection capability
+- **검증 방법:** host fixture로 공식 인증 시작·상태·만료·해제·계정 변경 계약 검증; 실제 Windows 인증/실행은 AIK-022/082/044에서 검증
 - **선행 작업:** [AIK-008](#aik-008), [AIK-011](#aik-011)
 - **요구사항:** [D08](#d08), [U01](#u01), [U05](#u05), [U08](#u08)
 - **출처:** [S-AGS](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/README.md) ([색인](#s-ags)), [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
@@ -508,9 +508,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **완료 기준**
 
-1. GUI 명령으로 공식 인증 흐름 시작·상태 회수·재연결·해제를 수행한다.
-2. 공식 호스트 소유 인증은 host handle로 연결하며 원문 토큰을 범용 API 비밀로 재사용하지 않는다.
-3. 기존 VM runtime을 재사용한다. 실행 전 connection의 비민감 계정 binding revision을 대조하고 외부 로그인 변경은 stale/재연결로 표시한다. auth 연결과 governed 적합성을 분리한다.
+1. GUI command에 대응하는 공식 인증 시작·상태 회수·재연결·해제 코드 경로를 구현하고 성공/실패 host fixture를 통과한다. unsupported만 반환하는 stub이나 fixture 통과를 실제 로그인 성공으로 기록하지 않는다.
+2. 공식 호스트 소유 인증은 host handle로 연결하며 원문 토큰을 범용 API 비밀로 재사용하지 않는다. host absent/unsupported와 인증 만료를 별도 capability로 반환한다.
+3. 기존 VM runtime을 재사용하고 실행 전 비민감 계정 binding revision을 대조한다. 외부 로그인 변경은 stale/재연결로 표시하며 bridge 구현·실제 auth 성공·governed 적합성을 구분한다. 라이브 근거는 AIK-022/082로 연결한다.
 
 **기록된 증거**
 
@@ -518,7 +518,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 ### AIK-015
 
-**Claude Code 구독 호스트 로그인·세션 연결**
+**Claude Code 구독 호스트 인증 bridge 구현·계약 검증**
 
 | 항목 | 내용 |
 |---|---|
@@ -528,12 +528,12 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 15 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
-공식 Claude Code 인증과 VM CLI runtime을 자원 등록·재연결 인터페이스로 연결한다.
+공식 Claude Code 인증과 기존 VM CLI runtime을 자원 등록·재연결 계약으로 연결하는 bridge를 구현한다. 코드 구현과 실제 Windows 호스트 qualification을 구분한다.
 
-- **산출물:** Claude host auth bridge·connection capability
-- **검증 방법:** 지원 Windows 호스트의 로그인·실행·만료·해제 검증
+- **산출물:** Claude host auth bridge 코드·host protocol fixture·connection capability
+- **검증 방법:** host fixture로 공식 인증·실행 요청·만료·해제·계정 변경 계약 검증; 실제 Windows 인증/실행은 AIK-022/082/044에서 검증
 - **선행 작업:** [AIK-008](#aik-008), [AIK-011](#aik-011)
 - **요구사항:** [D02](#d02), [U01](#u01), [U05](#u05), [U08](#u08)
 - **출처:** [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
@@ -541,9 +541,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **완료 기준**
 
-1. GUI에서 공식 인증 시작→상태 확인→지원 실행→해제→재연결을 완료한다.
-2. 호스트가 보유한 로그인 비밀을 이중 복제하지 않고 host handle과 지원 capability를 보관한다.
-3. configured catalog와 runtime 실측을 구분한다. 실행 전 선택 계정 binding을 검증하고 외부 로그인 변경·계정 격리 불가 상태를 capability/재연결 필요로 표시한다.
+1. 공식 인증 시작·상태 확인·실행 요청·해제·재연결의 코드 경로를 구현하고 성공/실패 host fixture를 통과한다. unsupported만 반환하는 stub이나 fixture 통과를 실제 실행 성공으로 기록하지 않는다.
+2. 호스트의 로그인 비밀을 이중 복제하지 않고 host handle과 capability를 보관한다. host absent/unsupported와 인증 만료를 구분한다.
+3. configured catalog와 runtime 실측을 분리하고 선택 계정 binding을 검증한다. 외부 로그인 변경·계정 격리 불가를 capability/재연결 필요로 표시한다. bridge 구현과 라이브 지원 판정을 분리하고 실제 근거는 AIK-022/082로 연결한다.
 
 **기록된 증거**
 
@@ -627,7 +627,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 18 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 어댑터가 인가된 연결에 한해 호출 시점에 필요한 비밀을 해석하도록 한다.
 
@@ -635,13 +635,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 - **검증 방법:** 다른 workspace/임의 renderer/종료된 lease의 접근 검증
 - **선행 작업:** [AIK-004](#aik-004), [AIK-009](#aik-009), [AIK-010](#aik-010), [AIK-017](#aik-017)
 - **요구사항:** [D01](#d01), [D05](#d05), [U01](#u01)
-- **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
+- **출처:** [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
 
 **완료 기준**
 
 1. 총괄과 worker에는 connection_id 또는 credential_ref만 전달한다.
-2. 허용된 adapter·workspace·작업 범위가 일치할 때만 비밀을 해석하고 임의 비밀 열람 요청을 거절한다.
+2. 허용된 adapter·workspace·작업 범위가 일치할 때만 broker 경로에서 비밀을 해석하고 임의 열람 요청을 거절한다. 같은 OS 사용자 native 프로세스의 직접 저장소 접근까지 이 검사로 격리된다고 주장하지 않으며 해당 경로의 trust profile을 연결한다.
 3. 비밀을 명령행 인수나 지속 설정파일에 남기지 않고 자식 프로세스 전달·정리 범위를 검증한다.
 
 **기록된 증거**
@@ -660,21 +660,21 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 19 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
-연결별 모델/host/tools와 현재 실행 가능 상태를 용량 광고로 만든다.
+공통 연결·capability 계약에 따라 모델/host/tools와 현재 실행 가능 상태를 광고한다. 공통 registry 개발은 모든 후보 adapter의 완성을 기다리지 않으며 구현 여부와 실제 qualification을 분리한다.
 
 - **산출물:** resource inventory·health probe·TTL 갱신
-- **검증 방법:** 두 벤더·다중 계정·expired/unknown capability 검증
-- **선행 작업:** [AIK-011](#aik-011), [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-016](#aik-016)
+- **검증 방법:** 공통 fake adapter로 qualified/unsupported/NOT_RUN/stale와 다중 계정 상태를 검증; 실제 경로는 AIK-022/082에서 qualification
+- **선행 작업:** [AIK-011](#aik-011), [AIK-016](#aik-016)
 - **요구사항:** [D02](#d02), [D05](#d05), [U05](#u05)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
-- **관련 결정:** 없음
+- **관련 결정:** [DEC12](#dec12) (제안)
 
 **완료 기준**
 
 1. pool_id와 connection_id를 분리하고 같은 모델의 구독/API 경로를 각각 조회한다.
-2. auth 계정 binding·runtime 지원·governance 적합성·최종 확인 시각을 별도 필드로 노출하고 외부 로그인 변경 시 해당 자원의 실행 가능성을 재검증한다.
+2. adapter 구현 상태·auth 계정 binding·runtime 지원·governance 적합성·최종 확인 시각·matrix revision을 별도 필드로 노출한다. 외부 로그인 변경은 재검증하며 선택 경로 unsupported가 다른 qualified 경로를 덮지 않는다. 구현 완료만으로 실행 가능 광고를 하지 않는다.
 3. 오래되거나 확인할 수 없는 값은 unknown/stale로 표시하며 0이나 무제한 용량으로 만들지 않는다.
 
 **기록된 증거**
@@ -759,11 +759,11 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 검증 (`validation`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 22 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
-인증 화면을 붙이기 전 실제 Windows 환경에서 두 벤더의 지원 인증 경로와 비밀 경계를 검증한다.
+AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualification을 구분하고 선택 경로의 미지원은 독립 결과로 보관한다.
 
-- **산출물:** auth/vault qualification report·재현 절차
+- **산출물:** matrix revision/digest별 auth/vault qualification·경로별 live evidence·재현 절차
 - **검증 방법:** 실제 Windows 사용자 환경과 가짜 비밀의 실패 경로 검증
 - **선행 작업:** [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-016](#aik-016), [AIK-017](#aik-017), [AIK-018](#aik-018), [AIK-019](#aik-019), [AIK-020](#aik-020), [AIK-021](#aik-021)
 - **요구사항:** [D01](#d01), [D06](#d06), [D08](#d08), [U01](#u01), [U04](#u04)
@@ -772,9 +772,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **완료 기준**
 
-1. 두 벤더 API 및 지원 구독 호스트에서 등록·호출·회전·해제·재연결을 검증한다. 같은 벤더의 두 연결을 번갈아 선택하거나 외부 로그인을 변경해도 다른 계정으로 묵시 실행되지 않는다.
-2. 다른 사용자·잠금·손상된 참조·인증 만료·로그 제거 조건을 통과한다.
-3. auth 성공과 governed 실행 준비 여부를 별도 판정하며 미지원 경로의 이유를 기록한다.
+1. 동일 matrix revision의 필수 API/지원 구독 인증 경로마다 실제 Windows 등록·호출·회전·해제·재연결을 통과한다. 같은 벤더의 두 연결과 외부 로그인 변경에서 다른 계정으로 묵시 실행되지 않는다. adapter fixture만으로 이 기준을 통과하지 않는다.
+2. 다른 사용자·잠금·손상된 참조·인증 만료·로그 제거 조건을 합성 비밀로 검증한다. 실제 계정 비밀은 장부/검증 산출물에 저장하지 않는다.
+3. auth 성공과 governed 실행 준비 여부를 별도 판정한다. 선택/미지원 경로의 사유·관측 시각·NOT_RUN 및 근거를 기록하며 필수 경로가 미지원/미검증이면 이 태스크는 완료할 수 없다. matrix 변경은 결정·영향·재검증 기록을 요구한다.
 
 **기록된 증거**
 
@@ -784,7 +784,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **범위:** 첫 출시 (`first_release`)
 
-**단계 완료 조건:** 총괄이 VM/AGS 계약을 따라 두 벤더 worker를 실행·검증·회수하고 재시작/한도 경계를 보존한다.
+**단계 완료 조건:** 총괄이 같은 지원 matrix의 필수 runtime/역할과 두 벤더 worker를 실제 실행·검증·회수하고 VM/AGS 및 재시작/한도 경계를 보존한다.
 
 ### AIK-023
 
@@ -1128,11 +1128,11 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E05 · AGS·VM 통합 |
 | 실행 순서 | 33 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 지원 matrix의 필수 API/호스트 경로에 실제 model/effort 관측과 AGS/VM 적합성 receipt를 확보한다. Codex 관측 gap과 Claude catalog/실측 차이는 경로별 준비 조건으로 추적한다.
 
-- **산출물:** runtime attestation compatibility report·provider별 receipt
+- **산출물:** 지원 matrix revision/digest별 runtime/role attestation report·경로별 실제 receipt
 - **검증 방법:** 지원 matrix의 API/구독 runtime별 설정값·실측 모델/effort·receipt 대조
 - **선행 작업:** [AIK-008](#aik-008), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-020](#aik-020)
 - **요구사항:** [D02](#d02), [D06](#d06), [D08](#d08), [U02](#u02), [U08](#u08)
@@ -1141,7 +1141,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 **완료 기준**
 
-1. 첫 출시 matrix에 필수 지정된 API/구독 runtime별 실제 model/effort 관측과 receipt를 확보한다. Codex GOVERNANCE_PROVIDER_UNSUPPORTED가 남은 경로는 미지원/차단 상태로 유지한다.
+1. 동일 첫 출시 matrix의 필수 API/구독 runtime·역할 조합마다 실제 model/effort 관측과 receipt를 확보한다. adapter 구현·fixture 통과는 실제 qualification이 아니다. Codex GOVERNANCE_PROVIDER_UNSUPPORTED 등 필수 경로 미지원/NOT_RUN이 남으면 이 태스크는 완료할 수 없고 선택 경로 결과는 별도로 유지한다.
 2. Claude configured catalog와 실제 provider 관측을 분리하고 API 경로를 포함한 각 필수 runtime이 해당 AGS/VM 관측 계약을 충족하는지 검증한다.
 3. 미관측 필드를 추정으로 채우지 않는다. 비필수 미지원 경로는 qualified 경로와 상태를 분리하고, 필수 matrix를 변경하면 결정·영향·재검증 근거를 남긴다.
 
@@ -1293,7 +1293,7 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E06 · 배치·worker 수명 |
 | 실행 순서 | 38 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다. 모델의 도구 요청은 인가된 gateway를 통해 처리하고 결과를 다음 호출에 전달한다.
 
@@ -1301,14 +1301,14 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 - **검증 방법:** 전달 전/후 crash 및 중복 dispatch 검증
 - **선행 작업:** [AIK-018](#aik-018), [AIK-029](#aik-029), [AIK-031](#aik-031), [AIK-032](#aik-032), [AIK-034](#aik-034)
 - **요구사항:** [D04](#d04), [D06](#d06), [U06](#u06), [U08](#u08)
-- **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
+- **출처:** [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
 
 **완료 기준**
 
 1. request_id/contract digest/attempt/lease/provider job identity를 연결한다.
 2. 예약 완료·전송 ACK·실제 실행 시작을 별도 상태로 남긴다.
-3. native 경로는 기존 VM runtime을 재사용한다. API 경로는 도구 요청→AIK-029 권한 gateway→VM/AGS 공개 command 또는 허용 도구→결과 반환→후속 모델 호출을 수행하며 budget/중단·기존 Task/재시도 권위를 보존한다.
+3. native 경로는 기존 VM runtime을 재사용하고 관측된 실제 권한과 trusted same-user 여부를 기록한다. API 경로는 도구 요청→AIK-029 권한 gateway→VM/AGS 공개 command 또는 허용 도구→결과 반환→후속 모델 호출을 수행한다. 제한 도구 경로와 native OS 권한을 혼동하지 않으며 budget/중단·기존 Task/재시도 권위를 보존한다.
 
 **기록된 증거**
 
@@ -1557,11 +1557,11 @@ GUI가 상태를 통합해서 읽도록 각 권위 원장을 ID·revision·curso
 | 작업 유형 | 검증 (`validation`) |
 | 에픽 | E05 · AGS·VM 통합 |
 | 실행 순서 | 46 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 GUI 연결 전에 한 Windows 논리 클러스터의 총괄→VM→AGS→두 벤더→근거→반환을 실증한다.
 
-- **산출물:** local E2E fixture·실측 report·설치형 identity
+- **산출물:** 지원 matrix revision/digest별 local E2E·실측 report·설치형 identity
 - **검증 방법:** 인가된 read-only Goal 1개·독립 Task 2개 실제 실행
 - **선행 작업:** [AIK-022](#aik-022), [AIK-026](#aik-026), [AIK-027](#aik-027), [AIK-028](#aik-028), [AIK-030](#aik-030), [AIK-038](#aik-038), [AIK-039](#aik-039), [AIK-040](#aik-040), [AIK-041](#aik-041), [AIK-042](#aik-042), [AIK-043](#aik-043)
 - **요구사항:** [D06](#d06), [D08](#d08), [U02](#u02), [U05](#u05), [U06](#u06), [U08](#u08)
@@ -1570,7 +1570,7 @@ GUI 연결 전에 한 Windows 논리 클러스터의 총괄→VM→AGS→두 벤
 
 **완료 기준**
 
-1. 총괄이 한 Goal을 받아 두 벤더의 qualified 자원에 독립 Task를 배치한다. 지원 matrix의 API·구독 경로에서 허용된 읽기 도구 요청→실행→모델에 결과 반환을 검증한다. VM 직렬 제약을 보존하고 동시 실행은 qualified 경로에서만 수행한다.
+1. 총괄이 한 Goal을 받아 두 벤더의 qualified 자원에 독립 Task를 배치한다. 동일 지원 matrix의 필수 API/구독·총괄/worker 조합마다 허용 읽기 도구 요청→실행→결과 반환→후속 모델 응답을 실제 검증한다. 선택 경로의 미지원은 별도 기록하며 필수 경로 미지원/NOT_RUN은 통과하지 않는다. VM 직렬 제약과 qualified 경로의 동시성 조건을 보존한다.
 2. 실제 모델/effort/job·usage·evidence·VM verdict와 AGS 검토 조건을 확인한다.
 3. 재시작 후 동일 결과를 조회하고 lease 반환·중복 실행 없음까지 확인한다.
 
@@ -2064,11 +2064,11 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 작업 유형 | 검증 (`validation`) |
 | 에픽 | E09 · Windows 출시 |
 | 실행 순서 | 61 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:41:54Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 사용자 관점에서 인증·총괄 모델 지정·목표 실행·근거 회수·재시작을 실제 설치본으로 통과한다.
 
-- **산출물:** Windows installation E2E report·재현 기록
+- **산출물:** 지원 matrix revision/digest 및 installer identity별 Windows GUI E2E·재현 기록
 - **검증 방법:** 지원 matrix의 깨끗한 Windows 이미지에서 실사용 시나리오
 - **선행 작업:** [AIK-057](#aik-057), [AIK-058](#aik-058)
 - **요구사항:** [D06](#d06), [D08](#d08), [U01](#u01), [U02](#u02), [U03](#u03), [U04](#u04), [U06](#u06)
@@ -2077,7 +2077,7 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 
 **완료 기준**
 
-1. 터미널 명령 없이 두 벤더 연결→총괄 지정→역할별 worker→근거 조회를 완료한다. 지원 matrix의 API/구독 경로 각각에서 읽기 도구 실행과 결과를 반영한 후속 모델 응답을 확인한다.
+1. 터미널 명령 없이 두 벤더 연결→총괄 지정→역할별 worker→근거 조회를 완료한다. 동일 matrix의 필수 API/구독·총괄/worker 조합마다 실제 읽기 도구 실행과 후속 모델 응답을 확인한다. 선택 unsupported 경로는 정확히 안내하며 필수 경로 미지원/NOT_RUN은 이 태스크를 차단한다.
 2. 요청/실제 model·effort와 VM/AGS 판정을 확인하고 실행 완료 뒤 lease가 회수된다.
 3. 창 닫기/재열기와 재시작 후 상태·기존 목표·인증 연결을 복원한다.
 
@@ -2130,21 +2130,21 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 작업 유형 | 검증 (`validation`) |
 | 에픽 | E09 · Windows 출시 |
 | 실행 순서 | 63 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 구현 담당과 구분된 검토 경로에서 인증·IPC·권한·실행 근거를 확인한다.
 
 - **산출물:** independent audit report·수정 및 재검증 근거
-- **검증 방법:** 설치본의 비밀 노출·권한·증거 연결 검토
+- **검증 방법:** 설치본의 합성 비밀·broker 거부·OS 사용자/native 권한·증거 연결을 독립 검토
 - **선행 작업:** [AIK-059](#aik-059), [AIK-060](#aik-060)
 - **요구사항:** [D01](#d01), [D06](#d06), [D08](#d08), [U04](#u04)
-- **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
+- **출처:** [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
 
 **완료 기준**
 
-1. vault·로그·prompt·IPC·support bundle의 비밀 경계를 확인한다.
-2. 결과 화면 콘텐츠/임의 IPC가 실행·시크릿 권한을 우회하지 못함을 검증한다.
+1. 합성 비밀로 vault·로그·prompt·IPC·support bundle의 노출을 점검하고 broker 범위 거부·다른 OS 사용자 접근·native 실행 principal과 실제 권한을 확인한다.
+2. 결과 화면 콘텐츠/임의 IPC가 앱의 실행·시크릿 권한을 우회하지 못함을 검증한다. OS 격리를 광고한 경로는 실제 경계를 시험하며 trusted same-user 경로의 통과를 강한 프로세스 격리 PASS로 기록하지 않는다.
 3. AGS/VM qualification과 AIK GUI 출시 판정을 분리하고 발견 결함의 해결 증거를 남긴다.
 
 **기록된 증거**
@@ -2196,7 +2196,7 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 작업 유형 | 문서 (`documentation`) |
 | 에픽 | E09 · Windows 출시 |
 | 실행 순서 | 65 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내와 배포 문서를 제공한다.
 
@@ -2205,12 +2205,12 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **선행 작업:** [AIK-057](#aik-057), [AIK-059](#aik-059)
 - **요구사항:** [D07](#d07), [U03](#u03), [U04](#u04)
 - **출처:** [S-README](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/README.md) ([색인](#s-readme)), [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
-- **관련 결정:** [DEC10](#dec10) (미정)
+- **관련 결정:** [DEC10](#dec10) (미정), [DEC12](#dec12) (제안)
 
 **완료 기준**
 
 1. 연결·모델 지정·목표 실행·중단·재연결·오류 해결을 실제 화면 기준으로 설명한다.
-2. 지원하지 않는 경로·확인 불가 usage·데이터 보관/삭제 정책을 구체적으로 안내한다.
+2. 지원 matrix revision/digest에 따라 구현 상태와 실지원/미지원/NOT_RUN 경로, 확인 불가 usage, 데이터 보관/삭제 및 native same-user 신뢰 범위를 안내한다. 문서의 지원 주장은 실제 qualification 근거와 일치한다.
 3. AIK 자체 라이선스를 확정하고 배포하는 upstream 구성요소의 notice를 포함한다.
 
 **기록된 증거**
@@ -2229,7 +2229,7 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 | 작업 유형 | 검증 (`validation`) |
 | 에픽 | E09 · Windows 출시 |
 | 실행 순서 | 66 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 완료 근거를 하나의 설치본 identity에 묶어 첫 Windows 릴리스 판정을 내린다.
 
@@ -2238,12 +2238,12 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **선행 작업:** [AIK-058](#aik-058), [AIK-059](#aik-059), [AIK-060](#aik-060), [AIK-061](#aik-061), [AIK-062](#aik-062), [AIK-063](#aik-063)
 - **요구사항:** [D06](#d06), [D07](#d07), [D08](#d08), [U01](#u01), [U02](#u02), [U03](#u03), [U04](#u04), [U05](#u05), [U06](#u06), [U08](#u08)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
-- **관련 결정:** [DEC01](#dec01) (확정), [DEC06](#dec06) (제안)
+- **관련 결정:** [DEC01](#dec01) (확정), [DEC06](#dec06) (제안), [DEC12](#dec12) (제안)
 
 **완료 기준**
 
-1. 두 벤더 실제 E2E·upstream conformance·복구·독립 검토를 동일 후보에 연결한다.
-2. 미해결 필수 조건이 있으면 출시 완료로 표시하지 않고 정확한 차단 조건을 남긴다.
+1. 같은 installer identity와 지원 matrix revision/digest에 두 벤더 실제 E2E·필수 auth/runtime/역할 경로의 live evidence·upstream conformance·복구·독립 검토를 연결한다.
+2. 필수 경로 미지원/NOT_RUN 또는 다른 미해결 필수 조건이 있으면 출시 완료로 표시하지 않는다. 선택 경로 미지원은 구현 완료와 별개로 기록하고 실제 지원으로 광고하지 않는다. 필수 범위 변경은 결정·영향·재검증 근거 없이 gate를 완화할 수 없다.
 3. 선택된 서명/무결성·지원 환경·알려진 제한과 배포물 hash를 포함해 출시한다.
 
 **기록된 증거**
@@ -2254,7 +2254,7 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 
 **범위:** 후속 개발 (`follow_up`)
 
-**단계 완료 조건:** 두 물리적 실행 환경의 클러스터에서 위임·결과·취소·단절 복구·비용 측정을 검증한다.
+**단계 완료 조건:** 두 물리적 환경에서 원격 입력 준비·위임·결과·취소·단절 복구·비용을 검증한다. 수신 측 입력 사전 복제를 성공의 전제로 삼지 않는다.
 
 ### AIK-065
 
@@ -2334,11 +2334,11 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 | 작업 유형 | 결정 (`decision`) |
 | 에픽 | E10 · 클러스터 연합 |
 | 실행 순서 | 69 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 현재 AGS 로컬 PEER를 보존하면서 클러스터 간 신뢰·위임·상태 규약을 확정한다.
 
-- **산출물:** versioned federation protocol ADR·message schemas
+- **산출물:** versioned federation protocol ADR·message/input manifest schema·경로 projection 계약
 - **검증 방법:** AGS/VM 계약 대조·위협/실패 모델 설계 검토
 - **선행 작업:** [AIK-001](#aik-001), [AIK-043](#aik-043), [AIK-064](#aik-064)
 - **요구사항:** [D04](#d04), [D05](#d05), [U07](#u07), [U08](#u08)
@@ -2349,7 +2349,7 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 
 1. hello/capability/offer/accept/result/cancel/lease 메시지와 schema 협상을 정의한다.
 2. 상호 인증·짧은 작업 권한·key rotation/revoke·재전송/만료 조건을 정한다.
-3. VM Goal 권위, 전역 cluster placement, 로컬 pool/lease의 소유자·복구 규칙을 명시한다.
+3. VM Goal 권위, 전역 cluster placement, 로컬 pool/lease의 소유자·복구 규칙을 명시한다. Task 입력 manifest의 논리 대상 ID·source revision·상대경로·내용 digest·허용 artifact 참조와 수신 경로 projection·입력 준비 책임을 정의한다.
 
 **기록된 증거**
 
@@ -2456,7 +2456,7 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 
 ### AIK-071
 
-**전역 클러스터 배치·하위 작업 위임**
+**전역 클러스터 배치·입력 준비·하위 작업 위임**
 
 | 항목 | 내용 |
 |---|---|
@@ -2466,12 +2466,12 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E10 · 클러스터 연합 |
 | 실행 순서 | 73 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
-상위는 실행 클러스터를, 하위는 자기 pool을 선택하며 VM 권위 계약을 보존한다.
+상위는 실행 클러스터를, 하위는 자기 pool을 선택한다. 위임 입력을 수신 환경에 준비하고 원본 입력 계약과 결속하며 VM의 Goal/Task 권위는 보존한다.
 
-- **산출물:** global placement·subtree contract·delegation routing
-- **검증 방법:** 거절/부분 수락·예산 상한·권한 범위·중복 위임 검증
+- **산출물:** global placement·subtree contract·input materialization·delegation routing
+- **검증 방법:** 다른 root의 입력 준비·digest/freshness·경로 탈출 거부·부분 수락·예산/권한·중복 위임 검증
 - **선행 작업:** [AIK-033](#aik-033), [AIK-034](#aik-034), [AIK-040](#aik-040), [AIK-069](#aik-069), [AIK-070](#aik-070)
 - **요구사항:** [D04](#d04), [D05](#d05), [U06](#u06), [U07](#u07)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
@@ -2479,8 +2479,8 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 
 **완료 기준**
 
-1. 상위 Goal/Task/contract revision과 하위 lease/실행 identity를 연결한다.
-2. 하위가 로컬 정책·capability·capacity를 재검사하고 요청을 거절할 수 있다.
+1. 상위 Goal/Task/contract revision·input manifest digest를 하위 lease/실행 identity에 결속한다. 허용 artifact만 수신 측 허용 root에 준비하고 bytes/digest/freshness를 실행 전에 검증한다. 원본 논리 대상과 수신 경로 projection을 구분하며 VM 권위를 복제하지 않는다.
+2. 하위가 로컬 정책·capability·capacity와 입력 접근권한을 재검사한다. 상대경로 탈출·symlink 우회·누락·변조·stale 입력은 실행 전에 거절하고 구체 사유를 반환한다.
 3. budget·권한·데이터 범위를 위임 시 축소할 수 있으나 임의 확대하거나 새 Task 권위를 만들지 않는다.
 
 **기록된 증거**
@@ -2565,12 +2565,12 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 | 작업 유형 | 검증 (`validation`) |
 | 에픽 | E10 · 클러스터 연합 |
 | 실행 순서 | 76 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T05:36:30Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:02:41Z` |
 
 서로 다른 실행 환경에 설치된 두 AIK 클러스터가 한 Goal을 분담하도록 실증한다.
 
 - **산출물:** federation qualification·peer identity·evidence bundle
-- **검증 방법:** 실제 네트워크를 통한 읽기 전용 두 클러스터 시나리오
+- **검증 방법:** 송신 측에만 있는 파일/선행 산출물을 수신 측 빈 workspace·다른 root로 전달한 실제 네트워크 읽기 Task 및 실패 검증
 - **선행 작업:** [AIK-068](#aik-068), [AIK-069](#aik-069), [AIK-070](#aik-070), [AIK-071](#aik-071), [AIK-072](#aik-072), [AIK-073](#aik-073)
 - **요구사항:** [D06](#d06), [D08](#d08), [U06](#u06), [U07](#u07)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
@@ -2578,8 +2578,8 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 
 **완료 기준**
 
-1. 각 클러스터가 자기 credential로 실행하며 offer/accept/ACK/result/audit를 구분한다.
-2. 단절·중복/역전 callback·취소·재시작 후 결과와 권위 상태를 회복한다.
+1. 각 클러스터가 자기 credential로 실행하며 offer/accept/ACK/result/audit를 구분한다. 송신 측에만 있는 파일과 선행 산출물을 빈/다른 root에 준비한 뒤 수신 bytes/digest·Task 입력 binding을 확인하고 실제 읽기 Task를 실행한다.
+2. 단절·중복/역전 callback·취소·재시작 후 결과와 권위를 회복한다. 누락·변조·stale·접근불가 입력은 실행/완료를 차단하며 재조회로 사유와 입력 identity를 확인한다.
 3. 양측 실제 모델·usage·근거·lease 반환을 확인하고 로컬 mock을 원격 성공으로 기록하지 않는다.
 
 **기록된 증거**
@@ -3053,7 +3053,7 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 
 **결정 내용:** 사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다.
 
-**이유:** 비밀 참조만 노출하는 vault broker가 필요하며 저장소 API는 ADR에서 확정.
+**이유:** 비밀 참조 broker는 앱의 접근 범위를 통제한다. Windows 사용자 vault의 저장/사용자 경계와 trusted same-user native 프로세스의 직접 OS 접근 범위를 별도 명시하고 실제 보장만 검증한다.
 
 ### DEC10
 
@@ -3075,7 +3075,7 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 - 출처: [S-AGS](#s-ags)
 - 관련 태스크: [AIK-067](#aik-067)
 
-**결정 내용:** 버전·상호 인증·키 회수·메시지 수명·권위 회복 계약을 연합 구현 전에 확정한다.
+**결정 내용:** 버전·상호 인증·키 회수·메시지 수명·권위 회복과 입력 manifest/수신 경로 projection·준비 책임을 연합 구현 전에 확정한다.
 
 **이유:** 현재 AGS 동일 사용자 로컬 PEER를 원격 신뢰 도메인과 구분.
 
@@ -3085,11 +3085,11 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 
 - 상태: 제안 (`proposed`)
 - 출처: [S-DESIGN](#s-design)
-- 관련 태스크: [AIK-001](#aik-001), [AIK-008](#aik-008), [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-022](#aik-022), [AIK-082](#aik-082), [AIK-032](#aik-032), [AIK-044](#aik-044), [AIK-059](#aik-059)
+- 관련 태스크: [AIK-001](#aik-001), [AIK-008](#aik-008), [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-019](#aik-019), [AIK-022](#aik-022), [AIK-082](#aik-082), [AIK-032](#aik-032), [AIK-044](#aik-044), [AIK-059](#aik-059), [AIK-063](#aik-063), [AIK-064](#aik-064)
 
-**결정 내용:** OpenAI/Anthropic API와 지원 Codex/Claude Code 구독 연결을 초기 대상으로 삼고, 두 벤더 및 API/구독의 총괄·worker 도구 실행 경로를 검증한다. 필수/선택/미지원 조합은 AIK-001에서 명시한다.
+**결정 내용:** OpenAI/Anthropic API와 지원 Codex/Claude Code 구독 bridge를 초기 구현 대상으로 삼는다. 두 벤더 및 API/지원 구독·총괄/worker 도구 실행의 필수 조합을 AIK-001의 판본형 matrix에서 명시한다. 012~015의 adapter 구현 완료와 022/082/044/059의 라이브 qualification을 구분하고 064는 동일 matrix의 필수 경로를 모두 검증해야 완료한다.
 
-**이유:** 사용자 장착형 자원 비전을 구현하기 위한 초기 범위 제안. 개별 호스트 미지원이 다른 qualified 경로의 상태를 덮지 않도록 한다.
+**이유:** 초기 범위는 제안이며 사용자 확정 요구와 구분한다. 선택 경로의 미지원은 다른 qualified 경로를 막지 않지만 미구현 adapter를 완료 처리하거나 필수 경로를 임의 축소하지 않는다. 범위 변경 시 결정·영향·재검증 기록을 남긴다.
 
 ## 출처 색인
 
@@ -3122,6 +3122,16 @@ README는 2.9.0 공개 준비와 동일 컴퓨터·동일 OS 사용자 기본 �
 - 원문: [https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritea](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritea)
 
 Windows 사용자 자격 증명 생성·교체 API 후보. 구체 vault backend는 ADR로 확정.
+
+### S-CREDREAD
+
+**Microsoft CredRead: 현재 로그온 token의 사용자 자격 증명 조회**
+
+- 구분: 공식 문서 (`official_doc`)
+- 기준 버전 / 날짜: `2026-10-12 조회`
+- 원문: [https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada)
+
+Windows 사용자 저장소의 접근 경계에 관한 공식 문서. 앱 broker scope가 동일 사용자 native 프로세스의 OS API 접근을 자동으로 제한한다는 근거는 아니다.
 
 ### S-DESIGN
 
@@ -3217,6 +3227,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 
 | 키 | 값 |
 |---|---|
+| `audit_baseline_commit` | 019cccf0bd63684d893f50d239d54fbc2bf7b033 |
 | `baseline_commit` | 0367932ce2fa9369a3420a4867283167ea319188 |
 | `canonical_data` | planning/backlog.sqlite3 |
 | `created_at` | 2026-10-12T05:36:30Z |
@@ -3226,12 +3237,12 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `product_status` | pre_implementation |
 | `project` | AI-Kubernetes |
 | `review_snapshot` | planning/backlog.sql |
-| `reviewed_at` | 2026-10-12T05:43:24Z |
+| `reviewed_at` | 2026-10-12T06:02:41Z |
 | `schema_version` | 1 |
 | `scope_policy` | Windows GUI confirmed; local-first release staging proposed in DEC06; federation retained in M5. |
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
-| `task_status_policy` | All tasks start todo; planning is not implementation evidence. |
-| `updated_at` | 2026-10-12T05:43:24Z |
+| `task_status_policy` | All product tasks remain todo; planning is not implementation evidence. in_progress/done require all prerequisites done; done also requires reviewed evidence. Adapter implementation and route qualification are distinct. |
+| `updated_at` | 2026-10-12T06:02:41Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

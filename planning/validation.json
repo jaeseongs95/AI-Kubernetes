@@ -1,25 +1,381 @@
 {
-  "baseline_commit": "0367932ce2fa9369a3420a4867283167ea319188",
+  "validation_scope": "Independent audit of development planning, SQLite maintenance tooling, and generated snapshots; not Windows product qualification.",
+  "validated_at": "2026-10-12T06:12:59Z",
+  "baseline_commit": "019cccf0bd63684d893f50d239d54fbc2bf7b033",
+  "original_design_commit": "0367932ce2fa9369a3420a4867283167ea319188",
+  "baseline_database_sha256": "cc4430a19c627c9d05c7747cebb056ab317b8307c696d48fdc55bad1ec986af5",
+  "database_sha256": "02cb21286fe5c2eae2c597f82a8678bd3139592fb6aa7746b9b35ff48b394c65",
+  "environment": {
+    "os": "Linux-6.18.44-x86_64-with-glibc2.39",
+    "python": "3.12.14",
+    "sqlite": "3.53.1"
+  },
   "counts": {
-    "tasks": 82,
+    "metadata": 19,
+    "sources": 13,
     "requirements": 17,
+    "milestones": 7,
+    "epics": 11,
+    "tasks": 82,
+    "task_dependencies": 296,
+    "task_requirements": 290,
+    "task_sources": 173,
     "acceptance_criteria": 246,
-    "task_dependencies": 300,
     "decisions": 12,
-    "sources": 12,
-    "task_events": 104,
+    "task_decisions": 45,
+    "task_events": 124,
     "task_evidence": 0
   },
+  "ready_tasks": [
+    "AIK-001",
+    "AIK-002",
+    "AIK-003"
+  ],
   "checks": {
-    "sqlite_integrity_check": "ok",
-    "foreign_keys": 0,
+    "sqlite_integrity_check": [
+      "ok"
+    ],
+    "foreign_key_violations": [],
+    "strict_schema_version_value_history_dependency_validation": true,
     "sql_restore_all_schema_and_rows_equal": true,
+    "restored_tables_compared": [
+      "acceptance_criteria",
+      "decisions",
+      "epics",
+      "metadata",
+      "milestones",
+      "requirements",
+      "sources",
+      "sqlite_sequence",
+      "task_decisions",
+      "task_dependencies",
+      "task_events",
+      "task_evidence",
+      "task_requirements",
+      "task_sources",
+      "tasks"
+    ],
     "user_version_preserved": 1,
-    "markdown_task_and_criteria_coverage": true,
+    "restore_single_file_journal_mode": "delete",
+    "sql_snapshot_matches_canonical_database": true,
+    "markdown_snapshot_matches_canonical_database": true,
+    "all_82_task_headings_and_246_criteria_present": true,
     "relative_document_links_valid": true,
     "python_syntax_valid": true,
-    "product_and_upstream_execution": "NOT_RUN: development planning only"
+    "release_gate_ancestors_exactly_first_release_tasks": 66,
+    "all_dependency_sequences_precede_dependents": true,
+    "requirements_confirmed_decisions_and_milestone_scopes_preserved": true,
+    "final_validation_did_not_change_canonical_database": true
   },
+  "regression_tests": {
+    "command": "python -m unittest discover -s tests -v",
+    "exit_code": 0,
+    "total": 53,
+    "passed": 53,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "groups": {
+      "io_restore_concurrency": 14,
+      "output_paths": 9,
+      "schema_values_history_dependencies": 30
+    },
+    "test_log_sha256": "e5605fa6eb2997e50372fa61e5fccadd4a8f837d89123fcceb76f3cbc9b04769",
+    "results": [
+      {
+        "test": "test_database_symlink_shares_lock (test_backlog_io.BacklogIOTests.test_database_symlink_shares_lock)",
+        "result": "ok"
+      },
+      {
+        "test": "test_hardlinked_database_alias_is_rejected_before_changes (test_backlog_io.BacklogIOTests.test_hardlinked_database_alias_is_rejected_before_changes)",
+        "result": "ok"
+      },
+      {
+        "test": "test_lock_timeout_preserves_database_and_snapshots (test_backlog_io.BacklogIOTests.test_lock_timeout_preserves_database_and_snapshots)",
+        "result": "ok"
+      },
+      {
+        "test": "test_publication_failure_discloses_commit_and_releases_lock (test_backlog_io.BacklogIOTests.test_publication_failure_discloses_commit_and_releases_lock)",
+        "result": "ok"
+      },
+      {
+        "test": "test_restore_blocks_check_constraint_bypass (test_backlog_io.BacklogIOTests.test_restore_blocks_check_constraint_bypass)",
+        "result": "ok"
+      },
+      {
+        "test": "test_restore_blocks_dangerous_settings_and_extensions (test_backlog_io.BacklogIOTests.test_restore_blocks_dangerous_settings_and_extensions)",
+        "result": "ok"
+      },
+      {
+        "test": "test_restore_cannot_modify_an_external_database (test_backlog_io.BacklogIOTests.test_restore_cannot_modify_an_external_database)",
+        "result": "ok"
+      },
+      {
+        "test": "test_restore_malformed_sql_leaves_no_partial_output (test_backlog_io.BacklogIOTests.test_restore_malformed_sql_leaves_no_partial_output)",
+        "result": "ok"
+      },
+      {
+        "test": "test_restore_preserves_existing_destination (test_backlog_io.BacklogIOTests.test_restore_preserves_existing_destination)",
+        "result": "ok"
+      },
+      {
+        "test": "test_staging_failure_rolls_back_and_releases_lock (test_backlog_io.BacklogIOTests.test_staging_failure_rolls_back_and_releases_lock)",
+        "result": "ok"
+      },
+      {
+        "test": "test_two_status_processes_publish_latest_state (test_backlog_io.BacklogIOTests.test_two_status_processes_publish_latest_state)",
+        "result": "ok"
+      },
+      {
+        "test": "test_valid_wal_restore_is_a_portable_single_database (test_backlog_io.BacklogIOTests.test_valid_wal_restore_is_a_portable_single_database)",
+        "result": "ok"
+      },
+      {
+        "test": "test_wal_export_cannot_publish_over_newer_status (test_backlog_io.BacklogIOTests.test_wal_export_cannot_publish_over_newer_status)",
+        "result": "ok"
+      },
+      {
+        "test": "test_wal_report_cannot_publish_over_newer_status (test_backlog_io.BacklogIOTests.test_wal_report_cannot_publish_over_newer_status)",
+        "result": "ok"
+      },
+      {
+        "test": "test_custom_database_cannot_overwrite_canonical_generated_outputs (test_backlog_paths.BacklogPathTests.test_custom_database_cannot_overwrite_canonical_generated_outputs)",
+        "result": "ok"
+      },
+      {
+        "test": "test_custom_report_can_use_separate_explicit_output (test_backlog_paths.BacklogPathTests.test_custom_report_can_use_separate_explicit_output)",
+        "result": "ok"
+      },
+      {
+        "test": "test_custom_report_defaults_to_custom_database_sibling (test_backlog_paths.BacklogPathTests.test_custom_report_defaults_to_custom_database_sibling)",
+        "result": "ok"
+      },
+      {
+        "test": "test_hardlinked_database_output_is_detected (test_backlog_paths.BacklogPathTests.test_hardlinked_database_output_is_detected)",
+        "result": "ok"
+      },
+      {
+        "test": "test_list_rejects_a_ready_view_that_lies (test_backlog_paths.BacklogPathTests.test_list_rejects_a_ready_view_that_lies)",
+        "result": "ok"
+      },
+      {
+        "test": "test_output_cannot_overwrite_another_sqlite_file_with_text_extension (test_backlog_paths.BacklogPathTests.test_output_cannot_overwrite_another_sqlite_file_with_text_extension)",
+        "result": "ok"
+      },
+      {
+        "test": "test_output_cannot_replace_database_schema_or_lock (test_backlog_paths.BacklogPathTests.test_output_cannot_replace_database_schema_or_lock)",
+        "result": "ok"
+      },
+      {
+        "test": "test_status_rejects_reserved_snapshot_before_changing_task (test_backlog_paths.BacklogPathTests.test_status_rejects_reserved_snapshot_before_changing_task)",
+        "result": "ok"
+      },
+      {
+        "test": "test_symlink_database_defaults_to_canonical_sql_output (test_backlog_paths.BacklogPathTests.test_symlink_database_defaults_to_canonical_sql_output)",
+        "result": "ok"
+      },
+      {
+        "test": "test_baseline_and_schema_version (test_backlog_validation.BacklogValidationTests.test_baseline_and_schema_version)",
+        "result": "ok"
+      },
+      {
+        "test": "test_blank_metadata (test_backlog_validation.BacklogValidationTests.test_blank_metadata)",
+        "result": "ok"
+      },
+      {
+        "test": "test_blank_required_text_is_detected_even_with_checks_disabled (test_backlog_validation.BacklogValidationTests.test_blank_required_text_is_detected_even_with_checks_disabled)",
+        "result": "ok"
+      },
+      {
+        "test": "test_blocked_does_not_require_completed_prerequisites (test_backlog_validation.BacklogValidationTests.test_blocked_does_not_require_completed_prerequisites)",
+        "result": "ok"
+      },
+      {
+        "test": "test_cancelled_does_not_unlock_dependents (test_backlog_validation.BacklogValidationTests.test_cancelled_does_not_unlock_dependents)",
+        "result": "ok"
+      },
+      {
+        "test": "test_completion_requires_completed_prerequisites (test_backlog_validation.BacklogValidationTests.test_completion_requires_completed_prerequisites)",
+        "result": "ok"
+      },
+      {
+        "test": "test_completion_requires_evidence (test_backlog_validation.BacklogValidationTests.test_completion_requires_evidence)",
+        "result": "ok"
+      },
+      {
+        "test": "test_cycle_is_still_rejected (test_backlog_validation.BacklogValidationTests.test_cycle_is_still_rejected)",
+        "result": "ok"
+      },
+      {
+        "test": "test_duplicate_creation (test_backlog_validation.BacklogValidationTests.test_duplicate_creation)",
+        "result": "ok"
+      },
+      {
+        "test": "test_event_old_status_must_match_previous_state (test_backlog_validation.BacklogValidationTests.test_event_old_status_must_match_previous_state)",
+        "result": "ok"
+      },
+      {
+        "test": "test_fractional_sequence_is_not_an_execution_order (test_backlog_validation.BacklogValidationTests.test_fractional_sequence_is_not_an_execution_order)",
+        "result": "ok"
+      },
+      {
+        "test": "test_inconsistent_metadata_version (test_backlog_validation.BacklogValidationTests.test_inconsistent_metadata_version)",
+        "result": "ok"
+      },
+      {
+        "test": "test_invalid_enum_is_detected_even_with_checks_disabled (test_backlog_validation.BacklogValidationTests.test_invalid_enum_is_detected_even_with_checks_disabled)",
+        "result": "ok"
+      },
+      {
+        "test": "test_invalid_initial_state (test_backlog_validation.BacklogValidationTests.test_invalid_initial_state)",
+        "result": "ok"
+      },
+      {
+        "test": "test_missing_acceptance_criteria_are_still_rejected (test_backlog_validation.BacklogValidationTests.test_missing_acceptance_criteria_are_still_rejected)",
+        "result": "ok"
+      },
+      {
+        "test": "test_missing_history (test_backlog_validation.BacklogValidationTests.test_missing_history)",
+        "result": "ok"
+      },
+      {
+        "test": "test_missing_metadata (test_backlog_validation.BacklogValidationTests.test_missing_metadata)",
+        "result": "ok"
+      },
+      {
+        "test": "test_missing_requirement_link_is_still_rejected (test_backlog_validation.BacklogValidationTests.test_missing_requirement_link_is_still_rejected)",
+        "result": "ok"
+      },
+      {
+        "test": "test_missing_source_link_is_still_rejected (test_backlog_validation.BacklogValidationTests.test_missing_source_link_is_still_rejected)",
+        "result": "ok"
+      },
+      {
+        "test": "test_negative_ordinal_is_detected_even_with_checks_disabled (test_backlog_validation.BacklogValidationTests.test_negative_ordinal_is_detected_even_with_checks_disabled)",
+        "result": "ok"
+      },
+      {
+        "test": "test_no_op_review_event_is_valid (test_backlog_validation.BacklogValidationTests.test_no_op_review_event_is_valid)",
+        "result": "ok"
+      },
+      {
+        "test": "test_ready_view_cannot_advertise_all_todo_tasks (test_backlog_validation.BacklogValidationTests.test_ready_view_cannot_advertise_all_todo_tasks)",
+        "result": "ok"
+      },
+      {
+        "test": "test_review_event_cannot_change_state (test_backlog_validation.BacklogValidationTests.test_review_event_cannot_change_state)",
+        "result": "ok"
+      },
+      {
+        "test": "test_same_named_table_without_constraints_is_rejected (test_backlog_validation.BacklogValidationTests.test_same_named_table_without_constraints_is_rejected)",
+        "result": "ok"
+      },
+      {
+        "test": "test_start_requires_completed_prerequisites (test_backlog_validation.BacklogValidationTests.test_start_requires_completed_prerequisites)",
+        "result": "ok"
+      },
+      {
+        "test": "test_task_state_and_history_must_agree (test_backlog_validation.BacklogValidationTests.test_task_state_and_history_must_agree)",
+        "result": "ok"
+      },
+      {
+        "test": "test_unexpected_trigger_is_rejected (test_backlog_validation.BacklogValidationTests.test_unexpected_trigger_is_rejected)",
+        "result": "ok"
+      },
+      {
+        "test": "test_unknown_user_version (test_backlog_validation.BacklogValidationTests.test_unknown_user_version)",
+        "result": "ok"
+      },
+      {
+        "test": "test_user_object_with_similar_sqlite_prefix_is_not_ignored (test_backlog_validation.BacklogValidationTests.test_user_object_with_similar_sqlite_prefix_is_not_ignored)",
+        "result": "ok"
+      },
+      {
+        "test": "test_valid_completion_unlocks_and_allows_next_task (test_backlog_validation.BacklogValidationTests.test_valid_completion_unlocks_and_allows_next_task)",
+        "result": "ok"
+      }
+    ]
+  },
+  "audit_findings": [
+    {
+      "id": "TS-01",
+      "severity": "P1",
+      "status": "fixed_and_regression_pass"
+    },
+    {
+      "id": "TS-02",
+      "severity": "P2",
+      "status": "fixed_and_regression_pass"
+    },
+    {
+      "id": "PATH-01",
+      "severity": "P2",
+      "status": "fixed_and_regression_pass"
+    },
+    {
+      "id": "GD-01",
+      "severity": "P2",
+      "status": "fixed_and_regression_pass"
+    },
+    {
+      "id": "GD-02",
+      "severity": "P2",
+      "status": "fixed_and_regression_pass"
+    },
+    {
+      "id": "GD-03",
+      "severity": "P2",
+      "status": "fixed_and_regression_pass"
+    },
+    {
+      "id": "GD-04",
+      "severity": "P2",
+      "status": "start_policy_aligned_and_regression_pass"
+    },
+    {
+      "id": "AP-01",
+      "severity": "P1",
+      "status": "planning_corrected_and_independently_reviewed"
+    },
+    {
+      "id": "AP-02",
+      "severity": "P1",
+      "status": "planning_corrected_and_independently_reviewed"
+    },
+    {
+      "id": "AP-03",
+      "severity": "P2",
+      "status": "guarantee_scope_clarified_and_independently_reviewed"
+    }
+  ],
+  "planning_scenarios": {
+    "evidence_type": "read-only planning/acceptance semantics review and disposable memory DB queries; not product runtime qualification",
+    "registry_without_all_adapter_implementations": {
+      "id": "AIK-019",
+      "status": "todo",
+      "open_dependency_count": 0,
+      "ready": true
+    },
+    "optional_live_route_unsupported_but_implementation_and_required_qualification_done": {
+      "id": "AIK-064",
+      "status": "todo",
+      "open_dependency_count": 0,
+      "ready": true
+    },
+    "required_live_route_fails_and_qualification_blocked": {
+      "id": "AIK-064",
+      "status": "todo",
+      "open_dependency_count": 1,
+      "ready": false
+    }
+  },
+  "not_run": [
+    "Native Windows execution of the maintenance-tool msvcrt locking branch",
+    "Windows GUI product installation, vault, IPC, installer signing and restart qualification",
+    "Live vendor authentication, model calls, agent tool loops or provider model/effort attestation",
+    "AGS/VM product imports, execution, tests or installed-plugin conformance",
+    "Remote federation product input staging, delegation and failure-recovery E2E"
+  ],
   "files": [
     {
       "path": ".gitattributes",
@@ -29,59 +385,82 @@
     },
     {
       "path": ".gitignore",
-      "bytes": 133,
-      "sha256": "0ef896c89188cb4fcc7ec7697fd1d5f9bfdd6d3e2ae021c8d478cef733c6b363",
-      "git_blob_sha1": "08ecd8d761200e79d461b00a90ba96994fdc8e26"
+      "bytes": 152,
+      "sha256": "6994a96871e3ca8953f67155044df8a9bf674be40bd46b8bce4d2e304b0d2bb8",
+      "git_blob_sha1": "edf71c93007fbe3f0b6eeb378986f11edb758909"
     },
     {
       "path": "README.md",
-      "bytes": 12304,
-      "sha256": "f29f6d731afaa848b4c6711df0a8f89f305eb663d2af63894c86d2f132573006",
-      "git_blob_sha1": "1b8ed5129ffd8bef87f7bb5ef169bf8f91867226"
+      "bytes": 12683,
+      "sha256": "7ddc57f8b3c7b50e4aed26ce104276255a3e59407ee63302209728d13d191c19",
+      "git_blob_sha1": "e7c47e36f8e565f2ed829442ae6a5e9eefbf5d9f"
+    },
+    {
+      "path": "docs/audit-2026-10-12.ko.md",
+      "bytes": 15907,
+      "sha256": "57dbf8a35230f68426e4193fbfb288d7ded43402a7c0fa978eaddb5c84707193",
+      "git_blob_sha1": "9d45c53d373c1c870d3e9455e260d7a1d53c59ae"
     },
     {
       "path": "docs/development-backlog.ko.md",
-      "bytes": 149750,
-      "sha256": "bc612bfd71edb03aec8089be5c2e92b62b4605d8d320eeefda5d56032c0cf1c7",
-      "git_blob_sha1": "1489db8ce1c0d4618cc01cf66dff2acddc0baadc"
+      "bytes": 158305,
+      "sha256": "6399c1dab35cd153ac18ee63c3fda037de41e33777eaa74c00e3c5b8e608361c",
+      "git_blob_sha1": "6785afd832a3575fa7eb5b55049739c02b2f288b"
     },
     {
       "path": "docs/development-plan.ko.md",
-      "bytes": 20026,
-      "sha256": "ee07fbebf574688c26e604683d186ab9ba288da90905416eade0d981c7c969d7",
-      "git_blob_sha1": "1d91134d3bbb0449c49cf72d0b00311513100dc3"
+      "bytes": 26359,
+      "sha256": "3967ee928a57af37c51d8f86a18eba6b808cd5c8a4c84c418e06f2a9c6778827",
+      "git_blob_sha1": "2484ef79bb9a2d54e0805763ddcd6bee8307bce8"
     },
     {
       "path": "docs/initial-design.ko.md",
       "bytes": 26238,
-      "sha256": "c43fe4e5cd55d36522f8ddfccdf8e6802453e57a18f55a624398b78fe87d04e5",
-      "git_blob_sha1": "d956f89c614b523b3cac93fdc2a3caba417415c5"
+      "sha256": "efeb58532363fb549a78a4646c2434b9794cfb28ae38ae1d823482e27c93e0f6",
+      "git_blob_sha1": "90f16664056ca1f2396021905a85bccd012f0899"
     },
     {
       "path": "planning/backlog.sql",
-      "bytes": 168140,
-      "sha256": "50dd0d24d72ca19fc09a717ab63fb5f90bb2e87352624163ddb86575c6511742",
-      "git_blob_sha1": "84ad02fb9e791ce314530bf03996e063a66b8d64"
+      "bytes": 181802,
+      "sha256": "f8eabfc4f9e1755a7211fb46da7e5134f33f87b404f0d1d1e539b0bca411a693",
+      "git_blob_sha1": "89f43157f2896571cb1f3c6058e4e5c2e9a7c38a"
     },
     {
       "path": "planning/backlog.sqlite3",
-      "bytes": 303104,
-      "sha256": "cc4430a19c627c9d05c7747cebb056ab317b8307c696d48fdc55bad1ec986af5",
-      "git_blob_sha1": "2ebf9c41c420fa02975d0a22a64f29e3f10f2c86"
+      "bytes": 327680,
+      "sha256": "02cb21286fe5c2eae2c597f82a8678bd3139592fb6aa7746b9b35ff48b394c65",
+      "git_blob_sha1": "d9b24a55e711e5b713b07fee3d1a0f8c4f2184e4"
     },
     {
       "path": "planning/schema.sql",
-      "bytes": 7269,
-      "sha256": "443231b61dc7edc762720b80972755b74f48cf92e3f3021152a1ae89eb6e9ae8",
-      "git_blob_sha1": "18b340d3420c809c3b8643654e083e77bad6f222"
+      "bytes": 7294,
+      "sha256": "309baad9bb951d909e834cbe5909e0b26ddfb4dfec81ecfedc897ef905cabd6a",
+      "git_blob_sha1": "6405d71b5ea2aea858053f267d8324c1580f5c46"
+    },
+    {
+      "path": "tests/test_backlog_io.py",
+      "bytes": 16539,
+      "sha256": "f7aba2815625b4550280ee757980bf676f53ef97630979f7073e48f4619afc56",
+      "git_blob_sha1": "4f447c320d04fb8dc16f444693839bce7d009f9d"
+    },
+    {
+      "path": "tests/test_backlog_paths.py",
+      "bytes": 6082,
+      "sha256": "b2d93ed531171f2cc20e56faec2a64f5f6fbd2ed41ebaf2d9ccd5a8109cf1289",
+      "git_blob_sha1": "8cf1aa992c4b5de697571ecd8ecb86260b5959be"
+    },
+    {
+      "path": "tests/test_backlog_validation.py",
+      "bytes": 11456,
+      "sha256": "f71510c7b69cca799e8f8637aceaa56088840eb81fd22201332132f14160875b",
+      "git_blob_sha1": "37368f6e2153501b70fc2a97ba51150d0aaa17ed"
     },
     {
       "path": "tools/backlog.py",
-      "bytes": 31556,
-      "sha256": "319d89882210e42f7569d53c0191c9877d481be56703b27fb9e28d10b13362db",
-      "git_blob_sha1": "795b986dcc21035fb153c028d8bdd0c629b211e9"
+      "bytes": 46040,
+      "sha256": "ed8ebad9ecfc1e7063b91e235b30a066b171b9db2ecb360f30c095ed2dedee8a",
+      "git_blob_sha1": "49d52cf8f8552483e1918c3c66320cd476769a89"
     }
   ],
-  "validated_at": "2026-10-12T05:44:56Z",
-  "validation_scope": "Initial development planning change; hashes of the other delivered files at validation time."
+  "file_manifest_scope": "Hashes cover all delivered files except this validation.json to avoid a self-reference. Git publication is verified after this record is generated."
 }
