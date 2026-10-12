@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "task_id": "AIK-003",
+  "commit": "30d0e2e4e16a431938585347f2726d628e761ea9",
+  "workflow_run": 38247285454,
+  "workflow_url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38247285454",
+  "job_id": 114804257104,
+  "conclusion": "failure",
+  "failed_step": "Verify handoff identity and encoding regression guards",
+  "tests": {
+    "run": 41,
+    "passed": 40,
+    "failed": 1
+  },
+  "failure_log": [
+    "2026-10-12T12:10:30.3716827Z FAIL: test_archived_server_administrator_execution_stays_blocked_and_unchanged (test_windows_client_review.WindowsClientReviewTests.test_archived_server_administrator_execution_stays_blocked_and_unchanged)",
+    "2026-10-12T12:10:30.3718091Z ----------------------------------------------------------------------",
+    "2026-10-12T12:10:30.3718633Z Traceback (most recent call last):",
+    "2026-10-12T12:10:30.3719629Z   File \"D:\\a\\AI-Kubernetes\\AI-Kubernetes\\tests\\test_windows_client_review.py\", line 182, in test_archived_server_administrator_execution_stays_blocked_and_unchanged",
+    "2026-10-12T12:10:30.3720712Z     self.assertEqual(before[\"handoff-manifest.json\"], ARCHIVED_MANIFEST_SHA256)",
+    "2026-10-12T12:10:30.3721329Z     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "2026-10-12T12:10:30.3722357Z AssertionError: '6042c69b00189c0587896f5752093bb323675266b8e239c35f8e395ead4c8403' != 'f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d'",
+    "2026-10-12T12:10:30.3723374Z - 6042c69b00189c0587896f5752093bb323675266b8e239c35f8e395ead4c8403",
+    "2026-10-12T12:10:30.3724158Z + f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+    "2026-10-12T12:10:30.3741212Z ",
+    "2026-10-12T12:10:30.3741394Z ",
+    "2026-10-12T12:10:30.3741912Z ----------------------------------------------------------------------",
+    "2026-10-12T12:10:30.3743761Z Ran 41 tests in 18.873s",
+    "2026-10-12T12:10:30.3744051Z ",
+    "2026-10-12T12:10:30.3744264Z FAILED (failures=1)"
+  ],
+  "diagnosis": {
+    "manifest_repository_sha256": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+    "manifest_after_lf_to_crlf_sha256": "6042c69b00189c0587896f5752093bb323675266b8e239c35f8e395ead4c8403",
+    "cause": "Git core.autocrlf Windows checkout transformed archived LF evidence to CRLF before the raw-byte integrity test.",
+    "fix": "Set evidence/** -text to preserve committed archive bytes; retain the original trusted hashes and regression checks."
+  },
+  "qualification": {
+    "clean_windows11_standard_user": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "release_signing": "NOT_RUN",
+    "product_integration": "NOT_RUN"
+  }
+}

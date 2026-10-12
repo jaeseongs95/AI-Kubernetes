@@ -19,6 +19,14 @@
 - [보존된 Server 실행의 새 검사 결과](historical-server-review.json)
 - [전달 패키지와 실제 준비 기록 사용법](../../../tools/windows_handoff/README.ko.md)
 
+## 최초 Windows CI와 체크아웃 수정
+
+구현 commit `30d0e2e4e16a431938585347f2726d628e761ea9`의 [실제 Windows CI 38247285454](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38247285454)는 41개 테스트 중 40개 PASS, 보관된 Server 원본의 hash 검사 1개 FAIL이었다. Windows Git의 `core.autocrlf=true`가 LF manifest를 CRLF로 바꿨으며, 변환 후 SHA-256 `6042c69b00189c0587896f5752093bb323675266b8e239c35f8e395ead4c8403`은 실패 로그와 정확히 일치한다. 설치 단계는 이 실패로 실행되지 않았다.
+
+`.gitattributes`에 `evidence/** -text`를 지정하여 보관된 LF·CRLF·BOM을 원래 바이트 그대로 체크아웃한다. 원본 증거와 신뢰한 hash 및 회귀 검사는 변경하지 않았다. 별도 임시 Git clone의 `core.autocrlf=true` 체크아웃에서 원인을 재현했고, 수정 규칙으로 manifest·application·기존 CRLF/BOM 보고서가 원래 Git blob과 일치함을 확인했다. `.gitattributes`와 보관된 handoff 증거 변경도 Windows CI를 실행하도록 연결했다.
+
+- [최초 실패의 로그 발췌·원인·수정 기록](first-windows-ci-failure.json)
+
 ## 원장 판정
 
 AIK-003의 원래 AC2 및 verification은 **개발 도구가 없는 깨끗한 지원 후보 Windows에서의 설치 spike와 문서 검토**를 요구한다. 이번 작업은 그 증거 수집·검토 코드를 구현했다. 새 코드의 실제 Windows PowerShell 5.1 수집은 후속 CI 실행으로 검증하고, 실제 깨끗한 Windows 11 표준 사용자 검증은 별도로 필요하다. 태스크는 `blocked`를 유지한다. 태스크 정의·완료 기준·의존성 및 다른 89개 태스크의 상태는 그대로 보존한다.

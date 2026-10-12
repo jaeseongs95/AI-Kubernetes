@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - '.gitattributes'
+      - 'evidence/windows-handoff/**'
       - 'tools/build_windows_handoff.py'
       - 'tools/review_windows_client.py'
       - 'tools/windows_handoff/**'
@@ -15,6 +17,8 @@ on:
       - '.github/workflows/windows-client-handoff.yml'
   pull_request:
     paths:
+      - '.gitattributes'
+      - 'evidence/windows-handoff/**'
       - 'tools/build_windows_handoff.py'
       - 'tools/review_windows_client.py'
       - 'tools/windows_handoff/**'

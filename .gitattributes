@@ -2,3 +2,5 @@
 *.py text eol=lf
 *.sql text eol=lf
 *.sqlite3 binary
+# Archived execution evidence is bound by raw-byte hashes. Never normalize it.
+evidence/** -text
