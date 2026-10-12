@@ -73,7 +73,15 @@ function Assert-Condition([bool] $Condition, [string] $Message) {
 }
 
 function Get-Sha256([string] $FilePath) {
-    return (Get-FileHash -LiteralPath $FilePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    # Windows PowerShell started by pwsh can inherit a PSModulePath which omits
+    # the legacy Get-FileHash script module. Hash with the built-in .NET runtime.
+    $Hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $Stream = [IO.File]::OpenRead($FilePath)
+        try {
+            return ([BitConverter]::ToString($Hasher.ComputeHash($Stream))).Replace('-', '').ToLowerInvariant()
+        } finally { $Stream.Dispose() }
+    } finally { $Hasher.Dispose() }
 }
 
 function Read-Json([string] $FilePath) {
