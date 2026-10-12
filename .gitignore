@@ -13,5 +13,6 @@ __pycache__/
 /packaging/build/
 /packaging/dist/
 /packaging/evidence/
+/packaging/handoff/
 /spikes/windows-foundation/node_modules/
 /spikes/windows-foundation/dist/

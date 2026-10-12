@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "handoff packaging and input identity checks only",
+  "source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
+  "file": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-local/AIK-prior-verified-installer-local-package-v2.zip",
+  "bytes": 118783934,
+  "sha256": "961022381f47de1ed24bc81dd7153b31983266e50d549d7d226db4a1c03520d3",
+  "checksum_file": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-local/AIK-prior-verified-installer-local-package-v2.zip.sha256",
+  "manifest_sha256": "4f51f45b41c09ce8d9adf5a296429a9f1ba986df722c77634ab5c1bd5c231571",
+  "member_count": 11,
+  "windows_execution": "NOT_RUN",
+  "windows11_standard_user_clean_machine": "NOT_RUN"
+}

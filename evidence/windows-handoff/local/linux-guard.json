@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "scope": "Independent AIK foundation installer handoff verification",
+  "started_at": "2026-10-12T08:47:33.3936120Z",
+  "status": "BLOCKED",
+  "evidence_directory": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-local/linux-evidence/b843d8d750294bfdb348aa313373886e",
+  "package_source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
+  "observed_execution": {
+    "github_actions": false,
+    "github_sha": null,
+    "github_run_id": null,
+    "github_run_attempt": null,
+    "powershell_version": "7.6.6",
+    "powershell_edition": "Core",
+    "default_encoding_code_page": 65001,
+    "default_encoding_web_name": "utf-8",
+    "culture": "",
+    "ui_culture": "",
+    "os_version": "Unix 6.18.44.0",
+    "platform": "Unix",
+    "process_architecture": null,
+    "is_64_bit_process": true
+  },
+  "checks": {
+    "package_member_hashes": "PASS",
+    "verifier_bom_conversion": "PASS",
+    "legacy_powershell_51": "NOT_RUN",
+    "delivered_script_parse": "NOT_RUN",
+    "installed_gui_worker_dpapi_uninstall": "NOT_RUN",
+    "installed_engine_identity": "NOT_RUN",
+    "installed_python_dll_identity": "NOT_RUN",
+    "actual_gui_evidence": "NOT_RUN"
+  },
+  "qualification": {
+    "windows11_standard_user_clean_machine": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "release_signing": "NOT_RUN",
+    "product_integration": "NOT_RUN"
+  },
+  "limits": [
+    "PASS applies to this package and the actual bounded foundation checks only.",
+    "This is an unsigned development spike; the complete product is not implemented.",
+    "An unsigned manifest verifies member consistency, not publisher authenticity.",
+    "Observed Windows and user properties do not prove a clean machine or absent developer tools.",
+    "A Server administrator CI execution does not qualify Windows 11 standard-user support.",
+    "GitHub identity variables are inherited as observed; local execution does not synthesize them."
+  ],
+  "manifest_sha256": "4f51f45b41c09ce8d9adf5a296429a9f1ba986df722c77634ab5c1bd5c231571",
+  "error": "Actual Windows PowerShell 5.1 and a Windows desktop are required for execution.",
+  "completed_at": "2026-10-12T08:47:34.9497871Z"
+}

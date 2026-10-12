@@ -1,0 +1,13 @@
+test_bom_is_not_duplicated_and_invalid_utf8_is_rejected (test_windows_handoff.WindowsHandoffRegressionTests.test_bom_is_not_duplicated_and_invalid_utf8_is_rejected) ... ok
+test_changed_installer_is_rejected_before_output (test_windows_handoff.WindowsHandoffRegressionTests.test_changed_installer_is_rejected_before_output) ... ok
+test_existing_output_and_checksum_are_never_overwritten (test_windows_handoff.WindowsHandoffRegressionTests.test_existing_output_and_checksum_are_never_overwritten) ... ok
+test_installed_engine_and_python_dll_mismatches_are_rejected (test_windows_handoff.WindowsHandoffRegressionTests.test_installed_engine_and_python_dll_mismatches_are_rejected) ... ok
+test_package_preserves_original_bytes_bom_conversion_and_member_hashes (test_windows_handoff.WindowsHandoffRegressionTests.test_package_preserves_original_bytes_bom_conversion_and_member_hashes) ... ok
+test_source_and_raw_gui_evidence_must_match (test_windows_handoff.WindowsHandoffRegressionTests.test_source_and_raw_gui_evidence_must_match) ... ok
+test_tampered_delivered_script_is_rejected_before_any_install (test_windows_handoff.WindowsHandoffRegressionTests.test_tampered_delivered_script_is_rejected_before_any_install) ... ok
+test_uninstalled_failure_and_unpacked_gui_cannot_be_handed_off (test_windows_handoff.WindowsHandoffRegressionTests.test_uninstalled_failure_and_unpacked_gui_cannot_be_handed_off) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.666s
+
+OK

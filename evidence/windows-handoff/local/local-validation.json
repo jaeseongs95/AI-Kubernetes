@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "scope": "Local handoff packaging, actual wrapper negative execution, and non-Windows refusal; no new Windows execution",
+  "status": "PASS",
+  "input_installer": {
+    "source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
+    "sha256": "955d27bd62158b029e659ea04a65807599b8ac40f1ccd40190acdb6beea83a16",
+    "prior_windows_run_id": "38219549819"
+  },
+  "packaging_tool_source": {
+    "revision": "UNCOMMITTED_WORKSPACE",
+    "note": "The new handoff tool did not exist at the installer source commit; current input hashes are recorded separately."
+  },
+  "package": {
+    "schema_version": 1,
+    "status": "PASS",
+    "scope": "handoff packaging and input identity checks only",
+    "source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
+    "file": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-local/AIK-prior-verified-installer-local-package-v2.zip",
+    "bytes": 118783934,
+    "sha256": "961022381f47de1ed24bc81dd7153b31983266e50d549d7d226db4a1c03520d3",
+    "checksum_file": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-local/AIK-prior-verified-installer-local-package-v2.zip.sha256",
+    "manifest_sha256": "4f51f45b41c09ce8d9adf5a296429a9f1ba986df722c77634ab5c1bd5c231571",
+    "member_count": 11,
+    "windows_execution": "NOT_RUN",
+    "windows11_standard_user_clean_machine": "NOT_RUN"
+  },
+  "member_hash_checks": 10,
+  "regression_tests": {
+    "status": "PASS",
+    "count": 8,
+    "log_sha256": "53f80bd6cd1f48f7fa84b9333f5f429a75c44ffc2c4e678aa023e5315fcbf922",
+    "fixture_scope": "Synthetic installer bytes only; no fixture installer is executed."
+  },
+  "actual_linux_wrapper": {
+    "exit_code": 2,
+    "status": "BLOCKED",
+    "package_member_hashes": "PASS",
+    "verifier_bom_conversion": "PASS",
+    "powershell_version": "7.6.6"
+  },
+  "windows_powershell_51_execution": "NOT_RUN",
+  "windows11_standard_user_clean_machine": "NOT_RUN",
+  "files": {
+    "tools/build_windows_handoff.py": "ef6f07fa0fee4c00b585df5a843e0da3e8849edaccc3cd36c5a1d31a45b0147b",
+    "tools/windows_handoff/run-validation.ps1": "80bc7d95f3a305e33cfa05870ab80aaa8f387a4d94508508486bd166c0707a8e",
+    "tools/windows_handoff/run-validation.cmd": "c925cd8d5ef8c038cd9719b1ca30e4d5d946b2c793158709cb6b43fd49f34724",
+    "tools/windows_handoff/README.ko.md": "d711903358fbe8e2bfad9c348dcd97e2c9b56d4482a6bddc9308b01bf8134337",
+    ".github/workflows/windows-client-handoff.yml": "174de53ca78f14e303ca194ea54803e20205ad66a1b4af6f7bb4897d322c0cc9",
+    "tests/test_windows_handoff.py": "9ee640ec8421461146daac1af3e9b5d5ad5b64ad4fb04a95ce8d42a7e381e456"
+  }
+}

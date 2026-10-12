@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "review_id": "aik003-standalone-validator-legacy-encoding-20261012",
+  "recorded_at": "2026-10-12T08:34:43.767111+00:00",
+  "reviewer": "/root/implement_upstream_contract",
+  "scope": "Read-only source review and controlled input-decode/parser reproduction; the installation script is never executed.",
+  "source": {
+    "path": "/workspace/scratch/676b40286607/AI-Kubernetes/scripts/windows/verify-installed-spike.ps1",
+    "bytes": 13354,
+    "sha256": "65323a7f730cdadd0ae3377da4960419580023f517df22e734966d6844ff754e",
+    "utf8_bom_present": false,
+    "non_ascii_character_count": 15
+  },
+  "execution": {
+    "actual_host": "Linux",
+    "parser_executable": "/workspace/scratch/676b40286607/implementation_20261012/windows-packaging-tools/pwsh/pwsh",
+    "parser_version": "7.6.6",
+    "timeout_seconds": 20,
+    "exit_code": 0,
+    "stdout": "[\n  {\n    \"case\": \"actual_source_decoded_as_UTF8\",\n    \"parser\": \"7.6.6\",\n    \"parser_platform\": \"Unix\",\n    \"error_count\": 0,\n    \"errors\": []\n  },\n  {\n    \"case\": \"simulated_WindowsPowerShell51_en_US_no_BOM_CP1252_input\",\n    \"parser\": \"7.6.6\",\n    \"parser_platform\": \"Unix\",\n    \"error_count\": 2,\n    \"errors\": [\n      {\n        \"error_id\": \"UnexpectedToken\",\n        \"line\": 152,\n        \"text\": \"PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {\\n        $StartInfo.EnvironmentVariables.Remove($VariableName)\\n    }\\n    $Result.child_environment = [ordered]@{\\n        path = $StartInfo.EnvironmentVariables['PATH']\\n        pythonhome_removed = $true\\n        pythonpath_removed = $true\\n        node_options_removed = $true\\n        electron_run_as_node_removed = $true\\n        working_directory_outside_source_tree = $true\\n        installed_tooling_absence = 'NOT_RUN'\\n    }\\n    $ApplicationProcess = New-Object Diagnostics.Process\\n    $ApplicationProcess.StartInfo = $StartInfo\\n    if (-not $ApplicationProcess.Start()) { throw 'The\",\n        \"message\": \"Unexpected token 'PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {\\n        $StartInfo.EnvironmentVariables.Remove($VariableName)\\n    }\\n    $Result.child_environment = [ordered]@{\\n        path = $StartInfo.EnvironmentVariables['PATH']\\n        pythonhome_removed = $true\\n        pythonpath_removed = $true\\n        node_options_removed = $true\\n        electron_run_as_node_removed = $true\\n        working_directory_outside_source_tree = $true\\n        installed_tooling_absence = 'NOT_RUN'\\n    }\\n    $ApplicationProcess = New-Object Diagnostics.Process\\n    $ApplicationProcess.StartInfo = $StartInfo\\n    if (-not $ApplicationProcess.Start()) { throw 'The' in expression or statement.\"\n      },\n      {\n        \"error_id\": \"TerminatorExpectedAtEndOfString\",\n        \"line\": 259,\n        \"text\": \"')) { Write-Output $Result.error }\\nexit $ExitCode\\n\",\n        \"message\": \"The string is missing the terminator: '.\"\n      }\n    ]\n  }\n]\n",
+    "stderr": "",
+    "parser_program": "$Cases = [Console]::In.ReadToEnd() | ConvertFrom-Json\n$Results = foreach ($Case in $Cases) {\n    $Tokens = $null; $ParseErrors = $null\n    $null = [Management.Automation.Language.Parser]::ParseInput($Case.script, [ref]$Tokens, [ref]$ParseErrors)\n    [ordered]@{\n        case = $Case.name\n        parser = $PSVersionTable.PSVersion.ToString()\n        parser_platform = $PSVersionTable.Platform\n        error_count = @($ParseErrors).Count\n        errors = @($ParseErrors | ForEach-Object {\n            [ordered]@{error_id=$_.ErrorId; line=$_.Extent.StartLineNumber; text=$_.Extent.Text; message=$_.Message}\n        })\n    }\n}\n$Results | ConvertTo-Json -Depth 6\n",
+    "input_delivery": "JSON via stdin; each JSON item carries a decoded source string to Parser.ParseInput.",
+    "source_script_executed": false,
+    "actual_WindowsPowerShell_51_execution": "NOT_RUN",
+    "actual_Windows11_execution": "NOT_RUN",
+    "repository_or_database_modified": false
+  },
+  "cases": [
+    {
+      "case": "actual_source_decoded_as_UTF8",
+      "parser": "7.6.6",
+      "parser_platform": "Unix",
+      "error_count": 0,
+      "errors": []
+    },
+    {
+      "case": "simulated_WindowsPowerShell51_en_US_no_BOM_CP1252_input",
+      "parser": "7.6.6",
+      "parser_platform": "Unix",
+      "error_count": 2,
+      "errors": [
+        {
+          "error_id": "UnexpectedToken",
+          "line": 152,
+          "text": "PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {\n        $StartInfo.EnvironmentVariables.Remove($VariableName)\n    }\n    $Result.child_environment = [ordered]@{\n        path = $StartInfo.EnvironmentVariables['PATH']\n        pythonhome_removed = $true\n        pythonpath_removed = $true\n        node_options_removed = $true\n        electron_run_as_node_removed = $true\n        working_directory_outside_source_tree = $true\n        installed_tooling_absence = 'NOT_RUN'\n    }\n    $ApplicationProcess = New-Object Diagnostics.Process\n    $ApplicationProcess.StartInfo = $StartInfo\n    if (-not $ApplicationProcess.Start()) { throw 'The",
+          "message": "Unexpected token 'PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {\n        $StartInfo.EnvironmentVariables.Remove($VariableName)\n    }\n    $Result.child_environment = [ordered]@{\n        path = $StartInfo.EnvironmentVariables['PATH']\n        pythonhome_removed = $true\n        pythonpath_removed = $true\n        node_options_removed = $true\n        electron_run_as_node_removed = $true\n        working_directory_outside_source_tree = $true\n        installed_tooling_absence = 'NOT_RUN'\n    }\n    $ApplicationProcess = New-Object Diagnostics.Process\n    $ApplicationProcess.StartInfo = $StartInfo\n    if (-not $ApplicationProcess.Start()) { throw 'The' in expression or statement."
+        },
+        {
+          "error_id": "TerminatorExpectedAtEndOfString",
+          "line": 259,
+          "text": "')) { Write-Output $Result.error }\nexit $ExitCode\n",
+          "message": "The string is missing the terminator: '."
+        }
+      ]
+    }
+  ],
+  "source_decode_trigger": [
+    {
+      "source_line": 22,
+      "utf8_decoded_text": "$WorkingRoot = Join-Path $ValidationRoot '빈 작업 경로'",
+      "cp1252_decoded_text": "$WorkingRoot = Join-Path $ValidationRoot 'ë¹ˆ ìž‘ì—… ê²½ë¡œ'",
+      "utf8_bytes_hex": "24576f726b696e67526f6f74203d204a6f696e2d50617468202456616c69646174696f6e526f6f742027ebb98820ec9e91ec978520eab2bdeba19c27",
+      "introduced_smart_quote_codepoints": [
+        "U+2018"
+      ]
+    }
+  ],
+  "finding": {
+    "id": "AIK003-VALIDATOR-UTF8NOBOM-WINPS51",
+    "status": "REPRODUCED_INPUT_DECODE_PARSER_DEFECT",
+    "priority": "P2",
+    "description": "The validator contains Korean source literals without a UTF-8 BOM. Under the documented en-US Windows PowerShell5.1 default CP1252 decoding, a continuation byte in the Korean working-directory literal becomes a smart single quote and changes the parser token stream.",
+    "conclusion": "The existing PowerShell7 CI does not establish that this script can be launched by the default WindowsPowerShell5.1 installation on an en-US clean Windows client.",
+    "suggested_fix": "Deliver the non-ASCII script as UTF-8 with BOM, or use ASCII-only source with explicit Unicode string construction, then verify the intended WindowsPowerShell5.1 path.",
+    "not_claimed": [
+      "This is not a Windows5.1 interpreter run.",
+      "This is not a clean Windows11 installation test.",
+      "This does not complete AIK-003."
+    ]
+  },
+  "official_documentation": [
+    {
+      "url": "https://learn.microsoft.com/en-us/powershell/scripting/dev-cross-plat/vscode/understanding-file-encoding?view=powershell-7.6",
+      "supports": "Windows PowerShell5.1 and earlier on en-US default to Windows-1252 input for scripts without BOM."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-7.6",
+      "supports": "Non-ASCII UTF8NoBOM scripts can break in Windows PowerShell; UTF-8 with BOM is the documented interoperability option."
+    }
+  ]
+}

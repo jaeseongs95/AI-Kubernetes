@@ -1,0 +1,178 @@
+name: Windows client handoff
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/build_windows_handoff.py'
+      - 'tools/windows_handoff/**'
+      - 'tests/test_windows_handoff.py'
+      - 'spikes/windows-foundation/**'
+      - 'packaging/**'
+      - 'scripts/windows/build-sidecar.ps1'
+      - 'scripts/windows/verify-installed-spike.ps1'
+      - '.github/workflows/windows-client-handoff.yml'
+  pull_request:
+    paths:
+      - 'tools/build_windows_handoff.py'
+      - 'tools/windows_handoff/**'
+      - 'tests/test_windows_handoff.py'
+      - 'spikes/windows-foundation/**'
+      - 'packaging/**'
+      - 'scripts/windows/build-sidecar.ps1'
+      - 'scripts/windows/verify-installed-spike.ps1'
+      - '.github/workflows/windows-client-handoff.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-client-handoff-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  legacy-powershell-package:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      PYTHONUTF8: '1'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CI: 'true'
+    steps:
+      - name: Checkout the exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Use the pinned build Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: spikes/windows-foundation/package-lock.json
+      - name: Use the pinned build CPython
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Verify handoff identity and encoding regression guards
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p test_windows_handoff.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install the locked desktop build dependencies
+        working-directory: spikes/windows-foundation
+        run: npm ci --no-audit --no-fund
+      - name: Verify the actual Windows engine and bounded worker
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = Join-Path $env:GITHUB_WORKSPACE 'spikes/windows-foundation/python'
+          python -m unittest discover -s spikes/windows-foundation/tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify and build the renderer and IPC contract
+        working-directory: spikes/windows-foundation
+        shell: pwsh
+        run: |
+          $env:AIK_SPIKE_PYTHON = (Get-Command python).Source
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Freeze the sidecar with its Python runtime
+        shell: pwsh
+        run: ./scripts/windows/build-sidecar.ps1
+      - name: Build the unsigned per-user development installer
+        working-directory: spikes/windows-foundation
+        run: npm run package:win
+      - name: Verify the exact installer before packaging it
+        shell: pwsh
+        run: ./scripts/windows/verify-installed-spike.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE
+      - name: Build the independent ZIP using verified installer identities
+        shell: pwsh
+        run: |
+          $Installers = @(Get-ChildItem -LiteralPath 'packaging/dist' -File -Filter 'AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe')
+          if ($Installers.Count -ne 1) { throw 'Exactly one validated installer is required.' }
+          $HandoffRoot = Join-Path $env:GITHUB_WORKSPACE 'packaging/handoff'
+          New-Item -ItemType Directory -Path $HandoffRoot | Out-Null
+          $ZipPath = Join-Path $HandoffRoot ('AIK-Windows-Client-Handoff-' + $env:GITHUB_SHA.Substring(0, 12) + '.zip')
+          python tools/build_windows_handoff.py --installer $Installers[0].FullName --source-commit $env:GITHUB_SHA --output $ZipPath |
+            Set-Content -LiteralPath (Join-Path $HandoffRoot 'build-handoff.json') -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content -LiteralPath (Join-Path $HandoffRoot 'build-handoff.json')
+      - name: Extract into a new Unicode path outside the build checkout
+        shell: pwsh
+        run: |
+          $Archives = @(Get-ChildItem -LiteralPath 'packaging/handoff' -File -Filter '*.zip')
+          if ($Archives.Count -ne 1) { throw 'Exactly one handoff ZIP is required.' }
+          $HandoffRunRoot = Join-Path ([IO.Path]::GetTempPath()) ('AIK 전달 ' + [Guid]::NewGuid().ToString('N'))
+          $PackageDirectory = Join-Path $HandoffRunRoot '패키지 경로'
+          $EvidenceParent = Join-Path $HandoffRunRoot '실제 실행 증거'
+          Expand-Archive -LiteralPath $Archives[0].FullName -DestinationPath $PackageDirectory
+          ('AIK_HANDOFF_PACKAGE_DIR=' + $PackageDirectory) | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+          ('AIK_HANDOFF_EVIDENCE_PARENT=' + $EvidenceParent) | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+      - name: Run the delivered wrapper with actual Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1 -or $PSVersionTable.PSEdition -ne 'Desktop') {
+            throw 'This verification requires actual Windows PowerShell 5.1.'
+          }
+          $env:PATH = (Join-Path $env:SystemRoot 'System32') + ';' + $env:SystemRoot
+          $env:PSModulePath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'
+          foreach ($Name in @('PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {
+            Remove-Item -LiteralPath ('Env:' + $Name) -ErrorAction SilentlyContinue
+          }
+          $LegacyPowerShell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          & $LegacyPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $env:AIK_HANDOFF_PACKAGE_DIR 'run-validation.ps1') -EvidenceParent $env:AIK_HANDOFF_EVIDENCE_PARENT
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve and check actual legacy interpreter evidence
+        if: always()
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:AIK_HANDOFF_EVIDENCE_PARENT) -or -not (Test-Path -LiteralPath $env:AIK_HANDOFF_EVIDENCE_PARENT)) {
+            throw 'The independent handoff execution did not create its evidence directory.'
+          }
+          Copy-Item -LiteralPath $env:AIK_HANDOFF_EVIDENCE_PARENT -Destination 'packaging/handoff/evidence' -Recurse
+          $Reports = @(Get-ChildItem -LiteralPath 'packaging/handoff/evidence' -Recurse -File -Filter 'handoff-validation.json')
+          if ($Reports.Count -ne 1) { throw 'Exactly one independent execution report is required.' }
+          $Report = Get-Content -LiteralPath $Reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if ($Report.status -ne 'PASS' -or $Report.observed_execution.powershell_edition -ne 'Desktop' -or
+              $Report.observed_execution.powershell_version -notlike '5.1.*' -or
+              $Report.checks.delivered_script_parse -ne 'PASS' -or $Report.checks.actual_gui_evidence -ne 'PASS') {
+            throw 'Actual legacy PowerShell, BOM parse, and installed GUI evidence did not pass.'
+          }
+          if ($Report.qualification.windows11_standard_user_clean_machine -ne 'NOT_RUN' -or
+              $Report.qualification.developer_tools_absence -ne 'NOT_RUN' -or
+              $Report.observed_windows_environment.os_product_type -ne 3) {
+            throw 'The Server CI run must preserve unqualified clean Windows client status.'
+          }
+          $Report | ConvertTo-Json -Depth 16
+      - name: Preserve raw build and both actual validation executions
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-client-handoff-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            packaging/build/sidecar-build.json
+            packaging/evidence/**
+            packaging/handoff/build-handoff.json
+            packaging/handoff/evidence/**
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve the tested independent Windows handoff ZIP
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-client-handoff-package-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            packaging/handoff/*.zip
+            packaging/handoff/*.sha256
+          if-no-files-found: error
+          retention-days: 7
+      - name: Preserve the exact unsigned installer used in both executions
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-client-handoff-unsigned-installer-${{ github.sha }}-${{ github.run_attempt }}
+          path: packaging/dist/AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe
+          if-no-files-found: error
+          retention-days: 7
