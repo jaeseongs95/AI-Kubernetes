@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:aik:task-execution-binding:v1",
+  "title": "Proposed AIK-to-VM task execution binding",
+  "description": "Contract only; requires owner-issued authorization and a qualified adapter before it can be used for effects. This schema is not an access token.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "vm_instance_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vm_project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vm_goal_revision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vm_plan_revision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vm_task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vm_attempt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vm_execution_spec_digest": {
+      "type": "string",
+      "minLength": 71,
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "vm_runtime_intent_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vm_provider_call_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cluster_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "route_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "route_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "connection_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "connection_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "auth_kind": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider_account_fingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pool_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "placement_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lease_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lease_fencing_token": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "support_matrix_digest": {
+      "type": "string",
+      "minLength": 71,
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "input_manifest_digest": {
+      "type": "string",
+      "minLength": 71,
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "workspace_root_ref": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "vm_instance_id",
+    "vm_project_id",
+    "vm_goal_revision_id",
+    "vm_plan_revision_id",
+    "vm_task_id",
+    "vm_attempt_id",
+    "vm_execution_spec_digest",
+    "vm_runtime_intent_id",
+    "vm_provider_call_id",
+    "cluster_id",
+    "route_id",
+    "route_revision",
+    "connection_id",
+    "connection_revision",
+    "provider",
+    "auth_kind",
+    "provider_account_fingerprint",
+    "pool_id",
+    "placement_id",
+    "lease_id",
+    "lease_fencing_token",
+    "support_matrix_digest",
+    "input_manifest_digest",
+    "workspace_root_ref"
+  ]
+}

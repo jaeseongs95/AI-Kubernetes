@@ -7,7 +7,7 @@
 
 단순한 LLM API 라우터나 새로운 subagent 프레임워크가 아니다. **작업 계약 → 자원 탐색 → 배치 → 실행 → 결과 회수 → 검증 → 자원 반환**을 벤더와 실행 위치에 종속되지 않게 만드는 상위 제어 계층을 지향한다.
 
-> **상태: Windows 기반 구현 진행.** 첫 제품은 **Windows GUI**로 제공한다. AIK-001~003의 통합 계약·GUI/sidecar·설치 기반 작업에 착수했다. [실행 가능한 기반 spike](spikes/windows-foundation/README.ko.md)에 React 화면, 실제 Python/worker IPC, Windows DPAPI 시험과 설치 검증 경로를 구현하고 있다. 멀티벤더 인증·총괄 모델 지정·AGS/VM 제품 통합과 첫 출시는 후속 태스크다.
+> **상태: Windows 기반 구현·실행 검증 진행.** AIK-001의 설치형 연동 계약을 완료했고, [Windows 기반 spike](spikes/windows-foundation/README.ko.md)의 실제 설치·GUI·Python/worker IPC·사용자 DPAPI·제거가 Windows CI에서 통과했다. AIK-002의 후보별 실측 비교는 진행 중이며, AIK-003의 깨끗한 후보 Windows 설치 검증은 미완료다. [구현·실행 기록](docs/implementation-2026-10-12.ko.md)에 근거와 범위를 보존한다. 멀티벤더 인증·총괄 모델 지정·AGS/VM 제품 통합과 첫 출시는 후속 태스크다.
 
 [개발 계획·검토](docs/development-plan.ko.md) · [완제품 완료성 검토](docs/product-completeness.ko.md) · [이전 장부 도구 감사](docs/audit-2026-10-12.ko.md) · [전체 개발 태스크](docs/development-backlog.ko.md) · [SQLite 장부](planning/backlog.sqlite3) · [최초 설계문서](docs/initial-design.ko.md) · [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite) · [VibeMarshal](https://github.com/jaeseongs95/vibemarshal)
 
@@ -17,7 +17,7 @@
 2. **총괄 에이전트 지정:** Dot처럼 목표를 받고 작업을 위임·회수·보고하는 총괄의 실행 자원, 모델, 지원 추론 수준과 대체 정책을 설정한다. 총괄과 worker/검토 역할의 프로필은 분리한다.
 3. **Windows GUI 운영:** 사용자 프로젝트 폴더를 열거나 만들고 목표를 제출한다. 실제 파일 생성·수정·검증·재작업, 결과 열기/저장, 자원·비용·인가 범위 확인, 중단·재시작·백업 복원까지 GUI로 제공한다. GUI 창과 실행 중인 총괄/worker의 수명은 구분한다.
 
-GUI 기술 스택, Windows 세부 지원 버전·CPU·설치 형식은 검증 태스크에서 결정한다. 기존 VibeMarshal의 GUI 자산과 EngineClient 계약을 재사용 후보로 검토한다.
+첫 구현 후보는 Electron·React/TypeScript·Python sidecar와 runtime을 포함한 NSIS 사용자별 설치본이다. VibeMarshal의 GUI 자산과 EngineClient 경계를 검토했으며, 선택 근거·지원 후보·남은 비교는 [Windows ADR](docs/windows-packaging.ko.md)에 기록한다.
 
 ## 왜 만드는가
 
@@ -149,7 +149,7 @@ python -m unittest discover -s tests -v
 
 ## 프로젝트 상태
 
-**2026-10-12 · 개발 계획 v0.4.** 기존 82개 기준을 그대로 통과해도 불완전한 제품이 나올 수 있는 반례를 검토하고, 실제 프로젝트·의존 개발 작업·도구 효과·결과 수명·GUI 복원·후속 설치본 출시를 보완했다. 구현과 실제 적합성 검증의 숨은 선행 순환도 정정했다. 계획 구조·장부 회귀 통과와 제품의 실제 Windows/provider/AGS/VM 검증을 구분하며, 제품 기능은 아직 구현 전이다.
+**2026-10-12 · 계획 v0.4에 따른 구현 시작.** 실제 Windows 설치 GUI 기반과 설치형 upstream 검사기를 추가했다. 장부의 기존 90개 태스크·311개 완료 기준·365개 의존성은 보존했으며, 완료는 실행 근거와 독립 검토가 있는 범위에만 기록한다. 실제 벤더·사용자 프로젝트·총괄 모델·AGS/VM 제품 연동과 출시 판정은 미완료다. 최신 태스크 상태는 [SQLite 생성 장부](docs/development-backlog.ko.md)를 따른다.
 
 ## 라이선스
 

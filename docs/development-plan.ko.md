@@ -9,7 +9,7 @@
 - 개발 태스크 정본: [planning/backlog.sqlite3](../planning/backlog.sqlite3)
 - 읽기용 전체 태스크: [development-backlog.ko.md](development-backlog.ko.md)
 - Git 비교·복원용 생성본: [planning/backlog.sql](../planning/backlog.sql)
-- 제품 상태: **구현 전. 이 문서와 장부 도구 작성은 제품 기능 완료가 아니다.**
+- 제품 상태: **Windows 기반 구현 진행.** 실제 설치 GUI·worker·DPAPI 시험과 설치형 연동 계약 근거는 [구현 기록](implementation-2026-10-12.ko.md)에 있다. 전체 제품 기능·출시는 미완료다.
 
 ## 검토 결론
 
@@ -32,7 +32,8 @@ v0.4는 사용자가 태스크를 따라 개발했을 때 실제 설치·사용�
 | 구현안 제안 | 사용자 범위 Windows vault와 비밀 참조 broker | DEC09 **proposed** |
 | 초기 지원 범위 제안 | 두 벤더의 API/구독 연결과 역할별 실제 도구 실행; 필수/선택/미지원 matrix 확정 | DEC12 **proposed** |
 | 제품 인수·출시 제안 | P01~P12, 같은 판본의 실제 검증, 선택 확장의 실제 gate 선행 연결 | DEC13 **proposed** |
-| 열린 선택 | GUI 스택, Windows 세부 지원 환경·설치 형식, 라이선스, 원격 전송 규약 | DEC07·DEC08·DEC10·DEC11 **open** |
+| 구현 후보 제안 | Electron·Python sidecar, Windows x64·사용자별 NSIS; 실측 비교와 깨끗한 설치 검증 상태를 별도 기록 | DEC07·DEC08 **proposed** |
+| 열린 선택 | 라이선스, 원격 전송 규약 | DEC10·DEC11 **open** |
 
 SQLite `requirements.origin`은 `user`와 `derived`를 구분한다. `sources`는 사용자 요구, 고정 SHA의 저장소 내용, 공식 문서를 구분한다. `decisions.status`는 `confirmed`, `proposed`, `open`으로 관리한다. 구현 선택을 사용자 확정 사항으로 기록하지 않는다.
 
@@ -212,7 +213,7 @@ M0~M4의 **72개**가 현재 제안한 첫 Windows 배포 범위이며 064의 �
 | `task_evidence` | 완료 근거의 참조와 요약 |
 | `metadata` | schema·기준선·작성 시각·소유권 및 정본 정책 |
 
-현재 **90개 태스크, 29개 요구사항(사용자 9·파생 20), 13개 결정, 15개 출처, 311개 완료 기준, 365개 의존성**이다. 파생 요구 20개는 기존 D01~D08과 인수 흐름 P01~P12다. 태스크별 기준 수는 필요한 계약에 따라 다르다. 상태는 모두 `todo`이고 실제 제품 완료 증거는 0개다. `created` 90건과 `review_refined` 132건, 총 222건의 이력은 장부 등록·본문 보강·추적 연결·순서 재배열·정적 검토를 나타낸다.
+현재 **90개 태스크, 29개 요구사항(사용자 9·파생 20), 13개 결정, 16개 출처, 311개 완료 기준, 365개 의존성**이다. 파생 요구 20개는 기존 D01~D08과 인수 흐름 P01~P12다. 태스크별 기준 수는 필요한 계약에 따라 다르다. 실제 구현에 따른 상태·증거·변경 이력은 [생성 장부](development-backlog.ko.md)와 [구현 검증 JSON](../planning/implementation-validation.json)에 기록한다. 이전 `created` 90건과 `review_refined` 132건은 계획 등록·보강 이력으로 보존하며, 새 구현·실행 근거와 구분한다.
 
 `v_backlog`는 작업별 선행 잔여 수·기준 수·증거 수를 보여준다. `v_ready_tasks`는 `todo`이면서 모든 선행 작업이 `done`인 항목이다. `v_milestone_summary`는 단계별 상태·착수 가능 수를 집계한다.
 

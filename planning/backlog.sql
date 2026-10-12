@@ -334,8 +334,8 @@ INSERT INTO "decisions" VALUES('DEC03','멀티벤더 인증 관리 공간','conf
 INSERT INTO "decisions" VALUES('DEC04','VM·AGS 권위 경계 유지','confirmed','VM은 Goal/Task/Attempt/verdict, AGS는 거버넌스/협업, AIK는 pool/placement/lease를 소유한다.','최초 설계 §3과 VM 권위 설계의 중복 원장 금지 원칙을 유지.','S-DESIGN');
 INSERT INTO "decisions" VALUES('DEC05','JEV 보조와 AGENT 최종 선택','confirmed','RAW 보존·앞단 별도 LLM 정형화 없음·최종 스킬 선택 AGENT를 유지한다.','사용자 정정 사항과 최초 설계 §10.','S-JEV');
 INSERT INTO "decisions" VALUES('DEC06','첫 Windows 단일 클러스터 이후 연합 확장','proposed','M0~M4는 Windows 첫 배포, M5는 두 클러스터 연합, M6는 확장으로 단계화한다.','GUI/인증/설치형 gate를 먼저 실증하기 위한 개발 순서 제안. 사용자 확정 OS 요구와 구분하며 연합 목표를 제거하지 않음.','S-DESIGN');
-INSERT INTO "decisions" VALUES('DEC07','GUI 구현 스택','open','VM의 Tauri 2+React/TypeScript+Python sidecar 제안을 우선 검토하고 Windows spike 후 ADR로 선택한다.','기존 UI 자산을 검토하되 AIK 스택으로 자동 확정하지 않음.','S-VM-GUI');
-INSERT INTO "decisions" VALUES('DEC08','Windows 지원 범위·설치 형식','open','Windows 버전·CPU 아키텍처·설치/업데이트/서명 방식을 AIK-003에서 확정한다.','사용자는 Windows만 확정했으며 x64/ARM64나 MSI/MSIX/EXE는 지정하지 않음.','S-USER');
+INSERT INTO "decisions" VALUES('DEC07','GUI 구현 스택','proposed','첫 구현 후보는 Electron44.7.0+React/TypeScript+CPython3.14.8 sidecar다. 실제 Windows 설치 GUI·IPC·worker·DPAPI를 검증했고, 기존 AIK-002의 후보별 실행·메모리 비교를 보완한다.','VM 표현층과 EngineClient 경계를 검토한 뒤 runtime 포함 배포와 현재 진단 가능성을 기준으로 선택한 구현 후보다. 사용자가 Electron을 직접 지정한 확정 요구로 기록하지 않는다.','S-IMPL-20261012');
+INSERT INTO "decisions" VALUES('DEC08','Windows 지원 범위·설치 형식','proposed','Windows11 x64 지원 후보, 사용자별 NSIS EXE, Electron/Python runtime 포함, 정식 Authenticode·서명 설치본 수동 업데이트와 기본 사용자 데이터 보존 정책을 선택했다.','Windows Server2022의 실제 설치·제거는 통과했으나 기존 AIK-003의 깨끗한 후보 Windows·개발 도구 없는 환경 검증은 미완료다. 지원 qualification과 정식 제품 서명 성공을 주장하지 않는다.','S-IMPL-20261012');
 INSERT INTO "decisions" VALUES('DEC09','Windows 시크릿 backend','proposed','사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다.','비밀 참조 broker는 앱의 접근 범위를 통제한다. Windows 사용자 vault의 저장/사용자 경계와 trusted same-user native 프로세스의 직접 OS 접근 범위를 별도 명시하고 실제 보장만 검증한다.','S-DPAPI');
 INSERT INTO "decisions" VALUES('DEC10','AI-Kubernetes 라이선스','open','AIK 자체 라이선스와 재배포 notice를 배포 전에 확정한다.','최초 README는 미정. upstream 라이선스를 AIK 전체에 자동 적용하지 않음.','S-README');
 INSERT INTO "decisions" VALUES('DEC11','원격 PEER 전송과 신뢰 계약','open','버전·상호 인증·키 회수·메시지 수명·권위 회복과 입력 manifest/수신 경로 projection·준비 책임을 연합 구현 전에 확정한다.','현재 AGS 동일 사용자 로컬 PEER를 원격 신뢰 도메인과 구분.','S-AGS');
@@ -365,18 +365,18 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-12T07:27:11Z');
-INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T06:49:10Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-12T08:05:46Z');
+INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T08:05:45Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
 INSERT INTO "metadata" VALUES('upstream_ags_commit','56fef8bd189377b80f4020f506e717ab292b260a');
 INSERT INTO "metadata" VALUES('upstream_vm_commit','32bb0f9dd9f024045d24487312b50f5b703573a3');
 INSERT INTO "metadata" VALUES('canonical_data','planning/backlog.sqlite3');
 INSERT INTO "metadata" VALUES('review_snapshot','planning/backlog.sql');
-INSERT INTO "metadata" VALUES('product_status','pre_implementation');
-INSERT INTO "metadata" VALUES('task_status_policy','All product tasks remain todo; planning is not implementation evidence. in_progress/done require all prerequisites done; done also requires reviewed evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance are distinct.');
+INSERT INTO "metadata" VALUES('product_status','foundation_spike_implemented; complete_product_incomplete');
+INSERT INTO "metadata" VALUES('task_status_policy','Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct.');
 INSERT INTO "metadata" VALUES('scope_policy','Windows GUI confirmed; local-first release staging proposed in DEC06; federation retained in M5.');
-INSERT INTO "metadata" VALUES('evidence_policy','Repository contents were read; no upstream product code or Windows product tests were executed.');
+INSERT INTO "metadata" VALUES('evidence_policy','Pinned AGS/VM installed public-contract inspection and Windows Server 2022 packaged foundation GUI, worker, DPAPI, bundle and uninstall were executed. Full product/vendor execution and clean supported Windows installation remain unverified; preserve each evidence scope.');
 INSERT INTO "metadata" VALUES('secret_policy','Development metadata only; runtime credentials and operational ledgers never belong in this database.');
 INSERT INTO "metadata" VALUES('ownership_policy','VM owns Goal/Task/Attempt/verdict; AGS governance/peer; AIK owns pool/placement/lease.');
 INSERT INTO "metadata" VALUES('audit_baseline_commit','019cccf0bd63684d893f50d239d54fbc2bf7b033');
@@ -384,6 +384,7 @@ INSERT INTO "metadata" VALUES('product_completeness_baseline_commit','dc6d60b67c
 INSERT INTO "metadata" VALUES('product_acceptance_policy','P01-P10 define observable first-release journeys; P11 federation; P12 selected extensions. Implementation, GUI/installer and same-build release evidence are required. Planning and structural checks are not product execution evidence.');
 INSERT INTO "metadata" VALUES('release_scope_policy','064 covers all first_release tasks. 089 defaults to 065 and 067-075; 090 defaults to 076-079 plus 089. Selecting 066/080 requires adding the actual gate dependency at scope freeze and validating it. Unselected tasks remain todo/future; no all-roadmap-done claim.');
 INSERT INTO "metadata" VALUES('runtime_qualification_policy','082 is an actual minimal preflight probe. 019/033 allow explicit test-only candidate bindings under all existing gates for 086. Operational qualified advertising requires 086 PASS. 044 composes a real development goal; 059/064 qualify the final installer. Later resource qualifications reuse the same explicit candidate and live-evidence contract.');
+INSERT INTO "metadata" VALUES('foundation_implementation_commit','56523355d9cf3a2437989d1dd26f2e5ced1666d2');
 CREATE TABLE milestones (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     name TEXT NOT NULL CHECK (length(trim(name)) > 0),
@@ -456,6 +457,7 @@ INSERT INTO "sources" VALUES('S-CRED','Microsoft Credential Manager CredWrite','
 INSERT INTO "sources" VALUES('S-CREDREAD','Microsoft CredRead: 현재 로그온 token의 사용자 자격 증명 조회','official_doc','https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada','2026-10-12 조회','Windows 사용자 저장소의 접근 경계에 관한 공식 문서. 앱 broker scope가 동일 사용자 native 프로세스의 OS API 접근을 자동으로 제한한다는 근거는 아니다.');
 INSERT INTO "sources" VALUES('S-COMPLETE','사용자의 태스크→완제품 완료성 검증 요청','user','','2026-10-12','태스크를 그대로 따라 개발하면 완제품이 나오는지 검증하라는 요청. 반례 감사와 최소 제품 인수 조건을 도출했으며 사용자 확정 요구·기존 권위 경계를 유지한다.');
 INSERT INTO "sources" VALUES('S-VM-RUNTIME','VM의 설치형 application/runtime 주입·dispatch·intent 계약','repository','https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py','32bb0f9dd9f024045d24487312b50f5b703573a3','동일 SHA의 engine/application.py·runtime.py·cli.py 및 engine-user-workflow.md 읽기. 단일 runtime 객체 주입 seam과 VM 내부 Attempt/intent 예약을 확인했으며 AIK route/lease/effect의 효과 전 결속은 선행 통합 계약·설치형 검증 대상이다. upstream 코드 import/실행 없음.');
+INSERT INTO "sources" VALUES('S-IMPL-20261012','Windows 기반 구현·설치형 연동 실제 검증','repository','https://github.com/jaeseongs95/AI-Kubernetes/commit/56523355d9cf3a2437989d1dd26f2e5ced1666d2','56523355d9cf3a2437989d1dd26f2e5ced1666d2','기존 태스크 구현 지시에 따른 기술 선택과 실제 실행 증거. 특정 기술을 사용자가 직접 선택한 요구로 간주하지 않는다. Windows CI38219549819 PASS 범위와 미실행 조건은 evidence/에 보존한다.');
 CREATE TABLE task_decisions (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     decision_id TEXT NOT NULL REFERENCES decisions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1145,6 +1147,17 @@ INSERT INTO "task_events" VALUES(222,'AIK-058','review_refined','todo','todo','�
 INSERT INTO "task_events" VALUES(223,'AIK-001','status_change','todo','in_progress','사용자 구현 지시에 따라 실제 AGS/VM 설치 계약·manifest·runtime seam 조사 및 검증 코드 구현 시작','2026-10-12T07:27:10Z');
 INSERT INTO "task_events" VALUES(224,'AIK-002','status_change','todo','in_progress','Windows GUI·typed IPC·Python sidecar·합성 OS vault 왕복 spike 구현 시작','2026-10-12T07:27:11Z');
 INSERT INTO "task_events" VALUES(225,'AIK-003','status_change','todo','in_progress','Windows 지원 후보·runtime bundle·설치/제거·서명 및 CI 검증 경로 구현 시작','2026-10-12T07:27:11Z');
+INSERT INTO "task_events" VALUES(226,'AIK-001','evidence_recorded',NULL,NULL,'EV-001-INSTALLED-20261012: 실제 고정 AGS 28 MCP 도구 및 non-editable VM init/status·SQLite4 검사. 호환 검사 2건 BLOCKED는 후행 통합 차단이다. SHA256 b8a12c1c713a950afbde319c8750dba4d71b547e9fda0bfe054f9344b7c3b417','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(227,'AIK-001','evidence_recorded',NULL,NULL,'EV-001-CONTRACT-20261012: 단일 소유권·공개 runtime seam·Task/Attempt/route/account/lease 결속과 역할별 12개 지원 조합을 고정했다. 운영 qualification은 NOT_RUN. SHA256 1042604824fd7f77563f893b13dd292871abbb85fd278e77480f3c2fedaf7ea0','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(228,'AIK-001','evidence_recorded',NULL,NULL,'EV-001-SCHEMA-20261012: Draft202012Validator jsonschema4.26.0; 독립 fixture 59개 PASS. 세 digest의 마지막 개행 허용 결함을 수정했다. 실제 인가/계정/lease qualification은 범위 밖.','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(229,'AIK-001','evidence_recorded',NULL,NULL,'EV-001-REVIEW-20261012: 설치 bytes·wheel·schema·지원 matrix 및 기존 완료 기준 5개를 독립 대조했다. AIK-001 done 권고, 제품 런타임 완료 주장은 없다.','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(230,'AIK-002','evidence_recorded',NULL,NULL,'EV-002-ELECTRON-20261012: 소스56523355d9cf3a2437989d1dd26f2e5ced1666d2의 Windows CI38219549819 첫 실행: install/bundle/실제 GUI/worker/DPAPI/uninstall PASS. 후보별 실측 비교가 남아 전체 태스크는 in_progress.','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(231,'AIK-002','evidence_recorded',NULL,NULL,'EV-002-REVIEW-20261012: 세 AC는 충족하지만 기존 tasks.verification의 Tauri 대안 설치·IPC·worker·메모리 실측은 보완해야 한다. Electron 성공만으로 전체 done 처리하지 않는다.','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(232,'AIK-003','evidence_recorded',NULL,NULL,'EV-003-INSTALL-20261012: runtime 공급과 설치/제거는 Windows Server2022 관리자 CI에서 실제 PASS. 개발 도구 없는 깨끗한 후보 Windows와 표준 사용자 실행은 NOT_RUN이다.','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(233,'AIK-003','evidence_recorded',NULL,NULL,'EV-003-POLICY-20261012: Windows x64 후보·runtime 포함 NSIS·서명/업데이트/데이터 정책·성능 측정 부하를 정했다. 기존 AC2 및 verification의 깨끗한 후보 Windows 설치 검증은 미충족.','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(234,'AIK-002','decision_updated',NULL,NULL,'DEC07과 DEC08의 구현 후보 및 실제 검증 범위를 S-IMPL-20261012에 결속했다. 기존 요구사항·완료 기준·의존성은 변경하지 않았다.','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(235,'AIK-001','status_change','in_progress','done','기존 5개 완료 기준 및 verification 충족: 고정 AGS/VM 실제 설치 bytes·공개 명령·schema/façade 대조, 소유권/실행 결속 계약·12개 역할 matrix·독립 검토를 완료했다. 형식 검증에서 발견한 digest 개행 결함을 수정하고 59개 fixture PASS. 현재 AGS-VM 미호환과 실제 모델 qualification은 후행 차단으로 유지한다.','2026-10-12T08:05:45Z');
+INSERT INTO "task_events" VALUES(236,'AIK-003','status_change','in_progress','blocked','설치·runtime 공급·GUI·worker·DPAPI·제거는 Windows Server2022 관리자 CI에서 실제 PASS. 기존 criterion2 및 verification은 개발 도구가 없는 깨끗한 후보 Windows 설치를 요구한다. 현재 증거의 installed_tooling_absence/support_qualification은 NOT_RUN이므로 done으로 전환하지 않는다. 선택 Windows11 표준 사용자 환경의 동일 설치본 검증이 필요하다.','2026-10-12T08:05:46Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1153,6 +1166,14 @@ CREATE TABLE task_evidence (
     summary TEXT NOT NULL CHECK (length(trim(summary)) > 0),
     recorded_at TEXT NOT NULL CHECK (length(trim(recorded_at)) > 0)
 );
+INSERT INTO "task_evidence" VALUES('EV-001-INSTALLED-20261012','AIK-001','installed_contract','contracts/upstream/installed-inspection.json','실제 고정 AGS 28 MCP 도구 및 non-editable VM init/status·SQLite4 검사. 호환 검사 2건 BLOCKED는 후행 통합 차단이다. SHA256 b8a12c1c713a950afbde319c8750dba4d71b547e9fda0bfe054f9344b7c3b417','2026-10-12T08:05:45Z');
+INSERT INTO "task_evidence" VALUES('EV-001-CONTRACT-20261012','AIK-001','integration_contract','contracts/upstream/integration-contract.json','단일 소유권·공개 runtime seam·Task/Attempt/route/account/lease 결속과 역할별 12개 지원 조합을 고정했다. 운영 qualification은 NOT_RUN. SHA256 1042604824fd7f77563f893b13dd292871abbb85fd278e77480f3c2fedaf7ea0','2026-10-12T08:05:45Z');
+INSERT INTO "task_evidence" VALUES('EV-001-SCHEMA-20261012','AIK-001','formal_schema_validation','evidence/upstream/2026-10-12/schema-validation.json','Draft202012Validator jsonschema4.26.0; 독립 fixture 59개 PASS. 세 digest의 마지막 개행 허용 결함을 수정했다. 실제 인가/계정/lease qualification은 범위 밖.','2026-10-12T08:05:45Z');
+INSERT INTO "task_evidence" VALUES('EV-001-REVIEW-20261012','AIK-001','independent_review','evidence/reviews/2026-10-12-before-stack-comparison.json','설치 bytes·wheel·schema·지원 matrix 및 기존 완료 기준 5개를 독립 대조했다. AIK-001 done 권고, 제품 런타임 완료 주장은 없다.','2026-10-12T08:05:45Z');
+INSERT INTO "task_evidence" VALUES('EV-002-ELECTRON-20261012','AIK-002','windows_installed_gui','evidence/windows-foundation/38219549819/installed-spike.json','소스56523355d9cf3a2437989d1dd26f2e5ced1666d2의 Windows CI38219549819 첫 실행: install/bundle/실제 GUI/worker/DPAPI/uninstall PASS. 후보별 실측 비교가 남아 전체 태스크는 in_progress.','2026-10-12T08:05:45Z');
+INSERT INTO "task_evidence" VALUES('EV-002-REVIEW-20261012','AIK-002','independent_review','evidence/reviews/2026-10-12-before-stack-comparison.json','세 AC는 충족하지만 기존 tasks.verification의 Tauri 대안 설치·IPC·worker·메모리 실측은 보완해야 한다. Electron 성공만으로 전체 done 처리하지 않는다.','2026-10-12T08:05:45Z');
+INSERT INTO "task_evidence" VALUES('EV-003-INSTALL-20261012','AIK-003','partial_installation_validation','evidence/windows-foundation/38219549819/verification.json','runtime 공급과 설치/제거는 Windows Server2022 관리자 CI에서 실제 PASS. 개발 도구 없는 깨끗한 후보 Windows와 표준 사용자 실행은 NOT_RUN이다.','2026-10-12T08:05:45Z');
+INSERT INTO "task_evidence" VALUES('EV-003-POLICY-20261012','AIK-003','packaging_decision','docs/windows-packaging.ko.md','Windows x64 후보·runtime 포함 NSIS·서명/업데이트/데이터 정책·성능 측정 부하를 정했다. 기존 AC2 및 verification의 깨끗한 후보 Windows 설치 검증은 미충족.','2026-10-12T08:05:45Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1948,9 +1969,9 @@ CREATE TABLE tasks (
     created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
     updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0)
 );
-INSERT INTO "tasks" VALUES('AIK-001','AGS·VM 책임·설치형 인터페이스 기준선 확정','현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.','버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix','고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록','E05','M0','P0','in_progress','integration','Integration',1,'2026-10-12T05:36:30Z','2026-10-12T07:27:10Z');
+INSERT INTO "tasks" VALUES('AIK-001','AGS·VM 책임·설치형 인터페이스 기준선 확정','현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.','버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix','고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록','E05','M0','P0','done','integration','Integration',1,'2026-10-12T05:36:30Z','2026-10-12T08:05:45Z');
 INSERT INTO "tasks" VALUES('AIK-002','Windows GUI 스택과 엔진 sidecar 검증','VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.','GUI 스택 ADR와 폐기 가능한 Windows spike','지원 후보별 설치성·IPC·worker 기동·메모리 비교','E01','M0','P0','in_progress','decision','Desktop',2,'2026-10-12T05:36:30Z','2026-10-12T07:27:11Z');
-INSERT INTO "tasks" VALUES('AIK-003','Windows 지원 환경·설치·서명 방식 결정','첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.','Windows support matrix와 packaging ADR','깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토','E09','M0','P0','in_progress','decision','Release',3,'2026-10-12T05:36:30Z','2026-10-12T07:27:11Z');
+INSERT INTO "tasks" VALUES('AIK-003','Windows 지원 환경·설치·서명 방식 결정','첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.','Windows support matrix와 packaging ADR','깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토','E09','M0','P0','blocked','decision','Release',3,'2026-10-12T05:36:30Z','2026-10-12T08:05:46Z');
 INSERT INTO "tasks" VALUES('AIK-004','GUI·총괄·실행·시크릿 프로세스와 IPC 경계','GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다. 실행 경로별 OS principal·trust profile·실제 권한과 격리 보장 범위를 명시한다.','프로세스 구획·버전형 IPC 스키마·명령 라우터','잘못된 발신자·입력·권한에 대한 IPC 통합 검증','E01','M0','P0','todo','feature','Desktop backend',5,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-005','AIK 설정·placement·lease 저장소와 마이그레이션','제품 runtime 저장소를 개발 태스크 DB와 분리하고 VM 원장을 복제하지 않는 AIK 상태를 영속화한다.','runtime DB schema·migration·참조 repository','transaction crash와 버전 변경 rollback 검증','E01','M0','P0','todo','feature','Storage',6,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-006','로컬 supervisor와 단일 총괄 인스턴스','GUI 창과 런타임 수명을 분리하고 사용자 세션 내에서 총괄·sidecar 중복 기동을 막는다.','supervisor·instance lock·재연결 endpoint','동시 앱 실행·창 재열기·강제 종료 재기동 검증','E01','M0','P0','todo','feature','Supervisor',7,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
@@ -2079,6 +2100,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',225);
+INSERT INTO "sqlite_sequence" VALUES('task_events',236);
 COMMIT;
 PRAGMA foreign_keys = ON;

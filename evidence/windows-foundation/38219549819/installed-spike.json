@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "scope": "AIK-002 packaged Windows foundation spike",
+  "source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
+  "workflow_run_id": "38219549819",
+  "workflow_attempt": "1",
+  "started_at": "2026-10-12T07:48:29.8133310Z",
+  "status": "PASS",
+  "development_artifact": true,
+  "support_qualification": "NOT_RUN",
+  "product_integration": "NOT_RUN",
+  "checks": {
+    "install": "PASS",
+    "runtime_bundle": "PASS",
+    "packaged_gui": "PASS",
+    "uninstall": "PASS"
+  },
+  "limits": [
+    "This installer contains an AIK-002 foundation spike, not the complete product.",
+    "A GitHub Server runner does not qualify Windows 11 client support.",
+    "Removing developer tools from the child PATH does not make the runner a clean computer.",
+    "No real vendor, AGS, or VM product integration is exercised.",
+    "Windows 11 standard-user installation, publisher signing, update trust, and product data removal remain separate release gates."
+  ],
+  "environment": {
+    "platform": "win32",
+    "architecture": "AMD64",
+    "os_caption": "Microsoft Windows Server 2022 Datacenter",
+    "os_version": "10.0.20348",
+    "os_build": "20348",
+    "os_product_type": 3,
+    "logical_processors": 2,
+    "memory_bytes": 8584425472,
+    "cpu_names": [
+      "INTEL(R) XEON(R) PLATINUM 8573C"
+    ],
+    "administrator": true,
+    "github_actions": true,
+    "runner_image": "win22",
+    "runner_image_version": "20261004.326.1"
+  },
+  "installer": {
+    "file": "AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe",
+    "bytes": 118718430,
+    "sha256": "955d27bd62158b029e659ea04a65807599b8ac40f1ccd40190acdb6beea83a16",
+    "signature_status": "NotSigned",
+    "release_publisher_qualified": false
+  },
+  "runtime_bundle": {
+    "gui_sha256": "6db594d72a36d66d5605cd044a373f790d2460cf9c6d839eaca8f478a854c726",
+    "engine_sha256": "e220bd62897ba928d019b9dfcfb6a89fff3adf8c5aa8439840f2c7250e4d4f04",
+    "python_runtime_libraries": [
+      {
+        "file": "python314.dll",
+        "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+      }
+    ],
+    "installed_outside_source_tree": true,
+    "unicode_and_space_paths": true
+  },
+  "child_environment": {
+    "path": "C:\\Windows\\System32;C:\\Windows",
+    "pythonhome_removed": true,
+    "pythonpath_removed": true,
+    "node_options_removed": true,
+    "electron_run_as_node_removed": true,
+    "working_directory_outside_source_tree": true,
+    "installed_tooling_absence": "NOT_RUN"
+  },
+  "application_pid": 5620,
+  "application_exit_code": 0,
+  "application_report_sha256": "b1976f4dbf46ada8758a010a5eb322fb11613bf82dcab197238ac27cd39e1cb0",
+  "screenshot_sha256": "7a5441bd36c3f3ce6265e354b34f67f4722b4afeb3f3696ee3407e3bd67f1131",
+  "completed_at": "2026-10-12T07:49:01.4272000Z",
+  "elapsed_ms": 31617.0
+}

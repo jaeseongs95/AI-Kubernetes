@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-12T08:09:20.175230+00:00",
+  "status": "IN_PROGRESS",
+  "phase": "Installed Electron foundation passed; Tauri alternative measurement in progress",
+  "foundation_source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
+  "windows_workflow_run": {
+    "id": 38219549819,
+    "url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38219549819",
+    "attempt": 1,
+    "status": "PASS",
+    "scope": "Actual Windows Server installed GUI, IPC, bounded file worker, user DPAPI, bundle and uninstall"
+  },
+  "tasks": [
+    {
+      "id": "AIK-001",
+      "title": "AGS·VM 책임·설치형 인터페이스 기준선 확정",
+      "status": "done",
+      "verification": "고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록"
+    },
+    {
+      "id": "AIK-002",
+      "title": "Windows GUI 스택과 엔진 sidecar 검증",
+      "status": "in_progress",
+      "verification": "지원 후보별 설치성·IPC·worker 기동·메모리 비교"
+    },
+    {
+      "id": "AIK-003",
+      "title": "Windows 지원 환경·설치·서명 방식 결정",
+      "status": "blocked",
+      "verification": "깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토"
+    }
+  ],
+  "task_counts": {
+    "blocked": 1,
+    "done": 1,
+    "in_progress": 1,
+    "todo": 87
+  },
+  "task_evidence_count": 8,
+  "full_product_execution": "NOT_RUN",
+  "upstream_compatibility": "BLOCKED: missing host-integration.json and fm/hello -32601",
+  "required_followups": [
+    "Complete existing AIK-002 candidate installation, IPC, worker startup and memory comparison.",
+    "Execute the AIK-003 small installed spike on a clean selected Windows client without developer tools.",
+    "Keep real vendor/model/governed tool qualification and product GUI/release gates separate."
+  ],
+  "existing_criteria_and_dependency_graph_changed": false,
+  "database_sha256": "9768fe876eeb606bc14648324f7fd79a2c662362c0baa4a4415ae900df93661a",
+  "evidence": [
+    {
+      "path": "contracts/upstream/installed-inspection.json",
+      "sha256": "b8a12c1c713a950afbde319c8750dba4d71b547e9fda0bfe054f9344b7c3b417"
+    },
+    {
+      "path": "contracts/upstream/integration-contract.json",
+      "sha256": "1042604824fd7f77563f893b13dd292871abbb85fd278e77480f3c2fedaf7ea0"
+    },
+    {
+      "path": "contracts/upstream/support-matrix.json",
+      "sha256": "a20142a723cc878dacc92dd3a02d20fba574e7f3fa02a5f2d46ac8c79e089125"
+    },
+    {
+      "path": "contracts/upstream/task-execution-binding.schema.json",
+      "sha256": "d88892e98fe9a657a7116de18035a99b6a8528c608ede6c28a4ce8eac60c0398"
+    },
+    {
+      "path": "evidence/reviews/2026-10-12-before-stack-comparison.json",
+      "sha256": "36aeee65d8983aa58d9b5dd3b3c1ff2ecbb9ee8a0d63e41c8336fb67bb6c9066"
+    },
+    {
+      "path": "evidence/upstream/2026-10-12/schema-validation.json",
+      "sha256": "a3aa7c001f97ba9298605a1673e6448d1c458cdf7e5b5950b345e8a6c4781d26"
+    },
+    {
+      "path": "evidence/windows-foundation/38219549819/verification.json",
+      "sha256": "b9d91768e90de03824c4e7172e33b6eecf6f469a02dfa2edd83a5491bf20b528"
+    },
+    {
+      "path": "evidence/ledger/2026-10-12-before-stack-comparison/validation.json",
+      "sha256": "246277f8fb861bc98bcb19ada847c17a9c7c882abe911b14dd1ff78ad90e1d20"
+    }
+  ]
+}

@@ -1,0 +1,863 @@
+{
+  "format": "aik-upstream-inspection-v1",
+  "observed_at": "2026-10-12T07:47:39.790514+00:00",
+  "scope": "installed_public_contract",
+  "qualification": "NOT_RUN",
+  "provider_calls": 0,
+  "checks": {
+    "ags_bytes": {
+      "status": "PASS",
+      "files": [
+        {
+          "path": ".codex-plugin/plugin.json",
+          "status": "PASS",
+          "sha256": "ea0a8dcf0529d25abbd18f2aa5cfec338794976334fcbe5ab4eb955139e3363c",
+          "bytes": 1668
+        },
+        {
+          "path": ".mcp.json",
+          "status": "PASS",
+          "sha256": "ff4a7b62ae53faec9260e5aaee08aa125b18b77b893337ca388e389df9d8f703",
+          "bytes": 245
+        },
+        {
+          "path": "claude-plugin/.claude-plugin/plugin.json",
+          "status": "PASS",
+          "sha256": "a32ca7469ee0e1a5bf9a251a41830db1b4339ca1cd6cfabb655c673bb07673b3",
+          "bytes": 1073
+        },
+        {
+          "path": "docs/host-execution-attestation.md",
+          "status": "PASS",
+          "sha256": "d99a6d85fe5928e011952fac718d9935ffbb021d5b2801b5b5141e31d02bbf5c",
+          "bytes": 6525
+        },
+        {
+          "path": "mcp-server/dist/host-attestation-api.mjs",
+          "status": "PASS",
+          "sha256": "fd3471ea26faacdc3281a53ed0029dd5d2b1b2a8ec149d01c378c9e0f04cfae2",
+          "bytes": 40220
+        },
+        {
+          "path": "mcp-server/dist/server.mjs",
+          "status": "PASS",
+          "sha256": "cc79a850bbbd40e089b0b5cc2e4cfef769a4af4054a0561ccf36e5236998524b",
+          "bytes": 1201642
+        },
+        {
+          "path": "package.json",
+          "status": "PASS",
+          "sha256": "a2324c29a670787b04381b81159c974a82401889820ebe4c888259f9827a5fa1",
+          "bytes": 2574
+        },
+        {
+          "path": "skills/registry.json",
+          "status": "PASS",
+          "sha256": "395cb7a025a0e1fef81cff8aa509205c170fb9c626591a880466452c0885422c",
+          "bytes": 80820
+        }
+      ]
+    },
+    "vm_bytes": {
+      "status": "PASS",
+      "files": [
+        {
+          "path": "__init__.py",
+          "status": "PASS",
+          "sha256": "0481f64b3feab188df0af84f605e7e344622304bb982a9ab5d2d42fb2a4d0872",
+          "bytes": 324
+        },
+        {
+          "path": "application.py",
+          "status": "PASS",
+          "sha256": "9a1e13038b74c630471e49f6c7ebc571a7b561c9e08178ca5b6d3fd503471cc6",
+          "bytes": 80309
+        },
+        {
+          "path": "benchmark_legacy.py",
+          "status": "PASS",
+          "sha256": "9eae2227a6b5c3558b7e1de7032966a0918bc7e9daa999592b69831994706edb",
+          "bytes": 17516
+        },
+        {
+          "path": "canonical.py",
+          "status": "PASS",
+          "sha256": "64b74f58b66f513bdcd124d49c8cc9da64eb1df28182225d502cdede10f09282",
+          "bytes": 1730
+        },
+        {
+          "path": "context.py",
+          "status": "PASS",
+          "sha256": "8a5021c651e2746ec39bd9da969ddf8e3a419bacdc4dedf7ea357bf771a9a91b",
+          "bytes": 15349
+        },
+        {
+          "path": "domain.py",
+          "status": "PASS",
+          "sha256": "652a4a7988cdfffe7d55c4c35a3eb2fc19a271f2946606c2685cca9a532916b5",
+          "bytes": 13034
+        },
+        {
+          "path": "engine/__init__.py",
+          "status": "PASS",
+          "sha256": "ec3d34d1025b3a399b6fe64db909aa134327eebe4406fe7b7fa9069f9f1a758b",
+          "bytes": 666
+        },
+        {
+          "path": "engine/ags_approved_slot_producer.py",
+          "status": "PASS",
+          "sha256": "341abe08d5784684136220f35a5334e7c20dc36425a5008fe516cd0839f2890a",
+          "bytes": 4186
+        },
+        {
+          "path": "engine/ags_invocation_transport.py",
+          "status": "PASS",
+          "sha256": "6ced622d3a68ece90e87155129aa6a2e9da754b532667e290a6a70bd710eff2d",
+          "bytes": 6752
+        },
+        {
+          "path": "engine/ags_observation_producer.py",
+          "status": "PASS",
+          "sha256": "c5f4a4e30a9820ccbcf96030da7ccf908a2b5e3b88ae0514443fe96463e3b90f",
+          "bytes": 43198
+        },
+        {
+          "path": "engine/application.py",
+          "status": "PASS",
+          "sha256": "7a47ef6148c2e168b1499bd169c5ed7eb4d45690aef4549648a21b24b996d7fb",
+          "bytes": 131024
+        },
+        {
+          "path": "engine/authorization.py",
+          "status": "PASS",
+          "sha256": "d72ece44feded37fc0caa8d12835ddf279b1c43239fca6872070f7a64c0c0b7d",
+          "bytes": 7167
+        },
+        {
+          "path": "engine/benchmark.py",
+          "status": "PASS",
+          "sha256": "3bf9b1211b2b588b1c6187baabc6df5ccdb582ed1bc36c4259e0aaf777c03103",
+          "bytes": 57951
+        },
+        {
+          "path": "engine/benchmark_candidate_costs.py",
+          "status": "PASS",
+          "sha256": "5a2ca1873c78b71dd11a8125d78a8e52b83a0cd0ea0f5b93a351192cab561cde",
+          "bytes": 9684
+        },
+        {
+          "path": "engine/benchmark_lifecycle.py",
+          "status": "PASS",
+          "sha256": "d6a660f529fe5d2b6a114a9467edbcbc7d0e061baa71cd2c8de5c8f1aaf5e394",
+          "bytes": 19411
+        },
+        {
+          "path": "engine/benchmark_observation.py",
+          "status": "PASS",
+          "sha256": "5342a4d710cd1c711523d648199be7e7045a30dda20ac7556881a7f4914651fc",
+          "bytes": 11814
+        },
+        {
+          "path": "engine/benchmark_safety.py",
+          "status": "PASS",
+          "sha256": "a8e6ac037782f6477310f4f12b734c10a406d1800271e437180c98cda9f5b476",
+          "bytes": 32462
+        },
+        {
+          "path": "engine/budget.py",
+          "status": "PASS",
+          "sha256": "496cbb84acd757ab370cc5b8c54e456ada55a17feae543d39accd5512d860223",
+          "bytes": 58586
+        },
+        {
+          "path": "engine/capabilities.py",
+          "status": "PASS",
+          "sha256": "1e819d6c87e65d61c82aa988799d99b52b913c4ecd67721e2ceb00ef5def765f",
+          "bytes": 6546
+        },
+        {
+          "path": "engine/claude_runtime.py",
+          "status": "PASS",
+          "sha256": "435a92aa7709568d928d68c58c7c3a09c8c71b772ea6155532a93073031b8640",
+          "bytes": 66880
+        },
+        {
+          "path": "engine/clean_install_qualification.py",
+          "status": "PASS",
+          "sha256": "3e0e2c6c2616be172bbe4528f156e82fe6215affe6f2ed37db9563f545e17b78",
+          "bytes": 36723
+        },
+        {
+          "path": "engine/cli.py",
+          "status": "PASS",
+          "sha256": "70ac738c334262b81fb65444646c937f75283539edbeaf929c8227ea9ecac4f9",
+          "bytes": 76374
+        },
+        {
+          "path": "engine/console_host.py",
+          "status": "PASS",
+          "sha256": "55a212d3df2392297102ddb08b70c8927c2b2aeaffeccfb5d5bf15174f793061",
+          "bytes": 4314
+        },
+        {
+          "path": "engine/context.py",
+          "status": "PASS",
+          "sha256": "6507fa90aa384cd0233fb98ddcf1af5a6fc160358e75fe71e8c757b042989ff1",
+          "bytes": 41004
+        },
+        {
+          "path": "engine/domain.py",
+          "status": "PASS",
+          "sha256": "09fe1cd1f6e160652e0ee81f4fd7a055f3813decd9ca056c97af2708e8ff95c4",
+          "bytes": 123000
+        },
+        {
+          "path": "engine/e2e_qualification.py",
+          "status": "PASS",
+          "sha256": "608632cd64b16f4c4d95b638cc97c2bd7365159c58d1822ff4ac411cf494a7d7",
+          "bytes": 330009
+        },
+        {
+          "path": "engine/eval_cli.py",
+          "status": "PASS",
+          "sha256": "1417c696d176ed898ef260dd10b2b7f20d9064ff307e4a10e415087611eaddfd",
+          "bytes": 37433
+        },
+        {
+          "path": "engine/evaluation.py",
+          "status": "PASS",
+          "sha256": "4bcfddbec4c3e6161ccaed29b3ff8c15572f45061bdc375ff387fb5012a5fb03",
+          "bytes": 43634
+        },
+        {
+          "path": "engine/evaluation_budget.py",
+          "status": "PASS",
+          "sha256": "fbbb2b16f471ff79de5882b76e351408e49db3d181c4f88449ffdee890eaf725",
+          "bytes": 9687
+        },
+        {
+          "path": "engine/execution.py",
+          "status": "PASS",
+          "sha256": "71849a8a3944dc9d01ac34e9b0bae790104182c3dfe0924f4536f0ae379b01b9",
+          "bytes": 25433
+        },
+        {
+          "path": "engine/freeze.py",
+          "status": "PASS",
+          "sha256": "775465adf2b72c3b5bf9f7ae497f7d403d85ab3b39747b26ff99e051c4fe5adc",
+          "bytes": 4819
+        },
+        {
+          "path": "engine/goal.py",
+          "status": "PASS",
+          "sha256": "94ce866d39dd61240d13e08a3611be40746982e7f8fdc684816f30c665dd1453",
+          "bytes": 33196
+        },
+        {
+          "path": "engine/goal_feedback.py",
+          "status": "PASS",
+          "sha256": "e83d4e5bb4f3f7cf9af1dd4c2c4be26cefa97bddb0395db3637bcca94dabc22b",
+          "bytes": 13845
+        },
+        {
+          "path": "engine/governance_conformance.py",
+          "status": "PASS",
+          "sha256": "9dbc5e4d14eb767ab4843654f611e53e275c417608b6719296ec968eb7ca07df",
+          "bytes": 20518
+        },
+        {
+          "path": "engine/governance_gate.py",
+          "status": "PASS",
+          "sha256": "e266339a0c656c005322544ca304071129797b8f6e551f44286b283ae0f7e51c",
+          "bytes": 84575
+        },
+        {
+          "path": "engine/inspection_diagnostic_budget.py",
+          "status": "PASS",
+          "sha256": "6e2727984655cf6748daaccefb6d7099d2e3cae2862f74c2f435e3430c6b4886",
+          "bytes": 17599
+        },
+        {
+          "path": "engine/inspection_generation_review.py",
+          "status": "PASS",
+          "sha256": "39825d20586b5d2a2f644879f65041ef49566f004473f32f63260460a5a8caf6",
+          "bytes": 16458
+        },
+        {
+          "path": "engine/ledger.py",
+          "status": "PASS",
+          "sha256": "cecb5d6b50e736933005c6c849d6018992434ccdc8a9b13cb012f8e5fc5c0d41",
+          "bytes": 42787
+        },
+        {
+          "path": "engine/model_lock.py",
+          "status": "PASS",
+          "sha256": "e5fc1b8c6a3d365fe0209514daa5073d237ff9647003b21ff526ade70ec1726c",
+          "bytes": 11751
+        },
+        {
+          "path": "engine/model_observation.py",
+          "status": "PASS",
+          "sha256": "b7156c76701ccc57fe9907de3e09b40d7886a965b41f00122460d9b3165ca378",
+          "bytes": 2506
+        },
+        {
+          "path": "engine/model_rebinding.py",
+          "status": "PASS",
+          "sha256": "76c94ed937afadaa22518eca56a1a2d7ec14118a1566c7d85de90b6e6239c56c",
+          "bytes": 25858
+        },
+        {
+          "path": "engine/models.py",
+          "status": "PASS",
+          "sha256": "f9901b9d603676f015857794779476dbb411a9bd40adbf52357ae42d16261816",
+          "bytes": 6006
+        },
+        {
+          "path": "engine/operation_trace.py",
+          "status": "PASS",
+          "sha256": "c6c3f61f170282d0049ee645a2ffd941cc152803674e7e417b3507f53b12075a",
+          "bytes": 32802
+        },
+        {
+          "path": "engine/operations.py",
+          "status": "PASS",
+          "sha256": "e9dac47755be04f5c7625e95290c4e8c360d938a26b9556cc0a09a4fa1720fd7",
+          "bytes": 21301
+        },
+        {
+          "path": "engine/performance.py",
+          "status": "PASS",
+          "sha256": "4ae597ab14524be1b9d3c58c4a9e8fb4e0a6b5d86a8335f01913fb67fb5d3178",
+          "bytes": 50216
+        },
+        {
+          "path": "engine/performance_assessment.py",
+          "status": "PASS",
+          "sha256": "b7c9d9affa474b95d8544f195e3282420a17fb7bd869c45f765c199a9967f40b",
+          "bytes": 12509
+        },
+        {
+          "path": "engine/performance_lifecycle_safety.py",
+          "status": "PASS",
+          "sha256": "46a3b34b0b7ba5167bf3e93e2b9f6feed2c772c0edf905b06a835d24eba77e1d",
+          "bytes": 17688
+        },
+        {
+          "path": "engine/plan_inspection.py",
+          "status": "PASS",
+          "sha256": "6b35d8c7c0cfacf7eb613dc3cb318cf75710ed65f6b471df459d44ebafe71840",
+          "bytes": 39986
+        },
+        {
+          "path": "engine/plan_inspection_eval.py",
+          "status": "PASS",
+          "sha256": "ed8e4b8e9e20484375e71ddde9827cafcbb5e127e5c8957db09981a3bd486426",
+          "bytes": 12397
+        },
+        {
+          "path": "engine/plan_inspection_eval_v2.py",
+          "status": "PASS",
+          "sha256": "1e99dce44f651299a25fdcbeebb632741c25a0d5f56b19e596960b34b70a89e3",
+          "bytes": 9577
+        },
+        {
+          "path": "engine/plan_inspection_provider.py",
+          "status": "PASS",
+          "sha256": "5d124a1d9f0bbb695f0ceefe59c9a1e72b6d3cc7af5b5d157eb5c343a8bc1e72",
+          "bytes": 2587
+        },
+        {
+          "path": "engine/plan_inspection_v2.py",
+          "status": "PASS",
+          "sha256": "eac2ef6847de44364cf3e9e3e199285347b6dd884cac7ca986d6f5d19ee78aef",
+          "bytes": 52600
+        },
+        {
+          "path": "engine/plan_reuse.py",
+          "status": "PASS",
+          "sha256": "c7f0c0bdbd360bf5f689a04ed244cda0fcc0619cda23446e9407d1f45595b6da",
+          "bytes": 15539
+        },
+        {
+          "path": "engine/plan_review_adjudication.py",
+          "status": "PASS",
+          "sha256": "ca811f70e3292407504b60a9320d76f7bb41a4cf7c6400e8465d4f9a45101943",
+          "bytes": 19380
+        },
+        {
+          "path": "engine/planner_roles.py",
+          "status": "PASS",
+          "sha256": "75cc598bbf5203433359aced2c394fb954946e754bd504b794ed5224c01fe80b",
+          "bytes": 107275
+        },
+        {
+          "path": "engine/planning.py",
+          "status": "PASS",
+          "sha256": "6b084a2ef5bf8d75770eb3e15709c9702cdcdad4726d08cf96c40d3f275512b9",
+          "bytes": 77661
+        },
+        {
+          "path": "engine/planning_feedback.py",
+          "status": "PASS",
+          "sha256": "247c19b854b5356e20996641ed5fa605ee0a93fefab424cdbd663c818f807fa8",
+          "bytes": 6254
+        },
+        {
+          "path": "engine/planning_recovery.py",
+          "status": "PASS",
+          "sha256": "f6a0491c30a0d7a977d6415346626b662ea800d0b9fc492ff29aaf6005a90527",
+          "bytes": 4303
+        },
+        {
+          "path": "engine/providers.py",
+          "status": "PASS",
+          "sha256": "c7f9115fc62877554caebfaf419f5c0180497c2c735c80e6610ff9a92792f2de",
+          "bytes": 8529
+        },
+        {
+          "path": "engine/qualification.py",
+          "status": "PASS",
+          "sha256": "580d4fa065c4a9ab8f1de43fe3dc07a62999b1c3daf9338df87b1417a8952e57",
+          "bytes": 108024
+        },
+        {
+          "path": "engine/qualification_manifest.py",
+          "status": "PASS",
+          "sha256": "a98dee37f7c1876f2d6efd56bcb11ea68a236870343c35c929802834f5bd205d",
+          "bytes": 43873
+        },
+        {
+          "path": "engine/read_models.py",
+          "status": "PASS",
+          "sha256": "d76bbb252f45fdd6e05dfd2e3b40d9d6a719f17ed7f114285f951d7aa6d3a872",
+          "bytes": 17293
+        },
+        {
+          "path": "engine/recovery.py",
+          "status": "PASS",
+          "sha256": "07f301651356ba27ab26665a9d3837920e7689defe4b0a6a2ddcada7c5082d26",
+          "bytes": 34084
+        },
+        {
+          "path": "engine/recovery_planning.py",
+          "status": "PASS",
+          "sha256": "aeae0c25e7e1652fae1b94dc1b380296d0167338137584faba3a131e300d3931",
+          "bytes": 27595
+        },
+        {
+          "path": "engine/release_freeze.py",
+          "status": "PASS",
+          "sha256": "a6a938b71cf9a905703dfd55c6e1117af0cb5dc11417bf0f39773210d6fd3b8f",
+          "bytes": 47952
+        },
+        {
+          "path": "engine/reporting.py",
+          "status": "PASS",
+          "sha256": "9554a888a09012e5c052a4e0e42b4fc1fe2cad2c52c8e454f3dfad58f8336247",
+          "bytes": 8244
+        },
+        {
+          "path": "engine/role_budget.py",
+          "status": "PASS",
+          "sha256": "efda25ebe20ccf9d09400588f04d3959025edb8231fffebd8b87caa5278aae15",
+          "bytes": 651
+        },
+        {
+          "path": "engine/role_execution.py",
+          "status": "PASS",
+          "sha256": "326fab431108cfb25f231cefb259ba060ad52a8b1b76e8d951faf10f08b6cca3",
+          "bytes": 4774
+        },
+        {
+          "path": "engine/role_observations.py",
+          "status": "PASS",
+          "sha256": "8e3d1e612e26ca309d7232481ab58c4472efc319837f5ec81a93ea084b445bda",
+          "bytes": 7816
+        },
+        {
+          "path": "engine/role_usage_reconciliation.py",
+          "status": "PASS",
+          "sha256": "134b04a1160ea2c6b076fa17bba55887bafdfd1c349220ddad42fbf60b07a961",
+          "bytes": 24380
+        },
+        {
+          "path": "engine/roles.py",
+          "status": "PASS",
+          "sha256": "a333f2c79cb0afb5aa0fda7ef8daaed4ad91b65b0fdb0b131b2e2e5f47944994",
+          "bytes": 49192
+        },
+        {
+          "path": "engine/runtime.py",
+          "status": "PASS",
+          "sha256": "771accf78cc92772e164d0b039996911ac0730f9088452655f1ba6bf4cb3f88b",
+          "bytes": 349997
+        },
+        {
+          "path": "engine/runtime_observation.py",
+          "status": "PASS",
+          "sha256": "3bfeeb60ab101064a5c20251af25bba77677edbdaa690329fd7ff0e950ccb740",
+          "bytes": 2086
+        },
+        {
+          "path": "engine/scope_report_verification.py",
+          "status": "PASS",
+          "sha256": "84a2a4ebb49b3ede5757cce07c2f01113f1f7e84ac0d26122f7390d467bdbb51",
+          "bytes": 18307
+        },
+        {
+          "path": "engine/service.py",
+          "status": "PASS",
+          "sha256": "a0b3aaf0645825c7eeb62babab0d63c8062158c38be46cf59a3649f3053568b3",
+          "bytes": 423365
+        },
+        {
+          "path": "engine/smoke.py",
+          "status": "PASS",
+          "sha256": "85272fb9b7b1873c588ef8ee3dfac68ed4e2ce10f08e400c16572432b024f718",
+          "bytes": 17408
+        },
+        {
+          "path": "engine/validation_execution.py",
+          "status": "PASS",
+          "sha256": "de7206a23956c0a9422b0a8ffe2463ad05871e4120cb4bdd0d21702aa1085f60",
+          "bytes": 46717
+        },
+        {
+          "path": "engine/validation_obligations.py",
+          "status": "PASS",
+          "sha256": "cd75288267c7a6b75305445d0079e2a7deb47a0746c73399da86b3c4184950fd",
+          "bytes": 3224
+        },
+        {
+          "path": "engine/worker_prompt.py",
+          "status": "PASS",
+          "sha256": "ad58e24d620382b4e608d830e77553a5b1750701660e99277b15c180cbd77648",
+          "bytes": 3564
+        },
+        {
+          "path": "legacy_budget_proxy.py",
+          "status": "PASS",
+          "sha256": "42198eed6e2d7c09a87178e08eaa9b6bbb0ad7a7a81802e7da3fc94fc5a3430d",
+          "bytes": 40309
+        },
+        {
+          "path": "path_policy.py",
+          "status": "PASS",
+          "sha256": "f915e77bdf2a94c574e21154a8654c3845243d344fa0d63e61a93790b1a23d16",
+          "bytes": 22258
+        },
+        {
+          "path": "ports.py",
+          "status": "PASS",
+          "sha256": "71a0d0ee315fe970b4f7a8521cd2dfbcf38761f728ac11a4f4c7c346bc94a898",
+          "bytes": 2343
+        },
+        {
+          "path": "time.py",
+          "status": "PASS",
+          "sha256": "e031fd1a63a00f9ce18e032cfea87e1986bc472a601fa8d0e460b6cd3ff9d841",
+          "bytes": 200
+        },
+        {
+          "path": "vm_handoff.py",
+          "status": "PASS",
+          "sha256": "207f7cc8a2cac42b325b3542055428d61e51f4219163a95ecd482e43f5bf720c",
+          "bytes": 22519
+        },
+        {
+          "path": "vm_sandbox_suite.py",
+          "status": "PASS",
+          "sha256": "ab2d8e5681bb6df82fee7d7e1862bcf75abbf7e201c8f70f55cf7c62733aa4be",
+          "bytes": 20952
+        },
+        {
+          "path": "windows_sandbox.py",
+          "status": "PASS",
+          "sha256": "de2da62a207fe34fc285756c0ce07e5aa49431622d89aa8d1bae93806d5480b8",
+          "bytes": 17170
+        }
+      ]
+    },
+    "vm_schema": {
+      "status": "PASS",
+      "sqlite_schema_revision": 4,
+      "domain_schema_version": "1.0"
+    },
+    "vm_non_editable": {
+      "status": "PASS",
+      "editable": false
+    },
+    "vm_wheel": {
+      "status": "PASS",
+      "observed_sha256": "fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e",
+      "expected_sha256": "fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e"
+    },
+    "vm_distribution": {
+      "status": "PASS",
+      "name": "flowmarshal-engine",
+      "version": "0.2.0a1"
+    },
+    "vm_created_ledger": {
+      "status": "PASS",
+      "user_version": 4,
+      "application_id": 1179469105,
+      "integrity": "ok",
+      "counts": {
+        "projects": 1,
+        "task_contracts": 0,
+        "attempts": 0,
+        "provider_calls": 0
+      }
+    },
+    "ags_mcp_inventory": {
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/installed-ags/agent-governance-suite-56fef8bd189377b80f4020f506e717ab292b260a/mcp-server/dist/server.mjs"
+      ],
+      "methods": [
+        "initialize",
+        "tools/list",
+        "fm/hello"
+      ],
+      "status": "PASS",
+      "initialize_response": {
+        "result": {
+          "protocolVersion": "2024-11-05",
+          "capabilities": {
+            "tools": {}
+          },
+          "serverInfo": {
+            "name": "agent-governance-suite",
+            "version": "2.9.0"
+          },
+          "instructions": "agent-governance-suite 접수 안내: 다음은 skills/orchestrator/SKILL.md의 공통 원본이다. 적용되는 전문 스킬을 호스트가 제공하는 설치된 스킬 호출 방식으로 실행한다.\n\n## 공통 접수·선택 기준\n\n요청의 목적, 실제로 수행할 행동과 전문 스킬의 적용·제외 조건을 대조해 선택한다. 선택 결과를 출력하지 않아도 선택은 상태 확인·읽기를 포함한 첫 도구 호출 전에 끝낸다. 키워드, 파일 종류나 `complex` 표시만으로 스킬을 붙이지 않는다. 사용자가 이름으로 지정한 스킬은 우선하고 다른 스킬로 대체하지 않지만, 필수 승인·검증·독립성 gate를 생략하는 권한으로 해석하지 않는다.\n\n- 코드 작성·수정·설계나 라이브러리·의존성 선택 단계에는 `ponytail`을 먼저 실제 호출하고 그 지침으로 구현한다. 테스트를 실행한 뒤 결함을 수정하는 요청도 수정 단계에서 적용한다. 코드 설명, 읽기 전용 일반 리뷰·감사·검증만 하는 요청에는 적용하지 않는다.\n- 커밋·병합·push·태그처럼 실제 변경을 반영하는 요청에는 `change-scope-guardian`의 범위 확인을 적용한다. 삭제·배포·게시·권한·결제·마이그레이션 등 위험한 실제 변경 전에는 `mutation-risk-preflight`를 적용한다. 목표가 실제 변경인 요청은 상태 확인보다 먼저 해당 전문 스킬이나 `orchestrator`를 실제 호출한다. 개념 설명이나 명령 이력 조회는 그 행동을 실행하는 요청이 아니다.\n- 필요한 전문 스킬 하나로 충분하면 그 스킬을 직접 호출한다. 여러 전문 결과의 순서·입출력·필수 gate를 연결해야 하면 `orchestrator`를 실제 호출한 뒤 각 전문 단계를 연결한다. 예를 들어 공개 push·태그·배포의 범위 확인과 위험 사전 점검을 함께 요구하는 흐름은 이 연결 기준으로 판단한다. 읽기 전용 확인에서 환경·권한 선행이 없으면 실제 변경을 실행하지 않는다.\n- 선택한 스킬은 설치된 본문과 해당 참고 자료를 로드하고 지침에 따라 실제 작업·검증·산출물까지 수행한다. 이 문서와 참고 자료를 읽는 것은 전문 스킬 실행이 아니다. 스킬 이름을 언급하거나 호출이 시작됐다는 응답만으로 수행 완료를 판단하지 않는다.\n- 전문 스킬이 필요 없는 설명·인사·일반 질문은 그대로 답한다. 단독 전문 작업이나 스킬이 필요 없는 요청에 registry 조회·계획·workflow run을 만들지 않는다. 모든 요청에 실패 영향 분류나 생략 이유를 출력하지 않는다.\n\n여러 전문 단계를 연결할 때 references/entry-details.md, MCP 실행·실패 처리는 references/mcp-execution.md를 따른다.\n세션 메시지는 prepare_session_message로 대상·본문·TTL을 고정하고 시스템이 발급한 messageId를 받은 뒤 send_session_message(messageId)로 전송한다. ID를 직접 만들거나 send에 내용을 다시 넣지 않는다. 전송 결과가 불명확하면 받은 같은 ID로 status를 조회하거나 send를 재시도한다. unknown ID는 이전 전송 완료나 기록 정리 가능성이 있으므로 저장한 영수증과 대조한다. 새 prepare는 새 전송 의도에만 사용하며 불명확한 기존 전송을 무조건 다시 준비하지 않는다. ACK는 메시지 처리 확인이며 업무 완료나 승인 증거가 아니다."
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      },
+      "tool_names": [
+        "abort_workflow",
+        "acknowledge_session_messages",
+        "check_for_updates",
+        "checkpoint_context",
+        "claim_workflow_attempt",
+        "execute_state_cleanup",
+        "finalize_workflow",
+        "get_convergence_status",
+        "get_session_message_status",
+        "get_trust_capabilities",
+        "get_workflow_status",
+        "inspect_context",
+        "list_session_status",
+        "load_context",
+        "lookup_korean_prose_terms",
+        "open_convergence_root",
+        "plan_workflow",
+        "prepare_session_message",
+        "prepare_state_cleanup",
+        "purge_direct_context",
+        "record_stage_result",
+        "resolve_convergence_gate",
+        "send_session_message",
+        "start_guarded_workflow",
+        "start_workflow",
+        "suppress_context_restore",
+        "update_session_status",
+        "validate_collaboration_decision"
+      ],
+      "tools_list_sha256": "7ec6fb10d000260722150e9907a2b2706f0a2aaa15c7891b6e43e631b1bf87b7",
+      "tool_count": 28,
+      "vm_a2_hello_response": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "error": {
+          "code": -32601,
+          "message": "Method not found"
+        }
+      },
+      "stderr": "",
+      "duration_seconds": 0.6449
+    },
+    "ags_vm_a2_namespace": {
+      "status": "BLOCKED",
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "error": {
+          "code": -32601,
+          "message": "Method not found"
+        }
+      }
+    },
+    "vm_ags_compatibility": {
+      "status": "BLOCKED",
+      "exit_code": 2
+    }
+  },
+  "commands": {
+    "vm_metadata": {
+      "command": [
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/venv/bin/python",
+        "-I",
+        "-c",
+        "\nimport importlib.metadata as m, inspect, json, pathlib\nimport flowmarshal, flowmarshal.engine\nfrom flowmarshal.engine.application import EngineApplication, ApplicationAuthority\nfrom flowmarshal.engine.runtime import CodexRuntimePort, owner_lock_platform_supported\nfrom flowmarshal.engine.ledger import ENGINE_SCHEMA_REVISION, ENGINE_SCHEMA_ID, SQLITE_APPLICATION_ID\nd=m.distribution(\"flowmarshal-engine\")\nprint(json.dumps({\"distribution\":d.metadata[\"Name\"], \"version\":d.version,\n \"domain_schema_version\":flowmarshal.engine.ENGINE_SCHEMA_VERSION,\n \"sqlite_schema_revision\":ENGINE_SCHEMA_REVISION, \"sqlite_schema_id\":ENGINE_SCHEMA_ID,\n \"sqlite_application_id\":SQLITE_APPLICATION_ID,\n \"package_root\":str(pathlib.Path(flowmarshal.__file__).parent),\n \"direct_url\":json.loads(d.read_text(\"direct_url.json\") or \"null\"),\n \"runtime_owner_platform_supported\":owner_lock_platform_supported(),\n \"entrypoints\":{e.name:e.value for e in d.entry_points},\n \"facade\":{n:str(inspect.signature(getattr(EngineApplication,n))) for n in\n [\"prepare\",\"revise\",\"authorize\",\"run_once\",\"observe\",\"pause\",\"cancel\",\"status\",\"replan\",\"final_report\",\"attempt_detail\",\"usage_summary\",\"recovery_status\",\"model_binding_status\"]},\n \"runtime_port\":{n:str(inspect.signature(getattr(CodexRuntimePort,n))) for n in\n [\"verify_execution_policy\",\"list_models\",\"create_thread\",\"start_turn\",\"read\",\"resume\",\"interrupt\",\"read_stored\"]}},ensure_ascii=False))\n"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "{\"distribution\": \"flowmarshal-engine\", \"version\": \"0.2.0a1\", \"domain_schema_version\": \"1.0\", \"sqlite_schema_revision\": 4, \"sqlite_schema_id\": \"flowmarshal.engine\", \"sqlite_application_id\": 1179469105, \"package_root\": \"/workspace/scratch/676b40286607/implementation_20261012/upstream/venv/lib/python3.12/site-packages/flowmarshal\", \"direct_url\": {\"archive_info\": {\"hash\": \"sha256=fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e\", \"hashes\": {\"sha256\": \"fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e\"}}, \"url\": \"file:///workspace/scratch/676b40286607/implementation_20261012/upstream/wheels/flowmarshal_engine-0.2.0a1-py3-none-any.whl\"}, \"runtime_owner_platform_supported\": false, \"entrypoints\": {\"flowmarshal-engine\": \"flowmarshal.engine.console_host:main\"}, \"facade\": {\"prepare\": \"(self, project_id: 'str', *, source_request: 'str', candidate_count: 'int | None' = None) -> 'EnginePreparationResult'\", \"revise\": \"(self, project_id: 'str', *, source_request: 'str', candidate_count: 'int | None' = None) -> 'EnginePreparationResult'\", \"authorize\": \"(self, project_id: 'str', *, source: 'str', operating_policy: 'GoalOperatingPolicy | None' = None, capability: 'GoalAuthorizationCapability | None' = None, authorization_target: 'GoalAuthorizationTarget | None' = None, selected_plan_revision_id: 'str | None' = None) -> 'EngineAuthorizationResult'\", \"run_once\": \"(self, project_id: 'str', *, resume: 'bool' = False, proposal: 'ExecutionSpecProposal | None' = None, goal_validation_step: 'ValidationExecutionStep | None' = None, goal_validation_retry: 'GoalValidationRetryRequest | None' = None) -> 'RunOnceResult'\", \"observe\": \"(self, project_id: 'str') -> 'dict[str, Any]'\", \"pause\": \"(self, project_id: 'str', *, reason: 'str' = '사용자 요청') -> 'dict[str, Any]'\", \"cancel\": \"(self, project_id: 'str', *, reason: 'str' = '사용자 요청') -> 'dict[str, Any]'\", \"status\": \"(self, project_id: 'str') -> 'dict[str, Any]'\", \"replan\": \"(self, project_id: 'str', *, rationale: 'str') -> 'dict[str, Any]'\", \"final_report\": \"(self, project_id: 'str', *, goal_verdict_id: 'str | None' = None) -> 'FinalReport'\", \"attempt_detail\": \"(self, attempt_id: 'str') -> 'AttemptDetail'\", \"usage_summary\": \"(self, project_id: 'str', *, goal_id: 'str | None' = None, expected_logical_call_refs: 'Iterable[str]' = ()) -> 'UsageSummary'\", \"recovery_status\": \"(self, project_id: 'str') -> 'RecoveryStatus'\", \"model_binding_status\": \"(self, project_id: 'str', *, inventory: 'ModelInventory | None' = None) -> 'ModelBindingStatus'\"}, \"runtime_port\": {\"verify_execution_policy\": \"(self, cwd: 'Path | str') -> 'ExecutionPolicyEvidence'\", \"list_models\": \"(self) -> 'ModelInventory'\", \"create_thread\": \"(self, *, cwd: 'Path', title: 'str', model: 'str', developer_instructions: 'str', ephemeral: 'bool' = False) -> 'RuntimeOperationReceipt'\", \"start_turn\": \"(self, *, thread_id: 'str', cwd: 'Path', prompt: 'str', model: 'str', effort: 'str', output_schema: 'dict[str, Any] | None' = None) -> 'RuntimeOperationReceipt'\", \"read\": \"(self, *, thread_id: 'str') -> 'RuntimeObservation'\", \"resume\": \"(self, *, thread_id: 'str', cwd: 'Path') -> 'RuntimeOperationReceipt'\", \"interrupt\": \"(self, *, thread_id: 'str', turn_id: 'str', timeout_seconds: 'float' = 5.0) -> 'RuntimeOperationReceipt'\", \"read_stored\": \"(self, *, thread_id: 'str', turn_id: 'str | None' = None, timeout_seconds: 'float' = 5.0) -> 'RuntimeObservation'\"}}\n",
+      "stderr": "",
+      "duration_seconds": 0.6721
+    },
+    "vm_help": {
+      "command": [
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/venv/bin/python",
+        "-I",
+        "-m",
+        "flowmarshal.engine.console_host",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "usage: flowmarshal-engine [-h] [--role-timeout-policy ROLE_TIMEOUT_POLICY]\n                          [--codex-project-binding CODEX_PROJECT_BINDING]\n                          [--db DB] [--artifacts ARTIFACTS]\n                          [--provider {codex,claude}]\n                          [--claude-bin CLAUDE_BIN]\n                          [--claude-model-catalog CLAUDE_MODEL_CATALOG]\n                          [--claude-state-root CLAUDE_STATE_ROOT]\n                          [--claude-setting-sources CLAUDE_SETTING_SOURCES]\n                          {config,prepare,revise,authorize,run-once,observe,pause,cancel,status,replan,final-report,project,governance,model,goal,plan,task,run,attempt,validate,recover,report}\n                          ...\n\nFlowMarshal 새 authority engine\n\npositional arguments:\n  {config,prepare,revise,authorize,run-once,observe,pause,cancel,status,replan,final-report,project,governance,model,goal,plan,task,run,attempt,validate,recover,report}\n    config              user-owned Engine 설정 생성\n    prepare             raw request를 실제 Goal 정규화·독립 review·Planning으로 준비\n    revise              최신 Goal의 다음 revision을 실제 정규화·독립 review·Planning으로\n                        준비(활성화는 authorize)\n    authorize           목표·범위·효과·운영 정책을 승인하고 선택 Plan을 활성화\n    run-once            bounded scheduler tick 한 번 실행\n    observe             active provider job을 한 번 관측\n    pause               현재 Goal workflow 일시정지\n    cancel              현재 Goal workflow 취소\n    status              Core·control·job 상태 표시\n    replan              차단된 재계획 후보에 새 subgraph 재계획 시도를 기록(역할 호출은 다음 run-once)\n    final-report        GoalVerdict에 결속된 최종 보고 표시\n\noptions:\n  -h, --help            show this help message and exit\n  --role-timeout-policy ROLE_TIMEOUT_POLICY\n                        역할별 timeout 운영 설정 JSON\n  --codex-project-binding CODEX_PROJECT_BINDING\n                        새 역할·Worker thread의 App Server 프로젝트 결속 JSON\n  --db DB\n  --artifacts ARTIFACTS\n  --provider {codex,claude}\n                        역할·Worker 호출 provider (기본 codex)\n  --claude-bin CLAUDE_BIN\n                        Claude Code CLI 실행 파일 (기본 PATH의 claude)\n  --claude-model-catalog CLAUDE_MODEL_CATALOG\n                        Claude provider가 받을 model/effort 카탈로그 JSON\n                        (flowmarshal-claude-model-catalog-v1)\n  --claude-state-root CLAUDE_STATE_ROOT\n                        Claude thread 지침·상태를 둘 디렉터리\n  --claude-setting-sources CLAUDE_SETTING_SOURCES\n                        Claude CLI --setting-sources 값 (기본 빈 값:\n                        user/project/local 설정을 읽지 않음)\n",
+      "stderr": "",
+      "duration_seconds": 0.7342
+    },
+    "vm_project_init": {
+      "command": [
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/venv/bin/python",
+        "-I",
+        "-m",
+        "flowmarshal.engine.console_host",
+        "--db",
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/aik-upstream-jmbzlhst/engine.sqlite3",
+        "--artifacts",
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/aik-upstream-jmbzlhst/artifacts",
+        "project",
+        "init",
+        "--name",
+        "AIK contract probe",
+        "--root",
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/aik-upstream-jmbzlhst/project"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "{\n  \"project_id\": \"project_1fa35f8f8414459ba9ec0f4aa614f78e\",\n  \"profile_revision_id\": \"profile_revision_3b29b878971d46a2b1afb654bea74015\"\n}\n",
+      "stderr": "",
+      "duration_seconds": 0.7827
+    },
+    "vm_status": {
+      "command": [
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/venv/bin/python",
+        "-I",
+        "-m",
+        "flowmarshal.engine.console_host",
+        "--db",
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/aik-upstream-jmbzlhst/engine.sqlite3",
+        "--artifacts",
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/aik-upstream-jmbzlhst/artifacts",
+        "status",
+        "--project-id",
+        "project_1fa35f8f8414459ba9ec0f4aa614f78e"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "{\n  \"project\": {\n    \"id\": \"project_1fa35f8f8414459ba9ec0f4aa614f78e\",\n    \"name\": \"AIK contract probe\",\n    \"root\": \"/workspace/scratch/676b40286607/implementation_20261012/upstream/aik-upstream-jmbzlhst/project\",\n    \"artifact_root\": \"/workspace/scratch/676b40286607/implementation_20261012/upstream/aik-upstream-jmbzlhst/artifacts/project_1fa35f8f8414459ba9ec0f4aa614f78e\",\n    \"active_profile_revision_id\": \"profile_revision_3b29b878971d46a2b1afb654bea74015\",\n    \"active_goal_revision_id\": null,\n    \"active_plan_revision_id\": null,\n    \"run_state\": \"idle\",\n    \"recovery_reason\": null,\n    \"created_at\": \"2026-10-12T07:47:41.929910Z\",\n    \"updated_at\": \"2026-10-12T07:47:41.932636Z\"\n  },\n  \"plans\": [],\n  \"tasks\": [],\n  \"attempts\": [],\n  \"runtime_jobs\": [],\n  \"context_sources\": [],\n  \"history_count\": 2,\n  \"history_valid\": true,\n  \"current_stage\": \"preparation_required\",\n  \"reason\": \"활성 GoalContract가 아직 없습니다.\",\n  \"next_action\": \"raw request를 prepare하십시오.\",\n  \"authorization_state\": \"not_ready\",\n  \"control_state\": \"running\",\n  \"active_runtime_job\": null,\n  \"task_status_counts\": {},\n  \"drill_down\": {\n    \"tasks\": [],\n    \"files\": [],\n    \"checks\": [],\n    \"evidence\": []\n  },\n  \"execution_summary\": {\n    \"model_observations\": [],\n    \"usage_status\": \"not_observed\",\n    \"usage_missing_components\": [],\n    \"usage_incomplete_reasons\": [],\n    \"external_effect_status\": \"none\",\n    \"external_effect_unknown\": false,\n    \"external_effect_refs\": [],\n    \"external_effect_reason\": \"현재 Goal 범위에 미확정 외부 효과가 없습니다.\"\n  },\n  \"recovery\": {\n    \"state\": \"none\",\n    \"classification\": null,\n    \"limits\": null,\n    \"scope\": {\n      \"preserved_attempt_ids\": [],\n      \"preserved_evidence_ids\": [],\n      \"preserved_assessment_ids\": [],\n      \"preserved_receipt_intent_ids\": [],\n      \"superseded_plan_revision_ids\": [],\n      \"superseded_task_ids\": [],\n      \"active_plan_revision_id\": null\n    },\n    \"assessments\": [],\n    \"next_action\": {\n      \"mode\": \"none\",\n      \"blocker_code\": null,\n      \"suggested_repair_action\": null,\n      \"checkpoint_required\": false,\n      \"detail\": \"현재 자동 복구가 필요한 실패가 없습니다.\"\n    }\n  }\n}\n",
+      "stderr": "",
+      "duration_seconds": 0.7598
+    },
+    "vm_governance_check_plugin": {
+      "command": [
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/venv/bin/python",
+        "-I",
+        "-m",
+        "flowmarshal.engine.console_host",
+        "governance",
+        "check-plugin",
+        "--plugin-root",
+        "/workspace/scratch/676b40286607/implementation_20261012/upstream/installed-ags/agent-governance-suite-56fef8bd189377b80f4020f506e717ab292b260a"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "stdout": "{\n  \"error\": \"ValueError\",\n  \"error_code\": \"GOVERNANCE_CONTRACT_MISMATCH\",\n  \"message\": \"GOVERNANCE_CONTRACT_MISMATCH: manifest: 기대 /workspace/scratch/676b40286607/implementation_20261012/upstream/installed-ags/agent-governance-suite-56fef8bd189377b80f4020f506e717ab292b260a/host-integration.json JSON, 관측 [Errno 2] No such file or directory: '/workspace/scratch/676b40286607/implementation_20261012/upstream/installed-ags/agent-governance-suite-56fef8bd189377b80f4020f506e717ab292b260a/host-integration.json'\"\n}\n",
+      "stderr": "",
+      "duration_seconds": 0.5966
+    }
+  },
+  "vm_installed": {
+    "distribution": "flowmarshal-engine",
+    "version": "0.2.0a1",
+    "domain_schema_version": "1.0",
+    "sqlite_schema_revision": 4,
+    "sqlite_schema_id": "flowmarshal.engine",
+    "sqlite_application_id": 1179469105,
+    "package_root": "/workspace/scratch/676b40286607/implementation_20261012/upstream/venv/lib/python3.12/site-packages/flowmarshal",
+    "direct_url": {
+      "archive_info": {
+        "hash": "sha256=fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e",
+        "hashes": {
+          "sha256": "fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e"
+        }
+      },
+      "url": "file:///workspace/scratch/676b40286607/implementation_20261012/upstream/wheels/flowmarshal_engine-0.2.0a1-py3-none-any.whl"
+    },
+    "runtime_owner_platform_supported": false,
+    "entrypoints": {
+      "flowmarshal-engine": "flowmarshal.engine.console_host:main"
+    },
+    "facade": {
+      "prepare": "(self, project_id: 'str', *, source_request: 'str', candidate_count: 'int | None' = None) -> 'EnginePreparationResult'",
+      "revise": "(self, project_id: 'str', *, source_request: 'str', candidate_count: 'int | None' = None) -> 'EnginePreparationResult'",
+      "authorize": "(self, project_id: 'str', *, source: 'str', operating_policy: 'GoalOperatingPolicy | None' = None, capability: 'GoalAuthorizationCapability | None' = None, authorization_target: 'GoalAuthorizationTarget | None' = None, selected_plan_revision_id: 'str | None' = None) -> 'EngineAuthorizationResult'",
+      "run_once": "(self, project_id: 'str', *, resume: 'bool' = False, proposal: 'ExecutionSpecProposal | None' = None, goal_validation_step: 'ValidationExecutionStep | None' = None, goal_validation_retry: 'GoalValidationRetryRequest | None' = None) -> 'RunOnceResult'",
+      "observe": "(self, project_id: 'str') -> 'dict[str, Any]'",
+      "pause": "(self, project_id: 'str', *, reason: 'str' = '사용자 요청') -> 'dict[str, Any]'",
+      "cancel": "(self, project_id: 'str', *, reason: 'str' = '사용자 요청') -> 'dict[str, Any]'",
+      "status": "(self, project_id: 'str') -> 'dict[str, Any]'",
+      "replan": "(self, project_id: 'str', *, rationale: 'str') -> 'dict[str, Any]'",
+      "final_report": "(self, project_id: 'str', *, goal_verdict_id: 'str | None' = None) -> 'FinalReport'",
+      "attempt_detail": "(self, attempt_id: 'str') -> 'AttemptDetail'",
+      "usage_summary": "(self, project_id: 'str', *, goal_id: 'str | None' = None, expected_logical_call_refs: 'Iterable[str]' = ()) -> 'UsageSummary'",
+      "recovery_status": "(self, project_id: 'str') -> 'RecoveryStatus'",
+      "model_binding_status": "(self, project_id: 'str', *, inventory: 'ModelInventory | None' = None) -> 'ModelBindingStatus'"
+    },
+    "runtime_port": {
+      "verify_execution_policy": "(self, cwd: 'Path | str') -> 'ExecutionPolicyEvidence'",
+      "list_models": "(self) -> 'ModelInventory'",
+      "create_thread": "(self, *, cwd: 'Path', title: 'str', model: 'str', developer_instructions: 'str', ephemeral: 'bool' = False) -> 'RuntimeOperationReceipt'",
+      "start_turn": "(self, *, thread_id: 'str', cwd: 'Path', prompt: 'str', model: 'str', effort: 'str', output_schema: 'dict[str, Any] | None' = None) -> 'RuntimeOperationReceipt'",
+      "read": "(self, *, thread_id: 'str') -> 'RuntimeObservation'",
+      "resume": "(self, *, thread_id: 'str', cwd: 'Path') -> 'RuntimeOperationReceipt'",
+      "interrupt": "(self, *, thread_id: 'str', turn_id: 'str', timeout_seconds: 'float' = 5.0) -> 'RuntimeOperationReceipt'",
+      "read_stored": "(self, *, thread_id: 'str', turn_id: 'str | None' = None, timeout_seconds: 'float' = 5.0) -> 'RuntimeObservation'"
+    }
+  },
+  "status": "BLOCKED",
+  "blocked_checks": [
+    "ags_vm_a2_namespace",
+    "vm_ags_compatibility"
+  ],
+  "runtime_readiness": "NOT_QUALIFIED",
+  "environment": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+    "packages": {
+      "flowmarshal-engine": "0.2.0a1",
+      "openai-codex": "0.147.0",
+      "openai-codex-cli-bin": "0.147.0",
+      "pydantic": "2.13.5",
+      "cryptography": "50.0.1"
+    },
+    "node": "v24.19.0",
+    "venv_system_site_packages": true
+  },
+  "artifact_provenance": {
+    "ags_source_archive_sha256": "df05c99e2ea018fa94fbe9edc8bba295b5b65efb97f1b62820a97048b3a2cff1",
+    "ags_git_blob_count_verified": 1473,
+    "vm_source_python_files_verified": 86,
+    "vm_wheel_sha256": "fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e",
+    "vm_installation_kind": "non-editable wheel; runtime dependencies resolved using isolated venv plus matching existing system packages",
+    "inspector_source_sha256": "efcff869e30c7df2811405333e036059ff0d33cfe3fc2e51d8efc14f172e50e0"
+  },
+  "completion_scope": "AIK-001 installed public interface baseline only; not a product runtime qualification"
+}

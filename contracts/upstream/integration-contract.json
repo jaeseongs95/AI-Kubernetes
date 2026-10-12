@@ -1,0 +1,214 @@
+{
+  "format": "aik-upstream-integration-contract-v1",
+  "revision": "1",
+  "implementation_status": "contract_defined; runtime integration not qualified",
+  "ownership": [
+    {
+      "owner": "VibeMarshal",
+      "authoritative_objects": [
+        "Project",
+        "GoalContractRevision",
+        "PlanContractRevision",
+        "Task",
+        "Attempt",
+        "RuntimeJob",
+        "RuntimeIntentRecord",
+        "RuntimeReceipt",
+        "EvidenceRecord",
+        "GoalVerdict",
+        "BudgetUsageRecord"
+      ],
+      "rule": "Only VM Core advances Task/Attempt and judges completion; AIK holds references and never writes the VM SQLite ledger."
+    },
+    {
+      "owner": "AGS",
+      "authoritative_objects": [
+        "convergence root",
+        "workflow run",
+        "stage",
+        "host attestation claim",
+        "PEER delivery/ack",
+        "audit gate"
+      ],
+      "rule": "AGS governs its workflows; an AGS workflow lease is not an AIK resource lease."
+    },
+    {
+      "owner": "AI-Kubernetes",
+      "authoritative_objects": [
+        "connection",
+        "model route",
+        "pool",
+        "placement",
+        "resource lease",
+        "input/artifact transfer metadata"
+      ],
+      "rule": "Lease expiry and provider terminal do not imply VM completion; lease fencing and routing are AIK responsibilities."
+    }
+  ],
+  "task_execution_binding": {
+    "vm_fields": [
+      "vm_instance_id",
+      "vm_project_id",
+      "vm_goal_revision_id",
+      "vm_plan_revision_id",
+      "vm_task_id",
+      "vm_attempt_id",
+      "vm_execution_spec_digest",
+      "vm_runtime_intent_id",
+      "vm_provider_call_id"
+    ],
+    "aik_fields": [
+      "cluster_id",
+      "route_id",
+      "route_revision",
+      "connection_id",
+      "connection_revision",
+      "provider",
+      "auth_kind",
+      "provider_account_fingerprint",
+      "pool_id",
+      "placement_id",
+      "lease_id",
+      "lease_fencing_token",
+      "support_matrix_digest",
+      "input_manifest_digest",
+      "workspace_root_ref"
+    ],
+    "effect_before_dispatch": "Resolve exact existing VM Attempt and its Task through an owner query; verify authorization, freshness, route/account binding and unexpired lease fencing before any provider or tool effect.",
+    "preparation_roles": "VM preparation may precede Task/Goal registration. Keep its existing project/Goal lineage, provider role-call/request and receipt references; do not manufacture Task or Attempt records for that stage.",
+    "cancel_and_restart": "Read the persisted original binding; lookup/observe/interrupt with the original provider account and connection revision. Never use the currently selected model/connection or thread_id alone. Unknown external state requires reconciliation through VM before any replay.",
+    "authority": "A binding object is a cross-reference contract and grants no authorization by itself."
+  },
+  "seams": [
+    {
+      "id": "vm-runtime-port",
+      "observed": "implemented_and_imported",
+      "source": "src/flowmarshal/engine/runtime.py:CodexRuntimePort",
+      "caller": "EngineApplication runtime injection",
+      "available": [
+        "create_thread",
+        "start_turn",
+        "read",
+        "read_stored",
+        "resume",
+        "interrupt",
+        "verify_execution_policy",
+        "list_models"
+      ],
+      "limit": "Method arguments do not carry immutable AIK route/account/lease identity."
+    },
+    {
+      "id": "vm-effect-trace",
+      "observed": "implemented_and_imported",
+      "source": "src/flowmarshal/engine/operation_trace.py:current_operation_trace_scope",
+      "producer": "VM runtime _invoke_runtime_operation creates intent, verifies inputs, and enters operation scope before create/start/resume",
+      "consumer": "native runtime adapters; candidate AIK-031 adapter",
+      "available": [
+        "attempt_id",
+        "intent_id",
+        "call_id",
+        "thread_id",
+        "turn_id",
+        "deadline"
+      ],
+      "limit": "Trace has no Task ID or AIK binding; read the exact owner Attempt detail and qualify scope presence at every public dispatch/restart path. A private helper override is not the extension contract."
+    },
+    {
+      "id": "vm-ags-compatibility",
+      "observed": "blocked_live",
+      "source": "src/flowmarshal/engine/governance_gate.py:GovernancePlugin.preflight",
+      "limit": "Installed AGS lacks host-integration.json; current fm/hello returns JSON-RPC -32601. AIK must not fabricate a manifest, token or PASS result."
+    },
+    {
+      "id": "aik-bound-runtime",
+      "observed": "not_implemented",
+      "owner_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-081"
+      ],
+      "required": "Specify a versioned adapter over the installed port + trace + owner-query seam, or obtain a published upstream extension when these do not suffice. Prove durable pre-effect binding and same-account lookup/cancel/restart including thread-ID collision and account rotation."
+    }
+  ],
+  "input_effect_receipts": [
+    {
+      "kind": "workspace input",
+      "producer": "AIK-084 workspace preparation and VM ready-time materialization",
+      "consumer": "VM TaskExecutionSpecRevision/context_manifest/PromptBundle; AIK-035/085 tool gateway",
+      "binding": "workspace/root reference, revision, relative path and digest; reject stale or escaped input before effects"
+    },
+    {
+      "kind": "provider create/start/resume",
+      "producer": "VM Core RuntimeIntentRecord before dispatch; RuntimeOperationReceipt from actual runtime",
+      "consumer": "VM record_runtime_receipt and RuntimeJobSupervisor; AIK placement reconciles by reference",
+      "binding": "existing Attempt, intent and provider call; original account/route"
+    },
+    {
+      "kind": "tool read/create/update/bounded verify",
+      "producer": "AIK-035/085 effect gateway and actual filesystem/process result",
+      "consumer": "explicit VM-facing adapter for the existing Attempt/evidence contract, then independent VM validation; AIK-038/042 recovery",
+      "binding": "tool call identity, exact Attempt and route binding digest, operation, target, input and output digests, result provenance, idempotency policy; API tool effects need their own durable before/after records"
+    },
+    {
+      "kind": "external effect",
+      "producer": "typed adapter receipt and target re-observation",
+      "consumer": "VM EngineService.record_effect_receipt and Core validation",
+      "binding": "provider/system/account/operation/target identity, original Attempt and provider terminal; terminal text is insufficient"
+    }
+  ],
+  "unresolved_gates": [
+    {
+      "code": "AGS_HOST_INTEGRATION_MANIFEST_MISSING",
+      "evidence": "installed-inspection.json#/commands/vm_governance_check_plugin",
+      "blocks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-086"
+      ],
+      "required_change": "A compatible AGS installation with declared entryPoints/executionClosure and all VM consumed capabilities; release identity and conformance evidence."
+    },
+    {
+      "code": "AGS_A2_NAMESPACE_UNAVAILABLE",
+      "evidence": "installed-inspection.json#/checks/ags_vm_a2_namespace",
+      "blocks": [
+        "AIK-008",
+        "AIK-081",
+        "AIK-032",
+        "AIK-086"
+      ],
+      "required_change": "Matching published A2 verifier, fm namespace, profile selection and strict dispatch integration; run conformance at that artifact identity."
+    },
+    {
+      "code": "AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED",
+      "evidence": "integration-contract.json#/seams",
+      "blocks": [
+        "AIK-031",
+        "AIK-033",
+        "AIK-035",
+        "AIK-086"
+      ],
+      "required_change": "Implement and qualify pre-effect exact Attempt/Task binding and original-account restart/cancel using public seams."
+    },
+    {
+      "code": "VM_RUNTIME_OWNER_WINDOWS_ONLY",
+      "evidence": "installed-inspection.json#/vm_installed/runtime_owner_platform_supported",
+      "blocks": [
+        "AIK-086"
+      ],
+      "required_change": "Run installed RuntimeJob qualification on supported Windows; Linux metadata success is not Windows runtime success."
+    }
+  ],
+  "change_control": {
+    "pinned_version_policy": "This inspection pins evidence, not a requirement for VM to hardcode one AGS commit. Recompute installed closure identity when either artifact changes.",
+    "scope_change": "Change DEC12 and support-matrix revision together, record added/removed route/role cells and affected downstream evidence, then rerun 022/082/086 and relevant 044/059 gates.",
+    "prohibited_shortcuts": [
+      "new AIK Task/retry authority ledger",
+      "synthetic provider observations",
+      "model-selected state as provider-observed state",
+      "same account inferred from model name",
+      "old successful evidence reused after binding or installer change"
+    ]
+  }
+}

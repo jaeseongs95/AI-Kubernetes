@@ -1,0 +1,656 @@
+{
+  "schema_version": 1,
+  "review_id": "aik-m0-independent-completion-2026-10-12-before-alternative-comparison",
+  "created_at": "2026-10-12T08:03:11.578684+00:00",
+  "reviewer": "/root/implement_upstream_contract",
+  "language": "ko-KR source criteria; English machine-readable assessment",
+  "review_phase": "Electron installed-spike CI reviewed; alternative Tauri comparison has not been reviewed.",
+  "scope": {
+    "tasks": [
+      "AIK-001",
+      "AIK-002",
+      "AIK-003"
+    ],
+    "review_type": "Independent existing-criteria, implementation and evidence review",
+    "new_windows_execution": false,
+    "database_modified": false,
+    "implementation_modified": false,
+    "only_written_artifact": "/workspace/scratch/676b40286607/implementation_20261012/task-completion-review.json"
+  },
+  "criterion_source": {
+    "path": "/workspace/scratch/676b40286607/AI-Kubernetes/planning/backlog.sqlite3",
+    "sha256": "f9e50e1ebf061b5104d8b6f121a22a13040573b3ce59b949c56eb0cfe3df31c4",
+    "access_mode": "sqlite URI mode=ro",
+    "original_requirement_text_preserved": true
+  },
+  "task_reviews": [
+    {
+      "task_id": "AIK-001",
+      "title_original": "AGS·VM 책임·설치형 인터페이스 기준선 확정",
+      "description_original": "현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.",
+      "deliverable_original": "버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix",
+      "verification_original": "고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록",
+      "database_status_observed": "in_progress",
+      "recommended_status": "done",
+      "done_supported": true,
+      "verification_status": "PASS",
+      "reason": "Pinned-source and installed-artifact interface baseline is complete. Recorded upstream incompatibility blocks later integration/qualification, not the correctness or completion of this baseline contract.",
+      "blockers": [],
+      "acceptance_criteria": [
+        {
+          "ordinal": 1,
+          "criterion_original": "VM Goal/Plan/Task/Attempt와 AIK lease/placement의 단일 소유자 및 상호 참조 필드가 명시된다.",
+          "status": "PASS",
+          "reason": "VM owns Goal/Plan/Task/Attempt; AIK owns route/placement/lease. Cross-reference fields and single-owner boundary are frozen.",
+          "evidence_refs": [
+            "upstream_contract",
+            "upstream_binding_schema",
+            "upstream_contract_doc"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "criterion_original": "AGS manifest 실제 경로·entrypoint·digest와 VM schema4/façade 계약을 확인하며 GUI schema2 예시 차이를 기록한다.",
+          "status": "PASS",
+          "reason": "Pinned AGS manifest/entrypoint/source identity and installed VM facade/SQLite schema revision 4 are checked; GUI schema2 prototype difference is explicitly recorded.",
+          "evidence_refs": [
+            "upstream_baseline",
+            "upstream_installed_inspection",
+            "vm_public_surface",
+            "upstream_contract_doc"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "criterion_original": "문서상 구현·실행 미검증·호환 미완료를 구분한다. 첫 출시 matrix에 route_id·provider·auth_kind·role·required/optional·adapter 구현 상태·qualification 상태·사유·관측 시각·evidence_ref와 revision/digest를 기록한다. 두 벤더 및 API/지원 구독·총괄/worker 도구 실행이라는 DEC12 제안 범위와 필수 조합의 대응을 명시하며 범위 또는 upstream 변경 시 결정·영향·재검증 근거를 남긴다.",
+          "status": "PASS",
+          "reason": "Revisioned matrix records route/provider/auth/role/requiredness and separately records adapter implementation, qualification, reasons, timestamps and evidence. DEC12 proposal mapping and change/revalidation rules are recorded; no qualified live resources are claimed.",
+          "evidence_refs": [
+            "upstream_matrix",
+            "upstream_contract",
+            "upstream_contract_doc"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "criterion_original": "효과 발생 전에 VM의 정확한 Task/Attempt와 AIK route/connection/pool/lease를 결속하는 설치형 공개 extension/dispatch seam, 재시작 lookup/cancel의 동일 계정 routing, 입력·도구 effect intent/receipt 소비자를 명시한다. 현재 seam이 부족하면 upstream 변경/배포물과 AIK-031의 차단 조건으로 추적하며 별도 Task/재시도 원장을 만들지 않는다.",
+          "status": "PASS",
+          "reason": "Existing runtime port and operation trace seam are acknowledged. Pre-effect Task/Attempt/route/connection/pool/lease binding, account-stable recovery/cancel and intent/receipt consumers are specified; insufficient upstream contract is tracked as downstream blockers, without a duplicate Task ledger.",
+          "evidence_refs": [
+            "upstream_contract",
+            "upstream_binding_schema",
+            "upstream_installed_inspection",
+            "upstream_contract_doc"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "criterion_original": "지원 matrix는 역할별 read/create/update/bounded verification command와 native 실제 권한 범위를 구분한다. 최소 개발 역할은 실제 파일 생성·수정·검증 명령을 제공하며 분석 전용 자원에 동일 shell 능력을 강제하지 않는다. 082는 실제 사전 probe, 086은 구현 후 governed qualification, 044/059는 합성 목표와 GUI 검증으로 구분한다.",
+          "status": "PASS",
+          "reason": "Role-specific read/create/update/bounded-verification/native-authority contract and development-role tool requirement are defined. Probe 082, governed qualification 086 and synthetic/GUI E2E 044/059 are separated. This criterion freezes the contract; those later runtime capabilities are not claimed implemented.",
+          "evidence_refs": [
+            "upstream_matrix",
+            "upstream_contract",
+            "upstream_contract_doc"
+          ]
+        }
+      ]
+    },
+    {
+      "task_id": "AIK-002",
+      "title_original": "Windows GUI 스택과 엔진 sidecar 검증",
+      "description_original": "VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.",
+      "deliverable_original": "GUI 스택 ADR와 폐기 가능한 Windows spike",
+      "verification_original": "지원 후보별 설치성·IPC·worker 기동·메모리 비교",
+      "database_status_observed": "in_progress",
+      "recommended_status": "in_progress",
+      "done_supported": false,
+      "verification_status": "PARTIAL",
+      "reason": "All three explicit acceptance criteria pass. The existing task.verification also requires candidate comparison; the ADR explicitly records Tauri installation/memory execution measurement as not yet performed.",
+      "blockers": [
+        {
+          "id": "AIK002-CANDIDATE-COMPARISON-NOT-RUN",
+          "original_requirement_source": "tasks.verification",
+          "scope": "Bounded alternative-candidate installation/IPC/worker/startup/memory comparison; no full Tauri product implementation is newly required.",
+          "evidence_refs": [
+            "windows_packaging_adr"
+          ],
+          "remediation_status": "Parent accepted review and assigned a bounded Tauri comparison spike; its future results are outside this review snapshot."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "ordinal": 1,
+          "criterion_original": "VM React/TypeScript 화면·EngineClient 재사용 범위와 Tauri/대안의 선택 이유를 적는다.",
+          "status": "PASS",
+          "reason": "ADR records pinned VM GUI/MockEngineClient scope, expression-layer reuse boundary and Electron/Tauri selection rationale; it does not claim a production VM GUI transport.",
+          "evidence_refs": [
+            "windows_packaging_adr",
+            "vm_public_surface"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "criterion_original": "창 표시→typed IPC→테스트 worker 호출→OS vault 왕복을 Windows에서 재현한다.",
+          "status": "PASS",
+          "reason": "Actual installed Windows renderer buttons pass through typed preload/main IPC to frozen CPython, a separate fixed worker and native Windows-user DPAPI roundtrip. Three checks pass and the report/screenshot hashes match.",
+          "evidence_refs": [
+            "gui_main",
+            "gui_preload",
+            "gui_types",
+            "python_sidecar_worker",
+            "windows_vault",
+            "windows_application_report",
+            "windows_installed_report",
+            "windows_screenshot"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "criterion_original": "AIK 스택·엔진 runtime 버전·bundle 전략을 ADR에 명시하고 mock 성공을 제품 연동 성공으로 기록하지 않는다.",
+          "status": "PASS",
+          "reason": "ADR and build evidence pin Electron44.7.0/CPython3.14.8 and onedir/NSIS bundling; both GUI and install reports explicitly preserve product_integration=NOT_RUN.",
+          "evidence_refs": [
+            "windows_packaging_adr",
+            "windows_build_report",
+            "windows_application_report",
+            "windows_installed_report"
+          ]
+        }
+      ]
+    },
+    {
+      "task_id": "AIK-003",
+      "title_original": "Windows 지원 환경·설치·서명 방식 결정",
+      "description_original": "첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.",
+      "deliverable_original": "Windows support matrix와 packaging ADR",
+      "verification_original": "깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토",
+      "database_status_observed": "in_progress",
+      "recommended_status": "blocked",
+      "done_supported": false,
+      "verification_status": "PARTIAL",
+      "reason": "Policy definition and bundled-runtime Windows Server execution pass, but the existing clean-candidate-Windows installation verification and criterion2 no-development-tools environment are not satisfied.",
+      "blockers": [
+        {
+          "id": "AIK003-CLEAN-WINDOWS-NOT-RUN",
+          "original_requirement_source": [
+            "tasks.verification",
+            "acceptance_criteria.ordinal=2"
+          ],
+          "scope": "Install/run/uninstall the current bounded spike on a clean selected Windows candidate without developer tooling; not a new demand for the complete product qualification.",
+          "evidence_refs": [
+            "windows_packaging_adr",
+            "windows_installed_report"
+          ]
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "ordinal": 1,
+          "criterion_original": "지원 Windows 버전·CPU·최소 자원과 선택한 설치 형식을 명시한다.",
+          "status": "PASS",
+          "reason": "ADR defines Windows11 x64 candidate versions, minimum/baseline CPU/RAM/storage and per-user NSIS EXE.",
+          "evidence_refs": [
+            "windows_packaging_adr"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "criterion_original": "개발 도구가 없는 환경에서 필요한 runtime을 어떻게 공급할지 검증한다.",
+          "status": "PARTIAL",
+          "reason": "Bundled GUI/Python runtime works with child PATH restricted and outside the source tree. Actual absence of development tooling and a clean selected Windows candidate environment remain untested; installed_tooling_absence=NOT_RUN.",
+          "evidence_refs": [
+            "windows_packaging_adr",
+            "windows_installed_report",
+            "windows_build_report",
+            "installer_validation_script"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "criterion_original": "서명·업데이트 신뢰·제거 후 데이터 처리 기준을 정하며 macOS/Linux를 첫 출시 gate로 넣지 않는다.",
+          "status": "PASS",
+          "reason": "Signing, update trust and uninstall data policies are defined; macOS/Linux are excluded from the first release gate. Production publisher signing/update/data-removal implementation is not claimed.",
+          "evidence_refs": [
+            "windows_packaging_adr"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "criterion_original": "최소/기준 hardware, 지원 파일 경로·오프라인/네트워크 조건, 응답성·메모리·지속 실행의 측정 부하를 결정하고 AIK-083에서 출시 임계값을 측정 전에 고정한다. 실제 provider 지연과 GUI/제어부 응답 시간을 분리하며 미충족 조건은 AIK-062/064를 차단한다.",
+          "status": "PASS",
+          "reason": "Minimum/baseline hardware, path/offline/network conditions and startup/idle/control/parallel/eight-hour workloads are defined. Product thresholds are explicitly deferred to083 before measurement; provider latency is separated and failed product results block062/064.",
+          "evidence_refs": [
+            "windows_packaging_adr"
+          ]
+        }
+      ]
+    }
+  ],
+  "windows_evidence": {
+    "source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
+    "workflow_run_id": "38219549819",
+    "workflow_attempt": "1",
+    "installed_report_status": "PASS",
+    "environment": {
+      "platform": "win32",
+      "architecture": "AMD64",
+      "os_caption": "Microsoft Windows Server 2022 Datacenter",
+      "os_version": "10.0.20348",
+      "os_build": "20348",
+      "os_product_type": 3,
+      "logical_processors": 2,
+      "memory_bytes": 8584425472,
+      "cpu_names": [
+        "INTEL(R) XEON(R) PLATINUM 8573C"
+      ],
+      "administrator": true,
+      "github_actions": true,
+      "runner_image": "win22",
+      "runner_image_version": "20261004.326.1"
+    },
+    "checks": {
+      "install": "PASS",
+      "runtime_bundle": "PASS",
+      "packaged_gui": "PASS",
+      "uninstall": "PASS"
+    },
+    "support_qualification": "NOT_RUN",
+    "product_integration": "NOT_RUN",
+    "child_environment": {
+      "path": "C:\\Windows\\System32;C:\\Windows",
+      "pythonhome_removed": true,
+      "pythonpath_removed": true,
+      "node_options_removed": true,
+      "electron_run_as_node_removed": true,
+      "working_directory_outside_source_tree": true,
+      "installed_tooling_absence": "NOT_RUN"
+    },
+    "installer": {
+      "file": "AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe",
+      "bytes": 118718430,
+      "sha256": "955d27bd62158b029e659ea04a65807599b8ac40f1ccd40190acdb6beea83a16",
+      "signature_status": "NotSigned",
+      "release_publisher_qualified": false
+    },
+    "application_report": {
+      "schema_version": 1,
+      "status": "PASS",
+      "scope": "AIK-002 Windows foundation spike",
+      "platform": "win32",
+      "window_visible": true,
+      "renderer_node_access": false,
+      "checks": {
+        "health": {
+          "status": "PASS",
+          "code": "SIDECAR_READY",
+          "pid": 7128,
+          "platform": "win32",
+          "python_version": "3.14.8",
+          "frozen": true,
+          "product_integration": "NOT_RUN"
+        },
+        "worker": {
+          "status": "PASS",
+          "code": "WORKER_PROBE_OK",
+          "pid": 5736,
+          "parent_pid": 7128,
+          "artifact_bytes": 42,
+          "artifact_sha256": "82b2d2ffd52c4fcda74566e4950be2d32f128d466444883442aee643d34c10ee",
+          "temporary_artifact_removed": true
+        },
+        "vault": {
+          "status": "PASS",
+          "backend": "windows-user-dpapi",
+          "code": "VAULT_ROUNDTRIP_OK"
+        }
+      },
+      "metrics": {
+        "elapsed_ms": 2161,
+        "main_rss_bytes": 97124352,
+        "renderer_working_set_kb": 84580
+      },
+      "electron_version": "44.7.0",
+      "packaged": true,
+      "product_integration": "NOT_RUN"
+    },
+    "sidecar_build_report": {
+      "schema_version": 1,
+      "scope": "AIK-002 Windows foundation spike sidecar build",
+      "created_at": "2026-10-12T07:46:38.5490083Z",
+      "source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
+      "target": "win32-x64",
+      "python": "3.14.8",
+      "bundle_strategy": "PyInstaller onedir; no external Python required at runtime",
+      "engine_sha256": "e220bd62897ba928d019b9dfcfb6a89fff3adf8c5aa8439840f2c7250e4d4f04",
+      "runtime_libraries": [
+        {
+          "file": "python314.dll",
+          "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+        }
+      ],
+      "build_packages": [
+        {
+          "name": "altgraph",
+          "version": "0.17.5"
+        },
+        {
+          "name": "packaging",
+          "version": "26.3"
+        },
+        {
+          "name": "pefile",
+          "version": "2024.8.26"
+        },
+        {
+          "name": "pip",
+          "version": "26.2.1"
+        },
+        {
+          "name": "pyinstaller",
+          "version": "6.22.3"
+        },
+        {
+          "name": "pyinstaller-hooks-contrib",
+          "version": "2026.8"
+        },
+        {
+          "name": "pywin32-ctypes",
+          "version": "0.2.3"
+        },
+        {
+          "name": "setuptools",
+          "version": "84.0.0"
+        }
+      ],
+      "product_integration": "NOT_RUN"
+    },
+    "independent_integrity_checks": {
+      "application_report_sha256_matches": true,
+      "screenshot_sha256_matches": true,
+      "built_and_installed_engine_sha256_matches": true,
+      "worker_parent_matches_sidecar_pid": true,
+      "screenshot_visually_reviewed": true
+    },
+    "limits": [
+      "This installer contains an AIK-002 foundation spike, not the complete product.",
+      "A GitHub Server runner does not qualify Windows 11 client support.",
+      "Removing developer tools from the child PATH does not make the runner a clean computer.",
+      "No real vendor, AGS, or VM product integration is exercised.",
+      "Windows 11 standard-user installation, publisher signing, update trust, and product data removal remain separate release gates."
+    ]
+  },
+  "interpretation_boundaries": {
+    "all_existing_verification_fields_treated_as_completion_requirements": true,
+    "aik003_original_text_explicitly_names_windows11": false,
+    "aik003_original_text_explicitly_names_standard_user": false,
+    "aik003_existing_required_scope": "깨끗한 후보 Windows 환경의 설치 spike 및 개발 도구가 없는 환경에서의 runtime 공급 검증",
+    "selected_candidate_source": "windows_packaging_adr: Windows11 x64 and ordinary standard-user execution",
+    "windows_server_path_isolation_equals_clean_machine": false,
+    "aik003_requires_entire_product_e2e_now": false,
+    "aik083_moves_aik003_clean_install_requirement_out_of_aik003": false,
+    "one_shot_spike_memory_is_product_performance_pass": false,
+    "formal_schema_validator_after_root_digest_length_fix": "Not rerun by this reviewer in this follow-up; root delegated that verification separately."
+  },
+  "upstream_scope": {
+    "ags_commit": "56fef8bd189377b80f4020f506e717ab292b260a",
+    "vm_commit": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+    "historical_install_inspection": "Public AGS MCP initialize/tools list (28 tools), installed VM help/project-init/status and schema4 inspection executed in isolated temporary state.",
+    "recorded_incompatibility": "VM governance check-plugin returned GOVERNANCE_CONTRACT_MISMATCH because the pinned AGS artifact lacks the required host integration contract; AGS fm/hello returned method-not-found (-32601).",
+    "classification": "Baseline001 can complete with explicit mismatch and downstream blockers. This is not VM/AGS product integration or governed qualification PASS.",
+    "downstream_blockers_preserved": [
+      "AIK-031 integration binding",
+      "Runtime/account-stable route qualification",
+      "Actual provider/API/native subscription role/tool qualification",
+      "Windows product integration"
+    ]
+  },
+  "vm_wheel_preservation": {
+    "original": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/upstream/wheels/flowmarshal_engine-0.2.0a1-py3-none-any.whl",
+      "bytes": 807964,
+      "sha256": "fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e"
+    },
+    "repository_preserved_copy": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/evidence/upstream/2026-10-12/artifacts/flowmarshal_engine-0.2.0a1-py3-none-any.whl",
+      "bytes": 807964,
+      "sha256": "fe7cc253f2a401fd9dc618ee2b3d1af0f791129246ec47d82c88a7ccfd60389e"
+    },
+    "same_bytes": true,
+    "license_expression": "Apache-2.0",
+    "license_files": [
+      {
+        "wheel_member": "flowmarshal_engine-0.2.0a1.dist-info/licenses/LICENSE",
+        "bytes": 11358,
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "preserved_file": "/workspace/scratch/676b40286607/AI-Kubernetes/evidence/upstream/2026-10-12/artifacts/LICENSE",
+        "matches_pinned_source": true
+      },
+      {
+        "wheel_member": "flowmarshal_engine-0.2.0a1.dist-info/licenses/NOTICE",
+        "bytes": 122,
+        "sha256": "c81b1ec31ae20ee1c12a28f00f00c50805cc98d8647c26b01710412f9c5eeac3",
+        "preserved_file": "/workspace/scratch/676b40286607/AI-Kubernetes/evidence/upstream/2026-10-12/artifacts/NOTICE",
+        "matches_pinned_source": true
+      }
+    ],
+    "wheel_generator_metadata": "Wheel-Version: 1.0\nGenerator: setuptools (84.0.0)\nRoot-Is-Purelib: true\nTag: py3-none-any\n\n",
+    "unique_zip_timestamp_count": 30,
+    "upstream_build_system_requires": [
+      "setuptools>=77"
+    ],
+    "same_commit_rebuild_guarantees_same_archive_sha256": false,
+    "expected_digest_change_causes": [
+      "Source file mtimes and wheel ZIP timestamps",
+      "Build time and build-backend version/metadata differences"
+    ],
+    "current_inspector_behavior": "A non-editable installation whose direct_url archive SHA differs from the frozen wheel SHA is BLOCKED.",
+    "revalidation_rule": "Reuse the exact preserved wheel for this baseline. For a new wheel, record artifact identity change, impact and fresh verification instead of inheriting previous evidence."
+  },
+  "stage_separation": [
+    {
+      "id": "AIK-057",
+      "title": "Windows installer·runtime bundle·기동 구성",
+      "verification": "개발 도구 없는 지원 Windows 환경의 설치/제거 검증",
+      "dependencies": [
+        "AIK-003",
+        "AIK-022",
+        "AIK-044",
+        "AIK-045",
+        "AIK-046",
+        "AIK-047",
+        "AIK-048",
+        "AIK-049",
+        "AIK-050",
+        "AIK-051",
+        "AIK-052",
+        "AIK-053",
+        "AIK-054",
+        "AIK-055",
+        "AIK-056",
+        "AIK-087"
+      ]
+    },
+    {
+      "id": "AIK-059",
+      "title": "Windows GUI 설치본 사용자 E2E",
+      "verification": "개발 도구·CLI 사전 준비 없는 지원 Windows 이미지의 P01~P09 및 고정 matrix 실제 GUI 시나리오",
+      "dependencies": [
+        "AIK-057",
+        "AIK-058",
+        "AIK-088"
+      ]
+    },
+    {
+      "id": "AIK-062",
+      "title": "단일 클러스터 병렬성·응답성·사용량 실측",
+      "verification": "동일 작업·모델·품질 기준의 비교 실험",
+      "dependencies": [
+        "AIK-059",
+        "AIK-083"
+      ]
+    },
+    {
+      "id": "AIK-064",
+      "title": "Windows 첫 릴리스 최종 gate·배포",
+      "verification": "고정 installer hash/commit의 최종 qualification 검토",
+      "dependencies": [
+        "AIK-058",
+        "AIK-059",
+        "AIK-060",
+        "AIK-061",
+        "AIK-062",
+        "AIK-063",
+        "AIK-083",
+        "AIK-087",
+        "AIK-088"
+      ]
+    },
+    {
+      "id": "AIK-083",
+      "title": "완제품 사용자 흐름·독립 판정·출시 계약 고정",
+      "verification": "P01~P12의 입력/관찰 결과/실패 차단/구현·GUI·gate 추적과 의존 순서 독립 검토",
+      "dependencies": [
+        "AIK-001",
+        "AIK-002",
+        "AIK-003"
+      ]
+    }
+  ],
+  "next_task_gate": {
+    "aik083_dependencies": [
+      "AIK-001",
+      "AIK-002",
+      "AIK-003"
+    ],
+    "aik083_ready_if002_or003_incomplete": false,
+    "reason": "Do not change existing dependency requirements or mark downstream work done based on this review."
+  },
+  "evidence": {
+    "windows_packaging_adr": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/docs/windows-packaging.ko.md",
+      "bytes": 15576,
+      "sha256": "271d121213d5069dd306c53544c61fdf33b269590e0fa8138c60db9eb0430d21"
+    },
+    "foundation_readme": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/README.ko.md",
+      "bytes": 4126,
+      "sha256": "fba257207a54f406bea2662b9a70f5c449dc749a82d1af1d54d747da3d3955b3"
+    },
+    "gui_main": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/electron/main.cjs",
+      "bytes": 8385,
+      "sha256": "9ed7e47212d12a65768ae0e29517f83211dde340baa742c554575a307ad909b3"
+    },
+    "gui_preload": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/electron/preload.cjs",
+      "bytes": 495,
+      "sha256": "b9cf9992b9f7a22b24b756dc303670c6fc925fb59eb8c4ea74359af9a4cf41f1"
+    },
+    "gui_types": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/src/contracts.ts",
+      "bytes": 877,
+      "sha256": "311735b5ad240beb7f529cf47f05d33ccfff330f66dabb392a9211b2bf53ae5c"
+    },
+    "python_sidecar_worker": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/python/aik_spike/server.py",
+      "bytes": 8585,
+      "sha256": "63b20c5f941c43bf9f31f3c065919c527731a2939c1557e98757a42ad663fca3"
+    },
+    "windows_vault": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/python/aik_spike/vault.py",
+      "bytes": 11843,
+      "sha256": "7a9f3c0a2808c9f9ff10bf0001b9eb5c7466f48b818df33af139b969433d604f"
+    },
+    "installer_validation_script": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/scripts/windows/verify-installed-spike.ps1",
+      "bytes": 13354,
+      "sha256": "65323a7f730cdadd0ae3377da4960419580023f517df22e734966d6844ff754e"
+    },
+    "windows_workflow": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/.github/workflows/windows-foundation.yml",
+      "bytes": 3511,
+      "sha256": "bac4cc6f7c5d35b407f99ba5982079d799250f9ca98e8eb038d223332951f874"
+    },
+    "windows_build_report": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-ci/evidence/build/sidecar-build.json",
+      "bytes": 1226,
+      "sha256": "ab4777f4f99dffc22f2d61f43853b650e4483936991da628707a69985cd77a6a"
+    },
+    "windows_installed_report": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-ci/evidence/evidence/installed-spike.json",
+      "bytes": 2901,
+      "sha256": "0be3253034500fac16c2b84c8b9f2bc13681c14b32a4126b2a1e73c8d149bd9d"
+    },
+    "windows_application_report": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-ci/evidence/evidence/application-report.json",
+      "bytes": 1020,
+      "sha256": "b1976f4dbf46ada8758a010a5eb322fb11613bf82dcab197238ac27cd39e1cb0"
+    },
+    "windows_screenshot": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-ci/evidence/evidence/screenshot.png",
+      "bytes": 45095,
+      "sha256": "7a5441bd36c3f3ce6265e354b34f67f4722b4afeb3f3696ee3407e3bd67f1131"
+    },
+    "upstream_baseline": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/baseline.json",
+      "bytes": 23501,
+      "sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    "upstream_installed_inspection": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/installed-inspection.json",
+      "bytes": 45489,
+      "sha256": "b8a12c1c713a950afbde319c8750dba4d71b547e9fda0bfe054f9344b7c3b417"
+    },
+    "upstream_contract": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/integration-contract.json",
+      "bytes": 8921,
+      "sha256": "1042604824fd7f77563f893b13dd292871abbb85fd278e77480f3c2fedaf7ea0"
+    },
+    "upstream_matrix": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/support-matrix.json",
+      "bytes": 19392,
+      "sha256": "a20142a723cc878dacc92dd3a02d20fba574e7f3fa02a5f2d46ac8c79e089125"
+    },
+    "upstream_binding_schema": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/task-execution-binding.schema.json",
+      "bytes": 3036,
+      "sha256": "d88892e98fe9a657a7116de18035a99b6a8528c608ede6c28a4ce8eac60c0398"
+    },
+    "vm_public_surface": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/vm-public-surface.json",
+      "bytes": 14575,
+      "sha256": "7330ae7d3b64a4ef549640150fa493f681c72e10937c4fb9e8e5a3ad9f156487"
+    },
+    "upstream_contract_doc": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/docs/integration-contract.ko.md",
+      "bytes": 16884,
+      "sha256": "6eb92f55f67c0e063815170d43fe7162c3983f15bec0fca54edaa237eb8f2c2c"
+    },
+    "upstream_inspector": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/tools/inspect_upstream.py",
+      "bytes": 18051,
+      "sha256": "efcff869e30c7df2811405333e036059ff0d33cfe3fc2e51d8efc14f172e50e0"
+    },
+    "upstream_inspector_tests": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/tests/test_upstream_contract.py",
+      "bytes": 5151,
+      "sha256": "35963fff3431f5d985e62630b734e0c9756665fb9411bdaf620c29745551fe9b"
+    },
+    "vm_wheel_build_log": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/upstream/logs/vm-wheel-build.log",
+      "bytes": 689,
+      "sha256": "5f862dcc8907a2fe04040add8c240ca5797c4e407ffa1fe89d73a2f59ae7d869"
+    },
+    "vm_wheel_install_log": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/upstream/logs/vm-wheel-install.log",
+      "bytes": 260,
+      "sha256": "0e64a5b61972b51f8d99af05ae1b8a42bcddff28ddb155a5988b2ac346dbd95c"
+    }
+  },
+  "report_limitations": [
+    "A point-in-time assessment of the referenced files and existing CI artifacts. Later changes require a new review.",
+    "The Tauri comparison currently being implemented by another agent has not been measured or reviewed here.",
+    "No actual vendor credentials, model calls, product worker route or complete product GUI acceptance were exercised by this review."
+  ]
+}

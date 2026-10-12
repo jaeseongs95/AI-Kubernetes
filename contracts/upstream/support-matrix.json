@@ -1,0 +1,520 @@
+{
+  "format": "aik-support-matrix-v1",
+  "revision": "1",
+  "observed_at": "2026-10-12T07:42:45.264138+00:00",
+  "decision_id": "DEC12",
+  "decision_status": "proposed",
+  "support_claim": "implementation_target_only",
+  "qualification_rule": "No route may be operationally advertised until every required role/tool cell has live evidence at this artifact and account binding. Optional read-only resources do not inherit developer shell requirements.",
+  "phases": {
+    "AIK-022": "Windows authentication",
+    "AIK-082": "minimal live provider preflight probe",
+    "AIK-086": "installed governed runtime and tools qualification",
+    "AIK-044": "dependent A/B -> C development goal and independent failure/rework",
+    "AIK-059": "same Windows installer GUI acceptance",
+    "AIK-064": "release decision"
+  },
+  "tool_contracts": {
+    "read": {
+      "producer": "AIK-035/085 gateway",
+      "operation": "workspace.read_file",
+      "state": "not_implemented"
+    },
+    "create": {
+      "producer": "AIK-085 gateway",
+      "operation": "workspace.create_file",
+      "state": "not_implemented",
+      "conditions": "new relative file, approved root, effect intent before write, durable receipt after actual write"
+    },
+    "update": {
+      "producer": "AIK-085 gateway",
+      "operation": "workspace.update_file",
+      "state": "not_implemented",
+      "conditions": "expected input digest and bounded edit, actual result digest"
+    },
+    "bounded_verify": {
+      "producer": "AIK-085 gateway",
+      "operation": "workspace.run_verification",
+      "state": "not_implemented",
+      "conditions": "explicit argv, cwd/root, deadline and output limit; qualification must execute an actual command"
+    }
+  },
+  "routes": [
+    {
+      "route_id": "openai-api_key-director-v1",
+      "provider": "openai",
+      "auth_kind": "api_key",
+      "runtime": "openai_api_tool_loop",
+      "role": "director",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read"
+      ],
+      "optional_tool_capabilities": [],
+      "control_capabilities": [
+        "prepare",
+        "revise",
+        "run_once",
+        "observe",
+        "pause",
+        "cancel",
+        "status",
+        "final_report"
+      ],
+      "native_permission_contract": "not_applicable; AIK bounded tool gateway required",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "openai-api_key-developer-v1",
+      "provider": "openai",
+      "auth_kind": "api_key",
+      "runtime": "openai_api_tool_loop",
+      "role": "developer",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read",
+        "create",
+        "update",
+        "bounded_verify"
+      ],
+      "optional_tool_capabilities": [],
+      "control_capabilities": [],
+      "native_permission_contract": "not_applicable; AIK bounded tool gateway required",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "openai-api_key-reviewer-v1",
+      "provider": "openai",
+      "auth_kind": "api_key",
+      "runtime": "openai_api_tool_loop",
+      "role": "reviewer",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read"
+      ],
+      "optional_tool_capabilities": [
+        "bounded_verify"
+      ],
+      "control_capabilities": [],
+      "native_permission_contract": "not_applicable; AIK bounded tool gateway required",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "openai-native_subscription-director-v1",
+      "provider": "openai",
+      "auth_kind": "native_subscription",
+      "runtime": "codex_app_server",
+      "role": "director",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read"
+      ],
+      "optional_tool_capabilities": [],
+      "control_capabilities": [
+        "prepare",
+        "revise",
+        "run_once",
+        "observe",
+        "pause",
+        "cancel",
+        "status",
+        "final_report"
+      ],
+      "native_permission_contract": "provider turn policy :danger-full-access and approval never required by current VM; scope is not an OS sandbox",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "openai-native_subscription-developer-v1",
+      "provider": "openai",
+      "auth_kind": "native_subscription",
+      "runtime": "codex_app_server",
+      "role": "developer",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read",
+        "create",
+        "update",
+        "bounded_verify"
+      ],
+      "optional_tool_capabilities": [],
+      "control_capabilities": [],
+      "native_permission_contract": "provider turn policy :danger-full-access and approval never required by current VM; scope is not an OS sandbox",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "openai-native_subscription-reviewer-v1",
+      "provider": "openai",
+      "auth_kind": "native_subscription",
+      "runtime": "codex_app_server",
+      "role": "reviewer",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read"
+      ],
+      "optional_tool_capabilities": [
+        "bounded_verify"
+      ],
+      "control_capabilities": [],
+      "native_permission_contract": "provider turn policy :danger-full-access and approval never required by current VM; scope is not an OS sandbox",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "anthropic-api_key-director-v1",
+      "provider": "anthropic",
+      "auth_kind": "api_key",
+      "runtime": "anthropic_api_tool_loop",
+      "role": "director",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read"
+      ],
+      "optional_tool_capabilities": [],
+      "control_capabilities": [
+        "prepare",
+        "revise",
+        "run_once",
+        "observe",
+        "pause",
+        "cancel",
+        "status",
+        "final_report"
+      ],
+      "native_permission_contract": "not_applicable; AIK bounded tool gateway required",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "anthropic-api_key-developer-v1",
+      "provider": "anthropic",
+      "auth_kind": "api_key",
+      "runtime": "anthropic_api_tool_loop",
+      "role": "developer",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read",
+        "create",
+        "update",
+        "bounded_verify"
+      ],
+      "optional_tool_capabilities": [],
+      "control_capabilities": [],
+      "native_permission_contract": "not_applicable; AIK bounded tool gateway required",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "anthropic-api_key-reviewer-v1",
+      "provider": "anthropic",
+      "auth_kind": "api_key",
+      "runtime": "anthropic_api_tool_loop",
+      "role": "reviewer",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read"
+      ],
+      "optional_tool_capabilities": [
+        "bounded_verify"
+      ],
+      "control_capabilities": [],
+      "native_permission_contract": "not_applicable; AIK bounded tool gateway required",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "anthropic-native_subscription-director-v1",
+      "provider": "anthropic",
+      "auth_kind": "native_subscription",
+      "runtime": "claude_code_cli",
+      "role": "director",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read"
+      ],
+      "optional_tool_capabilities": [],
+      "control_capabilities": [
+        "prepare",
+        "revise",
+        "run_once",
+        "observe",
+        "pause",
+        "cancel",
+        "status",
+        "final_report"
+      ],
+      "native_permission_contract": "provider observed permissionMode=bypassPermissions required by current VM; scope is not an OS sandbox",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "anthropic-native_subscription-developer-v1",
+      "provider": "anthropic",
+      "auth_kind": "native_subscription",
+      "runtime": "claude_code_cli",
+      "role": "developer",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read",
+        "create",
+        "update",
+        "bounded_verify"
+      ],
+      "optional_tool_capabilities": [],
+      "control_capabilities": [],
+      "native_permission_contract": "provider observed permissionMode=bypassPermissions required by current VM; scope is not an OS sandbox",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    },
+    {
+      "route_id": "anthropic-native_subscription-reviewer-v1",
+      "provider": "anthropic",
+      "auth_kind": "native_subscription",
+      "runtime": "claude_code_cli",
+      "role": "reviewer",
+      "required": true,
+      "scope_status": "proposed_DEC12",
+      "adapter_status": "not_implemented",
+      "qualification_status": "NOT_RUN",
+      "authentication_status": "NOT_CHECKED",
+      "probe_status": "NOT_RUN",
+      "operationally_advertised": false,
+      "required_tool_capabilities": [
+        "read"
+      ],
+      "optional_tool_capabilities": [
+        "bounded_verify"
+      ],
+      "control_capabilities": [],
+      "native_permission_contract": "provider observed permissionMode=bypassPermissions required by current VM; scope is not an OS sandbox",
+      "native_permission_observed": "NOT_RUN",
+      "reason": "AIK adapter, route/lease binding, AGS/VM compatibility and governed qualification are incomplete",
+      "blocking_tasks": [
+        "AIK-008",
+        "AIK-031",
+        "AIK-032",
+        "AIK-082",
+        "AIK-086"
+      ],
+      "observed_at": "2026-10-12T07:42:45.264138+00:00",
+      "evidence_ref": "contracts/upstream/installed-inspection.json",
+      "revision": "1",
+      "ags_revision": "56fef8bd189377b80f4020f506e717ab292b260a",
+      "vm_revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+      "baseline_sha256": "3be654cebb646983c8dd0620e5cf72b502565c62e59260e6448c0e3e5ee47021"
+    }
+  ]
+}

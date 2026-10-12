@@ -1,0 +1,3910 @@
+{
+  "format": "aik-binding-schema-validation-v1",
+  "observed_at": "2026-10-12T07:59:14.118239+00:00",
+  "scope": "AIK-001 standalone formal contract validation; no product runtime qualification",
+  "validator": {
+    "class": "jsonschema.Draft202012Validator",
+    "packages": {
+      "jsonschema": "4.26.0",
+      "jsonschema-specifications": "2025.9.1",
+      "referencing": "0.37.0",
+      "attrs": "26.1.0",
+      "rpds-py": "2026.9.1",
+      "typing-extensions": "4.16.0"
+    },
+    "metaschema_source": "validator-bundled Draft 2020-12 metaschema and referenced specifications",
+    "python": "3.12.14",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.39"
+  },
+  "references": [
+    "https://python-jsonschema.readthedocs.io/en/stable/validate/",
+    "https://json-schema.org/draft/2020-12/schema"
+  ],
+  "reproduction": {
+    "install_argv": [
+      "python",
+      "-m",
+      "pip",
+      "install",
+      "jsonschema==4.26.0",
+      "jsonschema-specifications==2025.9.1",
+      "referencing==0.37.0",
+      "attrs==26.1.0",
+      "rpds-py==2026.9.1",
+      "typing-extensions==4.16.0"
+    ],
+    "validation_argv": [
+      "/workspace/scratch/676b40286607/implementation_20261012/upstream/schema-validator-venv/bin/python",
+      "/workspace/scratch/676b40286607/implementation_20261012/upstream/schema-validation.py",
+      "--schema",
+      "/workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/task-execution-binding.schema.json",
+      "--output",
+      "/workspace/scratch/676b40286607/implementation_20261012/upstream/schema-validation.json",
+      "--before",
+      "/workspace/scratch/676b40286607/implementation_20261012/upstream/task-execution-binding.before-validation.schema.json"
+    ],
+    "script_sha256": "4c8095b646cc01578f3085a55ee796ab6f646ce355bb214d895ce050a28607a3",
+    "fixture_construction": "Hand-written synthetic API/native positive bindings; independent required-field, type, digest, fencing and unknown-secret negative mutations. No fixtures are generated from schema required/properties or previous result claims.",
+    "command": "/workspace/scratch/676b40286607/implementation_20261012/upstream/schema-validator-venv/bin/python /workspace/scratch/676b40286607/implementation_20261012/upstream/schema-validation.py --schema /workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/task-execution-binding.schema.json --output /workspace/scratch/676b40286607/implementation_20261012/upstream/schema-validation.json --before /workspace/scratch/676b40286607/implementation_20261012/upstream/task-execution-binding.before-validation.schema.json"
+  },
+  "fixtures": [
+    {
+      "id": "valid_api_binding",
+      "expected_valid": true,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "valid_native_binding",
+      "expected_valid": true,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "anthropic-native_subscription-developer-v1",
+        "route_revision": "1",
+        "connection_id": "native-connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "anthropic",
+        "auth_kind": "native_subscription",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 42,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_instance_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_project_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_goal_revision_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_plan_revision_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_task_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_attempt_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_execution_spec_digest",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_runtime_intent_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_vm_provider_call_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_cluster_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_route_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_route_revision",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_connection_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_connection_revision",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_provider",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_auth_kind",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_provider_account_fingerprint",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_pool_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_placement_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_lease_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_lease_fencing_token",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_support_matrix_digest",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_input_manifest_digest",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "missing_workspace_root_ref",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656"
+      }
+    },
+    {
+      "id": "empty_route_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "empty_provider_account_fingerprint",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "empty_vm_task_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "empty_vm_attempt_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "wrong_type_route_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": 7,
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "wrong_type_provider_account_fingerprint",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": null,
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "wrong_type_vm_task_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": [],
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "wrong_type_vm_attempt_id",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": {},
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "fencing_zero",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 0,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "fencing_negative",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": -1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "fencing_boolean",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": true,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "fencing_fraction",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1.5,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "fencing_string",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": "1",
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "vm_execution_spec_digest_trailing_newline",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "vm_execution_spec_digest_short",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "vm_execution_spec_digest_non_hex",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "vm_execution_spec_digest_wrong_prefix",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "support_matrix_digest_trailing_newline",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "support_matrix_digest_short",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "support_matrix_digest_non_hex",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "support_matrix_digest_wrong_prefix",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "input_manifest_digest_trailing_newline",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "input_manifest_digest_short",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "input_manifest_digest_non_hex",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "input_manifest_digest_wrong_prefix",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "workspace_root_ref": "workspace-root-independent-probe"
+      }
+    },
+    {
+      "id": "reject_unknown_secret",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe",
+        "secret": "SYNTHETIC-NOT-A-CREDENTIAL"
+      }
+    },
+    {
+      "id": "reject_unknown_api_key",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe",
+        "api_key": "SYNTHETIC-NOT-A-CREDENTIAL"
+      }
+    },
+    {
+      "id": "reject_unknown_access_token",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe",
+        "access_token": "SYNTHETIC-NOT-A-CREDENTIAL"
+      }
+    },
+    {
+      "id": "reject_unknown_refresh_token",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe",
+        "refresh_token": "SYNTHETIC-NOT-A-CREDENTIAL"
+      }
+    },
+    {
+      "id": "reject_unknown_password",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe",
+        "password": "SYNTHETIC-NOT-A-CREDENTIAL"
+      }
+    },
+    {
+      "id": "reject_unknown_authorization",
+      "expected_valid": false,
+      "instance": {
+        "vm_instance_id": "vm-instance-independent-probe",
+        "vm_project_id": "project-independent-probe",
+        "vm_goal_revision_id": "goal-revision-independent-probe",
+        "vm_plan_revision_id": "plan-revision-independent-probe",
+        "vm_task_id": "task-independent-probe",
+        "vm_attempt_id": "attempt-independent-probe",
+        "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+        "vm_runtime_intent_id": "runtime-intent-independent-probe",
+        "vm_provider_call_id": "provider-call-independent-probe",
+        "cluster_id": "cluster-independent-probe",
+        "route_id": "openai-api_key-developer-v1",
+        "route_revision": "1",
+        "connection_id": "connection-independent-probe",
+        "connection_revision": "1",
+        "provider": "openai",
+        "auth_kind": "api_key",
+        "provider_account_fingerprint": "account-fingerprint-independent-probe",
+        "pool_id": "pool-independent-probe",
+        "placement_id": "placement-independent-probe",
+        "lease_id": "lease-independent-probe",
+        "lease_fencing_token": 1,
+        "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+        "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+        "workspace_root_ref": "workspace-root-independent-probe",
+        "authorization": "SYNTHETIC-NOT-A-CREDENTIAL"
+      }
+    },
+    {
+      "id": "root_array",
+      "expected_valid": false,
+      "instance": [
+        {
+          "vm_instance_id": "vm-instance-independent-probe",
+          "vm_project_id": "project-independent-probe",
+          "vm_goal_revision_id": "goal-revision-independent-probe",
+          "vm_plan_revision_id": "plan-revision-independent-probe",
+          "vm_task_id": "task-independent-probe",
+          "vm_attempt_id": "attempt-independent-probe",
+          "vm_execution_spec_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+          "vm_runtime_intent_id": "runtime-intent-independent-probe",
+          "vm_provider_call_id": "provider-call-independent-probe",
+          "cluster_id": "cluster-independent-probe",
+          "route_id": "openai-api_key-developer-v1",
+          "route_revision": "1",
+          "connection_id": "connection-independent-probe",
+          "connection_revision": "1",
+          "provider": "openai",
+          "auth_kind": "api_key",
+          "provider_account_fingerprint": "account-fingerprint-independent-probe",
+          "pool_id": "pool-independent-probe",
+          "placement_id": "placement-independent-probe",
+          "lease_id": "lease-independent-probe",
+          "lease_fencing_token": 1,
+          "support_matrix_digest": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+          "input_manifest_digest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+          "workspace_root_ref": "workspace-root-independent-probe"
+        }
+      ]
+    },
+    {
+      "id": "root_null",
+      "expected_valid": false,
+      "instance": null
+    }
+  ],
+  "limits": [
+    "Schema validity is not owner authorization, existence of VM Task/Attempt, account ownership or an unexpired lease.",
+    "A digest string matching its shape does not establish that it matches actual source bytes.",
+    "No actual credentials, provider calls, AGS/VM effects, installer or GUI were used in this check."
+  ],
+  "before": {
+    "schema_path": "/workspace/scratch/676b40286607/implementation_20261012/upstream/task-execution-binding.before-validation.schema.json",
+    "schema_sha256": "10d9d13cdda9ec5b313c5e9b48bad23df16f9466b33122569c1b7c3a35d105ef",
+    "schema_uri": "https://json-schema.org/draft/2020-12/schema",
+    "schema_id": "urn:aik:task-execution-binding:v1",
+    "validator_class": "jsonschema.Draft202012Validator",
+    "declared_validator_matches": true,
+    "metaschema_status": "PASS",
+    "status": "FAIL",
+    "case_count": 59,
+    "passed": 56,
+    "failed": 3,
+    "failed_case_ids": [
+      "vm_execution_spec_digest_trailing_newline",
+      "support_matrix_digest_trailing_newline",
+      "input_manifest_digest_trailing_newline"
+    ],
+    "cases": [
+      {
+        "id": "valid_api_binding",
+        "expected_valid": true,
+        "observed_valid": true,
+        "status": "PASS",
+        "errors": []
+      },
+      {
+        "id": "valid_native_binding",
+        "expected_valid": true,
+        "observed_valid": true,
+        "status": "PASS",
+        "errors": []
+      },
+      {
+        "id": "missing_vm_instance_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_instance_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_project_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_project_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_goal_revision_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_goal_revision_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_plan_revision_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_plan_revision_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_task_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_task_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_attempt_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_attempt_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_execution_spec_digest",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_execution_spec_digest' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_runtime_intent_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_runtime_intent_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_provider_call_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_provider_call_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_cluster_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'cluster_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_route_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'route_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_route_revision",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'route_revision' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_connection_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'connection_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_connection_revision",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'connection_revision' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_provider",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'provider' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_auth_kind",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'auth_kind' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_provider_account_fingerprint",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'provider_account_fingerprint' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_pool_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'pool_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_placement_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'placement_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_lease_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'lease_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_lease_fencing_token",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'lease_fencing_token' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_support_matrix_digest",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'support_matrix_digest' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_input_manifest_digest",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'input_manifest_digest' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_workspace_root_ref",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'workspace_root_ref' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "empty_route_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "route_id"
+            ],
+            "schema_path": [
+              "properties",
+              "route_id",
+              "minLength"
+            ],
+            "message": "'' should be non-empty"
+          }
+        ]
+      },
+      {
+        "id": "empty_provider_account_fingerprint",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "provider_account_fingerprint"
+            ],
+            "schema_path": [
+              "properties",
+              "provider_account_fingerprint",
+              "minLength"
+            ],
+            "message": "'' should be non-empty"
+          }
+        ]
+      },
+      {
+        "id": "empty_vm_task_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "vm_task_id"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_task_id",
+              "minLength"
+            ],
+            "message": "'' should be non-empty"
+          }
+        ]
+      },
+      {
+        "id": "empty_vm_attempt_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "vm_attempt_id"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_attempt_id",
+              "minLength"
+            ],
+            "message": "'' should be non-empty"
+          }
+        ]
+      },
+      {
+        "id": "wrong_type_route_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "route_id"
+            ],
+            "schema_path": [
+              "properties",
+              "route_id",
+              "type"
+            ],
+            "message": "7 is not of type 'string'"
+          }
+        ]
+      },
+      {
+        "id": "wrong_type_provider_account_fingerprint",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "provider_account_fingerprint"
+            ],
+            "schema_path": [
+              "properties",
+              "provider_account_fingerprint",
+              "type"
+            ],
+            "message": "None is not of type 'string'"
+          }
+        ]
+      },
+      {
+        "id": "wrong_type_vm_task_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "vm_task_id"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_task_id",
+              "type"
+            ],
+            "message": "[] is not of type 'string'"
+          }
+        ]
+      },
+      {
+        "id": "wrong_type_vm_attempt_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "vm_attempt_id"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_attempt_id",
+              "type"
+            ],
+            "message": "{} is not of type 'string'"
+          }
+        ]
+      },
+      {
+        "id": "fencing_zero",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minimum",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "minimum"
+            ],
+            "message": "0 is less than the minimum of 1"
+          }
+        ]
+      },
+      {
+        "id": "fencing_negative",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minimum",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "minimum"
+            ],
+            "message": "-1 is less than the minimum of 1"
+          }
+        ]
+      },
+      {
+        "id": "fencing_boolean",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "type"
+            ],
+            "message": "True is not of type 'integer'"
+          }
+        ]
+      },
+      {
+        "id": "fencing_fraction",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "type"
+            ],
+            "message": "1.5 is not of type 'integer'"
+          }
+        ]
+      },
+      {
+        "id": "fencing_string",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "type"
+            ],
+            "message": "'1' is not of type 'integer'"
+          }
+        ]
+      },
+      {
+        "id": "vm_execution_spec_digest_trailing_newline",
+        "expected_valid": false,
+        "observed_valid": true,
+        "status": "FAIL",
+        "errors": []
+      },
+      {
+        "id": "vm_execution_spec_digest_short",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "vm_execution_spec_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_execution_spec_digest",
+              "pattern"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "vm_execution_spec_digest_non_hex",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "vm_execution_spec_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_execution_spec_digest",
+              "pattern"
+            ],
+            "message": "'sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "vm_execution_spec_digest_wrong_prefix",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "vm_execution_spec_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_execution_spec_digest",
+              "pattern"
+            ],
+            "message": "'sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "support_matrix_digest_trailing_newline",
+        "expected_valid": false,
+        "observed_valid": true,
+        "status": "FAIL",
+        "errors": []
+      },
+      {
+        "id": "support_matrix_digest_short",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "support_matrix_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "support_matrix_digest",
+              "pattern"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "support_matrix_digest_non_hex",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "support_matrix_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "support_matrix_digest",
+              "pattern"
+            ],
+            "message": "'sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "support_matrix_digest_wrong_prefix",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "support_matrix_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "support_matrix_digest",
+              "pattern"
+            ],
+            "message": "'sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "input_manifest_digest_trailing_newline",
+        "expected_valid": false,
+        "observed_valid": true,
+        "status": "FAIL",
+        "errors": []
+      },
+      {
+        "id": "input_manifest_digest_short",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "input_manifest_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "input_manifest_digest",
+              "pattern"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "input_manifest_digest_non_hex",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "input_manifest_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "input_manifest_digest",
+              "pattern"
+            ],
+            "message": "'sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "input_manifest_digest_wrong_prefix",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "input_manifest_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "input_manifest_digest",
+              "pattern"
+            ],
+            "message": "'sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_secret",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('secret' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_api_key",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('api_key' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_access_token",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('access_token' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_refresh_token",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('refresh_token' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_password",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('password' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_authorization",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('authorization' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "root_array",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [],
+            "schema_path": [
+              "type"
+            ],
+            "message": "[{'vm_instance_id': 'vm-instance-independent-probe', 'vm_project_id': 'project-independent-probe', 'vm_goal_revision_id': 'goal-revision-independent-probe', 'vm_plan_revision_id': 'plan-revision-independent-probe', 'vm_task_id': 'task-independent-probe', 'vm_attempt_id': 'attempt-independent-probe', 'vm_execution_spec_digest': 'sha256:1212121212121212121212121212121212121212121212121212121212121212', 'vm_runtime_intent_id': 'runtime-intent-independent-probe', 'vm_provider_call_id': 'provider-call-independent-probe', 'cluster_id': 'cluster-independent-probe', 'route_id': 'openai-api_key-developer-v1', 'route_revision': '1', 'connection_id': 'connection-independent-probe', 'connection_revision': '1', 'provider': 'openai', 'auth_kind': 'api_key', 'provider_account_fingerprint': 'account-fingerprint-independent-probe', 'pool_id': 'pool-independent-probe', 'placement_id': 'placement-independent-probe', 'lease_id': 'lease-independent-probe', 'lease_fencing_token': 1, 'support_matrix_digest': 'sha256:3434343434343434343434343434343434343434343434343434343434343434', 'input_manifest_digest': 'sha256:5656565656565656565656565656565656565656565656565656565656565656', 'workspace_root_ref': 'workspace-root-independent-probe'}] is not of type 'object'"
+          }
+        ]
+      },
+      {
+        "id": "root_null",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [],
+            "schema_path": [
+              "type"
+            ],
+            "message": "None is not of type 'object'"
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "schema_path": "/workspace/scratch/676b40286607/AI-Kubernetes/contracts/upstream/task-execution-binding.schema.json",
+    "schema_sha256": "d88892e98fe9a657a7116de18035a99b6a8528c608ede6c28a4ce8eac60c0398",
+    "schema_uri": "https://json-schema.org/draft/2020-12/schema",
+    "schema_id": "urn:aik:task-execution-binding:v1",
+    "validator_class": "jsonschema.Draft202012Validator",
+    "declared_validator_matches": true,
+    "metaschema_status": "PASS",
+    "status": "PASS",
+    "case_count": 59,
+    "passed": 59,
+    "failed": 0,
+    "failed_case_ids": [],
+    "cases": [
+      {
+        "id": "valid_api_binding",
+        "expected_valid": true,
+        "observed_valid": true,
+        "status": "PASS",
+        "errors": []
+      },
+      {
+        "id": "valid_native_binding",
+        "expected_valid": true,
+        "observed_valid": true,
+        "status": "PASS",
+        "errors": []
+      },
+      {
+        "id": "missing_vm_instance_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_instance_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_project_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_project_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_goal_revision_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_goal_revision_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_plan_revision_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_plan_revision_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_task_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_task_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_attempt_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_attempt_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_execution_spec_digest",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_execution_spec_digest' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_runtime_intent_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_runtime_intent_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_vm_provider_call_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'vm_provider_call_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_cluster_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'cluster_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_route_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'route_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_route_revision",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'route_revision' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_connection_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'connection_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_connection_revision",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'connection_revision' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_provider",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'provider' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_auth_kind",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'auth_kind' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_provider_account_fingerprint",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'provider_account_fingerprint' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_pool_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'pool_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_placement_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'placement_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_lease_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'lease_id' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_lease_fencing_token",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'lease_fencing_token' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_support_matrix_digest",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'support_matrix_digest' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_input_manifest_digest",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'input_manifest_digest' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "missing_workspace_root_ref",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "required",
+            "instance_path": [],
+            "schema_path": [
+              "required"
+            ],
+            "message": "'workspace_root_ref' is a required property"
+          }
+        ]
+      },
+      {
+        "id": "empty_route_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "route_id"
+            ],
+            "schema_path": [
+              "properties",
+              "route_id",
+              "minLength"
+            ],
+            "message": "'' should be non-empty"
+          }
+        ]
+      },
+      {
+        "id": "empty_provider_account_fingerprint",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "provider_account_fingerprint"
+            ],
+            "schema_path": [
+              "properties",
+              "provider_account_fingerprint",
+              "minLength"
+            ],
+            "message": "'' should be non-empty"
+          }
+        ]
+      },
+      {
+        "id": "empty_vm_task_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "vm_task_id"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_task_id",
+              "minLength"
+            ],
+            "message": "'' should be non-empty"
+          }
+        ]
+      },
+      {
+        "id": "empty_vm_attempt_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "vm_attempt_id"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_attempt_id",
+              "minLength"
+            ],
+            "message": "'' should be non-empty"
+          }
+        ]
+      },
+      {
+        "id": "wrong_type_route_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "route_id"
+            ],
+            "schema_path": [
+              "properties",
+              "route_id",
+              "type"
+            ],
+            "message": "7 is not of type 'string'"
+          }
+        ]
+      },
+      {
+        "id": "wrong_type_provider_account_fingerprint",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "provider_account_fingerprint"
+            ],
+            "schema_path": [
+              "properties",
+              "provider_account_fingerprint",
+              "type"
+            ],
+            "message": "None is not of type 'string'"
+          }
+        ]
+      },
+      {
+        "id": "wrong_type_vm_task_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "vm_task_id"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_task_id",
+              "type"
+            ],
+            "message": "[] is not of type 'string'"
+          }
+        ]
+      },
+      {
+        "id": "wrong_type_vm_attempt_id",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "vm_attempt_id"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_attempt_id",
+              "type"
+            ],
+            "message": "{} is not of type 'string'"
+          }
+        ]
+      },
+      {
+        "id": "fencing_zero",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minimum",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "minimum"
+            ],
+            "message": "0 is less than the minimum of 1"
+          }
+        ]
+      },
+      {
+        "id": "fencing_negative",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minimum",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "minimum"
+            ],
+            "message": "-1 is less than the minimum of 1"
+          }
+        ]
+      },
+      {
+        "id": "fencing_boolean",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "type"
+            ],
+            "message": "True is not of type 'integer'"
+          }
+        ]
+      },
+      {
+        "id": "fencing_fraction",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "type"
+            ],
+            "message": "1.5 is not of type 'integer'"
+          }
+        ]
+      },
+      {
+        "id": "fencing_string",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [
+              "lease_fencing_token"
+            ],
+            "schema_path": [
+              "properties",
+              "lease_fencing_token",
+              "type"
+            ],
+            "message": "'1' is not of type 'integer'"
+          }
+        ]
+      },
+      {
+        "id": "vm_execution_spec_digest_trailing_newline",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "maxLength",
+            "instance_path": [
+              "vm_execution_spec_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_execution_spec_digest",
+              "maxLength"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\n' is too long"
+          }
+        ]
+      },
+      {
+        "id": "vm_execution_spec_digest_short",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "vm_execution_spec_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_execution_spec_digest",
+              "minLength"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too short"
+          },
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "vm_execution_spec_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_execution_spec_digest",
+              "pattern"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "vm_execution_spec_digest_non_hex",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "vm_execution_spec_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_execution_spec_digest",
+              "pattern"
+            ],
+            "message": "'sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "vm_execution_spec_digest_wrong_prefix",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "vm_execution_spec_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "vm_execution_spec_digest",
+              "pattern"
+            ],
+            "message": "'sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "support_matrix_digest_trailing_newline",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "maxLength",
+            "instance_path": [
+              "support_matrix_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "support_matrix_digest",
+              "maxLength"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\n' is too long"
+          }
+        ]
+      },
+      {
+        "id": "support_matrix_digest_short",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "support_matrix_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "support_matrix_digest",
+              "minLength"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too short"
+          },
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "support_matrix_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "support_matrix_digest",
+              "pattern"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "support_matrix_digest_non_hex",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "support_matrix_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "support_matrix_digest",
+              "pattern"
+            ],
+            "message": "'sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "support_matrix_digest_wrong_prefix",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "support_matrix_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "support_matrix_digest",
+              "pattern"
+            ],
+            "message": "'sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "input_manifest_digest_trailing_newline",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "maxLength",
+            "instance_path": [
+              "input_manifest_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "input_manifest_digest",
+              "maxLength"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\n' is too long"
+          }
+        ]
+      },
+      {
+        "id": "input_manifest_digest_short",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "minLength",
+            "instance_path": [
+              "input_manifest_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "input_manifest_digest",
+              "minLength"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too short"
+          },
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "input_manifest_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "input_manifest_digest",
+              "pattern"
+            ],
+            "message": "'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "input_manifest_digest_non_hex",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "input_manifest_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "input_manifest_digest",
+              "pattern"
+            ],
+            "message": "'sha256:gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "input_manifest_digest_wrong_prefix",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "pattern",
+            "instance_path": [
+              "input_manifest_digest"
+            ],
+            "schema_path": [
+              "properties",
+              "input_manifest_digest",
+              "pattern"
+            ],
+            "message": "'sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' does not match '^sha256:[0-9a-f]{64}$'"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_secret",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('secret' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_api_key",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('api_key' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_access_token",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('access_token' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_refresh_token",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('refresh_token' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_password",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('password' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "reject_unknown_authorization",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "additionalProperties",
+            "instance_path": [],
+            "schema_path": [
+              "additionalProperties"
+            ],
+            "message": "Additional properties are not allowed ('authorization' was unexpected)"
+          }
+        ]
+      },
+      {
+        "id": "root_array",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [],
+            "schema_path": [
+              "type"
+            ],
+            "message": "[{'vm_instance_id': 'vm-instance-independent-probe', 'vm_project_id': 'project-independent-probe', 'vm_goal_revision_id': 'goal-revision-independent-probe', 'vm_plan_revision_id': 'plan-revision-independent-probe', 'vm_task_id': 'task-independent-probe', 'vm_attempt_id': 'attempt-independent-probe', 'vm_execution_spec_digest': 'sha256:1212121212121212121212121212121212121212121212121212121212121212', 'vm_runtime_intent_id': 'runtime-intent-independent-probe', 'vm_provider_call_id': 'provider-call-independent-probe', 'cluster_id': 'cluster-independent-probe', 'route_id': 'openai-api_key-developer-v1', 'route_revision': '1', 'connection_id': 'connection-independent-probe', 'connection_revision': '1', 'provider': 'openai', 'auth_kind': 'api_key', 'provider_account_fingerprint': 'account-fingerprint-independent-probe', 'pool_id': 'pool-independent-probe', 'placement_id': 'placement-independent-probe', 'lease_id': 'lease-independent-probe', 'lease_fencing_token': 1, 'support_matrix_digest': 'sha256:3434343434343434343434343434343434343434343434343434343434343434', 'input_manifest_digest': 'sha256:5656565656565656565656565656565656565656565656565656565656565656', 'workspace_root_ref': 'workspace-root-independent-probe'}] is not of type 'object'"
+          }
+        ]
+      },
+      {
+        "id": "root_null",
+        "expected_valid": false,
+        "observed_valid": false,
+        "status": "PASS",
+        "errors": [
+          {
+            "keyword": "type",
+            "instance_path": [],
+            "schema_path": [
+              "type"
+            ],
+            "message": "None is not of type 'object'"
+          }
+        ]
+      }
+    ]
+  },
+  "property_changes": {
+    "vm_execution_spec_digest": {
+      "before": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "after": {
+        "type": "string",
+        "minLength": 71,
+        "maxLength": 71,
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+    },
+    "support_matrix_digest": {
+      "before": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "after": {
+        "type": "string",
+        "minLength": 71,
+        "maxLength": 71,
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+    },
+    "input_manifest_digest": {
+      "before": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "after": {
+        "type": "string",
+        "minLength": 71,
+        "maxLength": 71,
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+    }
+  },
+  "status": "PASS"
+}

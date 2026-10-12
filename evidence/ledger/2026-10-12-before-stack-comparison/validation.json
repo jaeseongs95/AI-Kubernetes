@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-12T08:06:28.251901+00:00",
+  "scope": "Development ledger and installed-interface inspector regressions; not product execution",
+  "phase": "before Tauri stack comparison",
+  "status": "PASS",
+  "commands": [
+    {
+      "name": "tests",
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-v"
+      ],
+      "exit_code": 0,
+      "log": "evidence/ledger/2026-10-12-before-stack-comparison/tests.log",
+      "sha256": "5c756cd4e5e2b0cf28cc34d294bb192c0be4ba26ab01831c4bc2091308d68d1c"
+    },
+    {
+      "name": "validate",
+      "command": [
+        "python",
+        "tools/backlog.py",
+        "validate"
+      ],
+      "exit_code": 0,
+      "log": "evidence/ledger/2026-10-12-before-stack-comparison/validate.log",
+      "sha256": "40f35708582330dc288bec4a4972183165d4b3d58dcbb2120e3510267ca2ae57"
+    },
+    {
+      "name": "ready",
+      "command": [
+        "python",
+        "tools/backlog.py",
+        "list",
+        "--ready"
+      ],
+      "exit_code": 0,
+      "log": "evidence/ledger/2026-10-12-before-stack-comparison/ready.log",
+      "sha256": "c220cf7e595da13d4ba190e927933875c26c1042c57381957a42b2500d900af3"
+    }
+  ],
+  "requirements_and_dependencies_preserved": {
+    "requirements": true,
+    "task_requirements": true,
+    "acceptance_criteria": true,
+    "task_dependencies": true,
+    "milestones": true,
+    "epics": true,
+    "task_sources": true,
+    "task_decisions": true
+  },
+  "sql_snapshot_matches": true,
+  "generated_backlog_matches": true,
+  "task_counts": {
+    "blocked": 1,
+    "done": 1,
+    "in_progress": 1,
+    "todo": 87
+  },
+  "evidence_count": 8,
+  "database_sha256": "9768fe876eeb606bc14648324f7fd79a2c662362c0baa4a4415ae900df93661a",
+  "snapshot_sha256": "0be03476e0869f27d55ae9f123db8d7a8b08e550b1df0839b4c5ceed2bc9332b"
+}

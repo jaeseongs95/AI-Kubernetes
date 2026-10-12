@@ -1,0 +1,549 @@
+{
+  "format": "aik-upstream-surface-v1",
+  "revision": "32bb0f9dd9f024045d24487312b50f5b703573a3",
+  "source_projection": true,
+  "classes": [
+    {
+      "name": "ApplicationAuthority",
+      "source": "src/flowmarshal/engine/application.py",
+      "line": 666,
+      "end_line": 710,
+      "methods": [
+        {
+          "name": "__init__",
+          "signature": "self, application: 'EngineApplication'",
+          "line": 673
+        },
+        {
+          "name": "authorization_target",
+          "signature": "self, project_id: str, *, operating_policy: GoalOperatingPolicy | None=None",
+          "line": 679
+        },
+        {
+          "name": "authorize",
+          "signature": "self, project_id: str, *, target: GoalAuthorizationTarget, source: str, operating_policy: GoalOperatingPolicy | None=None",
+          "line": 691
+        }
+      ],
+      "fields": []
+    },
+    {
+      "name": "EngineApplication",
+      "source": "src/flowmarshal/engine/application.py",
+      "line": 713,
+      "end_line": 2716,
+      "methods": [
+        {
+          "name": "__init__",
+          "signature": "self, service: EngineService, *, runtime: Any | None=None, role_configuration: EngineRoleConfiguration | None=None, structured_runner: StructuredRolePort | None=None, supervisor: Any | None=None, inspection_contract: str='plan-inspection-v1', governance: Any | None=None",
+          "line": 716
+        },
+        {
+          "name": "prepare",
+          "signature": "self, project_id: str, *, source_request: str, candidate_count: int | None=None",
+          "line": 810
+        },
+        {
+          "name": "revise",
+          "signature": "self, project_id: str, *, source_request: str, candidate_count: int | None=None",
+          "line": 828
+        },
+        {
+          "name": "authorize",
+          "signature": "self, project_id: str, *, source: str, operating_policy: GoalOperatingPolicy | None=None, capability: GoalAuthorizationCapability | None=None, authorization_target: GoalAuthorizationTarget | None=None, selected_plan_revision_id: str | None=None",
+          "line": 1018
+        },
+        {
+          "name": "authorization_target",
+          "signature": "self, project_id: str, *, operating_policy: GoalOperatingPolicy | None=None",
+          "line": 1044
+        },
+        {
+          "name": "read_current_approved_role_slot_source",
+          "signature": "self, project_id: str, task_id: str, expected: dict[str, Any] | None=None",
+          "line": 1057
+        },
+        {
+          "name": "revoke_approved_role_slots",
+          "signature": "self, project_id: str, *, reason: str",
+          "line": 1063
+        },
+        {
+          "name": "recovery_provider_available",
+          "signature": "self",
+          "line": 1066
+        },
+        {
+          "name": "replan",
+          "signature": "self, project_id: str, *, rationale: str",
+          "line": 1075
+        },
+        {
+          "name": "task_gate",
+          "signature": "self",
+          "line": 1116
+        },
+        {
+          "name": "close_task_gate",
+          "signature": "self",
+          "line": 1130
+        },
+        {
+          "name": "run_once",
+          "signature": "self, project_id: str, *, resume: bool=False, proposal: ExecutionSpecProposal | None=None, goal_validation_step: ValidationExecutionStep | None=None, goal_validation_retry: GoalValidationRetryRequest | None=None",
+          "line": 1135
+        },
+        {
+          "name": "observe",
+          "signature": "self, project_id: str",
+          "line": 1174
+        },
+        {
+          "name": "pause",
+          "signature": "self, project_id: str, *, reason: str='사용자 요청'",
+          "line": 1232
+        },
+        {
+          "name": "cancel",
+          "signature": "self, project_id: str, *, reason: str='사용자 요청'",
+          "line": 1249
+        },
+        {
+          "name": "recovery_explanation",
+          "signature": "self, project_id: str, *, owner_verdict: Any=_OWNER_VERDICT_NOT_READ",
+          "line": 1869
+        },
+        {
+          "name": "status",
+          "signature": "self, project_id: str",
+          "line": 2078
+        },
+        {
+          "name": "usage_summary",
+          "signature": "self, project_id: str, *, goal_id: str | None=None, expected_logical_call_refs: Iterable[str]=()",
+          "line": 2194
+        },
+        {
+          "name": "final_report",
+          "signature": "self, project_id: str, *, goal_verdict_id: str | None=None",
+          "line": 2321
+        },
+        {
+          "name": "attempt_detail",
+          "signature": "self, attempt_id: str",
+          "line": 2545
+        },
+        {
+          "name": "recovery_status",
+          "signature": "self, project_id: str",
+          "line": 2592
+        },
+        {
+          "name": "model_binding_status",
+          "signature": "self, project_id: str, *, inventory: ModelInventory | None=None",
+          "line": 2652
+        }
+      ],
+      "fields": []
+    },
+    {
+      "name": "RuntimeOperationReceipt",
+      "source": "src/flowmarshal/engine/runtime.py",
+      "line": 314,
+      "end_line": 339,
+      "methods": [
+        {
+          "name": "operation_trace_is_bound",
+          "signature": "self",
+          "line": 325
+        },
+        {
+          "name": "omit_absent_operation_trace",
+          "signature": "self, handler",
+          "line": 334
+        }
+      ],
+      "fields": [
+        {
+          "name": "operation_id",
+          "annotation": "str"
+        },
+        {
+          "name": "payload",
+          "annotation": "dict[str, Any]"
+        },
+        {
+          "name": "binding",
+          "annotation": "ThreadBinding | None"
+        },
+        {
+          "name": "operation_trace",
+          "annotation": "dict[str, Any] | None"
+        },
+        {
+          "name": "operation_trace_ref",
+          "annotation": "str | None"
+        },
+        {
+          "name": "operation_trace_digest",
+          "annotation": "str | None"
+        }
+      ]
+    },
+    {
+      "name": "CodexRuntimePort",
+      "source": "src/flowmarshal/engine/runtime.py",
+      "line": 351,
+      "end_line": 389,
+      "methods": [
+        {
+          "name": "verify_execution_policy",
+          "signature": "self, cwd: Path | str",
+          "line": 352
+        },
+        {
+          "name": "list_models",
+          "signature": "self",
+          "line": 354
+        },
+        {
+          "name": "create_thread",
+          "signature": "self, *, cwd: Path, title: str, model: str, developer_instructions: str, ephemeral: bool=False",
+          "line": 356
+        },
+        {
+          "name": "start_turn",
+          "signature": "self, *, thread_id: str, cwd: Path, prompt: str, model: str, effort: str, output_schema: dict[str, Any] | None=None",
+          "line": 366
+        },
+        {
+          "name": "read",
+          "signature": "self, *, thread_id: str",
+          "line": 377
+        },
+        {
+          "name": "resume",
+          "signature": "self, *, thread_id: str, cwd: Path",
+          "line": 379
+        },
+        {
+          "name": "interrupt",
+          "signature": "self, *, thread_id: str, turn_id: str, timeout_seconds: float=5.0",
+          "line": 381
+        },
+        {
+          "name": "read_stored",
+          "signature": "self, *, thread_id: str, turn_id: str | None=None, timeout_seconds: float=5.0",
+          "line": 385
+        },
+        {
+          "name": "close",
+          "signature": "self, *, timeout_seconds: float=5.0",
+          "line": 389
+        }
+      ],
+      "fields": []
+    },
+    {
+      "name": "OperationTraceScope",
+      "source": "src/flowmarshal/engine/operation_trace.py",
+      "line": 50,
+      "end_line": 59,
+      "methods": [],
+      "fields": [
+        {
+          "name": "trace",
+          "annotation": "'OperationTrace'"
+        },
+        {
+          "name": "parent",
+          "annotation": "OperationToken"
+        },
+        {
+          "name": "deadline_monotonic_ns",
+          "annotation": "int | None"
+        },
+        {
+          "name": "deadline_at",
+          "annotation": "datetime | None"
+        },
+        {
+          "name": "call_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "attempt_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "intent_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "thread_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "turn_id",
+          "annotation": "str | None"
+        }
+      ]
+    },
+    {
+      "name": "GovernancePlugin",
+      "source": "src/flowmarshal/engine/governance_gate.py",
+      "line": 502,
+      "end_line": 699,
+      "methods": [
+        {
+          "name": "__init__",
+          "signature": "self, root: Path, state_dir: Path, model_classes: Path | None=None, *, dispatch_binding: Any | None=None",
+          "line": 509
+        },
+        {
+          "name": "set_deadline",
+          "signature": "self, deadline: float",
+          "line": 528
+        },
+        {
+          "name": "preflight",
+          "signature": "self",
+          "line": 540
+        },
+        {
+          "name": "call",
+          "signature": "self, tool: str, arguments: dict[str, Any], observation: dict[str, Any] | None",
+          "line": 640
+        },
+        {
+          "name": "model_classes",
+          "signature": "self",
+          "line": 648
+        },
+        {
+          "name": "dispatch_binding",
+          "signature": "self",
+          "line": 653
+        },
+        {
+          "name": "authenticated_dispatch",
+          "signature": "self",
+          "line": 656
+        },
+        {
+          "name": "approved_slot_control",
+          "signature": "self",
+          "line": 664
+        },
+        {
+          "name": "call_authenticated",
+          "signature": "self, ticket: Any, receipt: dict[str, str], tool: str, arguments: dict[str, Any]",
+          "line": 676
+        },
+        {
+          "name": "script",
+          "signature": "self, entry_id: str, request_path: Path",
+          "line": 680
+        },
+        {
+          "name": "close",
+          "signature": "self",
+          "line": 691
+        }
+      ],
+      "fields": []
+    },
+    {
+      "name": "RuntimeJob",
+      "source": "src/flowmarshal/engine/domain.py",
+      "line": 1989,
+      "end_line": 2042,
+      "methods": [
+        {
+          "name": "terminal_or_proven_no_effect_is_consistent",
+          "signature": "self",
+          "line": 2022
+        }
+      ],
+      "fields": [
+        {
+          "name": "job_id",
+          "annotation": "str"
+        },
+        {
+          "name": "project_id",
+          "annotation": "str"
+        },
+        {
+          "name": "kind",
+          "annotation": "RuntimeJobKind"
+        },
+        {
+          "name": "status",
+          "annotation": "RuntimeJobStatus"
+        },
+        {
+          "name": "request_digest",
+          "annotation": "str"
+        },
+        {
+          "name": "request",
+          "annotation": "dict[str, Any]"
+        },
+        {
+          "name": "checkpoint_key",
+          "annotation": "str"
+        },
+        {
+          "name": "attempt_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "task_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "thread_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "turn_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "absolute_deadline_at",
+          "annotation": "datetime"
+        },
+        {
+          "name": "provider_terminal_status",
+          "annotation": "str | None"
+        },
+        {
+          "name": "result_digest",
+          "annotation": "str | None"
+        },
+        {
+          "name": "created_at",
+          "annotation": "datetime"
+        },
+        {
+          "name": "started_at",
+          "annotation": "datetime | None"
+        },
+        {
+          "name": "ended_at",
+          "annotation": "datetime | None"
+        },
+        {
+          "name": "updated_at",
+          "annotation": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "ThreadBinding",
+      "source": "src/flowmarshal/engine/domain.py",
+      "line": 2139,
+      "end_line": 2145,
+      "methods": [],
+      "fields": [
+        {
+          "name": "thread_id",
+          "annotation": "str"
+        },
+        {
+          "name": "turn_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "host_id",
+          "annotation": "str | None"
+        },
+        {
+          "name": "bound_at",
+          "annotation": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "RuntimeIntentRecord",
+      "source": "src/flowmarshal/engine/domain.py",
+      "line": 2203,
+      "end_line": 2212,
+      "methods": [],
+      "fields": [
+        {
+          "name": "intent_id",
+          "annotation": "str"
+        },
+        {
+          "name": "attempt_id",
+          "annotation": "str"
+        },
+        {
+          "name": "kind",
+          "annotation": "RuntimeIntentKind"
+        },
+        {
+          "name": "idempotency_key",
+          "annotation": "str"
+        },
+        {
+          "name": "request_digest",
+          "annotation": "str"
+        },
+        {
+          "name": "status",
+          "annotation": "RuntimeIntentStatus"
+        },
+        {
+          "name": "prepared_at",
+          "annotation": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "RuntimeReceipt",
+      "source": "src/flowmarshal/engine/domain.py",
+      "line": 2215,
+      "end_line": 2230,
+      "methods": [
+        {
+          "name": "response_matches_digest",
+          "signature": "self",
+          "line": 2227
+        }
+      ],
+      "fields": [
+        {
+          "name": "receipt_id",
+          "annotation": "str"
+        },
+        {
+          "name": "intent_id",
+          "annotation": "str"
+        },
+        {
+          "name": "provider_operation_id",
+          "annotation": "str"
+        },
+        {
+          "name": "response_digest",
+          "annotation": "str"
+        },
+        {
+          "name": "binding",
+          "annotation": "ThreadBinding | None"
+        },
+        {
+          "name": "response_payload",
+          "annotation": "dict[str, Any] | None"
+        },
+        {
+          "name": "received_at",
+          "annotation": "datetime"
+        }
+      ]
+    }
+  ]
+}
