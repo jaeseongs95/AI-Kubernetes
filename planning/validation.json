@@ -1,30 +1,78 @@
 {
-  "validation_scope": "Independent audit of development planning, SQLite maintenance tooling, and generated snapshots; not Windows product qualification.",
-  "validated_at": "2026-10-12T06:12:59Z",
-  "baseline_commit": "019cccf0bd63684d893f50d239d54fbc2bf7b033",
-  "original_design_commit": "0367932ce2fa9369a3420a4867283167ea319188",
-  "baseline_database_sha256": "cc4430a19c627c9d05c7747cebb056ab317b8307c696d48fdc55bad1ec986af5",
-  "database_sha256": "02cb21286fe5c2eae2c597f82a8678bd3139592fb6aa7746b9b35ff48b394c65",
+  "validation_scope": "Product-completeness planning audit, dependency/acceptance traceability and backlog maintenance regression. Not Windows product or upstream runtime qualification.",
+  "plan_version": "0.4",
+  "validated_at": "2026-10-12T06:58:29Z",
+  "baseline_commit": "dc6d60b67c0ccd2e56849992440de2eb639aa36c",
+  "baseline_database_sha256": "02cb21286fe5c2eae2c597f82a8678bd3139592fb6aa7746b9b35ff48b394c65",
+  "database_sha256": "e17ac9d22f6cca6ebb0341d6b14cd9a3677c97ff17fec4ddc95b7c5485410df0",
   "environment": {
     "os": "Linux-6.18.44-x86_64-with-glibc2.39",
     "python": "3.12.14",
     "sqlite": "3.53.1"
   },
   "counts": {
-    "metadata": 19,
-    "sources": 13,
-    "requirements": 17,
+    "metadata": 23,
+    "sources": 15,
+    "requirements": 29,
     "milestones": 7,
     "epics": 11,
-    "tasks": 82,
-    "task_dependencies": 296,
-    "task_requirements": 290,
-    "task_sources": 173,
-    "acceptance_criteria": 246,
-    "decisions": 12,
-    "task_decisions": 45,
-    "task_events": 124,
+    "tasks": 90,
+    "task_dependencies": 365,
+    "task_requirements": 522,
+    "task_sources": 247,
+    "acceptance_criteria": 311,
+    "decisions": 13,
+    "task_decisions": 79,
+    "task_events": 222,
     "task_evidence": 0
+  },
+  "milestones": [
+    {
+      "milestone_id": "M0",
+      "scope": "first_release",
+      "total_tasks": 9,
+      "done_tasks": 0
+    },
+    {
+      "milestone_id": "M1",
+      "scope": "first_release",
+      "total_tasks": 14,
+      "done_tasks": 0
+    },
+    {
+      "milestone_id": "M2",
+      "scope": "first_release",
+      "total_tasks": 27,
+      "done_tasks": 0
+    },
+    {
+      "milestone_id": "M3",
+      "scope": "first_release",
+      "total_tasks": 13,
+      "done_tasks": 0
+    },
+    {
+      "milestone_id": "M4",
+      "scope": "first_release",
+      "total_tasks": 9,
+      "done_tasks": 0
+    },
+    {
+      "milestone_id": "M5",
+      "scope": "follow_up",
+      "total_tasks": 12,
+      "done_tasks": 0
+    },
+    {
+      "milestone_id": "M6",
+      "scope": "future",
+      "total_tasks": 6,
+      "done_tasks": 0
+    }
+  ],
+  "event_counts": {
+    "created": 90,
+    "review_refined": 132
   },
   "ready_tasks": [
     "AIK-001",
@@ -59,28 +107,41 @@
     "restore_single_file_journal_mode": "delete",
     "sql_snapshot_matches_canonical_database": true,
     "markdown_snapshot_matches_canonical_database": true,
-    "all_82_task_headings_and_246_criteria_present": true,
-    "relative_document_links_valid": true,
+    "all_tasks_criteria_and_requirement_descriptions_present": true,
+    "dependency_cycles": 0,
+    "dependency_sequence_violations": 0,
+    "first_release_gate_exactly_matches_scope": true,
+    "original_user_and_derived_requirements_preserved": true,
+    "confirmed_decisions_and_original_milestone_membership_preserved": true,
+    "original_event_history_preserved": true,
+    "original_tool_schema_regressions_initial_design_byte_preserved": [
+      "tools/backlog.py",
+      "planning/schema.sql",
+      "docs/initial-design.ko.md",
+      "tests/test_backlog_io.py",
+      "tests/test_backlog_paths.py",
+      "tests/test_backlog_validation.py"
+    ],
+    "relative_document_links_and_entity_anchors_checked": 1880,
     "python_syntax_valid": true,
-    "release_gate_ancestors_exactly_first_release_tasks": 66,
-    "all_dependency_sequences_precede_dependents": true,
-    "requirements_confirmed_decisions_and_milestone_scopes_preserved": true,
-    "final_validation_did_not_change_canonical_database": true
+    "canonical_database_unchanged_by_validation": true
   },
   "regression_tests": {
     "command": "python -m unittest discover -s tests -v",
     "exit_code": 0,
-    "total": 53,
-    "passed": 53,
+    "total": 65,
+    "passed": 65,
     "failures": 0,
     "errors": 0,
     "skipped": 0,
+    "duration_seconds": 6.064,
     "groups": {
       "io_restore_concurrency": 14,
       "output_paths": 9,
-      "schema_values_history_dependencies": 30
+      "schema_values_history_dependencies": 30,
+      "product_scope_journeys_and_development_order": 12
     },
-    "test_log_sha256": "e5605fa6eb2997e50372fa61e5fccadd4a8f837d89123fcceb76f3cbc9b04769",
+    "test_log_sha256": "f40972341c8796215d729d86c418501ffdfac0322d871dbf6c3251ca32e7c445",
     "results": [
       {
         "test": "test_database_symlink_shares_lock (test_backlog_io.BacklogIOTests.test_database_symlink_shares_lock)",
@@ -293,88 +354,269 @@
       {
         "test": "test_valid_completion_unlocks_and_allows_next_task (test_backlog_validation.BacklogValidationTests.test_valid_completion_unlocks_and_allows_next_task)",
         "result": "ok"
+      },
+      {
+        "test": "test_each_first_release_journey_retains_implementation_gui_and_gate_links (test_product_plan.ProductPlanTests.test_each_first_release_journey_retains_implementation_gui_and_gate_links)",
+        "result": "ok"
+      },
+      {
+        "test": "test_extension_release_honors_explicit_selections_and_preserves_base_scope (test_product_plan.ProductPlanTests.test_extension_release_honors_explicit_selections_and_preserves_base_scope)",
+        "result": "ok"
+      },
+      {
+        "test": "test_federation_release_honors_explicit_selection_and_preserves_base_scope (test_product_plan.ProductPlanTests.test_federation_release_honors_explicit_selection_and_preserves_base_scope)",
+        "result": "ok"
+      },
+      {
+        "test": "test_first_release_gate_covers_exactly_its_declared_scope (test_product_plan.ProductPlanTests.test_first_release_gate_covers_exactly_its_declared_scope)",
+        "result": "ok"
+      },
+      {
+        "test": "test_kubernetes_adapter_has_no_hidden_cloud_creation_prerequisite (test_product_plan.ProductPlanTests.test_kubernetes_adapter_has_no_hidden_cloud_creation_prerequisite)",
+        "result": "ok"
+      },
+      {
+        "test": "test_local_and_additional_provider_development_can_start_alongside_federation (test_product_plan.ProductPlanTests.test_local_and_additional_provider_development_can_start_alongside_federation)",
+        "result": "ok"
+      },
+      {
+        "test": "test_maintenance_backend_and_gui_are_required_before_installed_e2e (test_product_plan.ProductPlanTests.test_maintenance_backend_and_gui_are_required_before_installed_e2e)",
+        "result": "ok"
+      },
+      {
+        "test": "test_probe_and_candidate_routes_do_not_require_their_own_qualification (test_product_plan.ProductPlanTests.test_probe_and_candidate_routes_do_not_require_their_own_qualification)",
+        "result": "ok"
+      },
+      {
+        "test": "test_selecting_both_extensions_covers_the_whole_plan_without_a_cycle (test_product_plan.ProductPlanTests.test_selecting_both_extensions_covers_the_whole_plan_without_a_cycle)",
+        "result": "ok"
+      },
+      {
+        "test": "test_selecting_cloud_adds_it_to_both_releases_without_selecting_kubernetes (test_product_plan.ProductPlanTests.test_selecting_cloud_adds_it_to_both_releases_without_selecting_kubernetes)",
+        "result": "ok"
+      },
+      {
+        "test": "test_selecting_kubernetes_does_not_implicitly_select_cloud_creation (test_product_plan.ProductPlanTests.test_selecting_kubernetes_does_not_implicitly_select_cloud_creation)",
+        "result": "ok"
+      },
+      {
+        "test": "test_workspace_and_write_tools_cannot_be_bypassed_by_the_gui_release (test_product_plan.ProductPlanTests.test_workspace_and_write_tools_cannot_be_bypassed_by_the_gui_release)",
+        "result": "ok"
       }
     ]
   },
-  "audit_findings": [
-    {
-      "id": "TS-01",
-      "severity": "P1",
-      "status": "fixed_and_regression_pass"
+  "product_plan_review": {
+    "status": "PASS_WITH_IMPLEMENTATION_GATES_PENDING",
+    "evidence_kind": "Static counterexample and producer-consumer contract review. No product runtime execution.",
+    "new_tasks": [
+      "AIK-083",
+      "AIK-084",
+      "AIK-085",
+      "AIK-086",
+      "AIK-087",
+      "AIK-088",
+      "AIK-089",
+      "AIK-090"
+    ],
+    "existing_tasks_with_content_refinement": [
+      "AIK-001",
+      "AIK-003",
+      "AIK-007",
+      "AIK-012",
+      "AIK-013",
+      "AIK-014",
+      "AIK-015",
+      "AIK-019",
+      "AIK-021",
+      "AIK-026",
+      "AIK-029",
+      "AIK-031",
+      "AIK-033",
+      "AIK-035",
+      "AIK-037",
+      "AIK-038",
+      "AIK-039",
+      "AIK-042",
+      "AIK-044",
+      "AIK-050",
+      "AIK-054",
+      "AIK-058",
+      "AIK-059",
+      "AIK-060",
+      "AIK-062",
+      "AIK-063",
+      "AIK-064",
+      "AIK-066",
+      "AIK-067",
+      "AIK-071",
+      "AIK-072",
+      "AIK-074",
+      "AIK-075",
+      "AIK-076",
+      "AIK-077",
+      "AIK-078",
+      "AIK-079",
+      "AIK-080",
+      "AIK-082"
+    ],
+    "journeys": {
+      "first_release": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09",
+        "P10"
+      ],
+      "federation": [
+        "P11"
+      ],
+      "extensions": [
+        "P12"
+      ]
     },
-    {
-      "id": "TS-02",
-      "severity": "P2",
-      "status": "fixed_and_regression_pass"
+    "findings": [
+      {
+        "id": "PC-01",
+        "topic": "User workspace and actual execution input binding",
+        "status": "counterexample_blocked_by_revised_acceptance_and_dependencies"
+      },
+      {
+        "id": "PC-02",
+        "topic": "Writable dependent goal, independent failure and rework",
+        "status": "counterexample_blocked_by_revised_acceptance_and_dependencies"
+      },
+      {
+        "id": "PC-03",
+        "topic": "Per-tool effect intent/receipt and crash ambiguity",
+        "status": "counterexample_blocked_by_revised_acceptance_and_dependencies"
+      },
+      {
+        "id": "PC-04",
+        "topic": "Usable artifact handoff and lifetime after worker cleanup",
+        "status": "counterexample_blocked_by_revised_acceptance_and_dependencies"
+      },
+      {
+        "id": "PC-05",
+        "topic": "Consistent cross-owner checkpoint/restore and actual artifacts",
+        "status": "counterexample_blocked_by_revised_acceptance_and_dependencies"
+      },
+      {
+        "id": "PC-06",
+        "topic": "GUI/installer maintenance and failed-boot recovery entry",
+        "status": "counterexample_blocked_by_revised_acceptance_and_dependencies"
+      },
+      {
+        "id": "PC-07",
+        "topic": "Fresh federation/extension installer and release gates",
+        "status": "counterexample_blocked_by_revised_acceptance_and_dependencies"
+      }
+    ],
+    "semantic_order_refinements": [
+      "082 preflight does not require 035 full agent loop.",
+      "019/033 provide explicit candidate qualification under all existing gates, including later extensions.",
+      "026 control-loop implementation uses contract fixtures; actual composite goal qualification is 044/059.",
+      "035/085 contract and real temporary effect tests are distinct from full live 086 qualification.",
+      "058 provides the backend contract consumed and qualified later by 088/059.",
+      "M6 feature candidates reuse 057 packaging; 090 final release PASS is not a feature prerequisite."
+    ],
+    "runtime_integration_risk": "001/031 must bind AIK route/lease/effects to the real VM reservation seam; insufficient upstream contract blocks completion until a compatible artifact exists. 086 supplies installed live evidence.",
+    "independent_runtime_recheck": {
+      "status": "PASS",
+      "scope": "static runtime/product-contract completeness recheck",
+      "reviewed_at_utc": "2026-10-12T06:50:26.077430+00:00",
+      "db_sha256": "e17ac9d22f6cca6ebb0341d6b14cd9a3677c97ff17fec4ddc95b7c5485410df0",
+      "counts": {
+        "tasks": 90,
+        "acceptance_criteria": 311,
+        "task_dependencies": 365
+      },
+      "product_runtime_execution": "NOT_RUN",
+      "blocking_findings_remaining": 0,
+      "closed_findings": {
+        "RC-01": "044/059 actual RAW A/B-to-C, independent failure/rework, fixed oracle, final handoff",
+        "RC-02": "029/035/039/060/085/086 per-tool intent/effect/receipt and actual file effect crash tests",
+        "RC-03": "084 canonical workspace/input binding and 037 output retention/handoff",
+        "RC-04": "001/031 exact installed extension seam and upstream blocking prerequisite"
+      },
+      "recheck_corrections": [
+        "026 implementation fixture vs 044/059 live composite completion; hidden completion cycle removed",
+        "083 contract/probe preparation order corrected",
+        "019/033 qualification candidate bootstrap and subsequent-extension reuse clarified",
+        "035 fixture plus real local effects implementation vs 086 full live qualification clarified"
+      ],
+      "conclusion": "명시한 지원 범위와 고정 판정 기준으로 실제 설치본 gate까지 통과해야 완료하는 구조로 공백을 보강했다. 제품이 현재 구현되거나 live 검증됐다는 판정은 아니다."
     },
-    {
-      "id": "PATH-01",
-      "severity": "P2",
-      "status": "fixed_and_regression_pass"
-    },
-    {
-      "id": "GD-01",
-      "severity": "P2",
-      "status": "fixed_and_regression_pass"
-    },
-    {
-      "id": "GD-02",
-      "severity": "P2",
-      "status": "fixed_and_regression_pass"
-    },
-    {
-      "id": "GD-03",
-      "severity": "P2",
-      "status": "fixed_and_regression_pass"
-    },
-    {
-      "id": "GD-04",
-      "severity": "P2",
-      "status": "start_policy_aligned_and_regression_pass"
-    },
-    {
-      "id": "AP-01",
-      "severity": "P1",
-      "status": "planning_corrected_and_independently_reviewed"
-    },
-    {
-      "id": "AP-02",
-      "severity": "P1",
-      "status": "planning_corrected_and_independently_reviewed"
-    },
-    {
-      "id": "AP-03",
-      "severity": "P2",
-      "status": "guarantee_scope_clarified_and_independently_reviewed"
-    }
-  ],
-  "planning_scenarios": {
-    "evidence_type": "read-only planning/acceptance semantics review and disposable memory DB queries; not product runtime qualification",
-    "registry_without_all_adapter_implementations": {
-      "id": "AIK-019",
-      "status": "todo",
-      "open_dependency_count": 0,
-      "ready": true
-    },
-    "optional_live_route_unsupported_but_implementation_and_required_qualification_done": {
-      "id": "AIK-064",
-      "status": "todo",
-      "open_dependency_count": 0,
-      "ready": true
-    },
-    "required_live_route_fails_and_qualification_blocked": {
-      "id": "AIK-064",
-      "status": "todo",
-      "open_dependency_count": 1,
-      "ready": false
-    }
+    "release_scope_scenarios": [
+      {
+        "cloud_066": false,
+        "kubernetes_080": false,
+        "gate_closure_counts_including_gate": {
+          "AIK-064": 72,
+          "AIK-089": 83,
+          "AIK-090": 88
+        },
+        "unselected_outside_090": [
+          "AIK-066",
+          "AIK-080"
+        ],
+        "cycle": false,
+        "sequence_violations": 0
+      },
+      {
+        "cloud_066": true,
+        "kubernetes_080": false,
+        "gate_closure_counts_including_gate": {
+          "AIK-064": 72,
+          "AIK-089": 84,
+          "AIK-090": 89
+        },
+        "unselected_outside_090": [
+          "AIK-080"
+        ],
+        "cycle": false,
+        "sequence_violations": 0
+      },
+      {
+        "cloud_066": false,
+        "kubernetes_080": true,
+        "gate_closure_counts_including_gate": {
+          "AIK-064": 72,
+          "AIK-089": 83,
+          "AIK-090": 89
+        },
+        "unselected_outside_090": [
+          "AIK-066"
+        ],
+        "cycle": false,
+        "sequence_violations": 0
+      },
+      {
+        "cloud_066": true,
+        "kubernetes_080": true,
+        "gate_closure_counts_including_gate": {
+          "AIK-064": 72,
+          "AIK-089": 84,
+          "AIK-090": 90
+        },
+        "unselected_outside_090": [],
+        "cycle": false,
+        "sequence_violations": 0
+      }
+    ],
+    "remaining_product_task_status": "All todo",
+    "product_completion_evidence_count": 0
   },
   "not_run": [
     "Native Windows execution of the maintenance-tool msvcrt locking branch",
-    "Windows GUI product installation, vault, IPC, installer signing and restart qualification",
-    "Live vendor authentication, model calls, agent tool loops or provider model/effort attestation",
+    "Windows GUI installation, vault/IPC/OS boundary, installer signing or product restart/backup/restore",
+    "Live vendor authentication, model calls, writable agent tool loops or provider attestation",
     "AGS/VM product imports, execution, tests or installed-plugin conformance",
-    "Remote federation product input staging, delegation and failure-recovery E2E"
+    "Remote federation and later extension product E2E"
   ],
   "files": [
     {
@@ -391,27 +633,27 @@
     },
     {
       "path": "README.md",
-      "bytes": 12683,
-      "sha256": "7ddc57f8b3c7b50e4aed26ce104276255a3e59407ee63302209728d13d191c19",
-      "git_blob_sha1": "e7c47e36f8e565f2ed829442ae6a5e9eefbf5d9f"
+      "bytes": 14392,
+      "sha256": "5f799da74a50a8e95553cda6501229e53c3b5509852a3d3ac534de8e0ef4972c",
+      "git_blob_sha1": "813391119952a9df5477cdfb8d0889e0509de7fb"
     },
     {
       "path": "docs/audit-2026-10-12.ko.md",
-      "bytes": 15907,
-      "sha256": "57dbf8a35230f68426e4193fbfb288d7ded43402a7c0fa978eaddb5c84707193",
-      "git_blob_sha1": "9d45c53d373c1c870d3e9455e260d7a1d53c59ae"
+      "bytes": 16444,
+      "sha256": "8b90535641a13bf887b0f4c49ac39807baf95a145d708424eb87693e90268e76",
+      "git_blob_sha1": "6b23b6bb369bd4ea8daeaaa160537a857b559530"
     },
     {
       "path": "docs/development-backlog.ko.md",
-      "bytes": 158305,
-      "sha256": "6399c1dab35cd153ac18ee63c3fda037de41e33777eaa74c00e3c5b8e608361c",
-      "git_blob_sha1": "6785afd832a3575fa7eb5b55049739c02b2f288b"
+      "bytes": 219569,
+      "sha256": "8e7fd3a2778c6810aa68f178e019e1b361b90ddf2f1496e0ec0ff2b16db0f119",
+      "git_blob_sha1": "00072205fd9e5394ddf8c3a89f3cb514e8a59c23"
     },
     {
       "path": "docs/development-plan.ko.md",
-      "bytes": 26359,
-      "sha256": "3967ee928a57af37c51d8f86a18eba6b808cd5c8a4c84c418e06f2a9c6778827",
-      "git_blob_sha1": "2484ef79bb9a2d54e0805763ddcd6bee8307bce8"
+      "bytes": 31812,
+      "sha256": "96f28fab244722a10cf738af8fd48729c768548b08792a19a93cd33fe095c345",
+      "git_blob_sha1": "a942e4230ffae953cbfc90ae554d2362dd8e459b"
     },
     {
       "path": "docs/initial-design.ko.md",
@@ -420,16 +662,22 @@
       "git_blob_sha1": "90f16664056ca1f2396021905a85bccd012f0899"
     },
     {
+      "path": "docs/product-completeness.ko.md",
+      "bytes": 25387,
+      "sha256": "0098972faf4e41189fa82dcad988a92b36089b78e7c8af5a3df37f47818282cb",
+      "git_blob_sha1": "fa90e15f49f159fb172563c3310d7a5f9936deaa"
+    },
+    {
       "path": "planning/backlog.sql",
-      "bytes": 181802,
-      "sha256": "f8eabfc4f9e1755a7211fb46da7e5134f33f87b404f0d1d1e539b0bca411a693",
-      "git_blob_sha1": "89f43157f2896571cb1f3c6058e4e5c2e9a7c38a"
+      "bytes": 280688,
+      "sha256": "29c22ab9febea5e39f74804f509cedafd648a52bf446f920d9b24e6efd39a29f",
+      "git_blob_sha1": "4ffa95131f8219591855ac84dd1e6d3e310177d8"
     },
     {
       "path": "planning/backlog.sqlite3",
-      "bytes": 327680,
-      "sha256": "02cb21286fe5c2eae2c597f82a8678bd3139592fb6aa7746b9b35ff48b394c65",
-      "git_blob_sha1": "d9b24a55e711e5b713b07fee3d1a0f8c4f2184e4"
+      "bytes": 462848,
+      "sha256": "e17ac9d22f6cca6ebb0341d6b14cd9a3677c97ff17fec4ddc95b7c5485410df0",
+      "git_blob_sha1": "553dde094d98714155c9661c4a4cd3a7b3aec61a"
     },
     {
       "path": "planning/schema.sql",
@@ -456,11 +704,17 @@
       "git_blob_sha1": "37368f6e2153501b70fc2a97ba51150d0aaa17ed"
     },
     {
+      "path": "tests/test_product_plan.py",
+      "bytes": 11189,
+      "sha256": "0592bd16d95e6740b7bb094f23b4a2a0c148b4e2e3c3efb262f4c2e96f53a7b8",
+      "git_blob_sha1": "1bcac3317e33466ae60497ad35978c662885d506"
+    },
+    {
       "path": "tools/backlog.py",
       "bytes": 46040,
       "sha256": "ed8ebad9ecfc1e7063b91e235b30a066b171b9db2ecb360f30c095ed2dedee8a",
       "git_blob_sha1": "49d52cf8f8552483e1918c3c66320cd476769a89"
     }
   ],
-  "file_manifest_scope": "Hashes cover all delivered files except this validation.json to avoid a self-reference. Git publication is verified after this record is generated."
+  "file_manifest_scope": "All delivered files except validation.json to avoid a self-reference. Remote Git publication is verified after this record is created."
 }
