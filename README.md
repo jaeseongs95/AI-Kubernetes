@@ -7,7 +7,7 @@
 
 단순한 LLM API 라우터나 새로운 subagent 프레임워크가 아니다. **작업 계약 → 자원 탐색 → 배치 → 실행 → 결과 회수 → 검증 → 자원 반환**을 벤더와 실행 위치에 종속되지 않게 만드는 상위 제어 계층을 지향한다.
 
-> **상태: 설계·개발 태스크 수립(Pre-implementation).** 첫 제품은 **Windows GUI**로 제공한다. 멀티벤더 인증 관리와 **총괄 에이전트의 실행 모델 지정**을 필수 기능으로 구체화했다. 개발 장부는 작성됐으며 제품 기능의 구현·연동·출시 검증은 앞으로 진행한다.
+> **상태: Windows 기반 구현 진행.** 첫 제품은 **Windows GUI**로 제공한다. AIK-001~003의 통합 계약·GUI/sidecar·설치 기반 작업에 착수했다. [실행 가능한 기반 spike](spikes/windows-foundation/README.ko.md)에 React 화면, 실제 Python/worker IPC, Windows DPAPI 시험과 설치 검증 경로를 구현하고 있다. 멀티벤더 인증·총괄 모델 지정·AGS/VM 제품 통합과 첫 출시는 후속 태스크다.
 
 [개발 계획·검토](docs/development-plan.ko.md) · [완제품 완료성 검토](docs/product-completeness.ko.md) · [이전 장부 도구 감사](docs/audit-2026-10-12.ko.md) · [전체 개발 태스크](docs/development-backlog.ko.md) · [SQLite 장부](planning/backlog.sqlite3) · [최초 설계문서](docs/initial-design.ko.md) · [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite) · [VibeMarshal](https://github.com/jaeseongs95/vibemarshal)
 
@@ -112,7 +112,7 @@ VM과 AGS의 **현재 구현 상태는 각 원본 저장소 문서가 기준**�
 
 ## 개발 장부
 
-`planning/backlog.sqlite3`가 개발 태스크 정본이다. 요구사항·출처·단계·우선순위·담당 구성요소·의존성·완료 기준·검증 방법·상태 이력·증거를 연결한다. **90개 태스크, 311개 완료 기준, 365개 의존성**을 관리한다. 상태는 전부 `todo`다. v0.4 완료성 검토에서 8개 태스크를 추가하고 기존 39개의 본문을 보강했다. P01~P12는 구체적인 사용자 행동·통과 결과·실패 차단 조건을 가진 파생 인수 요구사항이다.
+`planning/backlog.sqlite3`가 개발 태스크 정본이다. 요구사항·출처·단계·우선순위·담당 구성요소·의존성·완료 기준·검증 방법·상태 이력·증거를 연결한다. **90개 태스크, 311개 완료 기준, 365개 의존성**을 관리한다. 현재 구현 착수 상태는 SQLite와 생성 장부를 따른다. v0.4 완료성 검토에서 8개 태스크를 추가하고 기존 39개의 본문을 보강했다. P01~P12는 구체적인 사용자 행동·통과 결과·실패 차단 조건을 가진 파생 인수 요구사항이다.
 
 | 단계 | 범위 | 태스크 |
 | --- | --- | ---: |

@@ -10,3 +10,8 @@ __pycache__/
 /local-secrets/
 /dist/
 *.maintenance.lock
+/packaging/build/
+/packaging/dist/
+/packaging/evidence/
+/spikes/windows-foundation/node_modules/
+/spikes/windows-foundation/dist/

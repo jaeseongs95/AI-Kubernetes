@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-12T06:49:10Z`
+- 수정일 (UTC): `2026-10-12T07:27:11Z`
 - 검토일 (UTC): `2026-10-12T06:49:10Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 15개
-- 상태: 미착수 90개 · 진행 중 0개 · 진행 차단 0개 · 완료 0개 · 취소 0개
+- 상태: 미착수 87개 · 진행 중 3개 · 진행 차단 0개 · 완료 0개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -32,7 +32,7 @@ python tools/backlog.py report
 
 | 단계 | 범위 | 태스크 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 착수 가능 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 3 |
+| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 6 | 3 | 0 | 0 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 14 | 0 | 0 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 27 | 0 | 0 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
@@ -54,13 +54,13 @@ python tools/backlog.py report
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 중 (`in_progress`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Integration |
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E05 · AGS·VM 통합 |
 | 실행 순서 | 1 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T07:27:10Z` |
 
 현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.
 
@@ -89,13 +89,13 @@ python tools/backlog.py report
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 중 (`in_progress`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop |
 | 작업 유형 | 결정 (`decision`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 2 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T07:27:11Z` |
 
 VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.
 
@@ -122,13 +122,13 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 중 (`in_progress`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Release |
 | 작업 유형 | 결정 (`decision`) |
 | 에픽 | E09 · Windows 출시 |
 | 실행 순서 | 3 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T07:27:11Z` |
 
 첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.
 
@@ -3691,7 +3691,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `scope_policy` | Windows GUI confirmed; local-first release staging proposed in DEC06; federation retained in M5. |
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `task_status_policy` | All product tasks remain todo; planning is not implementation evidence. in_progress/done require all prerequisites done; done also requires reviewed evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance are distinct. |
-| `updated_at` | 2026-10-12T06:49:10Z |
+| `updated_at` | 2026-10-12T07:27:11Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

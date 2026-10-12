@@ -1,0 +1,94 @@
+name: Windows foundation spike
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'spikes/windows-foundation/**'
+      - 'packaging/**'
+      - 'scripts/windows/**'
+      - '.github/workflows/windows-foundation.yml'
+  pull_request:
+    paths:
+      - 'spikes/windows-foundation/**'
+      - 'packaging/**'
+      - 'scripts/windows/**'
+      - '.github/workflows/windows-foundation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed-spike:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      PYTHONUTF8: '1'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CI: 'true'
+    steps:
+      - name: Checkout the exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Use the pinned build Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: spikes/windows-foundation/package-lock.json
+      - name: Use the pinned build CPython
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Install the locked desktop build dependencies
+        working-directory: spikes/windows-foundation
+        run: npm ci --no-audit --no-fund
+      - name: Verify the engine contract and real bounded worker
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = Join-Path $env:GITHUB_WORKSPACE 'spikes/windows-foundation/python'
+          python -m unittest discover -s spikes/windows-foundation/tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify and build the renderer and IPC contract
+        working-directory: spikes/windows-foundation
+        shell: pwsh
+        run: |
+          $env:AIK_SPIKE_PYTHON = (Get-Command python).Source
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Freeze the sidecar with its Python runtime
+        shell: pwsh
+        run: ./scripts/windows/build-sidecar.ps1
+      - name: Build the unsigned per-user development installer
+        working-directory: spikes/windows-foundation
+        run: npm run package:win
+      - name: Install and exercise the actual packaged GUI
+        shell: pwsh
+        run: ./scripts/windows/verify-installed-spike.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE
+      - name: Preserve the build and validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-foundation-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            packaging/build/sidecar-build.json
+            packaging/evidence/**
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve the exact unsigned installer used in validation
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-foundation-unsigned-installer-${{ github.sha }}-${{ github.run_attempt }}
+          path: packaging/dist/AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe
+          if-no-files-found: error
+          retention-days: 7

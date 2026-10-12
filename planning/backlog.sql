@@ -365,7 +365,7 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-12T06:49:10Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-12T07:27:11Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T06:49:10Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -1142,6 +1142,9 @@ INSERT INTO "task_events" VALUES(219,'AIK-019','review_refined','todo','todo','�
 INSERT INTO "task_events" VALUES(220,'AIK-033','review_refined','todo','todo','완료성 재검토: 후속 자원의 candidate qualification 재사용, 구현 fixture와 실제 운영 검증 및 backend/GUI 책임 분리를 명시. 제품 완료 근거가 아님.','2026-10-12T06:49:10Z');
 INSERT INTO "task_events" VALUES(221,'AIK-035','review_refined','todo','todo','완료성 재검토: 후속 자원의 candidate qualification 재사용, 구현 fixture와 실제 운영 검증 및 backend/GUI 책임 분리를 명시. 제품 완료 근거가 아님.','2026-10-12T06:49:10Z');
 INSERT INTO "task_events" VALUES(222,'AIK-058','review_refined','todo','todo','완료성 재검토: 후속 자원의 candidate qualification 재사용, 구현 fixture와 실제 운영 검증 및 backend/GUI 책임 분리를 명시. 제품 완료 근거가 아님.','2026-10-12T06:49:10Z');
+INSERT INTO "task_events" VALUES(223,'AIK-001','status_change','todo','in_progress','사용자 구현 지시에 따라 실제 AGS/VM 설치 계약·manifest·runtime seam 조사 및 검증 코드 구현 시작','2026-10-12T07:27:10Z');
+INSERT INTO "task_events" VALUES(224,'AIK-002','status_change','todo','in_progress','Windows GUI·typed IPC·Python sidecar·합성 OS vault 왕복 spike 구현 시작','2026-10-12T07:27:11Z');
+INSERT INTO "task_events" VALUES(225,'AIK-003','status_change','todo','in_progress','Windows 지원 후보·runtime bundle·설치/제거·서명 및 CI 검증 경로 구현 시작','2026-10-12T07:27:11Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1945,9 +1948,9 @@ CREATE TABLE tasks (
     created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
     updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0)
 );
-INSERT INTO "tasks" VALUES('AIK-001','AGS·VM 책임·설치형 인터페이스 기준선 확정','현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.','버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix','고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록','E05','M0','P0','todo','integration','Integration',1,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
-INSERT INTO "tasks" VALUES('AIK-002','Windows GUI 스택과 엔진 sidecar 검증','VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.','GUI 스택 ADR와 폐기 가능한 Windows spike','지원 후보별 설치성·IPC·worker 기동·메모리 비교','E01','M0','P0','todo','decision','Desktop',2,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
-INSERT INTO "tasks" VALUES('AIK-003','Windows 지원 환경·설치·서명 방식 결정','첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.','Windows support matrix와 packaging ADR','깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토','E09','M0','P0','todo','decision','Release',3,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
+INSERT INTO "tasks" VALUES('AIK-001','AGS·VM 책임·설치형 인터페이스 기준선 확정','현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.','버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix','고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록','E05','M0','P0','in_progress','integration','Integration',1,'2026-10-12T05:36:30Z','2026-10-12T07:27:10Z');
+INSERT INTO "tasks" VALUES('AIK-002','Windows GUI 스택과 엔진 sidecar 검증','VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.','GUI 스택 ADR와 폐기 가능한 Windows spike','지원 후보별 설치성·IPC·worker 기동·메모리 비교','E01','M0','P0','in_progress','decision','Desktop',2,'2026-10-12T05:36:30Z','2026-10-12T07:27:11Z');
+INSERT INTO "tasks" VALUES('AIK-003','Windows 지원 환경·설치·서명 방식 결정','첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.','Windows support matrix와 packaging ADR','깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토','E09','M0','P0','in_progress','decision','Release',3,'2026-10-12T05:36:30Z','2026-10-12T07:27:11Z');
 INSERT INTO "tasks" VALUES('AIK-004','GUI·총괄·실행·시크릿 프로세스와 IPC 경계','GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다. 실행 경로별 OS principal·trust profile·실제 권한과 격리 보장 범위를 명시한다.','프로세스 구획·버전형 IPC 스키마·명령 라우터','잘못된 발신자·입력·권한에 대한 IPC 통합 검증','E01','M0','P0','todo','feature','Desktop backend',5,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-005','AIK 설정·placement·lease 저장소와 마이그레이션','제품 runtime 저장소를 개발 태스크 DB와 분리하고 VM 원장을 복제하지 않는 AIK 상태를 영속화한다.','runtime DB schema·migration·참조 repository','transaction crash와 버전 변경 rollback 검증','E01','M0','P0','todo','feature','Storage',6,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-006','로컬 supervisor와 단일 총괄 인스턴스','GUI 창과 런타임 수명을 분리하고 사용자 세션 내에서 총괄·sidecar 중복 기동을 막는다.','supervisor·instance lock·재연결 endpoint','동시 앱 실행·창 재열기·강제 종료 재기동 검증','E01','M0','P0','todo','feature','Supervisor',7,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
@@ -2076,6 +2079,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',222);
+INSERT INTO "sqlite_sequence" VALUES('task_events',225);
 COMMIT;
 PRAGMA foreign_keys = ON;
