@@ -3,7 +3,7 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-12T12:06:58Z`
+- 수정일 (UTC): `2026-10-12T12:22:34Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
@@ -134,7 +134,7 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 | 작업 유형 | 결정 (`decision`) |
 | 에픽 | E09 · Windows 출시 |
 | 실행 순서 | 3 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T12:06:58Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T12:22:34Z` |
 
 첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.
 
@@ -159,6 +159,7 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 - `EV-003-HANDOFF-20261012` · actual_windows_powershell_handoff · `evidence/windows-handoff/38226204128/verification.json` · 실제 소스4b948f57020f3e507683de6e538544b9bac558e7/run38226204128에서 ZIP 재추출 후 Windows PowerShell5.1 Desktop으로 신규 설치·GUI·frozen Python·worker·DPAPI·제거 및 8검사 PASS. 다운로드3ZIP/hash·11구성원·새실행·화면 직접 검토 PASS. Server 관리자 CI이므로 원래 clean/no-tools 조건은 NOT_RUN. SHA256 d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37 · `2026-10-12T09:06:04Z`
 - `EV-003-LEGACY-20261012` · powershell_encoding_regression · `evidence/reviews/2026-10-12-powershell-legacy-encoding.json` · 초기 UTF8NoBOM/CP1252 파싱 결함의 재현 근거를 보존했다. 후속 EV-003-HANDOFF 실제 WindowsPS5.1에서 원본 오류2/BOM사본 오류0을 확인했다. 최초 handoff CI38225912010의 Get-FileHash 조회 실패도 원문 보존 후 .NET SHA256으로 수정하고 새 CI에서 검증했다. 환경 qualification과 분리한다. · `2026-10-12T09:06:04Z`
 - `EV-003-CLIENT-INTAKE-20261012` · partial_client_evidence_tooling · `evidence/windows-client-intake/2026-10-12/local-validation.json` · 설치 전 원래 PATH·registry·일반 설치 경로/OS·실제 CPU architecture/토큰 관리자 그룹 수집과 새 실행 hash 결속, 준비 기록 및 portable 증거 검사기를 구현. 로컬 113 tests PASS(실패/skip 0), 보존된 실제 Server 증거는 무결성 PASS·청정 client BLOCKED. 실제 Windows11 clean/no-tools 원래 AC2는 NOT_RUN이며 blocked 유지. local-validation SHA256 5ff201abcbd1c8a4ffab37e1e19748308738031aab9d28f9b5cff8cb533e6ef7 · `2026-10-12T12:06:58Z`
+- `EV-003-CLIENT-INTAKE-WINDOWS-20261012` · partial_windows_client_tooling_validation · `evidence/windows-client-intake/2026-10-12/windows-ci-validation.json` · AIK-003 동일 범위 후속 검증. commit 312fa94adfce6ca5ff1ded54a85eea42b512b536의 Windows CI 38247899230 전체 성공: 회귀 41/Python 엔진 23/Node 계약 8 PASS, 실제 PowerShell 5.1 수집 6 probe PASS 및 설치·GUI·worker·DPAPI·제거 PASS. Server/관리자/개발 도구 146개 관측을 무결성 오류 없이 BLOCKED로 판정. 원본 artifact SHA-256 5b3966ca0f8dff693956fccdbddd061e14bf444743ecf755b6bb7b2bc66e75e5 보존. 실제 깨끗한 Windows 11 표준 사용자 검증·서명·제품 통합은 NOT_RUN이며 원래 AC2/검증 및 blocked 유지. 보고서 SHA-256 26a393f0428d1b454ed3855140619d5dc944f8ffad286bfcc9140af3f9358623 · `2026-10-12T12:22:34Z`
 
 ### AIK-083
 
@@ -3733,7 +3734,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-12T12:06:58Z |
+| `updated_at` | 2026-10-12T12:22:34Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

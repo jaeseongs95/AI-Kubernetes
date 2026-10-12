@@ -27,6 +27,17 @@
 
 - [최초 실패의 로그 발췌·원인·수정 기록](first-windows-ci-failure.json)
 
+## 수정 후 실제 Windows 검증
+
+수정 commit `312fa94adfce6ca5ff1ded54a85eea42b512b536`의 [Windows CI 38247899230](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38247899230)는 모든 단계가 성공했다. Windows 회귀 검사 41개, 실제 Python 엔진 검사 23개, Node 계약 검사 8개가 모두 PASS였다. 설치 파일을 검증한 뒤 독립 ZIP을 새 한글·공백 경로에 풀고, 실제 Windows PowerShell `5.1.20348.5622 Desktop`에서 다시 설치·GUI·worker·DPAPI·제거를 검증했다. Handoff의 8개 검사는 모두 PASS다.
+
+설치 전 환경 수집은 `COMPLETE`, 6개 probe 모두 PASS, 오류 0개다. 실제 환경은 Windows Server 2022 build 20348 x64, 승격된 관리자 계정이며 개발 도구 관측 146개가 기록됐다. 새 검사기는 파일 무결성 오류 없이 `BLOCKED`/종료 코드 2를 반환했다. 이 환경을 깨끗한 Windows 11 표준 사용자 검증으로 인정하지 않는 조건도 통과했다. 원래의 4개 qualification은 모두 `NOT_RUN`이다.
+
+원본 Actions 증거 ZIP은 제공된 artifact digest와 동일한 SHA-256 `5b3966ca0f8dff693956fccdbddd061e14bf444743ecf755b6bb7b2bc66e75e5`를 확인해 보존했다. ZIP에는 두 실제 설치 실행의 보고서·PNG, 새 manifest·환경·빈 준비 양식·intake 결과가 들어 있다. 실행 파일 자체는 포함하지 않는다.
+
+- [실제 Windows CI 검증 기록·로그 발췌·ZIP 구성원 hash](windows-ci-validation.json)
+- [원본 Windows CI 증거 ZIP](windows-server-ci-38247899230.zip)
+
 ## 원장 판정
 
-AIK-003의 원래 AC2 및 verification은 **개발 도구가 없는 깨끗한 지원 후보 Windows에서의 설치 spike와 문서 검토**를 요구한다. 이번 작업은 그 증거 수집·검토 코드를 구현했다. 새 코드의 실제 Windows PowerShell 5.1 수집은 후속 CI 실행으로 검증하고, 실제 깨끗한 Windows 11 표준 사용자 검증은 별도로 필요하다. 태스크는 `blocked`를 유지한다. 태스크 정의·완료 기준·의존성 및 다른 89개 태스크의 상태는 그대로 보존한다.
+AIK-003의 원래 AC2 및 verification은 **개발 도구가 없는 깨끗한 지원 후보 Windows에서의 설치 spike와 문서 검토**를 요구한다. 이번 작업은 그 증거 수집·검토 코드를 구현했고 실제 Windows PowerShell 5.1의 Server 실행까지 검증했다. 실제 깨끗한 Windows 11 표준 사용자 검증은 별도로 필요하다. 태스크는 `blocked`를 유지한다. 태스크 정의·완료 기준·의존성 및 다른 89개 태스크의 상태는 그대로 보존한다.

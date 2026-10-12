@@ -365,7 +365,7 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-12T12:06:58Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-12T12:22:34Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -1171,6 +1171,7 @@ INSERT INTO "task_events" VALUES(241,'AIK-003','evidence_recorded',NULL,NULL,'EV
 INSERT INTO "task_events" VALUES(242,'AIK-003','evidence_recorded',NULL,NULL,'EV-003-LEGACY-20261012: 초기 UTF8NoBOM/CP1252 파싱 결함의 재현 근거를 보존했다. 후속 EV-003-HANDOFF 실제 WindowsPS5.1에서 원본 오류2/BOM사본 오류0을 확인했다. 최초 handoff CI38225912010의 Get-FileHash 조회 실패도 원문 보존 후 .NET SHA256으로 수정하고 새 CI에서 검증했다. 환경 qualification과 분리한다.','2026-10-12T09:06:04Z');
 INSERT INTO "task_events" VALUES(243,'AIK-003','decision_updated',NULL,NULL,'DEC08은 proposed를 유지하면서 S-HANDOFF-20261012의 실제 전달 패키지 검증 근거를 반영했다. 원래 clean/no-tools 기준과 blocked 상태는 보존했다.','2026-10-12T09:06:04Z');
 INSERT INTO "task_events" VALUES(244,'AIK-003','implementation_progress','blocked','blocked','설치 전 원래 PATH·registry·일반 설치 경로/OS·실제 CPU architecture/토큰 관리자 그룹 수집과 새 실행 hash 결속, 준비 기록 및 portable 증거 검사기를 구현. 로컬 113 tests PASS(실패/skip 0), 보존된 실제 Server 증거는 무결성 PASS·청정 client BLOCKED. 실제 Windows11 clean/no-tools 원래 AC2는 NOT_RUN이며 blocked 유지. local-validation SHA256 5ff201abcbd1c8a4ffab37e1e19748308738031aab9d28f9b5cff8cb533e6ef7','2026-10-12T12:06:58Z');
+INSERT INTO "task_events" VALUES(245,'AIK-003','verification_progress','blocked','blocked','AIK-003 동일 범위 후속 검증. commit 312fa94adfce6ca5ff1ded54a85eea42b512b536의 Windows CI 38247899230 전체 성공: 회귀 41/Python 엔진 23/Node 계약 8 PASS, 실제 PowerShell 5.1 수집 6 probe PASS 및 설치·GUI·worker·DPAPI·제거 PASS. Server/관리자/개발 도구 146개 관측을 무결성 오류 없이 BLOCKED로 판정. 원본 artifact SHA-256 5b3966ca0f8dff693956fccdbddd061e14bf444743ecf755b6bb7b2bc66e75e5 보존. 실제 깨끗한 Windows 11 표준 사용자 검증·서명·제품 통합은 NOT_RUN이며 원래 AC2/검증 및 blocked 유지. 보고서 SHA-256 26a393f0428d1b454ed3855140619d5dc944f8ffad286bfcc9140af3f9358623','2026-10-12T12:22:34Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1192,6 +1193,7 @@ INSERT INTO "task_evidence" VALUES('EV-002-COMPARISON-REVIEW-20261012','AIK-002'
 INSERT INTO "task_evidence" VALUES('EV-003-HANDOFF-20261012','AIK-003','actual_windows_powershell_handoff','evidence/windows-handoff/38226204128/verification.json','실제 소스4b948f57020f3e507683de6e538544b9bac558e7/run38226204128에서 ZIP 재추출 후 Windows PowerShell5.1 Desktop으로 신규 설치·GUI·frozen Python·worker·DPAPI·제거 및 8검사 PASS. 다운로드3ZIP/hash·11구성원·새실행·화면 직접 검토 PASS. Server 관리자 CI이므로 원래 clean/no-tools 조건은 NOT_RUN. SHA256 d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37','2026-10-12T09:06:04Z');
 INSERT INTO "task_evidence" VALUES('EV-003-LEGACY-20261012','AIK-003','powershell_encoding_regression','evidence/reviews/2026-10-12-powershell-legacy-encoding.json','초기 UTF8NoBOM/CP1252 파싱 결함의 재현 근거를 보존했다. 후속 EV-003-HANDOFF 실제 WindowsPS5.1에서 원본 오류2/BOM사본 오류0을 확인했다. 최초 handoff CI38225912010의 Get-FileHash 조회 실패도 원문 보존 후 .NET SHA256으로 수정하고 새 CI에서 검증했다. 환경 qualification과 분리한다.','2026-10-12T09:06:04Z');
 INSERT INTO "task_evidence" VALUES('EV-003-CLIENT-INTAKE-20261012','AIK-003','partial_client_evidence_tooling','evidence/windows-client-intake/2026-10-12/local-validation.json','설치 전 원래 PATH·registry·일반 설치 경로/OS·실제 CPU architecture/토큰 관리자 그룹 수집과 새 실행 hash 결속, 준비 기록 및 portable 증거 검사기를 구현. 로컬 113 tests PASS(실패/skip 0), 보존된 실제 Server 증거는 무결성 PASS·청정 client BLOCKED. 실제 Windows11 clean/no-tools 원래 AC2는 NOT_RUN이며 blocked 유지. local-validation SHA256 5ff201abcbd1c8a4ffab37e1e19748308738031aab9d28f9b5cff8cb533e6ef7','2026-10-12T12:06:58Z');
+INSERT INTO "task_evidence" VALUES('EV-003-CLIENT-INTAKE-WINDOWS-20261012','AIK-003','partial_windows_client_tooling_validation','evidence/windows-client-intake/2026-10-12/windows-ci-validation.json','AIK-003 동일 범위 후속 검증. commit 312fa94adfce6ca5ff1ded54a85eea42b512b536의 Windows CI 38247899230 전체 성공: 회귀 41/Python 엔진 23/Node 계약 8 PASS, 실제 PowerShell 5.1 수집 6 probe PASS 및 설치·GUI·worker·DPAPI·제거 PASS. Server/관리자/개발 도구 146개 관측을 무결성 오류 없이 BLOCKED로 판정. 원본 artifact SHA-256 5b3966ca0f8dff693956fccdbddd061e14bf444743ecf755b6bb7b2bc66e75e5 보존. 실제 깨끗한 Windows 11 표준 사용자 검증·서명·제품 통합은 NOT_RUN이며 원래 AC2/검증 및 blocked 유지. 보고서 SHA-256 26a393f0428d1b454ed3855140619d5dc944f8ffad286bfcc9140af3f9358623','2026-10-12T12:22:34Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1989,7 +1991,7 @@ CREATE TABLE tasks (
 );
 INSERT INTO "tasks" VALUES('AIK-001','AGS·VM 책임·설치형 인터페이스 기준선 확정','현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.','버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix','고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록','E05','M0','P0','done','integration','Integration',1,'2026-10-12T05:36:30Z','2026-10-12T08:05:45Z');
 INSERT INTO "tasks" VALUES('AIK-002','Windows GUI 스택과 엔진 sidecar 검증','VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.','GUI 스택 ADR와 폐기 가능한 Windows spike','지원 후보별 설치성·IPC·worker 기동·메모리 비교','E01','M0','P0','done','decision','Desktop',2,'2026-10-12T05:36:30Z','2026-10-12T09:04:21Z');
-INSERT INTO "tasks" VALUES('AIK-003','Windows 지원 환경·설치·서명 방식 결정','첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.','Windows support matrix와 packaging ADR','깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토','E09','M0','P0','blocked','decision','Release',3,'2026-10-12T05:36:30Z','2026-10-12T12:06:58Z');
+INSERT INTO "tasks" VALUES('AIK-003','Windows 지원 환경·설치·서명 방식 결정','첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.','Windows support matrix와 packaging ADR','깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토','E09','M0','P0','blocked','decision','Release',3,'2026-10-12T05:36:30Z','2026-10-12T12:22:34Z');
 INSERT INTO "tasks" VALUES('AIK-004','GUI·총괄·실행·시크릿 프로세스와 IPC 경계','GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다. 실행 경로별 OS principal·trust profile·실제 권한과 격리 보장 범위를 명시한다.','프로세스 구획·버전형 IPC 스키마·명령 라우터','잘못된 발신자·입력·권한에 대한 IPC 통합 검증','E01','M0','P0','todo','feature','Desktop backend',5,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-005','AIK 설정·placement·lease 저장소와 마이그레이션','제품 runtime 저장소를 개발 태스크 DB와 분리하고 VM 원장을 복제하지 않는 AIK 상태를 영속화한다.','runtime DB schema·migration·참조 repository','transaction crash와 버전 변경 rollback 검증','E01','M0','P0','todo','feature','Storage',6,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-006','로컬 supervisor와 단일 총괄 인스턴스','GUI 창과 런타임 수명을 분리하고 사용자 세션 내에서 총괄·sidecar 중복 기동을 막는다.','supervisor·instance lock·재연결 endpoint','동시 앱 실행·창 재열기·강제 종료 재기동 검증','E01','M0','P0','todo','feature','Supervisor',7,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
@@ -2118,6 +2120,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',244);
+INSERT INTO "sqlite_sequence" VALUES('task_events',245);
 COMMIT;
 PRAGMA foreign_keys = ON;

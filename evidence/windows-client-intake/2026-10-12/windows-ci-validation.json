@@ -1,0 +1,285 @@
+{
+  "schema_version": 1,
+  "task_id": "AIK-003",
+  "recorded_at": "2026-10-12T12:21:48.218936+00:00",
+  "record_type": "Observed GitHub Actions run, log excerpts and digest-verified raw artifact",
+  "implementation_status": "validated_on_windows_server",
+  "task_status": "blocked",
+  "run": {
+    "id": 38247899230,
+    "head_sha": "312fa94adfce6ca5ff1ded54a85eea42b512b536",
+    "head_branch": "main",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38247899230",
+    "created_at": "2026-10-12T12:15:31Z",
+    "updated_at": "2026-10-12T12:20:03Z",
+    "run_attempt": 1
+  },
+  "job_id": 114806324374,
+  "archive": {
+    "path": "windows-server-ci-38247899230.zip",
+    "artifact_id": 11746980212,
+    "bytes": 104984,
+    "sha256": "5b3966ca0f8dff693956fccdbddd061e14bf444743ecf755b6bb7b2bc66e75e5",
+    "github_reported_digest": "sha256:5b3966ca0f8dff693956fccdbddd061e14bf444743ecf755b6bb7b2bc66e75e5",
+    "members": [
+      {
+        "path": "build/sidecar-build.json",
+        "bytes": 1226,
+        "sha256": "73b10f77b2f0d84ee5865db7c01eed082b4e5c55fb98726a2922e618843055b9"
+      },
+      {
+        "path": "evidence/application-report.json",
+        "bytes": 1020,
+        "sha256": "65111b54113ba4b6708033ec811faf1ece9c17da06ea34c245371106914d883b"
+      },
+      {
+        "path": "evidence/application.stderr.log",
+        "bytes": 2,
+        "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+      },
+      {
+        "path": "evidence/application.stdout.log",
+        "bytes": 4,
+        "sha256": "dba5166ad9db9ba648c1032ebbd34dcd0d085b50023b839ef5c68ca1db93a563"
+      },
+      {
+        "path": "evidence/installed-spike.json",
+        "bytes": 2901,
+        "sha256": "e3af6a3706928ae6de6c83413bc03693f131dd5773b1d345964e3b4ccddaca55"
+      },
+      {
+        "path": "evidence/screenshot.png",
+        "bytes": 45130,
+        "sha256": "d7a66c7124754f334121cf2bd4e877581b749396b79f7d3909e985e3f669014b"
+      },
+      {
+        "path": "handoff/build-handoff.json",
+        "bytes": 731,
+        "sha256": "2ae6a7a923bcab6c51fe759b37d8bd774ef42ae6c9a9ae671503eae928920ff4"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/client-environment.json",
+        "bytes": 63036,
+        "sha256": "5b393bc8d37d1b5a6eb2c4e734a371e2f1b2e2fe90a7b34705cd47f334130ec4"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/client-evidence-review.json",
+        "bytes": 2543,
+        "sha256": "9608480722df1f1412452b3088617b773d9bcccfe8039440ae78dd9037aff376"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/client-preparation.template.json",
+        "bytes": 473,
+        "sha256": "49e785e952355b142133b164197d86f6ed8a06fc3276b9b5be882ab85be465cb"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/handoff-manifest.json",
+        "bytes": 6826,
+        "sha256": "7f441c51656abdf8d7cc8ded413890934b0aeacfcc82489b008446b42f99b15e"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/handoff-validation.json",
+        "bytes": 7957,
+        "sha256": "d9c16c23a0758583c163dc2ff0e0e3f1bf7400684377ddcc433f35b4e09e024c"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/installed-check/packaging/evidence/application-report.json",
+        "bytes": 1020,
+        "sha256": "3bf85d26bce374826f34136e9958c624850e9372ade3b6fecf11703238332e35"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/installed-check/packaging/evidence/application.stderr.log",
+        "bytes": 5,
+        "sha256": "f01a374e9c81e3db89b3a42940c4d6a5447684986a1296e42bf13f196eed6295"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/installed-check/packaging/evidence/application.stdout.log",
+        "bytes": 7,
+        "sha256": "60116575bb1b6772ed22ba93bfa53bef0a772667da1812c1c3fc0a46cd93bc3e"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/installed-check/packaging/evidence/installed-spike.json",
+        "bytes": 4227,
+        "sha256": "40c9e97fc3eec934832db462c617e623e6985c4c31ff13b12c1e85c278e8ed46"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/installed-check/packaging/evidence/screenshot.png",
+        "bytes": 45304,
+        "sha256": "c3b55604c47a8f49b0a3048cebd848cb0df69abcf49adb03e0c913b6c50032f1"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/verifier.stderr.log",
+        "bytes": 5,
+        "sha256": "f01a374e9c81e3db89b3a42940c4d6a5447684986a1296e42bf13f196eed6295"
+      },
+      {
+        "path": "handoff/evidence/f1e37183a99f4b018f8bc524c6504417/verifier.stdout.log",
+        "bytes": 255,
+        "sha256": "83d305ffdea0947926496e1a65c5bc2eadec4c25bdadb9cd5bf1d48a94dae02f"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "command": "python -m unittest discover -s tests -p 'test_windows*.py' -v",
+      "tests_run": 41,
+      "passed": 41,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 18.347
+    },
+    {
+      "command": "python -m unittest discover -s spikes/windows-foundation/tests -v",
+      "tests_run": 23,
+      "passed": 23,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.554
+    },
+    {
+      "command": "npm test (spikes/windows-foundation)",
+      "tests_run": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "test_log_snippets": [
+    "2026-10-12T12:16:15.1532682Z ----------------------------------------------------------------------",
+    "2026-10-12T12:16:15.1533710Z Ran 41 tests in 18.347s",
+    "2026-10-12T12:16:15.1534183Z ",
+    "2026-10-12T12:16:15.1534569Z OK",
+    "2026-10-12T12:16:15.2835163Z ##[group]Run npm ci --no-audit --no-fund",
+    "2026-10-12T12:16:28.7968094Z ----------------------------------------------------------------------",
+    "2026-10-12T12:16:28.7969100Z Ran 23 tests in 0.554s",
+    "2026-10-12T12:16:28.7970311Z ",
+    "2026-10-12T12:16:28.7970653Z OK (skipped=1)",
+    "2026-10-12T12:16:28.8867679Z ##[group]Run $env:AIK_SPIKE_PYTHON = (Get-Command python).Source",
+    "2026-10-12T12:16:30.2094260Z ✔ child startup errors are sanitized and bounded (4.3263ms)",
+    "2026-10-12T12:16:30.2216085Z ℹ tests 8",
+    "2026-10-12T12:16:30.2217032Z ℹ suites 0",
+    "2026-10-12T12:16:30.2217755Z ℹ pass 8",
+    "2026-10-12T12:16:30.2218249Z ℹ fail 0",
+    "2026-10-12T12:16:30.2218860Z ℹ cancelled 0",
+    "2026-10-12T12:16:30.2219430Z ℹ skipped 0",
+    "2026-10-12T12:16:30.2219939Z ℹ todo 0",
+    "2026-10-12T12:16:30.2220563Z ℹ duration_ms 502.5237",
+    "2026-10-12T12:16:30.5386199Z ",
+    "2026-10-12T12:18:40.7909920Z ##[endgroup]",
+    "2026-10-12T12:19:10.7816308Z Installed foundation-spike validation: PASS. Evidence: D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\evidence\\installed-spike.json",
+    "2026-10-12T12:19:10.8359442Z ##[group]Run $Installers = @(Get-ChildItem -LiteralPath 'packaging/dist' -File -Filter 'AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe')",
+    "2026-10-12T12:19:10.8361384Z \u001b[36;1m$Installers = @(Get-ChildItem -LiteralPath 'packaging/dist' -File -Filter 'AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe')\u001b[0m",
+    "2026-10-12T12:19:10.8362734Z \u001b[36;1mif ($Installers.Count -ne 1) { throw 'Exactly one validated installer is required.' }\u001b[0m",
+    "2026-10-12T12:19:13.2612260Z ##[endgroup]",
+    "2026-10-12T12:19:45.0402251Z Handoff verification: PASS",
+    "2026-10-12T12:19:45.0446050Z Evidence: C:\\Users\\runneradmin\\AppData\\Local\\Temp\\AIK 전달 dddcf4cb1fe64691abc11f3e0c661e06\\실제 실행 증거\\f1e37183a99f4b018f8bc524c6504417\\handoff-validation.json",
+    "2026-10-12T12:19:45.1097183Z ##[group]Run if ([string]::IsNullOrWhiteSpace($env:AIK_HANDOFF_EVIDENCE_PARENT) -or -not (Test-Path -LiteralPath $env:AIK_HANDOFF_EVIDENCE_PARENT)) {",
+    "2026-10-12T12:19:45.1098980Z \u001b[36;1mif ([string]::IsNullOrWhiteSpace($env:AIK_HANDOFF_EVIDENCE_PARENT) -or -not (Test-Path -LiteralPath $env:AIK_HANDOFF_EVIDENCE_PARENT)) {\u001b[0m"
+  ],
+  "execution_id": "f1e37183a99f4b018f8bc524c6504417",
+  "manifest_sha256": "7f441c51656abdf8d7cc8ded413890934b0aeacfcc82489b008446b42f99b15e",
+  "observed_execution": {
+    "github_actions": true,
+    "github_sha": "312fa94adfce6ca5ff1ded54a85eea42b512b536",
+    "github_run_id": "38247899230",
+    "github_run_attempt": "1",
+    "powershell_version": "5.1.20348.5622",
+    "powershell_edition": "Desktop",
+    "default_encoding_code_page": 1252,
+    "default_encoding_web_name": "Windows-1252",
+    "culture": "en-US",
+    "ui_culture": "en-US",
+    "os_version": "Microsoft Windows NT 10.0.20348.0",
+    "platform": "Win32NT",
+    "process_architecture": "AMD64",
+    "is_64_bit_process": true
+  },
+  "environment": {
+    "status": "COMPLETE",
+    "os": {
+      "platform": "win32",
+      "version": "10.0.20348",
+      "build": 20348,
+      "product_type": 3,
+      "architecture": "AMD64",
+      "edition_id": "ServerDatacenter",
+      "display_version": "21H2"
+    },
+    "user": {
+      "elevated": true,
+      "administrator_group_member": true
+    },
+    "hardware": {
+      "logical_processors": 2,
+      "memory_bytes": 8584425472
+    },
+    "probes": [
+      {
+        "name": "operating_system",
+        "status": "PASS"
+      },
+      {
+        "name": "user_token",
+        "status": "PASS"
+      },
+      {
+        "name": "hardware",
+        "status": "PASS"
+      },
+      {
+        "name": "path_commands",
+        "status": "PASS"
+      },
+      {
+        "name": "uninstall_registry",
+        "status": "PASS"
+      },
+      {
+        "name": "known_locations",
+        "status": "PASS"
+      }
+    ],
+    "detection_count": 146,
+    "errors": []
+  },
+  "handoff": {
+    "status": "PASS",
+    "checks": {
+      "package_member_hashes": "PASS",
+      "verifier_bom_conversion": "PASS",
+      "legacy_powershell_51": "PASS",
+      "delivered_script_parse": "PASS",
+      "installed_gui_worker_dpapi_uninstall": "PASS",
+      "installed_engine_identity": "PASS",
+      "installed_python_dll_identity": "PASS",
+      "actual_gui_evidence": "PASS"
+    }
+  },
+  "client_evidence_intake": {
+    "status": "BLOCKED",
+    "errors": [],
+    "blockers": [
+      "NOT_WINDOWS_X64_CLIENT",
+      "NOT_WINDOWS11_CANDIDATE",
+      "ELEVATED_OR_UNKNOWN_USER",
+      "OS_EDITION_OR_RELEASE_OUTSIDE_ADR",
+      "NOT_CONFIRMED_STANDARD_USER",
+      "DEVELOPER_TOOLS_DETECTED",
+      "MISSING_CLEAN_PREPARATION_RECORD"
+    ],
+    "exit_code": 2
+  },
+  "qualification": {
+    "actual_windows_powershell51_collection": "PASS",
+    "windows11_standard_user_clean_machine": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "release_signing": "NOT_RUN",
+    "product_integration": "NOT_RUN"
+  },
+  "remaining_blocker": "AIK-003 AC2 and original verification still require actual clean supported Windows 11 standard-user installation and independent review. This Server administrator run with detected development tools does not meet that criterion."
+}
