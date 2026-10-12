@@ -1,0 +1,967 @@
+{
+  "schema_version": 1,
+  "review_id": "aik-m0-independent-completion-2026-10-12-after-actual-candidate-comparison",
+  "created_at": "2026-10-12T09:00:34.986855+00:00",
+  "reviewer": "/root/implement_upstream_contract",
+  "scope": "Read-only independent review of original AIK-002/003 completion criteria, original verification text, actual Windows candidate artifacts, updated stack ADR and standalone PS5.1 handoff evidence. This report does not edit task statuses or source code.",
+  "previous_review": {
+    "path": "/workspace/scratch/676b40286607/implementation_20261012/task-completion-review.json",
+    "bytes": 30957,
+    "sha256": "36aeee65d8983aa58d9b5dd3b3c1ff2ecbb9ee8a0d63e41c8336fb67bb6c9066"
+  },
+  "original_requirements_source": {
+    "sqlite": {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/planning/backlog.sqlite3",
+      "bytes": 466944,
+      "sha256": "e83182e8e687d39296d7cb4970ab1b753c79142983343082f792bfc0ea32a7b4"
+    },
+    "access": "SQLite URI mode=ro",
+    "task_rows": {
+      "AIK-002": {
+        "id": "AIK-002",
+        "title": "Windows GUI 스택과 엔진 sidecar 검증",
+        "description": "VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.",
+        "deliverable": "GUI 스택 ADR와 폐기 가능한 Windows spike",
+        "verification": "지원 후보별 설치성·IPC·worker 기동·메모리 비교",
+        "epic_id": "E01",
+        "milestone_id": "M0",
+        "priority": "P0",
+        "status": "in_progress",
+        "work_type": "decision",
+        "owner_component": "Desktop",
+        "sequence": 2,
+        "created_at": "2026-10-12T05:36:30Z",
+        "updated_at": "2026-10-12T07:27:11Z"
+      },
+      "AIK-003": {
+        "id": "AIK-003",
+        "title": "Windows 지원 환경·설치·서명 방식 결정",
+        "description": "첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.",
+        "deliverable": "Windows support matrix와 packaging ADR",
+        "verification": "깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토",
+        "epic_id": "E09",
+        "milestone_id": "M0",
+        "priority": "P0",
+        "status": "blocked",
+        "work_type": "decision",
+        "owner_component": "Release",
+        "sequence": 3,
+        "created_at": "2026-10-12T05:36:30Z",
+        "updated_at": "2026-10-12T08:05:46Z"
+      }
+    },
+    "acceptance_criteria": {
+      "AIK-002": [
+        {
+          "ordinal": 1,
+          "criterion": "VM React/TypeScript 화면·EngineClient 재사용 범위와 Tauri/대안의 선택 이유를 적는다."
+        },
+        {
+          "ordinal": 2,
+          "criterion": "창 표시→typed IPC→테스트 worker 호출→OS vault 왕복을 Windows에서 재현한다."
+        },
+        {
+          "ordinal": 3,
+          "criterion": "AIK 스택·엔진 runtime 버전·bundle 전략을 ADR에 명시하고 mock 성공을 제품 연동 성공으로 기록하지 않는다."
+        }
+      ],
+      "AIK-003": [
+        {
+          "ordinal": 1,
+          "criterion": "지원 Windows 버전·CPU·최소 자원과 선택한 설치 형식을 명시한다."
+        },
+        {
+          "ordinal": 2,
+          "criterion": "개발 도구가 없는 환경에서 필요한 runtime을 어떻게 공급할지 검증한다."
+        },
+        {
+          "ordinal": 3,
+          "criterion": "서명·업데이트 신뢰·제거 후 데이터 처리 기준을 정하며 macOS/Linux를 첫 출시 gate로 넣지 않는다."
+        },
+        {
+          "ordinal": 4,
+          "criterion": "최소/기준 hardware, 지원 파일 경로·오프라인/네트워크 조건, 응답성·메모리·지속 실행의 측정 부하를 결정하고 AIK-083에서 출시 임계값을 측정 전에 고정한다. 실제 provider 지연과 GUI/제어부 응답 시간을 분리하며 미충족 조건은 AIK-062/064를 차단한다."
+        }
+      ]
+    }
+  },
+  "conclusion": {
+    "AIK-001": "Prior baseline-completion finding unchanged; this review does not re-run upstream installation or alter later governed-integration blockers.",
+    "AIK-002": {
+      "recommended_status": "done",
+      "verdict": "PASS",
+      "reason": "원래 3개 acceptance criteria와 지원 후보별 설치성·IPC·worker 기동·메모리 비교가 실제 Windows 실행과 갱신 ADR의 구현 선택으로 충족된다.",
+      "original_verification": "지원 후보별 설치성·IPC·worker 기동·메모리 비교",
+      "acceptance_criteria": [
+        {
+          "ordinal": 1,
+          "criterion": "VM React/TypeScript 화면·EngineClient 재사용 범위와 Tauri/대안의 선택 이유를 적는다.",
+          "verdict": "PASS",
+          "reason": "고정 VM App.tsx/contracts.ts/설계 문서의 MockEngineClient와 표현 계층/EngineClient 경계를 구분했다. 갱신 ADR은 Electron과 Tauri 실제 후보 비교를 인용하고, runtime 공급 및 Node/Python 빌드·진단 경로를 기준으로 Electron 구현 선택을 끝냈다. VM GUI 이식 완료나 사용자 지정 기술 요구를 주장하지 않는다."
+        },
+        {
+          "ordinal": 2,
+          "criterion": "창 표시→typed IPC→테스트 worker 호출→OS vault 왕복을 Windows에서 재현한다.",
+          "verdict": "PASS",
+          "reason": "같은 실제 Windows Server job에서 양쪽 설치된 GUI의 typed IPC 버튼으로 frozen CPython 3.14.8, 별도 worker의 42-byte 파일 생성·재읽기·SHA 검증·삭제, Windows 사용자 DPAPI 왕복을 실행했다. 원본 응답과 별도 설치 harness, 실제 화면을 직접 대조했다."
+        },
+        {
+          "ordinal": 3,
+          "criterion": "AIK 스택·엔진 runtime 버전·bundle 전략을 ADR에 명시하고 mock 성공을 제품 연동 성공으로 기록하지 않는다.",
+          "verdict": "PASS",
+          "reason": "ADR과 잠금 파일은 Electron 44.7.0, React 19.2.8, TypeScript 7.0.2, CPython 3.14.8, PyInstaller onedir/NSIS runtime bundle을 명시한다. 설치 engine/DLL이 build manifest와 일치한다. 두 후보의 합성 probe PASS와 실제 VM/AGS/provider 제품 연동 NOT_RUN을 분리한다."
+        }
+      ],
+      "verification_dimensions": [
+        {
+          "dimension": "설치성",
+          "verdict": "PASS",
+          "evidence": "동일 job에서 양 후보의 실제 unsigned NSIS install, frozen runtime 검사, GUI 실행, 정상 종료 및 uninstall PASS; 원본 installer SHA/크기 직접 확인."
+        },
+        {
+          "dimension": "IPC",
+          "verdict": "PASS",
+          "evidence": "각 실제 renderer에서 typed fixed check를 요청하고 native/main이 관측한 검증 backend 응답으로 결과를 기록. 사용자가 준 결과값이나 mock 제품 성공으로 대체하지 않음."
+        },
+        {
+          "dimension": "worker 기동",
+          "verdict": "PASS",
+          "evidence": "동일 frozen engine에서 별도 PID worker, 올바른 parent PID, 실제 42-byte artifact 해시·정리 PASS."
+        },
+        {
+          "dimension": "메모리 비교",
+          "verdict": "PASS_WITH_MEASUREMENT_LIMITS",
+          "evidence": "같은 CI job/engine/합성 부하의 후단 main/renderer 관측값과 Tauri WebView2 역할별 값이 존재한다. 측정 API/프로세스 범위/시점을 밝힌 제한된 후보 비교이며 전체 메모리 또는 제품 성능 우위를 주장하지 않는다."
+        }
+      ],
+      "additional_completion_gate_invented": false
+    },
+    "AIK-003": {
+      "recommended_status": "blocked",
+      "verdict": "BLOCKED_ORIGINAL_ENVIRONMENT_REQUIREMENT",
+      "original_verification": "깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토",
+      "acceptance_criteria": [
+        {
+          "ordinal": 1,
+          "criterion": "지원 Windows 버전·CPU·최소 자원과 선택한 설치 형식을 명시한다.",
+          "verdict": "PASS",
+          "reason": "ADR이 Windows 11 Home/Pro x64 지원 후보, 최소/기준 CPU·RAM·디스크·화면, 사용자별 NSIS 형식을 명시한다. 명시 여부를 충족하며 실제 지원 qualification까지 PASS로 올리지 않는다."
+        },
+        {
+          "ordinal": 2,
+          "criterion": "개발 도구가 없는 환경에서 필요한 runtime을 어떻게 공급할지 검증한다.",
+          "verdict": "PARTIAL",
+          "reason": "Runtime을 묶은 설치본이 시스템 경로만 허용한 child 환경에서 실제 실행되고 기본 PS5.1 전달 경로도 실행됐다. 그러나 Windows Server CI 호스트에는 개발 도구가 설치돼 있고 installed_tooling_absence/developer_tools_absence는 NOT_RUN이다. 따라서 원래의 개발 도구가 없는 환경 조건은 충족되지 않았다."
+        },
+        {
+          "ordinal": 3,
+          "criterion": "서명·업데이트 신뢰·제거 후 데이터 처리 기준을 정하며 macOS/Linux를 첫 출시 gate로 넣지 않는다.",
+          "verdict": "PASS",
+          "reason": "정식 Authenticode/게시자·timestamp, 서명 설치본 수동 업데이트·downgrade/migration 기준, 기본 데이터 보존과 명시적 전체 삭제 기준을 정의했다. macOS/Linux를 첫 출시 필수 gate에 넣지 않았다. 현재 unsigned 설치본을 정식 서명/제품 데이터 정책 실행 성공으로 기록하지 않는다."
+        },
+        {
+          "ordinal": 4,
+          "criterion": "최소/기준 hardware, 지원 파일 경로·오프라인/네트워크 조건, 응답성·메모리·지속 실행의 측정 부하를 결정하고 AIK-083에서 출시 임계값을 측정 전에 고정한다. 실제 provider 지연과 GUI/제어부 응답 시간을 분리하며 미충족 조건은 AIK-062/064를 차단한다.",
+          "verdict": "PASS",
+          "reason": "최소/기준 hardware, 로컬 NTFS·한글/공백 경로, offline/network 조건, 시작·유휴·제어부·병렬·장기 실행 부하를 정했다. 구체 출시 임계값은 AIK-083에서 측정 전에 고정하고 미충족이면 AIK-062/064를 차단하도록 명시한다. Provider 대기와 로컬 제어부 응답을 분리한다."
+        }
+      ],
+      "verification": {
+        "clean_candidate_windows_install_spike": "NOT_RUN",
+        "document_review": "PASS"
+      },
+      "reason": "기존 AC2는 개발 도구가 없는 환경을, 기존 verification은 깨끗한 후보 Windows 환경의 설치 spike를 요구한다. Server 관리자 CI와 PATH 격리 및 PS5.1 handoff PASS는 이 조건을 대신하지 않는다.",
+      "scope_interpretation": [
+        "SQLite 원문 자체는 Windows 11 또는 표준 사용자라는 문자열을 추가로 지정하지 않는다. ADR이 첫 지원 후보를 Windows 11 x64와 표준 사용자로 선택했다.",
+        "작은 설치 spike의 깨끗한 후보 환경 실행이 남아 있다. 모든 OS 버전/최소사양/전체 제품 qualification을 003 완료에 새로 요구하지 않는다.",
+        "AIK-083에서 제품 workload와 사전 임계값을 고정하는 것과 003의 기존 설치 검증을 구분한다. 083 또는 057/059/064로 003의 원래 검증을 삭제하거나 이관하지 않는다."
+      ]
+    }
+  },
+  "decision_review": {
+    "DEC07_observed_at_read": {
+      "id": "DEC07",
+      "title": "GUI 구현 스택",
+      "status": "confirmed",
+      "decision": "첫 구현 스택을 Electron44.7.0+React19.2.8/TypeScript7.0.2+CPython3.14.8 sidecar로 확정한다. 동일 Windows job의 Tauri2.12.3 대안도 실제 설치·IPC·worker·DPAPI·메모리 관측·제거를 통과했다. 이 결정은 구현 책임자의 기술 선택이다.",
+      "rationale": "동일 frozen engine을 사용한 실제 비교에서 현재 오프라인 runtime 공급 정책의 installer는 Electron113.22MiB·Tauri216.15MiB였다. GUI runtime의 앱 버전 결속 및 현재 Node/Python 빌드·검사 경로 유지 비용을 근거로 Electron을 선택한다. Tauri native working set은 더 작았으나 전체 앱 메모리·속도 우위를 일반화하지 않는다. Windows11 지원 확정이나 실제 벤더·AGS·VM 제품 연동 성공을 뜻하지 않는다.",
+      "source_id": "S-STACK-20261012"
+    },
+    "recommended_status": "confirmed",
+    "decision_kind": "implementation decision based on repository and CI evidence, not a user-confirmed Electron requirement",
+    "basis": "The updated Windows ADR explicitly chooses Electron after the actual candidate comparison. Existing decision status values do not reserve confirmed for user statements; repository-backed confirmed decisions already exist.",
+    "recommended_source_revision": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+    "recommended_source_run": "38223818838",
+    "DEC08_and_DEC12": "Keep their existing proposed status and unqualified scope; this comparison does not establish clean-client support or provider/runtime role qualification.",
+    "source_observed_at_read": {
+      "id": "S-STACK-20261012",
+      "title": "Electron·Tauri 실제 Windows 비교와 첫 구현 스택 결정",
+      "kind": "repository",
+      "url": "https://github.com/jaeseongs95/AI-Kubernetes/commit/a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+      "revision": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+      "notes": "Windows CI38223818838의 같은 job·같은 frozen engine으로 두 후보 설치·GUI·IPC·worker·DPAPI·메모리 관측·제거를 실제 검증했다. Electron 선택은 기존 개발 지시에 따른 구현 결정이며 사용자가 특정 GUI 기술을 지정했다는 뜻은 아니다. Windows11 clean 및 제품 qualification은 별도 미실행이다."
+    },
+    "verdict": "PASS_CONFIRMED_IMPLEMENTATION_DECISION",
+    "final_record_consistency": "The updated ADR and confirmed DEC07 both choose Electron using the actual comparison, with repository/CI provenance and no claim of user-selected GUI technology."
+  },
+  "comparison_evidence": {
+    "source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+    "workflow_run_id": 38223818838,
+    "workflow_attempt": 1,
+    "job_id": 114726304615,
+    "workflow_url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38223818838",
+    "workflow_result": "completed/success",
+    "job_all_steps_success": true,
+    "raw_comparison": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/evidence/evidence/stack-comparison.json",
+      "bytes": 15508,
+      "sha256": "c306728f8cec8343f7d2cc274e6bae6f197366245f1380ef30b9bb412aec371a"
+    },
+    "build_manifest": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/evidence/build/sidecar-build.json",
+      "bytes": 1226,
+      "sha256": "604e44656445e8b1e70a93e07dfeb9a9b644cbafa310866579628092e9f1b381"
+    },
+    "archives": [
+      {
+        "artifact": {
+          "id": 11736351339,
+          "name": "windows-stack-comparison-evidence-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1",
+          "size_in_bytes": 134386,
+          "digest": "sha256:e8f44ed19dc7d3ab8f1aeedcbe87be9b5acb1249e8da33d9f05991f7d11ebdca",
+          "workflow_run": {
+            "id": 38223818838,
+            "repository_id": 1415080263,
+            "head_repository_id": 1415080263,
+            "head_branch": "main",
+            "head_sha": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea"
+          }
+        },
+        "download": {
+          "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/evidence.zip",
+          "bytes": 134386,
+          "sha256": "e8f44ed19dc7d3ab8f1aeedcbe87be9b5acb1249e8da33d9f05991f7d11ebdca"
+        },
+        "member_count": 13,
+        "checks": {
+          "github_digest_equal": true,
+          "github_size_equal": true,
+          "zip_crc_valid": true,
+          "all_extracted_members_byte_equal": true
+        }
+      },
+      {
+        "artifact": {
+          "id": 11736566200,
+          "name": "windows-stack-comparison-unsigned-installers-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1",
+          "size_in_bytes": 345416683,
+          "digest": "sha256:fe4d11524cfba3aa25788c0c37ff5901d290e63d5acf7ab772d7c588eec31c7f",
+          "workflow_run": {
+            "id": 38223818838,
+            "repository_id": 1415080263,
+            "head_repository_id": 1415080263,
+            "head_branch": "main",
+            "head_sha": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea"
+          }
+        },
+        "download": {
+          "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/installers.zip",
+          "bytes": 345416683,
+          "sha256": "fe4d11524cfba3aa25788c0c37ff5901d290e63d5acf7ab772d7c588eec31c7f"
+        },
+        "member_count": 2,
+        "checks": {
+          "github_digest_equal": true,
+          "github_size_equal": true,
+          "zip_crc_valid": true,
+          "all_extracted_members_byte_equal": true
+        }
+      }
+    ],
+    "candidates": {
+      "electron": {
+        "installer": {
+          "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/installers/packaging/dist/AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe",
+          "bytes": 118717783,
+          "sha256": "b578f12061162d56c1eb6faf5d703b0b914d32cd725d64e0f0187e668bbd2feb"
+        },
+        "installer_observation": {
+          "file": "AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe",
+          "bytes": 118717783,
+          "sha256": "b578f12061162d56c1eb6faf5d703b0b914d32cd725d64e0f0187e668bbd2feb",
+          "signature_status": "NotSigned",
+          "release_publisher_qualified": false
+        },
+        "environment": {
+          "platform": "win32",
+          "architecture": "AMD64",
+          "os_caption": "Microsoft Windows Server 2022 Datacenter",
+          "os_version": "10.0.20348",
+          "os_build": "20348",
+          "os_product_type": 3,
+          "logical_processors": 2,
+          "memory_bytes": 8584425472,
+          "cpu_names": [
+            "INTEL(R) XEON(R) PLATINUM 8573C"
+          ],
+          "administrator": true,
+          "github_actions": true,
+          "runner_image": "win22",
+          "runner_image_version": "20261004.326.1"
+        },
+        "runtime_bundle": {
+          "gui_sha256": "6db594d72a36d66d5605cd044a373f790d2460cf9c6d839eaca8f478a854c726",
+          "engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922",
+          "python_runtime_libraries": [
+            {
+              "file": "python314.dll",
+              "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+            }
+          ],
+          "installed_outside_source_tree": true,
+          "unicode_and_space_paths": true
+        },
+        "child_environment": {
+          "path": "C:\\Windows\\System32;C:\\Windows",
+          "pythonhome_removed": true,
+          "pythonpath_removed": true,
+          "node_options_removed": true,
+          "electron_run_as_node_removed": true,
+          "working_directory_outside_source_tree": true,
+          "installed_tooling_absence": "NOT_RUN"
+        },
+        "application_pid": 5736,
+        "checks": {
+          "health": {
+            "status": "PASS",
+            "code": "SIDECAR_READY",
+            "pid": 1712,
+            "platform": "win32",
+            "python_version": "3.14.8",
+            "frozen": true,
+            "product_integration": "NOT_RUN"
+          },
+          "worker": {
+            "status": "PASS",
+            "code": "WORKER_PROBE_OK",
+            "pid": 2164,
+            "parent_pid": 1712,
+            "artifact_bytes": 42,
+            "artifact_sha256": "82b2d2ffd52c4fcda74566e4950be2d32f128d466444883442aee643d34c10ee",
+            "temporary_artifact_removed": true
+          },
+          "vault": {
+            "status": "PASS",
+            "backend": "windows-user-dpapi",
+            "code": "VAULT_ROUNDTRIP_OK"
+          }
+        },
+        "metrics_as_reported": {
+          "elapsed_ms": 2441,
+          "main_rss_bytes": 99901440,
+          "renderer_working_set_kb": 87344
+        },
+        "independent_binding_checks": {
+          "embedded_installed_report_equal": true,
+          "embedded_application_report_equal": true,
+          "application_hash_equal": true,
+          "screenshot_hash_equal": true,
+          "installer_hash_equal": true,
+          "installer_size_equal": true,
+          "engine_build_identity_equal": true,
+          "python_dll_build_identity_equal": true,
+          "source_revision_equal": true,
+          "run_identity_equal": true,
+          "window_visible_win32_packaged": true,
+          "three_backend_checks_pass": true,
+          "runtime_frozen_python3148": true,
+          "worker_is_separate_bound_child": true,
+          "worker_effect_validated_and_cleaned": true,
+          "native_dpapi_roundtrip": true,
+          "installed_checks_pass": true,
+          "product_support_not_promoted": true
+        },
+        "visual_review": {
+          "status": "PASS",
+          "method": "Opened the actual downloaded PNG with view_image and inspected it directly",
+          "primary_screenshot": {
+            "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/evidence/evidence/screenshot.png",
+            "bytes": 44983,
+            "sha256": "9af33a2efafcd313a55636c861101a6913cb80318759ac62e6118b6877dd4c6e"
+          },
+          "observations": [
+            "The Korean interface is legible; visible controls and three result cards do not overlap.",
+            "The screenshot shows 3 / 3 completed with SIDECAR_READY, WORKER_PROBE_OK and VAULT_ROUNDTRIP_OK.",
+            "The displayed sidecar and worker PIDs equal this candidate raw application report.",
+            "The screen says the probes use synthetic data and identifies the development/comparison spike."
+          ],
+          "scope_limit": "One screenshot at the observed viewport and state; not a full responsive, accessibility, input, or product journey qualification."
+        },
+        "renderer_node_access": false
+      },
+      "tauri": {
+        "installer": {
+          "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/installers/spikes/tauri-comparison/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/AIK Tauri Comparison_0.1.0_x64-setup.exe",
+          "bytes": 226652464,
+          "sha256": "718ea656b4b24a7367c59130ccd428db3d7d055f97c491fd2c6162ea437970c8"
+        },
+        "installer_observation": {
+          "file": "AIK Tauri Comparison_0.1.0_x64-setup.exe",
+          "bytes": 226652464,
+          "sha256": "718ea656b4b24a7367c59130ccd428db3d7d055f97c491fd2c6162ea437970c8",
+          "signature_status": "NotSigned",
+          "release_publisher_qualified": false
+        },
+        "environment": {
+          "platform": "win32",
+          "architecture": "AMD64",
+          "os_caption": "Microsoft Windows Server 2022 Datacenter",
+          "os_version": "10.0.20348",
+          "os_build": "20348",
+          "os_product_type": 3,
+          "logical_processors": 2,
+          "memory_bytes": 8584425472,
+          "administrator": true,
+          "github_actions": true,
+          "runner_image": "win22",
+          "runner_image_version": "20261004.326.1"
+        },
+        "runtime_bundle": {
+          "gui_sha256": "3d830237115de653d0921ea51b8b9e55848b07fcb11e848e4d816559986473d4",
+          "engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922",
+          "python_runtime_libraries": [
+            {
+              "file": "python314.dll",
+              "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+            }
+          ],
+          "installed_outside_source_tree": true,
+          "unicode_and_space_paths": true
+        },
+        "child_environment": {
+          "developer_tool_path_removed": true,
+          "pythonhome_removed": true,
+          "pythonpath_removed": true,
+          "explicit_python_override_removed": true,
+          "working_directory_outside_source_tree": true,
+          "run_specific_webview_profile": true,
+          "installed_tooling_absence": "NOT_RUN"
+        },
+        "application_pid": 5116,
+        "checks": {
+          "health": {
+            "code": "SIDECAR_READY",
+            "frozen": true,
+            "pid": 1960,
+            "platform": "win32",
+            "product_integration": "NOT_RUN",
+            "python_version": "3.14.8",
+            "status": "PASS"
+          },
+          "vault": {
+            "backend": "windows-user-dpapi",
+            "code": "VAULT_ROUNDTRIP_OK",
+            "status": "PASS"
+          },
+          "worker": {
+            "artifact_bytes": 42,
+            "artifact_sha256": "82b2d2ffd52c4fcda74566e4950be2d32f128d466444883442aee643d34c10ee",
+            "code": "WORKER_PROBE_OK",
+            "parent_pid": 1960,
+            "pid": 7096,
+            "status": "PASS",
+            "temporary_artifact_removed": true
+          }
+        },
+        "metrics_as_reported": {
+          "elapsed_ms": 9593,
+          "main_working_set_bytes": 22339584,
+          "measurement_note": "One post-check live working-set snapshot. Includes current app descendants; exited worker is absent. This is not a peak, long-run, or clean-Windows benchmark.",
+          "process_tree": [
+            {
+              "name": "msedgewebview2.exe",
+              "parent_pid": 5116,
+              "pid": 1508,
+              "working_set_bytes": 97120256
+            },
+            {
+              "name": "msedgewebview2.exe",
+              "parent_pid": 1508,
+              "pid": 1560,
+              "working_set_bytes": 30130176
+            },
+            {
+              "name": "aik-engine.exe",
+              "parent_pid": 5116,
+              "pid": 1960,
+              "working_set_bytes": 24657920
+            },
+            {
+              "name": "msedgewebview2.exe",
+              "parent_pid": 1508,
+              "pid": 5000,
+              "working_set_bytes": 7917568
+            },
+            {
+              "name": "aik-tauri-comparison.exe",
+              "parent_pid": 6764,
+              "pid": 5116,
+              "working_set_bytes": 22339584
+            },
+            {
+              "name": "conhost.exe",
+              "parent_pid": 1960,
+              "pid": 5740,
+              "working_set_bytes": 11165696
+            },
+            {
+              "name": "msedgewebview2.exe",
+              "parent_pid": 1508,
+              "pid": 6304,
+              "working_set_bytes": 18829312
+            },
+            {
+              "name": "msedgewebview2.exe",
+              "parent_pid": 1508,
+              "pid": 6496,
+              "working_set_bytes": 69255168
+            },
+            {
+              "name": "msedgewebview2.exe",
+              "parent_pid": 1508,
+              "pid": 6980,
+              "working_set_bytes": 50343936
+            }
+          ],
+          "process_tree_status": "MEASURED",
+          "process_tree_working_set_bytes": 331759616,
+          "webview2_process_count": 6,
+          "webview2_working_set_bytes": 273596416
+        },
+        "independent_binding_checks": {
+          "embedded_installed_report_equal": true,
+          "embedded_application_report_equal": true,
+          "application_hash_equal": true,
+          "screenshot_hash_equal": true,
+          "installer_hash_equal": true,
+          "installer_size_equal": true,
+          "engine_build_identity_equal": true,
+          "python_dll_build_identity_equal": true,
+          "source_revision_equal": true,
+          "run_identity_equal": true,
+          "window_visible_win32_packaged": true,
+          "three_backend_checks_pass": true,
+          "runtime_frozen_python3148": true,
+          "worker_is_separate_bound_child": true,
+          "worker_effect_validated_and_cleaned": true,
+          "native_dpapi_roundtrip": true,
+          "installed_checks_pass": true,
+          "product_support_not_promoted": true
+        },
+        "visual_review": {
+          "status": "PASS",
+          "method": "Opened the actual downloaded PNG with view_image and inspected it directly",
+          "primary_screenshot": {
+            "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/evidence/evidence/tauri/screenshot.png",
+            "bytes": 46596,
+            "sha256": "2052f2252e8db93a5084a793dda18278aace298ec9590628a855b78c4b4897ec"
+          },
+          "observations": [
+            "The Korean interface is legible; visible controls and three result cards do not overlap.",
+            "The screenshot shows 3 / 3 completed with SIDECAR_READY, WORKER_PROBE_OK and VAULT_ROUNDTRIP_OK.",
+            "The displayed sidecar and worker PIDs equal this candidate raw application report.",
+            "The screen says the probes use synthetic data and identifies the development/comparison spike."
+          ],
+          "scope_limit": "One screenshot at the observed viewport and state; not a full responsive, accessibility, input, or product journey qualification.",
+          "secondary_desktop_crop": {
+            "file": {
+              "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/evidence/evidence/tauri/screenshot-desktop-crop.png",
+              "bytes": 52846,
+              "sha256": "5550c7a539e4641f70ae2f14e2d68cd0a367203030b6b7ec866a3d4abd265517"
+            },
+            "observed": "The Windows taskbar overlays the bottom of the desktop crop. The PrintWindow image is the primary app screenshot."
+          }
+        },
+        "webview2_supply": {
+          "configured_mode": "offlineInstaller",
+          "silent": true,
+          "install_scope": "currentUser",
+          "runtime_absent_install": "NOT_RUN",
+          "note": "The NSIS bundle embeds the Evergreen offline installer. An already installed compatible runtime can be reused; this run does not simulate runtime absence.",
+          "installed_before": [
+            {
+              "version_directory": "131.0.2903.86",
+              "file_version": "131.0.2903.86",
+              "sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+            }
+          ]
+        },
+        "webview2_role_observation": {
+          "observed_at": "2026-10-12T08:45:45.5904791Z",
+          "phase": "Immediately after native post-probe report; before screenshot and application close",
+          "reported_runtime_version": "131.0.2903.86",
+          "processes": [
+            {
+              "pid": 1508,
+              "parent_pid": 5116,
+              "role": "browser",
+              "working_set_bytes": 97124352,
+              "file_version": "131.0.2903.86",
+              "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+            },
+            {
+              "pid": 5000,
+              "parent_pid": 1508,
+              "role": "crashpad-handler",
+              "working_set_bytes": 7917568,
+              "file_version": "131.0.2903.86",
+              "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+            },
+            {
+              "pid": 6980,
+              "parent_pid": 1508,
+              "role": "gpu-process",
+              "working_set_bytes": 50352128,
+              "file_version": "131.0.2903.86",
+              "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+            },
+            {
+              "pid": 1560,
+              "parent_pid": 1508,
+              "role": "utility",
+              "working_set_bytes": 30130176,
+              "file_version": "131.0.2903.86",
+              "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+            },
+            {
+              "pid": 6304,
+              "parent_pid": 1508,
+              "role": "utility",
+              "working_set_bytes": 18829312,
+              "file_version": "131.0.2903.86",
+              "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+            },
+            {
+              "pid": 6496,
+              "parent_pid": 1508,
+              "role": "renderer",
+              "working_set_bytes": 70422528,
+              "file_version": "131.0.2903.86",
+              "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+            }
+          ],
+          "command_lines_disclosed": false
+        },
+        "renderer_node_access": {
+          "value": null,
+          "status": "NOT_MEASURED_BY_NATIVE_BACKEND"
+        }
+      }
+    },
+    "actual_test_log_summary": {
+      "python": {
+        "ran": 23,
+        "passed": 22,
+        "skipped": 1,
+        "skip_reason": "Non-Windows refusal only; actual Windows DPAPI tests executed"
+      },
+      "node": {
+        "passed": 8,
+        "failed": 0
+      },
+      "rust_on_windows": {
+        "passed": 6,
+        "failed": 0
+      }
+    },
+    "logs": {
+      "raw": {
+        "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/job-114726304615.log",
+        "bytes": 110236,
+        "sha256": "22538cb04840862ffc08daf3e04d754cd89adef96bbd4ce3f1f0329660941a0a"
+      },
+      "publishable_sanitized": {
+        "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/publishable/job-114726304615.log",
+        "bytes": 110233,
+        "sha256": "3b88404b27ef1db73f032387a2eb61b2a05202e9de2ae08a9576c77c5c59947b"
+      },
+      "inspected_sections": [
+        "actual Python, Node and Rust test results",
+        "exact source checkout and build/freeze/NSIS stages",
+        "Electron installed validation PASS",
+        "Tauri installed validation and same-run comparison PASS",
+        "artifact upload digests"
+      ]
+    },
+    "metadata_correction": {
+      "file": {
+        "path": "/workspace/scratch/676b40286607/implementation_20261012/tauri-ci/measurement-api-correction.json",
+        "bytes": 4009,
+        "sha256": "a5a77b3be69c4c2b308899d68bd79ac161fa124db727c24a83a0f702ddc44ffd"
+      },
+      "raw_retained_unchanged": true,
+      "observed_error": "Raw comparison metadata names Electron getProcessMemoryInfo().workingSetSize.",
+      "verified_actual_expression": "app.getAppMetrics().find(metric => metric.pid === window.webContents.getOSProcessId()).memory.workingSetSize",
+      "source_location": "spikes/windows-foundation/electron/main.cjs",
+      "measurement_values_changed": false,
+      "effect_on_verdict": "Description correction only; actual data, control flow and original acceptance conditions are unchanged."
+    },
+    "performance_scope": {
+      "candidate_total_memory": "NOT_ESTABLISHED",
+      "peak_average_percentile": "NOT_MEASURED",
+      "startup_speed_ranking": "NOT_ASSERTED",
+      "runtime_absent_webview2_install": "NOT_RUN",
+      "clean_Windows11": "NOT_RUN",
+      "notes": [
+        "One sequential run per candidate and one post-check observation; no randomized repeats.",
+        "Electron main RSS comes from process.memoryUsage().rss; its renderer value is app.getAppMetrics memory.workingSetSize for the exact renderer PID, in reported KB.",
+        "Tauri main/process tree uses Win32 working set; separate role observation uses Win32_Process identity and .NET WorkingSet64 shortly afterward.",
+        "WebView2 browser, GPU, utility and renderer processes remain separate; shared pages may be counted twice in sums and exited worker memory is absent.",
+        "Installer sizes include different runtime supply choices: Electron embeds Chromium/Node, and this Tauri installer includes the WebView2 Evergreen offline installer.",
+        "The observed Tauri runtime 131.0.2903.86 was already installed; runtime absence was not simulated.",
+        "Electron and Tauri elapsed values start at different internal module/native instants and do not establish external startup speed."
+      ]
+    }
+  },
+  "handoff_evidence": {
+    "scope": "Separate actual Windows PowerShell 5.1 reproduction and standalone foundation rerun; not an additional invented AIK-002 completion gate and not AIK-003 clean-environment completion.",
+    "source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+    "workflow_run_id": 38226204128,
+    "job_id": 114734211621,
+    "observed_execution": {
+      "github_actions": true,
+      "github_sha": "4b948f57020f3e507683de6e538544b9bac558e7",
+      "github_run_id": "38226204128",
+      "github_run_attempt": "1",
+      "powershell_version": "5.1.20348.5622",
+      "powershell_edition": "Desktop",
+      "default_encoding_code_page": 1252,
+      "default_encoding_web_name": "Windows-1252",
+      "culture": "en-US",
+      "ui_culture": "en-US",
+      "os_version": "Microsoft Windows NT 10.0.20348.0",
+      "platform": "Win32NT",
+      "process_architecture": "AMD64",
+      "is_64_bit_process": true
+    },
+    "observed_environment": {
+      "platform": "win32",
+      "architecture": "AMD64",
+      "os_caption": "Microsoft Windows Server 2022 Datacenter",
+      "os_version": "10.0.20348",
+      "os_build": "20348",
+      "os_product_type": 3,
+      "logical_processors": 2,
+      "memory_bytes": 8584425472,
+      "cpu_names": [
+        "AMD EPYC 7763 64-Core Processor                "
+      ],
+      "administrator": true,
+      "github_actions": true,
+      "runner_image": "win22",
+      "runner_image_version": "20261004.326.1"
+    },
+    "result": "PASS_BOUNDED_HANDOFF",
+    "independent_binding_checks": {
+      "handoff_pass": true,
+      "actual_powershell51_desktop": true,
+      "actual_default1252": true,
+      "original_parse_failed_two": true,
+      "delivered_bom_parse_pass_zero": true,
+      "manifest_hash_equal": true,
+      "installed_report_hash_equal": true,
+      "app_hash_equal": true,
+      "screenshot_hash_equal": true,
+      "source_identity_equal": true,
+      "build_engine_equal": true,
+      "build_python_dlls_equal": true,
+      "same_installer_as_prior": true,
+      "new_execution_after_prior": true,
+      "new_application_bytes": true,
+      "new_gui_sidecar_worker_pids": true,
+      "new_frozen_gui_checks_pass": true,
+      "new_worker_parent_bound": true,
+      "qualification_not_promoted": true
+    },
+    "original_parse": {
+      "status": "FAIL",
+      "error_count": 2,
+      "errors": [
+        {
+          "id": "UnexpectedToken",
+          "message": "Unexpected token 'PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {\r\n        $StartInfo.EnvironmentVariables.Remove($VariableName)\r\n    }\r\n    $Result.child_environment = [ordered]@{\r\n        path = $StartInfo.EnvironmentVariables['PATH']\r\n        pythonhome_removed = $true\r\n        pythonpath_removed = $true\r\n        node_options_removed = $true\r\n        electron_run_as_node_removed = $true\r\n        working_directory_outside_source_tree = $true\r\n        installed_tooling_absence = 'NOT_RUN'\r\n    }\r\n    $ApplicationProcess = New-Object Diagnostics.Process\r\n    $ApplicationProcess.StartInfo = $StartInfo\r\n    if (-not $ApplicationProcess.Start()) { throw 'The' in expression or statement.",
+          "start_line": 152
+        },
+        {
+          "id": "TerminatorExpectedAtEndOfString",
+          "message": "The string is missing the terminator: '.",
+          "start_line": 259
+        }
+      ]
+    },
+    "delivered_parse": {
+      "status": "PASS",
+      "error_count": 0,
+      "errors": []
+    },
+    "raw_report": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-ci/38226204128/evidence/handoff/evidence/8d415a8070b94a67aa92effb29e24801/handoff-validation.json",
+      "bytes": 7703,
+      "sha256": "e6edafab58a82015cd88a291e866b46dabe843a4df6caa69fa8034c0de14a175"
+    },
+    "manifest": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-ci/38226204128/evidence/handoff/evidence/8d415a8070b94a67aa92effb29e24801/handoff-manifest.json",
+      "bytes": 6501,
+      "sha256": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d"
+    },
+    "new_installed_report": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-ci/38226204128/evidence/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/installed-spike.json",
+      "bytes": 4243,
+      "sha256": "55e471da0fa531306437c875cfd09c502008c028c8dbc7817134c04e8da6cd30"
+    },
+    "new_application_report": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-ci/38226204128/evidence/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/application-report.json",
+      "bytes": 1018,
+      "sha256": "c52d63bd233e88b32f23d218f0037e06bd581bd69648c6d2559caa821816bcf5"
+    },
+    "new_screenshot": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/windows-handoff-ci/38226204128/evidence/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/screenshot.png",
+      "bytes": 45114,
+      "sha256": "29a0880e1bc53b9928f8b1139cf1e1997088c035891c0af8856c3376f4ffc2fd"
+    },
+    "visual_review": {
+      "status": "PASS",
+      "method": "Opened the new downloaded screenshot directly with view_image",
+      "observations": [
+        "Korean labels and three cards are visible and do not overlap.",
+        "3 / 3 completed is visible; health PID 816 and worker PID 6404 match the new report.",
+        "This is a new installed execution after the prior provenance run, with different GUI/sidecar/worker PIDs and application bytes."
+      ]
+    },
+    "qualification": {
+      "windows11_standard_user_clean_machine": "NOT_RUN",
+      "developer_tools_absence": "NOT_RUN",
+      "release_signing": "NOT_RUN",
+      "product_integration": "NOT_RUN"
+    },
+    "source_newline_note": "Windows checkout source uses CRLF, so raw source hashes can differ from the local LF mirror. The delivered verifier is BOM plus the original Windows-checkout bytes, not a modified acceptance script.",
+    "publication_archive_review": "This report independently verifies the raw evidence/manifest/report bindings and screenshot. The handoff owner separately verifies the downloadable package ZIP and contained installer bytes.",
+    "execution_policy": "Child process Bypass only; no persistent/group policy changes or elevation.",
+    "previous_local_encoding_reproduction": {
+      "path": "/workspace/scratch/676b40286607/implementation_20261012/powershell-legacy-encoding-review.json",
+      "bytes": 8273,
+      "sha256": "7d1aa2dd534fa7221a3f7e76714060be6afc44e53a2b7b0e5bc56fb5ee4ab647"
+    },
+    "first_attempt_failure": "Run 38225912010 stopped in a regression test before app build/execution because inherited PSModulePath hid Get-FileHash. The SHA helper was replaced with streaming .NET SHA256. That failed attempt is separate from this successful rerun."
+  },
+  "source_snapshots": [
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/docs/windows-packaging.ko.md",
+      "bytes": 19688,
+      "sha256": "642a1bfb9a4a54d06a507d1b022c964a173852c629f22cb78e35daaf04f4fc3c"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/package.json",
+      "bytes": 788,
+      "sha256": "fb2f7b421e49bed72dd326918d5a0d6548fc89b7b219ba5b3f5bcac742fec1f0"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/package-lock.json",
+      "bytes": 165066,
+      "sha256": "ad90c4ea7ab4706100d91221e9d13649c45d11e503b184694eddddddfbba0cba"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/electron/main.cjs",
+      "bytes": 8385,
+      "sha256": "9ed7e47212d12a65768ae0e29517f83211dde340baa742c554575a307ad909b3"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/electron/protocol.cjs",
+      "bytes": 4198,
+      "sha256": "d3b2f418ce611f3958b0cf54a1b4f464e1304c34d0dc2ff6aff85021d4ee25c4"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/windows-foundation/electron/sidecar.cjs",
+      "bytes": 4999,
+      "sha256": "5efa85edad28374ad167ec72c2680a090da7dd7a434ab9e046b1651cb650c27e"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src-tauri/src/desktop.rs",
+      "bytes": 7723,
+      "sha256": "0162e88430d55121b815e958c718813f05eea9148fa0df3c9166b2450d110968"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src-tauri/src/native.rs",
+      "bytes": 6457,
+      "sha256": "ad6d28fab603116e54075c9b0d7675caaf6e67da5ff8566775e24b768c30d158"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src-tauri/src/protocol.rs",
+      "bytes": 13073,
+      "sha256": "7d417895e8199692811f15170f4c4f493d2d50fcdeec4f9242d368d6a98b5ff7"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src-tauri/src/sidecar.rs",
+      "bytes": 10042,
+      "sha256": "e1bd6239d6a55c69a7efb1d3e6857be7adcab00f3b3f2451c3dd316bdb99f84c"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src-tauri/tauri.conf.json",
+      "bytes": 1322,
+      "sha256": "e0eb6f2e50df04a645cbeba26963bf616d09180d1edb1a87d391a1b56afbcd88"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src-tauri/capabilities/main.json",
+      "bytes": 259,
+      "sha256": "a9fa17a510b5440022ebd3ed97b7c8fa082ee3d162ca4565dffd264ec26697ee"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src/main.tsx",
+      "bytes": 5876,
+      "sha256": "d47a971fa1a9ef542e52baf0bfc5a8b1cc4f1b6db15c3335b3b428baa48ec9fd"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src/contracts.ts",
+      "bytes": 666,
+      "sha256": "a9687c56c0a36c23d0c4afb177b11bcb00e52a80633e407de02b90e34e6c6ba5"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/scripts/windows/verify-stack-comparison.ps1",
+      "bytes": 23732,
+      "sha256": "148ed739355884a4f751e206f470bd11b75cfde308a84e502d1dd56e6104b7ca"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/scripts/windows/verify-installed-spike.ps1",
+      "bytes": 13354,
+      "sha256": "65323a7f730cdadd0ae3377da4960419580023f517df22e734966d6844ff754e"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/tools/build_windows_handoff.py",
+      "bytes": 16053,
+      "sha256": "ef6f07fa0fee4c00b585df5a843e0da3e8849edaccc3cd36c5a1d31a45b0147b"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/tools/windows_handoff/run-validation.ps1",
+      "bytes": 16771,
+      "sha256": "3162e4e405f96c8f52d93895bdf2d63f1254add08ca68b588e6c9493dcf909d9"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/tools/windows_handoff/run-validation.cmd",
+      "bytes": 352,
+      "sha256": "c925cd8d5ef8c038cd9719b1ca30e4d5d946b2c793158709cb6b43fd49f34724"
+    },
+    {
+      "path": "/workspace/scratch/676b40286607/AI-Kubernetes/.github/workflows/windows-client-handoff.yml",
+      "bytes": 9287,
+      "sha256": "174de53ca78f14e303ca194ea54803e20205ad66a1b4af6f7bb4897d322c0cc9"
+    }
+  ],
+  "review_limits": [
+    "This reviewer did not claim to execute Windows processes on the Linux review host; execution evidence came from the actual Windows CI jobs.",
+    "The images were directly inspected in addition to checking the native capture flag. Raw CI visual_review fields remain unchanged; this separate review supplies the visual observation.",
+    "No real account, provider credentials, AGS governed execution, VM product flow, multi-vendor vault product, or model routing feature was exercised.",
+    "No source code, database status, acceptance criterion, verification requirement, upstream repository, or external message was modified by this review.",
+    "Only this new scratch review JSON is written; historical reports remain byte-preserved."
+  ],
+  "completed_at": "2026-10-12T09:01:22.209917+00:00"
+}

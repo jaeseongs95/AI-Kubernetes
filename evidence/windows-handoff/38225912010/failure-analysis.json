@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "source_commit": "fe93df71a19759590515327c6cfb1d7b27d95c8c",
+  "workflow_run_id": 38225912010,
+  "job_id": 114733248512,
+  "status": "FAIL",
+  "scope": "First actual Windows handoff attempt failed during regression guards before product build or execution",
+  "regression_tests": {
+    "executed": 8,
+    "passed": 7,
+    "failed": 1,
+    "failing_test": "test_tampered_delivered_script_is_rejected_before_any_install"
+  },
+  "observed_error": "Get-FileHash was not recognized by the invoked legacy PowerShell",
+  "cause": "Confirmed dependency on unavailable Get-FileHash script cmdlet; inherited pwsh PSModulePath is the likely environment cause, not separately captured by this first failing test.",
+  "fix": {
+    "commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+    "path": "tools/windows_handoff/run-validation.ps1",
+    "sha256": "3162e4e405f96c8f52d93895bdf2d63f1254add08ca68b588e6c9493dcf909d9",
+    "change": "Stream SHA-256 using built-in .NET instead of a PowerShell script module; preserve all existing rejection and execution gates."
+  },
+  "actual_installer_build": "NOT_RUN",
+  "actual_gui_worker_dpapi_uninstall": "NOT_RUN",
+  "windows11_standard_user_clean_machine": "NOT_RUN",
+  "transformations": [
+    {
+      "file": "windows-job.log",
+      "raw_sha256": "0f332dc8d656f2fef3074b7075abe4e4e04c22a80c1fa78d548b2180de36b31d",
+      "repository_sha256": "0f332dc8d656f2fef3074b7075abe4e4e04c22a80c1fa78d548b2180de36b31d",
+      "redactions": {
+        "signed_url": 0,
+        "github_token": 0,
+        "bearer": 0
+      }
+    },
+    {
+      "file": "workflow-run.json",
+      "raw_sha256": "e63c87de87558b5b186685b4cd0a956065cd64b7af99997b727f579d94a7141b",
+      "repository_sha256": "e63c87de87558b5b186685b4cd0a956065cd64b7af99997b727f579d94a7141b",
+      "redactions": {
+        "signed_url": 0,
+        "github_token": 0,
+        "bearer": 0
+      }
+    },
+    {
+      "file": "workflow-jobs.json",
+      "raw_sha256": "fd31884d64b52fe2d988742654581c6da1fadee35f283679a6953cab4aeda7e5",
+      "repository_sha256": "fd31884d64b52fe2d988742654581c6da1fadee35f283679a6953cab4aeda7e5",
+      "redactions": {
+        "signed_url": 0,
+        "github_token": 0,
+        "bearer": 0
+      }
+    },
+    {
+      "file": "workflow-artifacts.json",
+      "raw_sha256": "fb09a9699b26ad536855bb4263ff01baa31a107d9af48b348e96cb4a9eb2b8d9",
+      "repository_sha256": "fb09a9699b26ad536855bb4263ff01baa31a107d9af48b348e96cb4a9eb2b8d9",
+      "redactions": {
+        "signed_url": 0,
+        "github_token": 0,
+        "bearer": 0
+      }
+    }
+  ]
+}

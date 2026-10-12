@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "scope": "AIK-002 installed Tauri candidate, compared with the same-run Electron candidate",
+  "source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+  "workflow_run_id": "38223818838",
+  "workflow_attempt": "1",
+  "started_at": "2026-10-12T08:45:09.2577950Z",
+  "status": "PASS",
+  "development_artifact": true,
+  "support_qualification": "NOT_RUN",
+  "product_integration": "NOT_RUN",
+  "checks": {
+    "install": "PASS",
+    "runtime_bundle": "PASS",
+    "packaged_gui": "PASS",
+    "screenshot_capture": "PASS",
+    "visual_review": "NOT_RUN",
+    "uninstall": "PASS"
+  },
+  "webview2_supply": {
+    "configured_mode": "offlineInstaller",
+    "silent": true,
+    "install_scope": "currentUser",
+    "runtime_absent_install": "NOT_RUN",
+    "note": "The NSIS bundle embeds the Evergreen offline installer. An already installed compatible runtime can be reused; this run does not simulate runtime absence.",
+    "installed_before": [
+      {
+        "version_directory": "131.0.2903.86",
+        "file_version": "131.0.2903.86",
+        "sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+      }
+    ]
+  },
+  "limits": [
+    "The three workloads are synthetic foundation probes, not VM, AGS, vendor login, or complete product execution.",
+    "Windows Server CI does not qualify a clean Windows 11 standard-user installation.",
+    "Developer tools are removed from the app PATH, but remain installed on the CI host.",
+    "Memory is a single live snapshot after the three probes; it is not a peak or long-run performance benchmark.",
+    "Electron and Tauri native/main and renderer metrics use different process APIs and must not be combined into a universal whole-app ranking.",
+    "Captured screenshots require separate visual inspection; capture success alone is not visual correctness.",
+    "Signing, trusted updating, actual vendors, and product data removal remain separate release gates."
+  ],
+  "environment": {
+    "platform": "win32",
+    "architecture": "AMD64",
+    "os_caption": "Microsoft Windows Server 2022 Datacenter",
+    "os_version": "10.0.20348",
+    "os_build": "20348",
+    "os_product_type": 3,
+    "logical_processors": 2,
+    "memory_bytes": 8584425472,
+    "administrator": true,
+    "github_actions": true,
+    "runner_image": "win22",
+    "runner_image_version": "20261004.326.1"
+  },
+  "installer": {
+    "file": "AIK Tauri Comparison_0.1.0_x64-setup.exe",
+    "bytes": 226652464,
+    "sha256": "718ea656b4b24a7367c59130ccd428db3d7d055f97c491fd2c6162ea437970c8",
+    "signature_status": "NotSigned",
+    "release_publisher_qualified": false
+  },
+  "runtime_bundle": {
+    "gui_sha256": "3d830237115de653d0921ea51b8b9e55848b07fcb11e848e4d816559986473d4",
+    "engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922",
+    "python_runtime_libraries": [
+      {
+        "file": "python314.dll",
+        "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+      }
+    ],
+    "installed_outside_source_tree": true,
+    "unicode_and_space_paths": true
+  },
+  "child_environment": {
+    "developer_tool_path_removed": true,
+    "pythonhome_removed": true,
+    "pythonpath_removed": true,
+    "explicit_python_override_removed": true,
+    "working_directory_outside_source_tree": true,
+    "run_specific_webview_profile": true,
+    "installed_tooling_absence": "NOT_RUN"
+  },
+  "application_pid": 5116,
+  "application_report_sha256": "824b074900bbd74e0c1bf74133b52b46d57e6110f0aa2c08d342072cad982246",
+  "webview2_observation": {
+    "observed_at": "2026-10-12T08:45:45.5904791Z",
+    "phase": "Immediately after native post-probe report; before screenshot and application close",
+    "reported_runtime_version": "131.0.2903.86",
+    "processes": [
+      {
+        "pid": 1508,
+        "parent_pid": 5116,
+        "role": "browser",
+        "working_set_bytes": 97124352,
+        "file_version": "131.0.2903.86",
+        "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+      },
+      {
+        "pid": 5000,
+        "parent_pid": 1508,
+        "role": "crashpad-handler",
+        "working_set_bytes": 7917568,
+        "file_version": "131.0.2903.86",
+        "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+      },
+      {
+        "pid": 6980,
+        "parent_pid": 1508,
+        "role": "gpu-process",
+        "working_set_bytes": 50352128,
+        "file_version": "131.0.2903.86",
+        "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+      },
+      {
+        "pid": 1560,
+        "parent_pid": 1508,
+        "role": "utility",
+        "working_set_bytes": 30130176,
+        "file_version": "131.0.2903.86",
+        "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+      },
+      {
+        "pid": 6304,
+        "parent_pid": 1508,
+        "role": "utility",
+        "working_set_bytes": 18829312,
+        "file_version": "131.0.2903.86",
+        "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+      },
+      {
+        "pid": 6496,
+        "parent_pid": 1508,
+        "role": "renderer",
+        "working_set_bytes": 70422528,
+        "file_version": "131.0.2903.86",
+        "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+      }
+    ],
+    "command_lines_disclosed": false
+  },
+  "screenshot": {
+    "native_window_visible": true,
+    "width": 1044,
+    "height": 788,
+    "method": "Win32 PrintWindow PW_RENDERFULLCONTENT",
+    "desktop_crop": "CAPTURED",
+    "sha256": "2052f2252e8db93a5084a793dda18278aace298ec9590628a855b78c4b4897ec",
+    "visual_review": "NOT_RUN"
+  },
+  "application_exit_code": 0,
+  "completed_at": "2026-10-12T08:45:51.1419228Z",
+  "elapsed_ms": 41885.0
+}

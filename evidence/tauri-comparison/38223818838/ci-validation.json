@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "scope": "AIK-002 actual installed Windows candidate comparison",
+  "status": "PASS",
+  "source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+  "workflow_run_id": 38223818838,
+  "workflow_job_id": 114726304615,
+  "workflow_run_url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38223818838",
+  "run_started_at": "2026-10-12T08:28:55Z",
+  "run_completed_metadata_at": "2026-10-12T08:46:22Z",
+  "run_attempt": 1,
+  "tests": {
+    "python": {
+      "total": 23,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 1,
+      "skip_reason": "non-Windows-only refusal test skipped on actual Windows"
+    },
+    "node": {
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    "rust": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "actual_python_worker_and_windows_dpapi": true
+    }
+  },
+  "compiler_warning": {
+    "count": 1,
+    "message": "unused import PathBuf in Rust release build; compilation and native execution succeeded"
+  },
+  "environment": {
+    "platform": "win32",
+    "architecture": "AMD64",
+    "os_caption": "Microsoft Windows Server 2022 Datacenter",
+    "os_version": "10.0.20348",
+    "os_build": "20348",
+    "os_product_type": 3,
+    "logical_processors": 2,
+    "memory_bytes": 8584425472,
+    "administrator": true,
+    "github_actions": true,
+    "runner_image": "win22",
+    "runner_image_version": "20261004.326.1"
+  },
+  "same_frozen_engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922",
+  "python_runtime_libraries": [
+    {
+      "file": "python314.dll",
+      "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+    }
+  ],
+  "installers": [
+    {
+      "file": "AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe",
+      "bytes": 118717783,
+      "sha256": "b578f12061162d56c1eb6faf5d703b0b914d32cd725d64e0f0187e668bbd2feb",
+      "downloaded_bytes_match_installed_report": true,
+      "signature_status_reported_on_windows": "NotSigned"
+    },
+    {
+      "file": "AIK Tauri Comparison_0.1.0_x64-setup.exe",
+      "bytes": 226652464,
+      "sha256": "718ea656b4b24a7367c59130ccd428db3d7d055f97c491fd2c6162ea437970c8",
+      "downloaded_bytes_match_installed_report": true,
+      "signature_status_reported_on_windows": "NotSigned"
+    }
+  ],
+  "downloaded_archive_verification": [
+    {
+      "artifact_id": 11736566200,
+      "file": "installers.zip",
+      "bytes": 345416683,
+      "sha256": "fe4d11524cfba3aa25788c0c37ff5901d290e63d5acf7ab772d7c588eec31c7f",
+      "github_digest_match": true
+    },
+    {
+      "artifact_id": 11736351339,
+      "file": "evidence.zip",
+      "bytes": 134386,
+      "sha256": "e8f44ed19dc7d3ab8f1aeedcbe87be9b5acb1249e8da33d9f05991f7d11ebdca",
+      "github_digest_match": true
+    }
+  ],
+  "memory_observations": {
+    "electron": {
+      "main_rss_bytes": 99901440,
+      "renderer_working_set_kb": 87344,
+      "main_api": "Node process.memoryUsage().rss",
+      "renderer_api": "Electron app.getAppMetrics() matched to webContents.getOSProcessId(), then memory.workingSetSize"
+    },
+    "tauri": {
+      "native_main_working_set_bytes": 22339584,
+      "main_api": "Win32 GetProcessMemoryInfo WorkingSetSize",
+      "renderer_native_snapshot_working_set_bytes": 69255168,
+      "renderer_external_snapshot": {
+        "pid": 6496,
+        "parent_pid": 1508,
+        "role": "renderer",
+        "working_set_bytes": 70422528,
+        "file_version": "131.0.2903.86",
+        "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+      },
+      "all_webview2_roles_external_snapshot": [
+        {
+          "pid": 1508,
+          "parent_pid": 5116,
+          "role": "browser",
+          "working_set_bytes": 97124352,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 5000,
+          "parent_pid": 1508,
+          "role": "crashpad-handler",
+          "working_set_bytes": 7917568,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 6980,
+          "parent_pid": 1508,
+          "role": "gpu-process",
+          "working_set_bytes": 50352128,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 1560,
+          "parent_pid": 1508,
+          "role": "utility",
+          "working_set_bytes": 30130176,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 6304,
+          "parent_pid": 1508,
+          "role": "utility",
+          "working_set_bytes": 18829312,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 6496,
+          "parent_pid": 1508,
+          "role": "renderer",
+          "working_set_bytes": 70422528,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        }
+      ]
+    },
+    "performance_ranking": "NOT_ASSERTED",
+    "overall_memory_comparison": "NOT_MEASURED_WITH_EQUIVALENT_PROCESS_SCOPE",
+    "elapsed_ms_used_as_speed_comparison": false
+  },
+  "webview2": {
+    "supply": "Evergreen offlineInstaller embedded in Tauri NSIS",
+    "actually_reused_version": "131.0.2903.86",
+    "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669",
+    "installed_before_matches_used_binary": true,
+    "runtime_absent_install": "NOT_RUN"
+  },
+  "visual_inspection_by_packaging_agent": {
+    "status": "PASS",
+    "scope": "Three actual probe cards and their Korean labels, success status, PID and frozen-runtime text; lower scrollable content is outside this screenshot review",
+    "electron_content_png": {
+      "width": 1008,
+      "height": 689,
+      "sidecar_pid": 1712,
+      "worker_pid": 2164
+    },
+    "tauri_printwindow_png": {
+      "width": 1044,
+      "height": 788,
+      "sidecar_pid": 1960,
+      "worker_pid": 7096
+    },
+    "desktop_crop": "SUPPLEMENTARY_ONLY_TASKBAR_OVERLAPS_BOTTOM",
+    "pixel_identical_viewports": "NOT_ESTABLISHED"
+  },
+  "artifact_original_tree": [
+    {
+      "path": "build/sidecar-build.json",
+      "bytes": 1226,
+      "sha256": "604e44656445e8b1e70a93e07dfeb9a9b644cbafa310866579628092e9f1b381"
+    },
+    {
+      "path": "evidence/application-report.json",
+      "bytes": 1020,
+      "sha256": "92e9958be7a7766a5d9c078cb9e3aa275996be7f8c0884e092ad60aa6d4c4e05"
+    },
+    {
+      "path": "evidence/application.stderr.log",
+      "bytes": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "evidence/application.stdout.log",
+      "bytes": 4,
+      "sha256": "dba5166ad9db9ba648c1032ebbd34dcd0d085b50023b839ef5c68ca1db93a563"
+    },
+    {
+      "path": "evidence/installed-spike.json",
+      "bytes": 2901,
+      "sha256": "f2583e47e97470851798952da2ac5d00ba9c092462a6bd8a42d11a58fd03cdbe"
+    },
+    {
+      "path": "evidence/screenshot.png",
+      "bytes": 44983,
+      "sha256": "9af33a2efafcd313a55636c861101a6913cb80318759ac62e6118b6877dd4c6e"
+    },
+    {
+      "path": "evidence/stack-comparison.json",
+      "bytes": 15508,
+      "sha256": "c306728f8cec8343f7d2cc274e6bae6f197366245f1380ef30b9bb412aec371a"
+    },
+    {
+      "path": "evidence/tauri/application-report.json",
+      "bytes": 3004,
+      "sha256": "824b074900bbd74e0c1bf74133b52b46d57e6110f0aa2c08d342072cad982246"
+    },
+    {
+      "path": "evidence/tauri/application.stderr.log",
+      "bytes": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "evidence/tauri/application.stdout.log",
+      "bytes": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "evidence/tauri/installed-spike.json",
+      "bytes": 5996,
+      "sha256": "1c1abe20788e1064e0d562366f9c95ee524903e647ea18d1916d453c39882b99"
+    },
+    {
+      "path": "evidence/tauri/screenshot-desktop-crop.png",
+      "bytes": 52846,
+      "sha256": "5550c7a539e4641f70ae2f14e2d68cd0a367203030b6b7ec866a3d4abd265517"
+    },
+    {
+      "path": "evidence/tauri/screenshot.png",
+      "bytes": 46596,
+      "sha256": "2052f2252e8db93a5084a793dda18278aace298ec9590628a855b78c4b4897ec"
+    }
+  ],
+  "artifact_text_credential_scan": "No known token/authorization/signed-query forms detected in JSON/log artifacts; original artifact files copied byte-for-byte",
+  "log_publication_transform": "No credential redactions detected. UTF-8 BOM of raw log removed in published copy; CRLF line endings retained. Exact hashes and byte counts are in sanitization-manifest.json.",
+  "measurement_api_description_correction": "Raw artifact preserves the original inaccurate getProcessMemoryInfo description; measurement-api-correction.json records correct API and description-only source diffs. Actual values and acceptance conditions did not change.",
+  "windows11_clean_standard_user_qualification": "NOT_RUN",
+  "runtime_absent_install": "NOT_RUN",
+  "release_signing": "NOT_RUN",
+  "product_integration": "NOT_RUN"
+}

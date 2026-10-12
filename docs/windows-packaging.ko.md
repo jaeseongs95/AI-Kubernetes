@@ -1,21 +1,43 @@
 # Windows GUI·sidecar·설치 방식 — AIK-002 / AIK-003
 
-작성일: 2026-10-12. 이 문서는 첫 구현 후보와 실행 가능한 검증 경로를 기록한다. **현재 개발 설치물은 AIK-002 foundation spike**이며, 제품 설치본이나 Windows 11 지원 인증을 뜻하지 않는다. 실제 결과는 해당 소스 커밋의 CI 로그와 `installed-spike.json`으로 판정한다.
+작성일: 2026-10-12. Electron과 Tauri의 실제 Windows 비교를 마치고 **첫 구현 스택을 Electron·React/TypeScript·Python sidecar로 결정했다.** 이는 기존 구현 지시에 따른 기술 결정이며 사용자가 특정 GUI 기술을 지정했다는 뜻은 아니다. 현재 개발 설치물은 AIK-002 foundation spike다. 제품 설치본과 깨끗한 Windows 11 지원 검증은 후속 조건이다.
 
 ## 1. 스택 결정과 VM 자산 검토
 
-첫 후보는 **Electron 44.7.0 + React/TypeScript renderer + CPython 3.14.8 sidecar**다. Electron은 Chromium과 Node.js를 포함한 앱 실행 환경을 제공한다. 이번 spike는 renderer → 제한된 preload API → Electron main → 상속 pipe의 JSON-lines → Python sidecar → 고정 worker / Windows DPAPI 순서로 실제 프로세스를 연결한다. [Electron 개요](https://www.electronjs.org/docs/latest), [배포 방식](https://www.electronjs.org/docs/latest/tutorial/application-distribution)
+선택한 스택은 **Electron 44.7.0 + React 19.2.8 / TypeScript 7.0.2 renderer + CPython 3.14.8 sidecar**다. Electron은 Chromium과 Node.js를 포함한 앱 실행 환경을 제공한다. 이번 spike는 renderer → 제한된 preload API → Electron main → 상속 pipe의 JSON-lines → Python sidecar → 고정 worker / Windows DPAPI 순서로 실제 프로세스를 연결한다. [Electron 개요](https://www.electronjs.org/docs/latest), [배포 방식](https://www.electronjs.org/docs/latest/tutorial/application-distribution)
 
 | 판단 항목 | Electron 후보 | Tauri 2 대안 | 결정 |
 |---|---|---|---|
 | React/TypeScript 표현층 | 기존 컴포넌트 구조 참고 가능 | 같은 표현층 참고 가능 | UI 언어로 후보를 구분하지 않음 |
-| 설치 시 GUI runtime | Electron 배포에 Chromium/Node 포함 | WebView2 다운로드·offline installer·fixed runtime 중 선택 필요 | 초기 spike는 runtime을 함께 묶는 Electron 선택 |
+| 설치 시 GUI runtime | Electron 배포에 Chromium/Node 포함 | 비교본은 WebView2 offline installer 포함; 실행은 기존 Evergreen runtime을 재사용 | 앱과 GUI runtime을 한 판본으로 묶는 Electron 선택 |
 | Python 엔진 | 묶인 실행 파일과 private pipe 연결 | external binary/sidecar 연결 가능 | Python 도메인 코드를 GUI로 옮기지 않음 |
-| 빌드 | Node + Windows Python packaging | Rust/MSVC + Node + Windows Python packaging | 이번 환경에서 구현·진단할 경계 수를 줄임 |
+| 빌드 | Node + Windows Python packaging | Rust/MSVC + Node + Windows Python packaging | 현재 Node/Python 구현·시험 경로를 유지하고 추가 빌드 언어를 제품 필수 경로로 넣지 않음 |
 | renderer 권한 | Node 비활성, context isolation, 제한된 IPC | capability와 command 제한 | 각 후보의 실제 권한 설정을 검증해야 함 |
-| 설치 크기·메모리 | 이번 CI에서 설치 크기와 프로세스 메모리 기록 | 같은 부하의 실행 측정 전 | Tauri 대비 수치 우위를 주장하지 않음 |
+| 설치 크기·메모리 | 실제 installer 118,717,783 bytes; 아래 프로세스 관측값 보존 | 실제 installer 226,652,464 bytes; 아래 프로세스 관측값 보존 | 선택한 runtime 공급 방식의 설치 크기는 비교하되 전체 앱 성능 우위는 주장하지 않음 |
 
-Tauri의 Windows 배포는 NSIS 또는 MSI이며 WebView2 공급 전략을 명시해야 한다. 인터넷 없이 설치하려면 해당 runtime을 포함하는 방식을 사용할 수 있다. 이 구조적 차이가 후보 비교의 근거이며, 아직 실행하지 않은 Tauri의 설치·메모리를 측정값으로 쓰지 않는다. [Tauri Windows installer](https://v2.tauri.app/distribute/windows-installer/)
+Tauri의 Windows 배포는 NSIS 또는 MSI이며 WebView2 공급 전략을 명시해야 한다. 이번 대안은 NSIS와 offline installer 방식을 실제로 구현·검증했다. 런타임이 없는 환경에서 그 설치 프로그램이 실행되는 상황은 이번 CI에 포함되지 않았다. [Tauri Windows installer](https://v2.tauri.app/distribute/windows-installer/)
+
+### 같은 Windows job에서 실행한 후보 비교
+
+소스 [`a20d3bef3f4865fc81cd3495ecc437b7a9b57cea`](https://github.com/jaeseongs95/AI-Kubernetes/commit/a20d3bef3f4865fc81cd3495ecc437b7a9b57cea)의 [run 38223818838](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38223818838)이 첫 시도에 성공했다. Windows Server 2022 x64, 2 logical CPU, 약 8 GiB RAM의 **같은 job에서 한 번 freeze한 엔진**을 양쪽에 넣었다. 원본 report·스크린샷·installer identity는 [실행 근거](../evidence/tauri-comparison/38223818838/README.ko.md)에 보존한다.
+
+| 실제 관측 | Electron 44.7.0 | Tauri 2.12.3 |
+|---|---|---|
+| 설치·runtime bundle·GUI·제거 | 모두 PASS | 모두 PASS |
+| GUI → typed IPC → frozen Python | PASS, sidecar PID 1712 | PASS, sidecar PID 1960 |
+| 별도 worker의 파일 생성·검증·삭제 | PASS, worker PID 2164 | PASS, worker PID 7096 |
+| GUI → Windows 사용자 DPAPI 왕복 | PASS | PASS |
+| 실제 화면 확인 | 세 카드 3/3 완료, 한글·버튼 정상 | 세 카드 3/3 완료, 한글·버튼 정상 |
+| 실제 unsigned installer | 118,717,783 bytes / **113.22 MiB** | 226,652,464 bytes / **216.15 MiB** |
+| main/native process 메모리 | `process.memoryUsage().rss`: **99,901,440 bytes** | Win32 working set: **22,339,584 bytes** |
+| renderer 관측 | 해당 PID의 `app.getAppMetrics().memory.workingSetSize`: **87,344 KB** | 뒤이어 수집한 WebView2 renderer의 `.NET WorkingSet64`: **70,422,528 bytes** |
+| GUI runtime 실행 판본 | Electron 44.7.0에 포함된 runtime | 기존 WebView2 **131.0.2903.86** 재사용 |
+
+양쪽 engine SHA-256은 `3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922`로 같다. 두 worker는 같은 42-byte 합성 파일을 실제 생성·재읽기·SHA 대조·삭제했으며 부모 PID가 각 sidecar와 일치했다. Python 23개 시험은 22 PASS·비 Windows 전용 검사 1 SKIP, Node 시험 8/8 PASS, Rust 시험 6/6 PASS다.
+
+**Electron을 첫 제품 구현 경로로 유지한다.** 두 스택 모두 필수 연결을 실행했으므로 선택은 실행 가능 여부를 넘어서 배포와 유지보수의 차이에 따른다. 현재 선택한 오프라인 runtime 공급 방식에서는 Electron 설치본이 작고, GUI runtime을 앱 버전과 함께 관리하며, 기존 Node/Python 구현·검사 경로를 계속 사용할 수 있다. Tauri는 native main 메모리가 더 작게 관측됐지만 WebView2 browser·GPU·utility 프로세스를 별도로 사용한다. 전체 앱 메모리 우위나 제품 성능 우위는 이번 관측으로 결정하지 않는다. 재평가는 실제 제품 workload와 AIK-083/062의 임계값으로 한다.
+
+메모리는 세 검사 뒤 한 번 관측한 값이다. 후보별 API와 프로세스 범위가 다르고, 공유 페이지를 합산하면 중복될 수 있으며 종료된 worker의 메모리는 포함되지 않는다. 양쪽 `elapsed_ms`도 같은 외부 process-create 시점에서 측정한 값이 아니므로 시작 속도 비교에 사용하지 않는다. Electron 원본 비교 보고서의 API 설명에 있던 `getProcessMemoryInfo()`는 설명 오류다. 실제 코드의 `app.getAppMetrics()`로 정정하며 **원본 값과 파일은 변경하지 않는다.** [Electron MemoryInfo 단위](https://www.electronjs.org/docs/latest/api/structures/memory-info)
 
 ### 고정 VM 소스에서 확인한 재사용 범위
 
@@ -93,7 +115,7 @@ Windows DPAPI는 로그인한 Windows 사용자 자격에 연결된 저장 보�
 
 ## 5. 실제 실행 절차와 결과 계약
 
-빌드 컴퓨터에서 Node 24.21.0, Windows x64 CPython 3.14.8과 PowerShell을 사용한다. 아래 명령은 저장소 루트 기준이다.
+빌드 컴퓨터에서 Node 24.21.0, Windows x64 CPython 3.14.8과 PowerShell 7을 사용한다. 아래 명령은 저장소 루트 기준이다. 기본 Windows PowerShell 5.1에 전달할 검증 스크립트에는 UTF-8 BOM이 필요하므로, 빌드용 소스의 직접 실행과 별도 전달 패키지의 실행 경로를 구분한다.
 
 ```powershell
 npm ci --prefix spikes/windows-foundation --no-audit --no-fund
@@ -126,4 +148,14 @@ PATH에서 개발 도구를 숨기는 검사는 외부 Python/Node에 대한 실
 | `packaging/evidence/screenshot.png` | 실제 renderer 화면 캡처 |
 | GitHub Actions artifact | 위 근거와 검사에 사용한 개발 설치본. 릴리스 게시와 별개 |
 
-exit code는 PASS `0`, FAIL `1`, 실행 조건 미충족 BLOCKED `2`다. Windows가 없거나 실제 실행을 하지 못한 경우 `NOT_RUN/BLOCKED`로 남긴다. Linux의 렌더러 build, IPC 단위시험, worker 시험은 각각의 범위만 증명한다. **AIK-002 전체 완료에는 Windows 실행 증거와 후보 선택 검토가, AIK-003 전체 완료에는 지원 대상 Windows 11의 깨끗한 설치 검증이 추가로 필요하다.**
+exit code는 PASS `0`, FAIL `1`, 실행 조건 미충족 BLOCKED `2`다. Windows가 없거나 실제 실행을 하지 못한 경우 `NOT_RUN/BLOCKED`로 남긴다. Linux의 렌더러 build, IPC 단위시험, worker 시험은 각각의 범위만 증명한다. **AIK-002의 원래 verification인 “지원 후보별 설치성·IPC·worker 기동·메모리 비교”는 위 실제 Windows 실행, 직접 화면 검토와 구현 선택으로 충족했다.** AIK-003은 원래 AC2의 “개발 도구가 없는 환경” 및 verification의 “깨끗한 후보 Windows 환경” 실행 근거가 아직 필요하다. 작은 설치 spike의 검증이며 제품 전체 출시 gate를 003으로 당겨 요구하지 않는다.
+
+## 6. 개발 도구 없이 실행할 독립 전달 패키지
+
+`tools/build_windows_handoff.py`는 실제 Windows 빌드·설치·GUI 검증을 통과한 installer와 근거만 받아 독립 ZIP을 만든다. ZIP은 installer, 기본 Windows PowerShell 5.1용 ASCII launcher·wrapper, 기존 검증 스크립트의 UTF-8 BOM 사본, 원본 스크립트, 출처 보고서·스크린샷 및 구성원 hash manifest를 포함한다. 새 검증 전에 각 파일과 BOM 변환을 검사하고, 이번 실행 전용 증거 폴더를 만든 뒤 설치·GUI·worker·DPAPI·제거를 다시 실행한다. 패키지에 있는 과거 provenance와 새 PC의 실행 결과는 별도 경로에 남긴다.
+
+소스 [`4b948f57020f3e507683de6e538544b9bac558e7`](https://github.com/jaeseongs95/AI-Kubernetes/commit/4b948f57020f3e507683de6e538544b9bac558e7)의 [Windows PowerShell 전달 검증 run 38226204128](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38226204128)이 성공했다. CI에서 ZIP을 다시 풀어 **Windows PowerShell 5.1.20348.5622 Desktop / en-US / Windows-1252**로 실행했다. 원본 무BOM 스크립트는 parser 오류 2개, 전달된 BOM 사본은 오류 0개가 실제 관측됐다. 신규 설치 GUI의 sidecar PID 816·worker PID 6404와 새 보고서·스크린샷을 확인했고, package hash·BOM·실제 5.1 실행·설치/GUI/worker/DPAPI/제거·engine/DLL identity 등 8개 검사를 통과했다.
+
+첫 전달 검증 [run 38225912010](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38225912010)은 회귀 검사 중 `Get-FileHash` 명령을 찾지 못해 실패했다. 해시 계산을 모듈 조회에 의존하지 않는 기본 .NET의 streaming SHA-256으로 수정한 뒤 위 새 run에서 회귀와 실제 실행이 통과했다. 실패 로그는 [당시 근거](../evidence/windows-handoff/38225912010/failure-analysis.json)에 보존한다. 어떤 상속 경로가 모듈 발견 실패를 일으켰는지에 대한 추정은 관측된 실패·수정 후 성공과 구분한다.
+
+다음 실기에서는 [전달 패키지 사용법](../tools/windows_handoff/README.ko.md)에 따라 아티팩트의 ZIP을 모두 압축 해제하고 `run-validation.cmd`를 실행한다. 별도 Python·Node·Git·소스 checkout이 필요하지 않은 경로다. 실행 후 화면에 표시되는 `Evidence:` 폴더에 원본 보고서와 PNG가 남는다. [이번 실제 실행 근거](../evidence/windows-handoff/38226204128/README.ko.md)는 Windows Server 2022 관리자 환경의 결과이므로, **깨끗한 Windows 11 일반 사용자·개발 도구 부재는 `NOT_RUN`이며 AIK-003은 blocked를 유지한다.**

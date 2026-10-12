@@ -1,0 +1,407 @@
+{
+  "schema_version": 1,
+  "scope": "AIK-002 candidate installability, typed IPC, shared frozen worker and vault, post-check memory observations",
+  "source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+  "workflow_run_id": "38223818838",
+  "status": "PASS",
+  "workloads": [
+    "health",
+    "worker_probe",
+    "vault_probe"
+  ],
+  "same_job": "PASS",
+  "same_frozen_engine": "PASS",
+  "tauri": {
+    "schema_version": 1,
+    "scope": "AIK-002 installed Tauri candidate, compared with the same-run Electron candidate",
+    "source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+    "workflow_run_id": "38223818838",
+    "workflow_attempt": "1",
+    "started_at": "2026-10-12T08:45:09.2577950Z",
+    "status": "PASS",
+    "development_artifact": true,
+    "support_qualification": "NOT_RUN",
+    "product_integration": "NOT_RUN",
+    "checks": {
+      "install": "PASS",
+      "runtime_bundle": "PASS",
+      "packaged_gui": "PASS",
+      "screenshot_capture": "PASS",
+      "visual_review": "NOT_RUN",
+      "uninstall": "PASS"
+    },
+    "webview2_supply": {
+      "configured_mode": "offlineInstaller",
+      "silent": true,
+      "install_scope": "currentUser",
+      "runtime_absent_install": "NOT_RUN",
+      "note": "The NSIS bundle embeds the Evergreen offline installer. An already installed compatible runtime can be reused; this run does not simulate runtime absence.",
+      "installed_before": [
+        {
+          "version_directory": "131.0.2903.86",
+          "file_version": "131.0.2903.86",
+          "sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        }
+      ]
+    },
+    "limits": [
+      "The three workloads are synthetic foundation probes, not VM, AGS, vendor login, or complete product execution.",
+      "Windows Server CI does not qualify a clean Windows 11 standard-user installation.",
+      "Developer tools are removed from the app PATH, but remain installed on the CI host.",
+      "Memory is a single live snapshot after the three probes; it is not a peak or long-run performance benchmark.",
+      "Electron and Tauri native/main and renderer metrics use different process APIs and must not be combined into a universal whole-app ranking.",
+      "Captured screenshots require separate visual inspection; capture success alone is not visual correctness.",
+      "Signing, trusted updating, actual vendors, and product data removal remain separate release gates."
+    ],
+    "environment": {
+      "platform": "win32",
+      "architecture": "AMD64",
+      "os_caption": "Microsoft Windows Server 2022 Datacenter",
+      "os_version": "10.0.20348",
+      "os_build": "20348",
+      "os_product_type": 3,
+      "logical_processors": 2,
+      "memory_bytes": 8584425472,
+      "administrator": true,
+      "github_actions": true,
+      "runner_image": "win22",
+      "runner_image_version": "20261004.326.1"
+    },
+    "installer": {
+      "file": "AIK Tauri Comparison_0.1.0_x64-setup.exe",
+      "bytes": 226652464,
+      "sha256": "718ea656b4b24a7367c59130ccd428db3d7d055f97c491fd2c6162ea437970c8",
+      "signature_status": "NotSigned",
+      "release_publisher_qualified": false
+    },
+    "runtime_bundle": {
+      "gui_sha256": "3d830237115de653d0921ea51b8b9e55848b07fcb11e848e4d816559986473d4",
+      "engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922",
+      "python_runtime_libraries": [
+        {
+          "file": "python314.dll",
+          "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+        }
+      ],
+      "installed_outside_source_tree": true,
+      "unicode_and_space_paths": true
+    },
+    "child_environment": {
+      "developer_tool_path_removed": true,
+      "pythonhome_removed": true,
+      "pythonpath_removed": true,
+      "explicit_python_override_removed": true,
+      "working_directory_outside_source_tree": true,
+      "run_specific_webview_profile": true,
+      "installed_tooling_absence": "NOT_RUN"
+    },
+    "application_pid": 5116,
+    "application_report_sha256": "824b074900bbd74e0c1bf74133b52b46d57e6110f0aa2c08d342072cad982246",
+    "webview2_observation": {
+      "observed_at": "2026-10-12T08:45:45.5904791Z",
+      "phase": "Immediately after native post-probe report; before screenshot and application close",
+      "reported_runtime_version": "131.0.2903.86",
+      "processes": [
+        {
+          "pid": 1508,
+          "parent_pid": 5116,
+          "role": "browser",
+          "working_set_bytes": 97124352,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 5000,
+          "parent_pid": 1508,
+          "role": "crashpad-handler",
+          "working_set_bytes": 7917568,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 6980,
+          "parent_pid": 1508,
+          "role": "gpu-process",
+          "working_set_bytes": 50352128,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 1560,
+          "parent_pid": 1508,
+          "role": "utility",
+          "working_set_bytes": 30130176,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 6304,
+          "parent_pid": 1508,
+          "role": "utility",
+          "working_set_bytes": 18829312,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        },
+        {
+          "pid": 6496,
+          "parent_pid": 1508,
+          "role": "renderer",
+          "working_set_bytes": 70422528,
+          "file_version": "131.0.2903.86",
+          "binary_sha256": "1b7939d826268de4e35e96877c89ed445e9507ddb87fd03f808982da3b517669"
+        }
+      ],
+      "command_lines_disclosed": false
+    },
+    "screenshot": {
+      "native_window_visible": true,
+      "width": 1044,
+      "height": 788,
+      "method": "Win32 PrintWindow PW_RENDERFULLCONTENT",
+      "desktop_crop": "CAPTURED",
+      "sha256": "2052f2252e8db93a5084a793dda18278aace298ec9590628a855b78c4b4897ec",
+      "visual_review": "NOT_RUN"
+    },
+    "application_exit_code": 0,
+    "completed_at": "2026-10-12T08:45:51.1419228Z",
+    "elapsed_ms": 41885.0
+  },
+  "support_qualification": "NOT_RUN",
+  "product_integration": "NOT_RUN",
+  "performance_ranking": "NOT_ASSERTED",
+  "measurement_limits": [
+    "Each candidate runs sequentially on the same CI runner with the same frozen engine; no randomized repeats or clean Windows 11 runs.",
+    "Electron main_rss_bytes is Node process.memoryUsage().rss; renderer_working_set_kb is Electron getProcessMemoryInfo().workingSetSize.",
+    "Tauri native main_working_set_bytes and process_tree values are Win32 GetProcessMemoryInfo WorkingSetSize, captured immediately after three checks.",
+    "The separate Tauri WebView2 role snapshot uses Win32_Process identity plus .NET Process.WorkingSet64, shortly after the native report.",
+    "WebView2 browser, GPU and utility processes are retained separately. Shared memory may be double-counted by working-set sums; exited worker memory is absent.",
+    "No candidate total, peak, average, percentile, runtime-absent installation, or categorical performance superiority is established.",
+    "Tauri offlineInstaller supplies WebView2 in its installer; Electron embeds its Chromium runtime. Installer bytes compare these specific supply choices."
+  ],
+  "electron": {
+    "schema_version": 1,
+    "scope": "AIK-002 packaged Windows foundation spike",
+    "source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+    "workflow_run_id": "38223818838",
+    "workflow_attempt": "1",
+    "started_at": "2026-10-12T08:32:01.6152719Z",
+    "status": "PASS",
+    "development_artifact": true,
+    "support_qualification": "NOT_RUN",
+    "product_integration": "NOT_RUN",
+    "checks": {
+      "install": "PASS",
+      "runtime_bundle": "PASS",
+      "packaged_gui": "PASS",
+      "uninstall": "PASS"
+    },
+    "limits": [
+      "This installer contains an AIK-002 foundation spike, not the complete product.",
+      "A GitHub Server runner does not qualify Windows 11 client support.",
+      "Removing developer tools from the child PATH does not make the runner a clean computer.",
+      "No real vendor, AGS, or VM product integration is exercised.",
+      "Windows 11 standard-user installation, publisher signing, update trust, and product data removal remain separate release gates."
+    ],
+    "environment": {
+      "platform": "win32",
+      "architecture": "AMD64",
+      "os_caption": "Microsoft Windows Server 2022 Datacenter",
+      "os_version": "10.0.20348",
+      "os_build": "20348",
+      "os_product_type": 3,
+      "logical_processors": 2,
+      "memory_bytes": 8584425472,
+      "cpu_names": [
+        "INTEL(R) XEON(R) PLATINUM 8573C"
+      ],
+      "administrator": true,
+      "github_actions": true,
+      "runner_image": "win22",
+      "runner_image_version": "20261004.326.1"
+    },
+    "installer": {
+      "file": "AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe",
+      "bytes": 118717783,
+      "sha256": "b578f12061162d56c1eb6faf5d703b0b914d32cd725d64e0f0187e668bbd2feb",
+      "signature_status": "NotSigned",
+      "release_publisher_qualified": false
+    },
+    "runtime_bundle": {
+      "gui_sha256": "6db594d72a36d66d5605cd044a373f790d2460cf9c6d839eaca8f478a854c726",
+      "engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922",
+      "python_runtime_libraries": [
+        {
+          "file": "python314.dll",
+          "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+        }
+      ],
+      "installed_outside_source_tree": true,
+      "unicode_and_space_paths": true
+    },
+    "child_environment": {
+      "path": "C:\\Windows\\System32;C:\\Windows",
+      "pythonhome_removed": true,
+      "pythonpath_removed": true,
+      "node_options_removed": true,
+      "electron_run_as_node_removed": true,
+      "working_directory_outside_source_tree": true,
+      "installed_tooling_absence": "NOT_RUN"
+    },
+    "application_pid": 5736,
+    "application_exit_code": 0,
+    "application_report_sha256": "92e9958be7a7766a5d9c078cb9e3aa275996be7f8c0884e092ad60aa6d4c4e05",
+    "screenshot_sha256": "9af33a2efafcd313a55636c861101a6913cb80318759ac62e6118b6877dd4c6e",
+    "completed_at": "2026-10-12T08:32:31.9602699Z",
+    "elapsed_ms": 30348.0
+  },
+  "electron_application": {
+    "schema_version": 1,
+    "status": "PASS",
+    "scope": "AIK-002 Windows foundation spike",
+    "platform": "win32",
+    "window_visible": true,
+    "renderer_node_access": false,
+    "checks": {
+      "health": {
+        "status": "PASS",
+        "code": "SIDECAR_READY",
+        "pid": 1712,
+        "platform": "win32",
+        "python_version": "3.14.8",
+        "frozen": true,
+        "product_integration": "NOT_RUN"
+      },
+      "worker": {
+        "status": "PASS",
+        "code": "WORKER_PROBE_OK",
+        "pid": 2164,
+        "parent_pid": 1712,
+        "artifact_bytes": 42,
+        "artifact_sha256": "82b2d2ffd52c4fcda74566e4950be2d32f128d466444883442aee643d34c10ee",
+        "temporary_artifact_removed": true
+      },
+      "vault": {
+        "status": "PASS",
+        "backend": "windows-user-dpapi",
+        "code": "VAULT_ROUNDTRIP_OK"
+      }
+    },
+    "metrics": {
+      "elapsed_ms": 2441,
+      "main_rss_bytes": 99901440,
+      "renderer_working_set_kb": 87344
+    },
+    "electron_version": "44.7.0",
+    "packaged": true,
+    "product_integration": "NOT_RUN"
+  },
+  "tauri_application": {
+    "app_version": "0.1.0",
+    "checks": {
+      "health": {
+        "code": "SIDECAR_READY",
+        "frozen": true,
+        "pid": 1960,
+        "platform": "win32",
+        "product_integration": "NOT_RUN",
+        "python_version": "3.14.8",
+        "status": "PASS"
+      },
+      "vault": {
+        "backend": "windows-user-dpapi",
+        "code": "VAULT_ROUNDTRIP_OK",
+        "status": "PASS"
+      },
+      "worker": {
+        "artifact_bytes": 42,
+        "artifact_sha256": "82b2d2ffd52c4fcda74566e4950be2d32f128d466444883442aee643d34c10ee",
+        "code": "WORKER_PROBE_OK",
+        "parent_pid": 1960,
+        "pid": 7096,
+        "status": "PASS",
+        "temporary_artifact_removed": true
+      }
+    },
+    "engine_frozen": true,
+    "metrics": {
+      "elapsed_ms": 9593,
+      "main_working_set_bytes": 22339584,
+      "measurement_note": "One post-check live working-set snapshot. Includes current app descendants; exited worker is absent. This is not a peak, long-run, or clean-Windows benchmark.",
+      "process_tree": [
+        {
+          "name": "msedgewebview2.exe",
+          "parent_pid": 5116,
+          "pid": 1508,
+          "working_set_bytes": 97120256
+        },
+        {
+          "name": "msedgewebview2.exe",
+          "parent_pid": 1508,
+          "pid": 1560,
+          "working_set_bytes": 30130176
+        },
+        {
+          "name": "aik-engine.exe",
+          "parent_pid": 5116,
+          "pid": 1960,
+          "working_set_bytes": 24657920
+        },
+        {
+          "name": "msedgewebview2.exe",
+          "parent_pid": 1508,
+          "pid": 5000,
+          "working_set_bytes": 7917568
+        },
+        {
+          "name": "aik-tauri-comparison.exe",
+          "parent_pid": 6764,
+          "pid": 5116,
+          "working_set_bytes": 22339584
+        },
+        {
+          "name": "conhost.exe",
+          "parent_pid": 1960,
+          "pid": 5740,
+          "working_set_bytes": 11165696
+        },
+        {
+          "name": "msedgewebview2.exe",
+          "parent_pid": 1508,
+          "pid": 6304,
+          "working_set_bytes": 18829312
+        },
+        {
+          "name": "msedgewebview2.exe",
+          "parent_pid": 1508,
+          "pid": 6496,
+          "working_set_bytes": 69255168
+        },
+        {
+          "name": "msedgewebview2.exe",
+          "parent_pid": 1508,
+          "pid": 6980,
+          "working_set_bytes": 50343936
+        }
+      ],
+      "process_tree_status": "MEASURED",
+      "process_tree_working_set_bytes": 331759616,
+      "webview2_process_count": 6,
+      "webview2_working_set_bytes": 273596416
+    },
+    "native_pid": 5116,
+    "packaged": true,
+    "platform": "win32",
+    "product_integration": "NOT_RUN",
+    "renderer_bridge": "three typed fixed check names; no shell, argv, path, secret, or result input",
+    "renderer_node_access": null,
+    "renderer_node_access_status": "NOT_MEASURED_BY_NATIVE_BACKEND",
+    "schema_version": 1,
+    "scope": "AIK-002 independent Tauri Windows foundation comparison",
+    "sidecar_pid": 1960,
+    "status": "PASS",
+    "tauri_version": "2.12.3",
+    "webview2_version": "131.0.2903.86",
+    "window_visible": true,
+    "windows11_clean_install": "NOT_RUN"
+  }
+}

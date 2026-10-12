@@ -1,0 +1,146 @@
+{
+  "jobs": [
+    {
+      "id": 114733248512,
+      "name": "legacy-powershell-package",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_id": 38225912010,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Checkout the exact source revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Use the pinned build Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Use the pinned build CPython",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Verify handoff identity and encoding regression guards",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 5
+        },
+        {
+          "name": "Install the locked desktop build dependencies",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6
+        },
+        {
+          "name": "Verify the actual Windows engine and bounded worker",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7
+        },
+        {
+          "name": "Verify and build the renderer and IPC contract",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8
+        },
+        {
+          "name": "Freeze the sidecar with its Python runtime",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9
+        },
+        {
+          "name": "Build the unsigned per-user development installer",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 10
+        },
+        {
+          "name": "Verify the exact installer before packaging it",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 11
+        },
+        {
+          "name": "Build the independent ZIP using verified installer identities",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 12
+        },
+        {
+          "name": "Extract into a new Unicode path outside the build checkout",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 13
+        },
+        {
+          "name": "Run the delivered wrapper with actual Windows PowerShell 5.1",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 14
+        },
+        {
+          "name": "Preserve and check actual legacy interpreter evidence",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 15
+        },
+        {
+          "name": "Preserve raw build and both actual validation executions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Preserve the tested independent Windows handoff ZIP",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17
+        },
+        {
+          "name": "Preserve the exact unsigned installer used in both executions",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 18
+        },
+        {
+          "name": "Post Use the pinned build CPython",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 34
+        },
+        {
+          "name": "Post Use the pinned build Node.js",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 35
+        },
+        {
+          "name": "Post Checkout the exact source revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 36
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 37
+        }
+      ]
+    }
+  ]
+}

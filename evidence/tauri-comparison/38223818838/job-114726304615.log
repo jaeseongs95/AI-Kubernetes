@@ -1,0 +1,1476 @@
+2026-10-12T08:28:59.4568814Z Current runner version: '2.337.0'
+2026-10-12T08:28:59.4600837Z ##[group]Runner Image Provisioner
+2026-10-12T08:28:59.4601891Z Hosted Compute Agent
+2026-10-12T08:28:59.4602607Z Version: 20261002.596
+2026-10-12T08:28:59.4603385Z Commit: c3d12f3313a95f25162a1503be624f3b0617f8c0
+2026-10-12T08:28:59.4604276Z Build Date: 2026-10-02T22:28:27Z
+2026-10-12T08:28:59.4605124Z Worker ID: {c28f9a5f-67d4-4ff2-8772-c7577459e0e3}
+2026-10-12T08:28:59.4606001Z Region: centralus
+2026-10-12T08:28:59.4606650Z Cloud: Azure
+2026-10-12T08:28:59.4607282Z ##[endgroup]
+2026-10-12T08:28:59.4608842Z ##[group]Operating System
+2026-10-12T08:28:59.4609499Z Microsoft Windows Server 2022
+2026-10-12T08:28:59.4610281Z 10.0.20348
+2026-10-12T08:28:59.4610963Z Datacenter
+2026-10-12T08:28:59.4611625Z ##[endgroup]
+2026-10-12T08:28:59.4612262Z ##[group]Runner Image
+2026-10-12T08:28:59.4612965Z Image: windows-2022
+2026-10-12T08:28:59.4613676Z Version: 20261004.326.1
+2026-10-12T08:28:59.4615564Z Included Software: https://github.com/actions/runner-images/blob/win22/20261004.326/images/windows/Windows2022-Readme.md
+2026-10-12T08:28:59.4617604Z Image Release: https://github.com/actions/runner-images/releases/tag/win22%2F20261004.326
+2026-10-12T08:28:59.4618787Z ##[endgroup]
+2026-10-12T08:28:59.4620119Z ##[group]GITHUB_TOKEN Permissions
+2026-10-12T08:28:59.4622693Z Contents: read
+2026-10-12T08:28:59.4623454Z Metadata: read
+2026-10-12T08:28:59.4624144Z ##[endgroup]
+2026-10-12T08:28:59.4626740Z Secret source: Actions
+2026-10-12T08:28:59.4627857Z Cache mode: write
+2026-10-12T08:28:59.4628747Z Prepare workflow directory
+2026-10-12T08:28:59.5259793Z Prepare all required actions
+2026-10-12T08:28:59.5349802Z Getting action download info
+2026-10-12T08:28:59.8433073Z Download action repository 'actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-10-12T08:29:00.0430864Z Download action repository 'actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-10-12T08:29:00.2618060Z Download action repository 'actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+2026-10-12T08:29:00.4208849Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-12T08:29:00.9140747Z Complete job name: installed-candidates
+2026-10-12T08:29:01.1001898Z ##[group]Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+2026-10-12T08:29:01.1003541Z with:
+2026-10-12T08:29:01.1004051Z   persist-credentials: false
+2026-10-12T08:29:01.1004656Z   repository: jaeseongs95/AI-Kubernetes
+2026-10-12T08:29:01.1009353Z   token: ***
+2026-10-12T08:29:01.1009841Z   ssh-strict: true
+2026-10-12T08:29:01.1010275Z   ssh-user: git
+2026-10-12T08:29:01.1010690Z   clean: true
+2026-10-12T08:29:01.1011123Z   sparse-checkout-cone-mode: true
+2026-10-12T08:29:01.1011676Z   fetch-depth: 1
+2026-10-12T08:29:01.1012117Z   fetch-tags: false
+2026-10-12T08:29:01.1012585Z   show-progress: true
+2026-10-12T08:29:01.1013038Z   lfs: false
+2026-10-12T08:29:01.1013470Z   submodules: false
+2026-10-12T08:29:01.1013950Z   set-safe-directory: true
+2026-10-12T08:29:01.1014474Z   allow-unsafe-pr-checkout: false
+2026-10-12T08:29:01.1015250Z env:
+2026-10-12T08:29:01.1015717Z   PYTHONUTF8: 1
+2026-10-12T08:29:01.1016230Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:29:01.1016841Z   CI: true
+2026-10-12T08:29:01.1017336Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:29:01.1018167Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:29:01.1018654Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:29:01.1019133Z ##[endgroup]
+2026-10-12T08:29:02.2185181Z Syncing repository: jaeseongs95/AI-Kubernetes
+2026-10-12T08:29:02.2189464Z ##[group]Getting Git version info
+2026-10-12T08:29:02.2191622Z Working directory is 'D:\a\AI-Kubernetes\AI-Kubernetes'
+2026-10-12T08:29:02.2195048Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-12T08:29:02.2197072Z git version 2.56.0.windows.1
+2026-10-12T08:29:02.2205891Z ##[endgroup]
+2026-10-12T08:29:02.2215573Z Temporarily overriding HOME='D:\a\_temp\55372e58-e153-425c-af45-3268f41ee7f3' before making global git config changes
+2026-10-12T08:29:02.2219771Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T08:29:02.2223841Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\AI-Kubernetes\AI-Kubernetes
+2026-10-12T08:29:02.2229689Z Deleting the contents of 'D:\a\AI-Kubernetes\AI-Kubernetes'
+2026-10-12T08:29:02.2233222Z ##[group]Initializing the repository
+2026-10-12T08:29:02.2236022Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\AI-Kubernetes\AI-Kubernetes
+2026-10-12T08:29:02.2239527Z Initialized empty Git repository in D:/a/AI-Kubernetes/AI-Kubernetes/.git/
+2026-10-12T08:29:02.2245634Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/jaeseongs95/AI-Kubernetes
+2026-10-12T08:29:03.1930833Z ##[endgroup]
+2026-10-12T08:29:03.1931853Z ##[group]Disabling automatic garbage collection
+2026-10-12T08:29:03.1932673Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-10-12T08:29:03.1934410Z ##[endgroup]
+2026-10-12T08:29:03.1935215Z ##[group]Setting up auth
+2026-10-12T08:29:03.1936000Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T08:29:03.1938360Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-12T08:29:03.8684211Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T08:29:03.8995399Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-12T08:29:04.4370467Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T08:29:04.4668053Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-12T08:29:04.9747918Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-10-12T08:29:05.0077035Z ##[endgroup]
+2026-10-12T08:29:05.0101474Z ##[group]Fetching the repository
+2026-10-12T08:29:05.0102989Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a20d3bef3f4865fc81cd3495ecc437b7a9b57cea:refs/remotes/origin/main
+2026-10-12T08:29:06.1908201Z From https://github.com/jaeseongs95/AI-Kubernetes
+2026-10-12T08:29:06.1910415Z  * [new ref]         a20d3bef3f4865fc81cd3495ecc437b7a9b57cea -> origin/main
+2026-10-12T08:29:06.1948679Z ##[endgroup]
+2026-10-12T08:29:06.1949663Z ##[group]Determining the checkout info
+2026-10-12T08:29:06.1950802Z ##[endgroup]
+2026-10-12T08:29:06.1961688Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-10-12T08:29:06.2388616Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-10-12T08:29:06.2687588Z ##[group]Checking out the ref
+2026-10-12T08:29:06.2697717Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B main refs/remotes/origin/main
+2026-10-12T08:29:06.3613955Z Switched to a new branch 'main'
+2026-10-12T08:29:06.3639260Z branch 'main' set up to track 'origin/main'.
+2026-10-12T08:29:06.3691952Z ##[endgroup]
+2026-10-12T08:29:06.4084475Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-10-12T08:29:06.4360201Z a20d3bef3f4865fc81cd3495ecc437b7a9b57cea
+2026-10-12T08:29:06.4401820Z ##[group]Removing auth
+2026-10-12T08:29:06.4411899Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T08:29:06.4710233Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-12T08:29:06.9888706Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T08:29:07.0142826Z http.https://github.com/.extraheader
+2026-10-12T08:29:07.0182437Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-10-12T08:29:07.0515736Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-12T08:29:07.6626492Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T08:29:07.6946303Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-12T08:29:08.2078559Z ##[endgroup]
+2026-10-12T08:29:08.2478344Z ##[group]Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+2026-10-12T08:29:08.2478864Z with:
+2026-10-12T08:29:08.2479118Z   node-version: 24.21.0
+2026-10-12T08:29:08.2479375Z   cache: npm
+2026-10-12T08:29:08.2479903Z   cache-dependency-path: spikes/windows-foundation/package-lock.json
+spikes/tauri-comparison/package-lock.json
+
+2026-10-12T08:29:08.2480429Z   always-auth: false
+2026-10-12T08:29:08.2480678Z   check-latest: false
+2026-10-12T08:29:08.2483157Z   token: ***
+2026-10-12T08:29:08.2483394Z   package-manager-cache: true
+2026-10-12T08:29:08.2483689Z env:
+2026-10-12T08:29:08.2483930Z   PYTHONUTF8: 1
+2026-10-12T08:29:08.2484184Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:29:08.2484503Z   CI: true
+2026-10-12T08:29:08.2484745Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:29:08.2485050Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:29:08.2485300Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:29:08.2485537Z ##[endgroup]
+2026-10-12T08:29:08.4193738Z Found in cache @ C:\hostedtoolcache\windows\node\24.21.0\x64
+2026-10-12T08:29:08.4200851Z (node:5968) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:29:08.4202200Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:29:08.4204519Z ##[group]Environment details
+2026-10-12T08:29:13.0705989Z node: v24.21.0
+2026-10-12T08:29:13.0706830Z npm: 11.19.0
+2026-10-12T08:29:13.0707467Z yarn: 1.22.22
+2026-10-12T08:29:13.0708990Z ##[endgroup]
+2026-10-12T08:29:13.1505193Z [command]C:\Windows\system32\cmd.exe /D /S /C "C:\hostedtoolcache\windows\node\24.21.0\x64\npm.cmd config get cache"
+2026-10-12T08:29:13.6390877Z C:\npm\cache
+2026-10-12T08:29:13.9801375Z npm cache is not found
+2026-10-12T08:29:14.0147013Z ##[group]Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+2026-10-12T08:29:14.0147600Z with:
+2026-10-12T08:29:14.0147854Z   python-version: 3.14.8
+2026-10-12T08:29:14.0148122Z   architecture: x64
+2026-10-12T08:29:14.0148390Z   check-latest: false
+2026-10-12T08:29:14.0150825Z   token: ***
+2026-10-12T08:29:14.0151119Z   update-environment: true
+2026-10-12T08:29:14.0151403Z   allow-prereleases: false
+2026-10-12T08:29:14.0151664Z   freethreaded: false
+2026-10-12T08:29:14.0151929Z env:
+2026-10-12T08:29:14.0152157Z   PYTHONUTF8: 1
+2026-10-12T08:29:14.0152420Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:29:14.0152705Z   CI: true
+2026-10-12T08:29:14.0152927Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:29:14.0153205Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:29:14.0153459Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:29:14.0153745Z ##[endgroup]
+2026-10-12T08:29:14.1677298Z ##[group]Installed versions
+2026-10-12T08:29:14.1734635Z Successfully set up CPython (3.14.8)
+2026-10-12T08:29:14.1735590Z ##[endgroup]
+2026-10-12T08:29:14.1992990Z ##[group]Run rustup toolchain install 1.99.0 --profile minimal --no-self-update
+2026-10-12T08:29:14.1993874Z [36;1mrustup toolchain install 1.99.0 --profile minimal --no-self-update[0m
+2026-10-12T08:29:14.1994408Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:29:14.1994913Z [36;1mrustup target add x86_64-pc-windows-msvc --toolchain 1.99.0[0m
+2026-10-12T08:29:14.1995396Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:29:14.1995776Z [36;1mrustc --version --verbose[0m
+2026-10-12T08:29:14.1996117Z [36;1mcargo --version[0m
+2026-10-12T08:29:14.2136268Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:29:14.2136735Z env:
+2026-10-12T08:29:14.2137024Z   PYTHONUTF8: 1
+2026-10-12T08:29:14.2137362Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:29:14.2137701Z   CI: true
+2026-10-12T08:29:14.2138053Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:29:14.2138414Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:29:14.2138824Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:29:14.2139227Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:14.2139815Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:29:14.2140363Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:14.2140872Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:14.2141364Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:14.2141784Z ##[endgroup]
+2026-10-12T08:29:15.1550418Z info: syncing channel updates for 1.99.0-x86_64-pc-windows-msvc
+2026-10-12T08:29:15.7552131Z info: latest update on 2026-10-01 for version 1.99.0 (b940084d7 2026-09-28)
+2026-10-12T08:29:15.7676719Z info: downloading 3 components
+2026-10-12T08:29:27.0186135Z 
+2026-10-12T08:29:29.6985045Z   1.99.0-x86_64-pc-windows-msvc installed - rustc 1.99.0 (b940084d7 2026-09-28)
+2026-10-12T08:29:29.6986300Z 
+2026-10-12T08:29:29.8319513Z info: component rust-std is up to date
+2026-10-12T08:29:31.1539221Z rustc 1.99.0 (b940084d7 2026-09-28)
+2026-10-12T08:29:31.1540364Z binary: rustc
+2026-10-12T08:29:31.1561638Z commit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4
+2026-10-12T08:29:31.1563370Z commit-date: 2026-09-28
+2026-10-12T08:29:31.1564053Z host: x86_64-pc-windows-msvc
+2026-10-12T08:29:31.1564804Z release: 1.99.0
+2026-10-12T08:29:31.1575691Z LLVM version: 23.1.1
+2026-10-12T08:29:31.7840322Z cargo 1.99.0 (5f94df478 2026-08-27)
+2026-10-12T08:29:31.9286081Z ##[group]Run npm ci --no-audit --no-fund
+2026-10-12T08:29:31.9286764Z [36;1mnpm ci --no-audit --no-fund[0m
+2026-10-12T08:29:31.9336249Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:29:31.9336839Z env:
+2026-10-12T08:29:31.9337226Z   PYTHONUTF8: 1
+2026-10-12T08:29:31.9337616Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:29:31.9338083Z   CI: true
+2026-10-12T08:29:31.9338493Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:29:31.9338911Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:29:31.9339301Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:29:31.9339851Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:31.9340646Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:29:31.9341407Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:31.9342097Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:31.9342988Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:31.9343549Z ##[endgroup]
+2026-10-12T08:29:36.5686314Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-10-12T08:29:36.7439776Z npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+2026-10-12T08:29:36.8926281Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-12T08:29:37.8070776Z npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-10-12T08:29:41.9339908Z 
+2026-10-12T08:29:41.9341013Z added 303 packages in 9s
+2026-10-12T08:29:41.9366217Z npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+2026-10-12T08:29:41.9367614Z npm warn install-scripts   electron-winstaller@5.4.0 (install: node ./script/select-7z-arch.js)
+2026-10-12T08:29:41.9368220Z npm warn install-scripts
+2026-10-12T08:29:41.9368908Z npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+2026-10-12T08:29:43.7907036Z ##[group]Run $env:PYTHONPATH = Join-Path $env:GITHUB_WORKSPACE 'spikes/windows-foundation/python'
+2026-10-12T08:29:43.7908407Z [36;1m$env:PYTHONPATH = Join-Path $env:GITHUB_WORKSPACE 'spikes/windows-foundation/python'[0m
+2026-10-12T08:29:43.7909352Z [36;1mpython -m unittest discover -s spikes/windows-foundation/tests -v[0m
+2026-10-12T08:29:43.7910024Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:29:43.7962090Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:29:43.7962639Z env:
+2026-10-12T08:29:43.7963033Z   PYTHONUTF8: 1
+2026-10-12T08:29:43.7963426Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:29:43.7963877Z   CI: true
+2026-10-12T08:29:43.7964242Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:29:43.7964658Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:29:43.7965055Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:29:43.7965610Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:43.7966452Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:29:43.7967218Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:43.7967870Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:43.7968543Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:43.7969088Z ##[endgroup]
+2026-10-12T08:29:47.6943109Z test_dispatch_does_not_mutate_input (test_sidecar.ProtocolTests.test_dispatch_does_not_mutate_input) ... ok
+2026-10-12T08:29:47.6945234Z test_frame_rejects_duplicate_keys_and_oversize (test_sidecar.ProtocolTests.test_frame_rejects_duplicate_keys_and_oversize) ... ok
+2026-10-12T08:29:47.7874946Z test_invalid_bootstrap_exits_without_effect (test_sidecar.ProtocolTests.test_invalid_bootstrap_exits_without_effect) ... ok
+2026-10-12T08:29:47.7877137Z test_non_windows_vault_is_not_run (test_sidecar.ProtocolTests.test_non_windows_vault_is_not_run) ... skipped 'Non-Windows refusal only'
+2026-10-12T08:29:47.9969318Z test_real_pipe_bootstrap_health_and_worker (test_sidecar.ProtocolTests.test_real_pipe_bootstrap_health_and_worker) ... ok
+2026-10-12T08:29:48.1154605Z test_real_worker_writes_verifies_and_removes_temporary_file (test_sidecar.ProtocolTests.test_real_worker_writes_verifies_and_removes_temporary_file) ... ok
+2026-10-12T08:29:48.1156503Z test_rejects_extra_fields (test_sidecar.ProtocolTests.test_rejects_extra_fields) ... ok
+2026-10-12T08:29:48.1158494Z test_rejects_scope_version_command_and_payload (test_sidecar.ProtocolTests.test_rejects_scope_version_command_and_payload) ... ok
+2026-10-12T08:29:48.1824127Z test_cleanup_failure_prevents_success (test_vault.VaultContractUnitTests.test_cleanup_failure_prevents_success) ... ok
+2026-10-12T08:29:48.1828787Z test_non_windows_returns_not_run_without_loading_native_or_touching_store (test_vault.VaultContractUnitTests.test_non_windows_returns_not_run_without_loading_native_or_touching_store) ... ok
+2026-10-12T08:29:48.1833341Z test_public_probe_rejects_supplied_secret_and_path (test_vault.VaultContractUnitTests.test_public_probe_rejects_supplied_secret_and_path) ... ok
+2026-10-12T08:29:48.1836010Z test_raw_exception_and_paths_do_not_escape (test_vault.VaultContractUnitTests.test_raw_exception_and_paths_do_not_escape) ... ok
+2026-10-12T08:29:48.2215776Z test_unit_decryption_error_still_wipes_and_cleans_up (test_vault.VaultContractUnitTests.test_unit_decryption_error_still_wipes_and_cleans_up) ... ok
+2026-10-12T08:29:48.2434152Z test_unit_mismatch_is_failure_and_still_cleans_up (test_vault.VaultContractUnitTests.test_unit_mismatch_is_failure_and_still_cleans_up) ... ok
+2026-10-12T08:29:48.2948398Z test_unit_roundtrip_wipes_payload_and_removes_only_own_run (test_vault.VaultContractUnitTests.test_unit_roundtrip_wipes_payload_and_removes_only_own_run) ... ok
+2026-10-12T08:29:48.2951952Z test_native_failure_also_releases_returned_allocation (test_vault.VaultNativeBoundaryUnitTests.test_native_failure_also_releases_returned_allocation) ... ok
+2026-10-12T08:29:48.2957052Z test_native_plaintext_is_wiped_and_localfree_called_after_compare (test_vault.VaultNativeBoundaryUnitTests.test_native_plaintext_is_wiped_and_localfree_called_after_compare) ... ok
+2026-10-12T08:29:48.2962595Z test_windows_types_and_pointer_width_are_declared_explicitly (test_vault.VaultNativeBoundaryUnitTests.test_windows_types_and_pointer_width_are_declared_explicitly) ... ok
+2026-10-12T08:29:48.3251162Z test_failed_atomic_replace_keeps_old_file_and_cleans_temporary (test_vault.VaultStorageUnitTests.test_failed_atomic_replace_keeps_old_file_and_cleans_temporary) ... ok
+2026-10-12T08:29:48.3264361Z test_oversized_read_rejected_before_native_call (test_vault.VaultStorageUnitTests.test_oversized_read_rejected_before_native_call) ... ok
+2026-10-12T08:29:48.3519031Z test_symlink_in_application_store_is_rejected (test_vault.VaultStorageUnitTests.test_symlink_in_application_store_is_rejected) ... ok
+2026-10-12T08:29:48.3544905Z test_real_windows_dpapi_corruption_cannot_match_synthetic_payload (test_vault.WindowsNativeVaultTests.test_real_windows_dpapi_corruption_cannot_match_synthetic_payload) ... ok
+2026-10-12T08:29:48.3834443Z test_real_windows_dpapi_file_roundtrip (test_vault.WindowsNativeVaultTests.test_real_windows_dpapi_file_roundtrip) ... ok
+2026-10-12T08:29:48.3837078Z 
+2026-10-12T08:29:48.3837468Z ----------------------------------------------------------------------
+2026-10-12T08:29:48.3879930Z Ran 23 tests in 0.690s
+2026-10-12T08:29:48.3880358Z 
+2026-10-12T08:29:48.3881584Z OK (skipped=1)
+2026-10-12T08:29:48.4899708Z ##[group]Run $env:AIK_SPIKE_PYTHON = (Get-Command python).Source
+2026-10-12T08:29:48.4900788Z [36;1m$env:AIK_SPIKE_PYTHON = (Get-Command python).Source[0m
+2026-10-12T08:29:48.4901295Z [36;1mnpm test[0m
+2026-10-12T08:29:48.4901636Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:29:48.4902052Z [36;1mnpm run build[0m
+2026-10-12T08:29:48.4902371Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:29:48.4940357Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:29:48.4940796Z env:
+2026-10-12T08:29:48.4941057Z   PYTHONUTF8: 1
+2026-10-12T08:29:48.4941407Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:29:48.4941740Z   CI: true
+2026-10-12T08:29:48.4942005Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:29:48.4942316Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:29:48.4942587Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:29:48.4942930Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:48.4943546Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:29:48.4944014Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:48.4944474Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:48.4944935Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:48.4945360Z ##[endgroup]
+2026-10-12T08:29:49.3408129Z 
+2026-10-12T08:29:49.3427031Z > aik-windows-foundation-spike@0.1.0 test
+2026-10-12T08:29:49.3430608Z > node --test tests/*.test.cjs
+2026-10-12T08:29:49.3485347Z 
+2026-10-12T08:29:49.5214638Z ✔ IPC rejects unknown commands, credentials, scopes and protocol versions (1.8434ms)
+2026-10-12T08:29:49.5239629Z ✔ only the exact app window, main frame and URL are trusted (0.3039ms)
+2026-10-12T08:29:49.5241616Z ✔ response schema rejects secret fields and mismatched request identity (0.6195ms)
+2026-10-12T08:29:49.5313956Z ✔ sanitized failures never echo arbitrary request values (0.2564ms)
+2026-10-12T08:29:49.6439279Z ✔ sidecar child does not inherit provider secrets or Python injection variables (2.0057ms)
+2026-10-12T08:29:49.9077071Z ✔ Node client executes real Python IPC and separate file worker (268.2816ms)
+2026-10-12T08:29:50.0204415Z ✔ unexpected child death is reported without leaving a hanging request (107.1136ms)
+2026-10-12T08:29:50.0256553Z ✔ child startup errors are sanitized and bounded (4.4512ms)
+2026-10-12T08:29:50.0371513Z ℹ tests 8
+2026-10-12T08:29:50.0394253Z ℹ suites 0
+2026-10-12T08:29:50.0441835Z ℹ pass 8
+2026-10-12T08:29:50.0445798Z ℹ fail 0
+2026-10-12T08:29:50.0446679Z ℹ cancelled 0
+2026-10-12T08:29:50.0447440Z ℹ skipped 0
+2026-10-12T08:29:50.0448018Z ℹ todo 0
+2026-10-12T08:29:50.0452256Z ℹ duration_ms 622.7167
+2026-10-12T08:29:50.4056371Z 
+2026-10-12T08:29:50.4074347Z > aik-windows-foundation-spike@0.1.0 build
+2026-10-12T08:29:50.4226899Z > tsc -p tsconfig.json && vite build --base=./
+2026-10-12T08:29:50.4230386Z 
+2026-10-12T08:29:51.3727674Z [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+2026-10-12T08:29:51.3789167Z transforming...
+2026-10-12T08:29:51.4701963Z ✓ 15 modules transformed.
+2026-10-12T08:29:51.5460320Z rendering chunks...
+2026-10-12T08:29:51.5597535Z computing gzip size...
+2026-10-12T08:29:51.5647876Z dist/index.html                   0.70 kB │ gzip:  0.41 kB
+2026-10-12T08:29:51.5654727Z dist/assets/index-CDCplbkY.css    2.62 kB │ gzip:  1.13 kB
+2026-10-12T08:29:51.5684739Z dist/assets/index-C7lDYET8.js   193.80 kB │ gzip: 61.57 kB
+2026-10-12T08:29:51.5689210Z 
+2026-10-12T08:29:51.5691005Z [32m✓ built in 221ms[39m
+2026-10-12T08:29:51.8083562Z ##[group]Run ./scripts/windows/build-sidecar.ps1
+2026-10-12T08:29:51.8084421Z [36;1m./scripts/windows/build-sidecar.ps1[0m
+2026-10-12T08:29:51.8135273Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:29:51.8135899Z env:
+2026-10-12T08:29:51.8136283Z   PYTHONUTF8: 1
+2026-10-12T08:29:51.8136715Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:29:51.8137143Z   CI: true
+2026-10-12T08:29:51.8137522Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:29:51.8137985Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:29:51.8138390Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:29:51.8138920Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:51.8139678Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:29:51.8140466Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:51.8141296Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:51.8142059Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:29:51.8142686Z ##[endgroup]
+2026-10-12T08:29:56.8595387Z Collecting PyInstaller==6.22.3 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 4))
+2026-10-12T08:29:56.9172297Z   Downloading pyinstaller-6.22.3-py3-none-win_amd64.whl (1.5 MB)
+2026-10-12T08:29:56.9959016Z      ---------------------------------------- 1.5/1.5 MB 23.1 MB/s  0:00:00
+2026-10-12T08:29:57.0380433Z Collecting altgraph==0.17.5 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 6))
+2026-10-12T08:29:57.0534373Z   Downloading altgraph-0.17.5-py2.py3-none-any.whl (21 kB)
+2026-10-12T08:29:57.1452095Z Collecting packaging==26.3 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 8))
+2026-10-12T08:29:57.6808725Z   Downloading packaging-26.3-py3-none-any.whl (129 kB)
+2026-10-12T08:29:57.7793965Z Collecting pyinstaller-hooks-contrib==2026.8 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 10))
+2026-10-12T08:29:57.7955737Z   Downloading pyinstaller_hooks_contrib-2026.8-py3-none-any.whl (462 kB)
+2026-10-12T08:29:57.9359597Z Collecting setuptools==84.0.0 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 12))
+2026-10-12T08:29:57.9487410Z   Downloading setuptools-84.0.0-py3-none-any.whl (818 kB)
+2026-10-12T08:29:58.1359004Z      ---------------------------------------- 818.2/818.2 kB 3.0 MB/s  0:00:00
+2026-10-12T08:29:58.1747219Z Collecting pefile==2024.8.26 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 14))
+2026-10-12T08:29:58.1871082Z   Downloading pefile-2024.8.26-py3-none-any.whl (74 kB)
+2026-10-12T08:29:58.2337156Z Collecting pywin32-ctypes==0.2.3 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 16))
+2026-10-12T08:29:58.2453244Z   Downloading pywin32_ctypes-0.2.3-py3-none-any.whl (30 kB)
+2026-10-12T08:29:58.2806659Z Installing collected packages: altgraph, setuptools, pywin32-ctypes, pyinstaller-hooks-contrib, PyInstaller, pefile, packaging
+2026-10-12T08:30:00.2911377Z 
+2026-10-12T08:30:00.2926391Z Successfully installed PyInstaller-6.22.3 altgraph-0.17.5 packaging-26.3 pefile-2024.8.26 pyinstaller-hooks-contrib-2026.8 pywin32-ctypes-0.2.3 setuptools-84.0.0
+2026-10-12T08:30:00.6713968Z No broken requirements found.
+2026-10-12T08:30:01.0394634Z 193 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.8
+2026-10-12T08:30:01.0398715Z 193 INFO: Python: 3.14.8
+2026-10-12T08:30:01.0602640Z 214 INFO: Platform: Windows-2022Server-10.0.20348-SP0
+2026-10-12T08:30:01.0604132Z 214 INFO: Python environment: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\venv
+2026-10-12T08:30:01.0608589Z 214 INFO: wrote D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-spec\aik-engine.spec
+2026-10-12T08:30:01.0685271Z 222 INFO: Removing temporary files and cleaning cache in C:\Users\runneradmin\AppData\Local\pyinstaller
+2026-10-12T08:30:01.0692812Z 223 INFO: Module search paths (PYTHONPATH):
+2026-10-12T08:30:01.0693563Z ['D:\\a\\AI-Kubernetes\\AI-Kubernetes',
+2026-10-12T08:30:01.0694473Z  'C:\\hostedtoolcache\\windows\\Python\\3.14.8\\x64\\python314.zip',
+2026-10-12T08:30:01.0695358Z  'C:\\hostedtoolcache\\windows\\Python\\3.14.8\\x64\\DLLs',
+2026-10-12T08:30:01.0696130Z  'C:\\hostedtoolcache\\windows\\Python\\3.14.8\\x64\\Lib',
+2026-10-12T08:30:01.0696881Z  'C:\\hostedtoolcache\\windows\\Python\\3.14.8\\x64',
+2026-10-12T08:30:01.0698060Z  'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv',
+2026-10-12T08:30:01.0699044Z  'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages',
+2026-10-12T08:30:01.0700000Z  'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\spikes\\windows-foundation\\python']
+2026-10-12T08:30:01.3085413Z 462 INFO: checking Analysis
+2026-10-12T08:30:01.3086761Z 462 INFO: Building Analysis because Analysis-00.toc is non existent
+2026-10-12T08:30:01.3087860Z 462 INFO: Looking for Python shared library...
+2026-10-12T08:30:01.3088952Z 462 INFO: Using Python shared library: C:\hostedtoolcache\windows\Python\3.14.8\x64\python314.dll
+2026-10-12T08:30:01.3090066Z 462 INFO: Running Analysis Analysis-00.toc
+2026-10-12T08:30:01.3090804Z 462 INFO: Target bytecode optimization level: 0
+2026-10-12T08:30:01.3091439Z 462 INFO: Initializing module dependency graph...
+2026-10-12T08:30:01.3117084Z 465 INFO: Initializing module graph hook caches...
+2026-10-12T08:30:01.3233424Z 477 INFO: Analyzing modules for base_library.zip ...
+2026-10-12T08:30:02.2534943Z 1407 INFO: Processing standard module hook 'hook-math.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:30:03.1457764Z 2299 INFO: Processing standard module hook 'hook-encodings.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:30:03.5538826Z 2707 INFO: Processing standard module hook 'hook-pickle.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:30:03.8180599Z 2972 INFO: Processing standard module hook 'hook-difflib.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:30:03.8409243Z 2994 INFO: Processing standard module hook 'hook-heapq.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:30:07.0145381Z 6168 INFO: Caching module dependency graph...
+2026-10-12T08:30:07.0463144Z 6200 INFO: Analyzing D:\a\AI-Kubernetes\AI-Kubernetes\spikes\windows-foundation\python\sidecar_entry.py
+2026-10-12T08:30:07.1386645Z 6292 INFO: Processing standard module hook 'hook-sysconfig.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:30:07.1479617Z 6301 INFO: Processing standard module hook 'hook-_ctypes.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:30:07.1539767Z 6308 INFO: Processing module hooks (post-graph stage)...
+2026-10-12T08:30:07.1686451Z 6322 INFO: Performing binary vs. data reclassification (1 entries)
+2026-10-12T08:30:07.1702649Z 6324 INFO: Looking for ctypes DLLs
+2026-10-12T08:30:07.1782331Z 6332 INFO: Analyzing run-time hooks ...
+2026-10-12T08:30:07.1795713Z 6333 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+2026-10-12T08:30:07.1848870Z 6338 INFO: Creating base_library.zip...
+2026-10-12T08:30:07.2068089Z 6360 INFO: Looking for dynamic libraries
+2026-10-12T08:30:07.3184745Z 6472 INFO: Extra DLL search directories (AddDllDirectory): []
+2026-10-12T08:30:07.3185920Z 6472 INFO: Extra DLL search directories (PATH): []
+2026-10-12T08:30:07.9604777Z 7114 INFO: Warnings written to D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\warn-aik-engine.txt
+2026-10-12T08:30:07.9755831Z 7129 INFO: Graph cross-reference written to D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\xref-aik-engine.html
+2026-10-12T08:30:07.9892605Z 7143 INFO: checking PYZ
+2026-10-12T08:30:07.9893585Z 7143 INFO: Building PYZ because PYZ-00.toc is non existent
+2026-10-12T08:30:07.9895983Z 7143 INFO: Building PYZ (ZlibArchive) D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\PYZ-00.pyz
+2026-10-12T08:30:08.1122068Z 7266 INFO: Building PYZ (ZlibArchive) D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\PYZ-00.pyz completed successfully.
+2026-10-12T08:30:08.1288653Z 7282 INFO: checking PKG
+2026-10-12T08:30:08.1289913Z 7283 INFO: Building PKG because PKG-00.toc is non existent
+2026-10-12T08:30:08.1290828Z 7283 INFO: Building PKG (CArchive) aik-engine.pkg
+2026-10-12T08:30:08.1365457Z 7290 INFO: Building PKG (CArchive) aik-engine.pkg completed successfully.
+2026-10-12T08:30:08.1372242Z 7291 INFO: Bootloader D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+2026-10-12T08:30:08.1373639Z 7291 INFO: checking EXE
+2026-10-12T08:30:08.1374378Z 7291 INFO: Building EXE because EXE-00.toc is non existent
+2026-10-12T08:30:08.1375226Z 7291 INFO: Building EXE from EXE-00.toc
+2026-10-12T08:30:08.1376515Z 7291 INFO: Copying bootloader EXE to D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\aik-engine.exe
+2026-10-12T08:30:08.1440499Z 7298 INFO: Copying icon to EXE
+2026-10-12T08:30:08.1457322Z 7299 INFO: Copying 0 resources to EXE
+2026-10-12T08:30:08.1458235Z 7299 INFO: Embedding manifest in EXE
+2026-10-12T08:30:08.1472236Z 7301 INFO: Appending PKG archive to EXE
+2026-10-12T08:30:08.1484206Z 7302 INFO: Fixing EXE headers
+2026-10-12T08:30:08.2087356Z 7362 INFO: Building EXE from EXE-00.toc completed successfully.
+2026-10-12T08:30:08.2101958Z 7364 INFO: checking COLLECT
+2026-10-12T08:30:08.2102883Z 7364 INFO: Building COLLECT because COLLECT-00.toc is non existent
+2026-10-12T08:30:08.2104514Z 7364 INFO: Building COLLECT COLLECT-00.toc
+2026-10-12T08:30:08.3476253Z 7501 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+2026-10-12T08:30:08.3492142Z 7503 INFO: Build complete! The results are available in: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\engine
+2026-10-12T08:30:08.7683598Z Frozen Windows sidecar created: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\engine\aik-engine\aik-engine.exe
+2026-10-12T08:30:08.8058373Z ##[group]Run npm run package:win
+2026-10-12T08:30:08.8059055Z [36;1mnpm run package:win[0m
+2026-10-12T08:30:08.8094272Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:30:08.8094747Z env:
+2026-10-12T08:30:08.8094982Z   PYTHONUTF8: 1
+2026-10-12T08:30:08.8095271Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:30:08.8095560Z   CI: true
+2026-10-12T08:30:08.8095823Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:30:08.8096109Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:30:08.8096367Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:30:08.8096742Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:30:08.8097195Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:30:08.8097650Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:30:08.8098084Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:30:08.8098588Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:30:08.8098932Z ##[endgroup]
+2026-10-12T08:30:09.4815868Z 
+2026-10-12T08:30:09.4816996Z > aik-windows-foundation-spike@0.1.0 package:win
+2026-10-12T08:30:09.4818390Z > electron-builder --config ../../packaging/electron-builder.cjs --win --x64 --publish never
+2026-10-12T08:30:09.4819102Z 
+2026-10-12T08:30:10.1180293Z   • electron-builder  version=26.15.3 os=10.0.20348
+2026-10-12T08:30:10.1248068Z   • loaded configuration  file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\electron-builder.cjs
+2026-10-12T08:30:11.1098167Z   • executing @electron/rebuild  electronVersion=44.7.0 arch=x64 buildFromSource=false workspaceRoot=D:\a\AI-Kubernetes\AI-Kubernetes\spikes\windows-foundation projectDir=./ appDir=./
+2026-10-12T08:30:11.1100123Z   • installing native dependencies  arch=x64
+2026-10-12T08:30:11.2797247Z   • completed installing native dependencies
+2026-10-12T08:30:11.2874253Z   • packaging       platform=win32 arch=x64 electron=44.7.0 appOutDir=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\win-unpacked
+2026-10-12T08:30:11.4800673Z   • downloaded      label=electron progress=100%
+2026-10-12T08:30:17.0916785Z   • downloaded electron zip extracted successfully  output=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\win-unpacked
+2026-10-12T08:30:17.1043998Z   • searching for node modules  pm=npm searchDir=D:\a\AI-Kubernetes\AI-Kubernetes\spikes\windows-foundation
+2026-10-12T08:30:22.2359985Z   • updating asar integrity executable resource  executablePath=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\win-unpacked\AIK Foundation Spike.exe
+2026-10-12T08:30:22.2736223Z   • default Electron icon is used  reason=application icon is not set
+2026-10-12T08:30:22.7337866Z   • file signing skipped via signExecutable configuration  file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\win-unpacked\AIK Foundation Spike.exe
+2026-10-12T08:30:22.7351246Z   • building        target=nsis file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe archs=x64 oneClick=true perMachine=false
+2026-10-12T08:30:22.8595545Z   • downloaded      label=7zip-win-x64.tar.gz progress=100%
+2026-10-12T08:31:51.4315771Z   • downloaded      label=nsis-resources-3.4.1.7z progress=100%
+2026-10-12T08:31:52.4335565Z   • downloaded      label=nsis-3.0.4.1.7z progress=100%
+2026-10-12T08:31:53.6769736Z   • file signing skipped via signExecutable configuration  file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.__uninstaller.exe
+2026-10-12T08:31:56.9535736Z   • file signing skipped via signExecutable configuration  file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe
+2026-10-12T08:31:56.9537693Z   • building block map  blockMapFile=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe.blockmap
+2026-10-12T08:32:01.2273552Z ##[group]Run ./scripts/windows/verify-installed-spike.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE
+2026-10-12T08:32:01.2274380Z [36;1m./scripts/windows/verify-installed-spike.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE[0m
+2026-10-12T08:32:01.2309280Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:32:01.2309708Z env:
+2026-10-12T08:32:01.2309956Z   PYTHONUTF8: 1
+2026-10-12T08:32:01.2310232Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:32:01.2310533Z   CI: true
+2026-10-12T08:32:01.2310773Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:32:01.2311073Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:32:01.2311333Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:32:01.2311665Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:01.2312147Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:32:01.2312626Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:01.2313168Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:01.2313567Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:01.2313925Z ##[endgroup]
+2026-10-12T08:32:31.9848098Z Installed foundation-spike validation: PASS. Evidence: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\evidence\installed-spike.json
+2026-10-12T08:32:32.0322618Z ##[group]Run npm ci --no-audit --no-fund
+2026-10-12T08:32:32.0323490Z [36;1mnpm ci --no-audit --no-fund[0m
+2026-10-12T08:32:32.0369733Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:32:32.0370105Z env:
+2026-10-12T08:32:32.0370370Z   PYTHONUTF8: 1
+2026-10-12T08:32:32.0370643Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:32:32.0370927Z   CI: true
+2026-10-12T08:32:32.0371184Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:32:32.0371464Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:32:32.0371764Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:32:32.0372097Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:32.0372580Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:32:32.0373080Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:32.0373531Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:32.0374081Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:32.0374442Z ##[endgroup]
+2026-10-12T08:32:34.7718084Z 
+2026-10-12T08:32:34.7719177Z added 26 packages in 2s
+2026-10-12T08:32:34.8576051Z ##[group]Run npm run build
+2026-10-12T08:32:34.8576790Z [36;1mnpm run build[0m
+2026-10-12T08:32:34.8617470Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:32:34.8618054Z env:
+2026-10-12T08:32:34.8618453Z   PYTHONUTF8: 1
+2026-10-12T08:32:34.8618889Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:32:34.8619348Z   CI: true
+2026-10-12T08:32:34.8619718Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:32:34.8620122Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:32:34.8620553Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:32:34.8621074Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:34.8621830Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:32:34.8622623Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:34.8623595Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:34.8624405Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:34.8625011Z ##[endgroup]
+2026-10-12T08:32:35.6994071Z 
+2026-10-12T08:32:35.6995313Z > aik-tauri-stack-comparison@0.1.0 build
+2026-10-12T08:32:35.6996292Z > tsc -p tsconfig.json && vite build --base=./
+2026-10-12T08:32:35.6997013Z 
+2026-10-12T08:32:36.5054363Z [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+2026-10-12T08:32:36.5409872Z transforming...
+2026-10-12T08:32:36.6172976Z ✓ 17 modules transformed.
+2026-10-12T08:32:36.7154119Z rendering chunks...
+2026-10-12T08:32:36.7639129Z computing gzip size...
+2026-10-12T08:32:36.7681443Z dist/index.html                   0.39 kB │ gzip:  0.30 kB
+2026-10-12T08:32:36.7682479Z dist/assets/index-CDCplbkY.css    2.62 kB │ gzip:  1.13 kB
+2026-10-12T08:32:36.7683521Z dist/assets/index-BQfO12TM.js   194.70 kB │ gzip: 62.00 kB
+2026-10-12T08:32:36.7684042Z 
+2026-10-12T08:32:36.7688660Z [32m✓ built in 263ms[39m
+2026-10-12T08:32:37.0907137Z ##[group]Run $env:AIK_SPIKE_PYTHON = (Get-Command python).Source
+2026-10-12T08:32:37.0907647Z [36;1m$env:AIK_SPIKE_PYTHON = (Get-Command python).Source[0m
+2026-10-12T08:32:37.0907978Z [36;1mcargo test --locked --target x86_64-pc-windows-msvc[0m
+2026-10-12T08:32:37.0908455Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:32:37.0944861Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:32:37.0945233Z env:
+2026-10-12T08:32:37.0945475Z   PYTHONUTF8: 1
+2026-10-12T08:32:37.0945735Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:32:37.0946045Z   CI: true
+2026-10-12T08:32:37.0946267Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:32:37.0946536Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:32:37.0946774Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:32:37.0947112Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:37.0947588Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:32:37.0948111Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:37.0948513Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:37.0948910Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:32:37.0949240Z ##[endgroup]
+2026-10-12T08:32:37.5278987Z     Updating crates.io index
+2026-10-12T08:32:38.8939002Z  Downloading crates ...
+2026-10-12T08:32:39.1056301Z   Downloaded same-file v1.0.6
+2026-10-12T08:32:39.1749931Z   Downloaded serialize-to-javascript v0.1.2
+2026-10-12T08:32:39.2392393Z   Downloaded ref-cast v1.0.27
+2026-10-12T08:32:39.3474588Z   Downloaded adler2 v2.0.1
+2026-10-12T08:32:39.3828432Z   Downloaded ref-cast-impl v1.0.27
+2026-10-12T08:32:39.3940337Z   Downloaded serde_spanned v1.1.2
+2026-10-12T08:32:39.4060666Z   Downloaded zerofrom v0.1.8
+2026-10-12T08:32:39.4145103Z   Downloaded new_debug_unreachable v1.0.6
+2026-10-12T08:32:39.4330049Z   Downloaded strsim v0.11.1
+2026-10-12T08:32:39.4598651Z   Downloaded siphasher v1.0.4
+2026-10-12T08:32:39.4829132Z   Downloaded stable_deref_trait v1.2.1
+2026-10-12T08:32:39.4939719Z   Downloaded scopeguard v1.2.0
+2026-10-12T08:32:39.5193679Z   Downloaded potential_utf v0.1.6
+2026-10-12T08:32:39.5276371Z   Downloaded serialize-to-javascript-impl v0.1.2
+2026-10-12T08:32:39.5343002Z   Downloaded string_cache_codegen v0.6.1
+2026-10-12T08:32:39.5439634Z   Downloaded utf8_iter v1.0.4
+2026-10-12T08:32:39.5522438Z   Downloaded winapi-util v0.1.11
+2026-10-12T08:32:39.5661518Z   Downloaded time-core v0.1.9
+2026-10-12T08:32:39.5810108Z   Downloaded webview2-com-macros v0.8.1
+2026-10-12T08:32:39.5958159Z   Downloaded windows-implement v0.60.2
+2026-10-12T08:32:39.6046916Z   Downloaded windows-interface v0.59.3
+2026-10-12T08:32:39.6154706Z   Downloaded phf_macros v0.13.1
+2026-10-12T08:32:39.6232843Z   Downloaded plist v1.10.1
+2026-10-12T08:32:39.6637110Z   Downloaded vswhom-sys v0.1.3
+2026-10-12T08:32:39.6780884Z   Downloaded vswhom v0.1.0
+2026-10-12T08:32:39.6940829Z   Downloaded windows-link v0.2.1
+2026-10-12T08:32:39.7269674Z   Downloaded typeid v1.0.3
+2026-10-12T08:32:39.7687581Z   Downloaded version_check v0.9.5
+2026-10-12T08:32:39.7821638Z   Downloaded windows-result v0.4.1
+2026-10-12T08:32:39.8027586Z   Downloaded windows-threading v0.2.1
+2026-10-12T08:32:39.8278502Z   Downloaded windows-collections v0.3.2
+2026-10-12T08:32:39.8499737Z   Downloaded windows-version v0.1.7
+2026-10-12T08:32:39.8694972Z   Downloaded jiff-tzdb-platform v0.1.3
+2026-10-12T08:32:39.8947651Z   Downloaded rustc-hash v2.1.3
+2026-10-12T08:32:39.9329793Z   Downloaded rustc_version v0.4.1
+2026-10-12T08:32:39.9657470Z   Downloaded cfg-if v1.0.5
+2026-10-12T08:32:40.0068814Z   Downloaded fnv v1.0.7
+2026-10-12T08:32:40.0396118Z   Downloaded precomputed-hash v0.1.1
+2026-10-12T08:32:40.0672395Z   Downloaded phf_generator v0.13.1
+2026-10-12T08:32:40.0970899Z   Downloaded schemars_derive v0.8.22
+2026-10-12T08:32:40.1368240Z   Downloaded servo_arc v0.4.3
+2026-10-12T08:32:40.1478831Z   Downloaded sha2 v0.10.9
+2026-10-12T08:32:40.2047115Z   Downloaded windows-strings v0.5.1
+2026-10-12T08:32:40.2437216Z   Downloaded form_urlencoded v1.2.2
+2026-10-12T08:32:40.2510348Z   Downloaded serde_derive_internals v0.29.1
+2026-10-12T08:32:40.2949095Z   Downloaded simd-adler32 v0.3.10
+2026-10-12T08:32:40.3192259Z   Downloaded string_cache v0.9.0
+2026-10-12T08:32:40.3709362Z   Downloaded serde-untagged v0.1.9
+2026-10-12T08:32:40.4009643Z   Downloaded synstructure v0.14.0
+2026-10-12T08:32:40.4085673Z   Downloaded thiserror-impl v2.0.21
+2026-10-12T08:32:40.4226545Z   Downloaded shlex v2.0.1
+2026-10-12T08:32:40.4361354Z   Downloaded web-time v1.1.0
+2026-10-12T08:32:40.4494346Z   Downloaded windows-future v0.3.2
+2026-10-12T08:32:40.4672086Z   Downloaded tauri-winres v0.3.6
+2026-10-12T08:32:40.4854863Z   Downloaded toml_datetime v1.1.2+spec-1.1.0
+2026-10-12T08:32:40.4941751Z   Downloaded windows-numerics v0.3.1
+2026-10-12T08:32:40.5060744Z   Downloaded tinystr v0.8.4
+2026-10-12T08:32:40.5248808Z   Downloaded toml_writer v1.1.3+spec-1.1.0
+2026-10-12T08:32:40.5388341Z   Downloaded serde_repr v0.1.21
+2026-10-12T08:32:40.5564872Z   Downloaded webview2-com v0.39.1
+2026-10-12T08:32:40.5714255Z   Downloaded thiserror v2.0.21
+2026-10-12T08:32:40.6474006Z   Downloaded walkdir v2.5.0
+2026-10-12T08:32:40.6680552Z   Downloaded web_atoms v0.2.6
+2026-10-12T08:32:40.6781270Z   Downloaded num-conv v0.2.2
+2026-10-12T08:32:40.6853722Z   Downloaded percent-encoding v2.3.2
+2026-10-12T08:32:40.6931791Z   Downloaded semver v1.0.28
+2026-10-12T08:32:40.7202736Z   Downloaded idna_adapter v1.2.2
+2026-10-12T08:32:40.7281782Z   Downloaded markup5ever v0.39.0
+2026-10-12T08:32:40.7383439Z   Downloaded serde_with_macros v3.24.0
+2026-10-12T08:32:40.7567539Z   Downloaded tauri-build v2.7.2
+2026-10-12T08:32:40.7710539Z   Downloaded tauri-runtime v2.12.1
+2026-10-12T08:32:40.7833798Z   Downloaded phf_codegen v0.13.1
+2026-10-12T08:32:40.7907494Z   Downloaded powerfmt v0.2.1
+2026-10-12T08:32:40.8048583Z   Downloaded alloc-stdlib v0.3.0
+2026-10-12T08:32:40.8186944Z   Downloaded smallvec v1.16.3
+2026-10-12T08:32:40.8333041Z   Downloaded tendril v0.5.1
+2026-10-12T08:32:40.8514830Z   Downloaded toml_parser v1.1.5+spec-1.1.0
+2026-10-12T08:32:40.8703218Z   Downloaded time-macros v0.2.32
+2026-10-12T08:32:40.8951742Z   Downloaded tauri-macros v2.7.2
+2026-10-12T08:32:40.9074006Z   Downloaded unicode-ident v1.0.27
+2026-10-12T08:32:40.9349470Z   Downloaded zerofrom-derive v0.1.8
+2026-10-12T08:32:40.9435094Z   Downloaded cssparser-macros v0.7.1
+2026-10-12T08:32:40.9494733Z   Downloaded defmt-parser v1.0.0
+2026-10-12T08:32:40.9574480Z   Downloaded block-buffer v0.10.4
+2026-10-12T08:32:40.9686057Z   Downloaded tauri-codegen v2.7.2
+2026-10-12T08:32:40.9835664Z   Downloaded softbuffer v0.4.8
+2026-10-12T08:32:41.0113878Z   Downloaded cpufeatures v0.2.17
+2026-10-12T08:32:41.0263584Z   Downloaded glob v0.3.4
+2026-10-12T08:32:41.0474381Z   Downloaded tinyvec v1.13.3
+2026-10-12T08:32:41.0745290Z   Downloaded tray-icon v0.25.1
+2026-10-12T08:32:41.0968935Z   Downloaded windows-core v0.62.2
+2026-10-12T08:32:41.1281563Z   Downloaded serde_derive v1.0.229
+2026-10-12T08:32:41.1541372Z   Downloaded urlpattern v0.6.0
+2026-10-12T08:32:41.1755983Z   Downloaded alloc-no-stdlib v3.0.0
+2026-10-12T08:32:41.1910007Z   Downloaded crypto-common v0.1.7
+2026-10-12T08:32:41.1988589Z   Downloaded darling_macro v0.24.1
+2026-10-12T08:32:41.2097235Z   Downloaded dirs-sys v0.5.0
+2026-10-12T08:32:41.2185494Z   Downloaded socket2 v0.6.5
+2026-10-12T08:32:41.2295730Z   Downloaded tracing-core v0.1.36
+2026-10-12T08:32:41.2550070Z   Downloaded dirs v7.0.0
+2026-10-12T08:32:41.2654391Z   Downloaded schemars v0.8.22
+2026-10-12T08:32:41.4102347Z   Downloaded schemars v0.9.0
+2026-10-12T08:32:41.5564119Z   Downloaded serde_core v1.0.229
+2026-10-12T08:32:41.5809974Z   Downloaded tauri-runtime-wry v2.12.1
+2026-10-12T08:32:41.5985526Z   Downloaded toml v1.1.8+spec-1.1.0
+2026-10-12T08:32:41.6352948Z   Downloaded selectors v0.38.0
+2026-10-12T08:32:41.6497754Z   Downloaded serde v1.0.229
+2026-10-12T08:32:41.6788218Z   Downloaded uuid v1.28.0
+2026-10-12T08:32:41.7029573Z   Downloaded dtoa-short v0.3.5
+2026-10-12T08:32:41.7097590Z   Downloaded heck v0.5.0
+2026-10-12T08:32:41.7240463Z   Downloaded hex v0.4.3
+2026-10-12T08:32:41.7364087Z   Downloaded indexmap v1.9.3
+2026-10-12T08:32:41.7651715Z   Downloaded url v2.5.8
+2026-10-12T08:32:41.7817785Z   Downloaded dpi v0.1.2
+2026-10-12T08:32:41.7945021Z   Downloaded equivalent v1.0.2
+2026-10-12T08:32:41.8030401Z   Downloaded ident_case v1.0.1
+2026-10-12T08:32:41.8105201Z   Downloaded cargo-platform v0.1.9
+2026-10-12T08:32:41.8199628Z   Downloaded json-patch v4.2.0
+2026-10-12T08:32:41.8326130Z   Downloaded litemap v0.8.3
+2026-10-12T08:32:41.8529956Z   Downloaded schemars v1.2.2
+2026-10-12T08:32:42.0290843Z   Downloaded typenum v1.20.1
+2026-10-12T08:32:42.0525028Z   Downloaded yoke-derive v0.8.4
+2026-10-12T08:32:42.0609262Z   Downloaded icu_collections v2.3.0
+2026-10-12T08:32:42.1372298Z   Downloaded infer v0.22.0
+2026-10-12T08:32:42.1561522Z   Downloaded miniz_oxide v0.8.9
+2026-10-12T08:32:42.1776873Z   Downloaded unicode-segmentation v1.13.3
+2026-10-12T08:32:42.1929671Z   Downloaded option-ext v0.2.0
+2026-10-12T08:32:42.2002145Z   Downloaded phf_shared v0.13.1
+2026-10-12T08:32:42.2077619Z   Downloaded getrandom v0.4.3
+2026-10-12T08:32:42.8813368Z   Downloaded http v1.5.0
+2026-10-12T08:32:42.9139194Z   Downloaded icu_properties v2.3.0
+2026-10-12T08:32:42.9354284Z   Downloaded jsonptr v0.7.1
+2026-10-12T08:32:42.9643059Z   Downloaded bit-set v0.8.0
+2026-10-12T08:32:42.9777345Z   Downloaded jiff-tzdb v0.1.9
+2026-10-12T08:32:42.9869238Z   Downloaded hashbrown v0.12.3
+2026-10-12T08:32:43.0188106Z   Downloaded indexmap v2.14.2
+2026-10-12T08:32:43.0540500Z   Downloaded tauri-utils v2.10.1
+2026-10-12T08:32:43.0852384Z   Downloaded jiff-core v0.1.1
+2026-10-12T08:32:43.1109225Z   Downloaded quote v1.0.47
+2026-10-12T08:32:43.1389958Z   Downloaded regex v1.13.1
+2026-10-12T08:32:43.1866337Z   Downloaded keyboard-types v0.8.3
+2026-10-12T08:32:43.2116075Z   Downloaded serde_json v1.0.154
+2026-10-12T08:32:43.3159933Z   Downloaded writeable v0.6.4
+2026-10-12T08:32:43.3367714Z   Downloaded ico v0.5.0
+2026-10-12T08:32:43.3732488Z   Downloaded aho-corasick v1.1.5
+2026-10-12T08:32:43.4240175Z   Downloaded idna v1.1.0
+2026-10-12T08:32:43.4578402Z   Downloaded generic-array v0.14.7
+2026-10-12T08:32:43.4780758Z   Downloaded itoa v1.0.18
+2026-10-12T08:32:43.4938937Z   Downloaded cargo_metadata v0.19.2
+2026-10-12T08:32:43.5173302Z   Downloaded mime v0.3.17
+2026-10-12T08:32:43.5290630Z   Downloaded phf v0.13.1
+2026-10-12T08:32:43.5432325Z   Downloaded displaydoc v0.2.7
+2026-10-12T08:32:43.5711617Z   Downloaded dunce v1.0.5
+2026-10-12T08:32:43.5789834Z   Downloaded defmt-macros v1.1.1
+2026-10-12T08:32:43.6196706Z   Downloaded fastrand v2.5.0
+2026-10-12T08:32:43.7891965Z   Downloaded serde_with v3.24.0
+2026-10-12T08:32:43.9271568Z   Downloaded zerovec-derive v0.11.6
+2026-10-12T08:32:43.9440367Z   Downloaded bit-vec v0.8.0
+2026-10-12T08:32:43.9593721Z   Downloaded dyn-clone v1.0.20
+2026-10-12T08:32:43.9744939Z   Downloaded foldhash v0.2.0
+2026-10-12T08:32:43.9845697Z   Downloaded bs58 v0.5.1
+2026-10-12T08:32:44.0165380Z   Downloaded fdeflate v0.3.7
+2026-10-12T08:32:44.0290378Z   Downloaded getrandom v0.3.4
+2026-10-12T08:32:44.0670679Z   Downloaded icu_properties_data v2.3.0
+2026-10-12T08:32:44.1832183Z   Downloaded zmij v1.0.23
+2026-10-12T08:32:44.2028886Z   Downloaded bitflags v1.3.2
+2026-10-12T08:32:44.2412132Z   Downloaded deranged v0.5.8
+2026-10-12T08:32:44.2517077Z   Downloaded dtoa v1.0.11
+2026-10-12T08:32:44.2631659Z   Downloaded embed-resource v3.0.12
+2026-10-12T08:32:44.2841359Z   Downloaded find-msvc-tools v0.1.14
+2026-10-12T08:32:44.2998871Z   Downloaded icu_provider v2.3.1
+2026-10-12T08:32:44.3244445Z   Downloaded lock_api v0.4.14
+2026-10-12T08:32:44.3326974Z   Downloaded log v0.4.34
+2026-10-12T08:32:44.3498290Z   Downloaded once_cell v1.21.4
+2026-10-12T08:32:44.3742174Z   Downloaded parking_lot_core v0.9.12
+2026-10-12T08:32:44.3917846Z   Downloaded raw-window-handle v0.6.2
+2026-10-12T08:32:44.4104295Z   Downloaded winreg v0.56.0
+2026-10-12T08:32:44.4414541Z   Downloaded yoke v0.8.3
+2026-10-12T08:32:44.4557741Z   Downloaded autocfg v1.5.1
+2026-10-12T08:32:44.4706538Z   Downloaded cargo_toml v1.0.1
+2026-10-12T08:32:44.4849882Z   Downloaded defmt v1.1.1
+2026-10-12T08:32:44.5377740Z   Downloaded time v0.3.55
+2026-10-12T08:32:44.6748386Z   Downloaded regex-syntax v0.8.11
+2026-10-12T08:32:44.7183383Z   Downloaded syn v3.0.8
+2026-10-12T08:32:44.8046779Z   Downloaded tao v0.37.1
+2026-10-12T08:32:44.8989070Z   Downloaded tauri v2.12.3
+2026-10-12T08:32:45.1353626Z   Downloaded camino v1.2.6
+2026-10-12T08:32:45.1480771Z   Downloaded syn v2.0.119
+2026-10-12T08:32:45.2272861Z   Downloaded cookie v0.18.2
+2026-10-12T08:32:45.2532943Z   Downloaded crc32fast v1.5.2
+2026-10-12T08:32:45.2692501Z   Downloaded crossbeam-utils v0.8.23
+2026-10-12T08:32:45.2982484Z   Downloaded byteorder v1.5.0
+2026-10-12T08:32:45.3096125Z   Downloaded digest v0.10.7
+2026-10-12T08:32:45.3287356Z   Downloaded anyhow v1.0.104
+2026-10-12T08:32:45.3672742Z   Downloaded erased-serde v0.4.10
+2026-10-12T08:32:46.3480163Z   Downloaded parking_lot v0.12.5
+2026-10-12T08:32:46.4748802Z   Downloaded num-traits v0.2.19
+2026-10-12T08:32:46.5044733Z   Downloaded tracing v0.1.44
+2026-10-12T08:32:46.6396394Z   Downloaded pin-project-lite v0.2.17
+2026-10-12T08:32:46.7481401Z   Downloaded bitflags v2.13.2
+2026-10-12T08:32:46.8233433Z   Downloaded cssparser v0.37.0
+2026-10-12T08:32:46.8462711Z   Downloaded ctor v1.0.13
+2026-10-12T08:32:46.8817046Z   Downloaded regex-automata v0.4.18
+2026-10-12T08:32:46.9752050Z   Downloaded icu_normalizer v2.3.0
+2026-10-12T08:32:47.0223087Z   Downloaded bytes v1.12.1
+2026-10-12T08:32:47.0580471Z   Downloaded jiff v0.2.38
+2026-10-12T08:32:47.1863506Z   Downloaded darling v0.24.1
+2026-10-12T08:32:47.3054005Z   Downloaded html5ever v0.39.0
+2026-10-12T08:32:47.3497021Z   Downloaded miniz_oxide v0.9.1
+2026-10-12T08:32:47.3732657Z   Downloaded proc-macro2 v1.0.107
+2026-10-12T08:32:47.4163287Z   Downloaded zerotrie v0.2.5
+2026-10-12T08:32:47.4662233Z   Downloaded dom_query v0.28.0
+2026-10-12T08:32:47.5372025Z   Downloaded icu_normalizer_data v2.3.0
+2026-10-12T08:32:47.5530920Z   Downloaded cfb v0.14.0
+2026-10-12T08:32:47.5996020Z   Downloaded crossbeam-channel v0.5.17
+2026-10-12T08:32:47.6367230Z   Downloaded darling_core v0.24.1
+2026-10-12T08:32:47.6992372Z   Downloaded icu_locale_core v2.3.0
+2026-10-12T08:32:48.0317033Z   Downloaded base64 v0.23.1
+2026-10-12T08:32:48.0777887Z   Downloaded derive_more v2.1.1
+2026-10-12T08:32:48.2611550Z   Downloaded flate2 v1.1.10
+2026-10-12T08:32:48.3071430Z   Downloaded libc v0.2.190
+2026-10-12T08:32:48.8086050Z   Downloaded muda v0.20.0
+2026-10-12T08:32:48.8500566Z   Downloaded cc v1.8.0
+2026-10-12T08:32:48.8787952Z   Downloaded derive_more-impl v2.1.1
+2026-10-12T08:32:48.9226037Z   Downloaded memchr v2.8.3
+2026-10-12T08:32:48.9652089Z   Downloaded mio v1.2.4
+2026-10-12T08:32:49.0187018Z   Downloaded png v0.17.16
+2026-10-12T08:32:49.0498290Z   Downloaded png v0.18.1
+2026-10-12T08:32:49.4268738Z   Downloaded zerovec v0.11.8
+2026-10-12T08:32:49.4846676Z   Downloaded hashbrown v0.17.1
+2026-10-12T08:32:49.5246325Z   Downloaded tokio v1.53.2
+2026-10-12T08:32:49.9290076Z   Downloaded winnow v1.0.4
+2026-10-12T08:32:50.0160541Z   Downloaded zlib-rs v0.6.8
+2026-10-12T08:32:50.0662403Z   Downloaded wry v0.57.0
+2026-10-12T08:32:50.1365249Z   Downloaded brotli-decompressor v6.0.1
+2026-10-12T08:32:50.1705327Z   Downloaded chrono v0.4.45
+2026-10-12T08:32:50.2140565Z   Downloaded quick-xml v0.42.0
+2026-10-12T08:32:50.2547845Z   Downloaded window-vibrancy v0.8.1
+2026-10-12T08:32:50.2928000Z   Downloaded brotli v9.0.0
+2026-10-12T08:32:50.3632032Z   Downloaded windows-sys v0.61.2
+2026-10-12T08:32:51.0878170Z   Downloaded webview2-com-sys v0.39.1
+2026-10-12T08:32:51.1855080Z   Downloaded windows v0.62.2
+2026-10-12T08:32:55.3179874Z    Compiling proc-macro2 v1.0.107
+2026-10-12T08:32:55.3180523Z    Compiling quote v1.0.47
+2026-10-12T08:32:59.3674252Z    Compiling unicode-ident v1.0.27
+2026-10-12T08:33:03.9927184Z    Compiling serde_core v1.0.229
+2026-10-12T08:33:03.9927676Z    Compiling syn v3.0.8
+2026-10-12T08:33:03.9928099Z    Compiling syn v2.0.119
+2026-10-12T08:33:11.4151668Z    Compiling synstructure v0.14.0
+2026-10-12T08:33:11.6883238Z    Compiling zerovec-derive v0.11.6
+2026-10-12T08:33:12.9023747Z    Compiling zerofrom-derive v0.1.8
+2026-10-12T08:33:14.1679168Z    Compiling yoke-derive v0.8.4
+2026-10-12T08:33:16.9254485Z    Compiling displaydoc v0.2.7
+2026-10-12T08:33:18.8117568Z    Compiling serde_derive v1.0.229
+2026-10-12T08:33:20.5661085Z    Compiling siphasher v1.0.4
+2026-10-12T08:33:20.7802564Z    Compiling cfg-if v1.0.5
+2026-10-12T08:33:20.8283691Z    Compiling phf_shared v0.13.1
+2026-10-12T08:33:21.6238246Z    Compiling icu_properties_data v2.3.0
+2026-10-12T08:33:21.8386751Z    Compiling fastrand v2.5.0
+2026-10-12T08:33:22.0109157Z    Compiling windows-link v0.2.1
+2026-10-12T08:33:22.0571156Z    Compiling icu_normalizer_data v2.3.0
+2026-10-12T08:33:22.2701239Z    Compiling phf_generator v0.13.1
+2026-10-12T08:33:25.5209519Z    Compiling stable_deref_trait v1.2.1
+2026-10-12T08:33:25.6335730Z    Compiling zmij v1.0.23
+2026-10-12T08:33:25.7007793Z    Compiling thiserror v2.0.21
+2026-10-12T08:33:26.0113108Z    Compiling zerofrom v0.1.8
+2026-10-12T08:33:26.1971827Z    Compiling smallvec v1.16.3
+2026-10-12T08:33:26.2368749Z    Compiling yoke v0.8.3
+2026-10-12T08:33:26.4282780Z    Compiling thiserror-impl v2.0.21
+2026-10-12T08:33:26.4368042Z    Compiling parking_lot_core v0.9.12
+2026-10-12T08:33:26.9197100Z    Compiling zerovec v0.11.8
+2026-10-12T08:33:27.7003653Z    Compiling serde v1.0.229
+2026-10-12T08:33:28.2022042Z    Compiling phf_macros v0.13.1
+2026-10-12T08:33:30.0067852Z    Compiling memchr v2.8.3
+2026-10-12T08:33:30.1702562Z    Compiling typeid v1.0.3
+2026-10-12T08:33:31.2843801Z    Compiling num-conv v0.2.2
+2026-10-12T08:33:31.2932363Z    Compiling time-core v0.1.9
+2026-10-12T08:33:31.5896025Z    Compiling tinystr v0.8.4
+2026-10-12T08:33:31.7542554Z    Compiling phf_codegen v0.13.1
+2026-10-12T08:33:31.8184170Z    Compiling itoa v1.0.18
+2026-10-12T08:33:31.8643228Z    Compiling erased-serde v0.4.10
+2026-10-12T08:33:32.0237623Z    Compiling writeable v0.6.4
+2026-10-12T08:33:32.2373856Z    Compiling strsim v0.11.1
+2026-10-12T08:33:32.3205998Z    Compiling litemap v0.8.3
+2026-10-12T08:33:32.5305594Z    Compiling ident_case v1.0.1
+2026-10-12T08:33:32.6131403Z    Compiling darling_core v0.24.1
+2026-10-12T08:33:32.8295933Z    Compiling icu_locale_core v2.3.0
+2026-10-12T08:33:34.7000798Z    Compiling potential_utf v0.1.6
+2026-10-12T08:33:34.8561213Z    Compiling zerotrie v0.2.5
+2026-10-12T08:33:35.2335205Z    Compiling windows-sys v0.61.2
+2026-10-12T08:33:40.3368267Z    Compiling getrandom v0.4.3
+2026-10-12T08:33:40.6420733Z    Compiling utf8_iter v1.0.4
+2026-10-12T08:33:41.2478349Z    Compiling icu_collections v2.3.0
+2026-10-12T08:33:41.9358471Z    Compiling darling_macro v0.24.1
+2026-10-12T08:33:42.0201220Z    Compiling icu_provider v2.3.1
+2026-10-12T08:33:42.9040268Z    Compiling anyhow v1.0.104
+2026-10-12T08:33:43.2891383Z    Compiling version_check v0.9.5
+2026-10-12T08:33:43.3280894Z    Compiling new_debug_unreachable v1.0.6
+2026-10-12T08:33:43.3749576Z    Compiling libc v0.2.190
+2026-10-12T08:33:43.8242987Z    Compiling scopeguard v1.2.0
+2026-10-12T08:33:43.8973687Z    Compiling lock_api v0.4.14
+2026-10-12T08:33:44.3079962Z    Compiling darling v0.24.1
+2026-10-12T08:33:44.6141724Z    Compiling phf v0.13.1
+2026-10-12T08:33:44.8006722Z    Compiling string_cache_codegen v0.6.1
+2026-10-12T08:33:45.1504124Z    Compiling serde_json v1.0.154
+2026-10-12T08:33:45.4711210Z    Compiling precomputed-hash v0.1.1
+2026-10-12T08:33:45.7051389Z    Compiling web_atoms v0.2.6
+2026-10-12T08:33:45.9115271Z    Compiling parking_lot v0.12.5
+2026-10-12T08:33:46.5200510Z    Compiling serde_with_macros v3.24.0
+2026-10-12T08:33:46.8193847Z    Compiling icu_properties v2.3.0
+2026-10-12T08:33:48.9468960Z    Compiling icu_normalizer v2.3.0
+2026-10-12T08:33:49.0864024Z    Compiling semver v1.0.28
+2026-10-12T08:33:49.5715486Z    Compiling winnow v1.0.4
+2026-10-12T08:33:50.0398793Z    Compiling toml_parser v1.1.5+spec-1.1.0
+2026-10-12T08:33:50.9379166Z    Compiling idna_adapter v1.2.2
+2026-10-12T08:33:51.1820773Z    Compiling string_cache v0.9.0
+2026-10-12T08:33:51.7577779Z    Compiling serde_spanned v1.1.2
+2026-10-12T08:33:51.8804370Z    Compiling toml_datetime v1.1.2+spec-1.1.0
+2026-10-12T08:33:52.3083244Z    Compiling shlex v2.0.1
+2026-10-12T08:33:52.5527287Z    Compiling autocfg v1.5.1
+2026-10-12T08:33:53.2865115Z    Compiling find-msvc-tools v0.1.14
+2026-10-12T08:33:53.9196886Z    Compiling dtoa v1.0.11
+2026-10-12T08:33:54.0569706Z    Compiling toml_writer v1.1.3+spec-1.1.0
+2026-10-12T08:33:54.2730784Z    Compiling log v0.4.34
+2026-10-12T08:33:54.4771729Z    Compiling percent-encoding v2.3.2
+2026-10-12T08:33:54.7131815Z    Compiling form_urlencoded v1.2.2
+2026-10-12T08:33:54.8977964Z    Compiling toml v1.1.8+spec-1.1.0
+2026-10-12T08:33:55.1799963Z    Compiling dtoa-short v0.3.5
+2026-10-12T08:33:57.2452602Z    Compiling cc v1.8.0
+2026-10-12T08:33:57.6189150Z    Compiling indexmap v1.9.3
+2026-10-12T08:33:58.8488593Z    Compiling uuid v1.28.0
+2026-10-12T08:33:59.5271757Z    Compiling idna v1.1.0
+2026-10-12T08:34:00.9283334Z    Compiling tendril v0.5.1
+2026-10-12T08:34:01.2725581Z    Compiling selectors v0.38.0
+2026-10-12T08:34:01.6621897Z    Compiling aho-corasick v1.1.5
+2026-10-12T08:34:02.0239062Z    Compiling windows-strings v0.5.1
+2026-10-12T08:34:02.4773065Z    Compiling windows-result v0.4.1
+2026-10-12T08:34:05.2844126Z    Compiling windows-implement v0.60.2
+2026-10-12T08:34:06.8593915Z    Compiling windows-interface v0.59.3
+2026-10-12T08:34:08.3659777Z    Compiling derive_more-impl v2.1.1
+2026-10-12T08:34:09.6858078Z    Compiling cssparser-macros v0.7.1
+2026-10-12T08:34:10.5538324Z    Compiling regex-syntax v0.8.11
+2026-10-12T08:34:10.7276724Z    Compiling alloc-no-stdlib v3.0.0
+2026-10-12T08:34:10.8170909Z    Compiling camino v1.2.6
+2026-10-12T08:34:11.2543151Z    Compiling bitflags v2.13.2
+2026-10-12T08:34:12.4698772Z    Compiling alloc-stdlib v0.3.0
+2026-10-12T08:34:12.5593875Z    Compiling cssparser v0.37.0
+2026-10-12T08:34:13.7867997Z    Compiling regex-automata v0.4.18
+2026-10-12T08:34:15.3713854Z    Compiling derive_more v2.1.1
+2026-10-12T08:34:15.4790534Z    Compiling windows-core v0.62.2
+2026-10-12T08:34:16.6351586Z    Compiling markup5ever v0.39.0
+2026-10-12T08:34:16.9568804Z    Compiling vswhom-sys v0.1.3
+2026-10-12T08:34:17.3568440Z    Compiling url v2.5.8
+2026-10-12T08:34:18.8640562Z    Compiling winapi-util v0.1.11
+2026-10-12T08:34:19.1675714Z    Compiling servo_arc v0.4.3
+2026-10-12T08:34:19.3329436Z    Compiling serde_derive_internals v0.29.1
+2026-10-12T08:34:20.5620637Z    Compiling equivalent v1.0.2
+2026-10-12T08:34:20.6206241Z    Compiling hashbrown v0.12.3
+2026-10-12T08:34:25.5751239Z    Compiling powerfmt v0.2.1
+2026-10-12T08:34:25.5751851Z    Compiling rustc-hash v2.1.3
+2026-10-12T08:34:25.5752304Z    Compiling bit-vec v0.8.0
+2026-10-12T08:34:25.5752701Z    Compiling schemars v0.8.22
+2026-10-12T08:34:25.5753090Z    Compiling deranged v0.5.8
+2026-10-12T08:34:25.5753483Z    Compiling hashbrown v0.17.1
+2026-10-12T08:34:25.5753857Z    Compiling web-time v1.1.0
+2026-10-12T08:34:25.5754233Z    Compiling fnv v1.0.7
+2026-10-12T08:34:25.5754631Z    Compiling cfb v0.14.0
+2026-10-12T08:34:25.5754993Z    Compiling time v0.3.55
+2026-10-12T08:34:25.5755337Z    Compiling indexmap v2.14.2
+2026-10-12T08:34:25.5755723Z    Compiling bit-set v0.8.0
+2026-10-12T08:34:25.5756143Z    Compiling schemars_derive v0.8.22
+2026-10-12T08:34:28.4728103Z    Compiling same-file v1.0.6
+2026-10-12T08:34:28.9701824Z    Compiling html5ever v0.39.0
+2026-10-12T08:34:30.1322866Z    Compiling regex v1.13.1
+2026-10-12T08:34:30.7844543Z    Compiling brotli-decompressor v6.0.1
+2026-10-12T08:34:33.4996033Z    Compiling jsonptr v0.7.1
+2026-10-12T08:34:34.5366961Z    Compiling cargo-platform v0.1.9
+2026-10-12T08:34:34.9437720Z    Compiling quick-xml v0.42.0
+2026-10-12T08:34:34.9560547Z    Compiling dyn-clone v1.0.20
+2026-10-12T08:34:35.1350966Z    Compiling foldhash v0.2.0
+2026-10-12T08:34:35.3532982Z    Compiling base64 v0.23.1
+2026-10-12T08:34:35.9939301Z    Compiling simd-adler32 v0.3.10
+2026-10-12T08:34:36.2510003Z    Compiling bytes v1.12.1
+2026-10-12T08:34:36.9621456Z    Compiling dunce v1.0.5
+2026-10-12T08:34:37.1678091Z    Compiling http v1.5.0
+2026-10-12T08:34:37.2151035Z    Compiling plist v1.10.1
+2026-10-12T08:34:38.7268662Z    Compiling dom_query v0.28.0
+2026-10-12T08:34:46.3800646Z    Compiling cargo_metadata v0.19.2
+2026-10-12T08:34:46.3801408Z    Compiling json-patch v4.2.0
+2026-10-12T08:34:46.3801915Z    Compiling brotli v9.0.0
+2026-10-12T08:34:46.3802440Z    Compiling urlpattern v0.6.0
+2026-10-12T08:34:46.3802985Z    Compiling serde-untagged v0.1.9
+2026-10-12T08:34:50.5677255Z    Compiling walkdir v2.5.0
+2026-10-12T08:34:50.5677795Z    Compiling infer v0.22.0
+2026-10-12T08:34:50.5678311Z    Compiling serde_with v3.24.0
+2026-10-12T08:34:50.5678794Z    Compiling generic-array v0.14.7
+2026-10-12T08:34:50.5679342Z    Compiling windows-threading v0.2.1
+2026-10-12T08:34:50.5679942Z    Compiling adler2 v2.0.1
+2026-10-12T08:34:50.5680401Z    Compiling ctor v1.0.13
+2026-10-12T08:34:50.5680815Z    Compiling glob v0.3.4
+2026-10-12T08:34:50.8657606Z    Compiling crc32fast v1.5.2
+2026-10-12T08:34:51.3540532Z    Compiling tauri-utils v2.10.1
+2026-10-12T08:34:51.4426309Z    Compiling windows-future v0.3.2
+2026-10-12T08:34:52.8997496Z    Compiling vswhom v0.1.0
+2026-10-12T08:34:53.0093618Z    Compiling windows-numerics v0.3.1
+2026-10-12T08:34:53.2007679Z    Compiling windows-collections v0.3.2
+2026-10-12T08:34:53.7709252Z    Compiling rustc_version v0.4.1
+2026-10-12T08:34:54.2953330Z    Compiling winreg v0.56.0
+2026-10-12T08:34:54.8937600Z    Compiling time-macros v0.2.32
+2026-10-12T08:34:58.3053021Z    Compiling typenum v1.20.1
+2026-10-12T08:34:59.2804790Z    Compiling option-ext v0.2.0
+2026-10-12T08:35:04.8198296Z    Compiling dirs-sys v0.5.0
+2026-10-12T08:35:05.9338070Z    Compiling embed-resource v3.0.12
+2026-10-12T08:35:06.3253288Z    Compiling windows v0.62.2
+2026-10-12T08:35:28.4815311Z    Compiling miniz_oxide v0.9.1
+2026-10-12T08:35:33.5074839Z    Compiling webview2-com-sys v0.39.1
+2026-10-12T08:35:34.9614751Z    Compiling raw-window-handle v0.6.2
+2026-10-12T08:35:35.2449112Z    Compiling heck v0.5.0
+2026-10-12T08:35:44.0601664Z    Compiling crossbeam-utils v0.8.23
+2026-10-12T08:35:48.3642589Z    Compiling flate2 v1.1.10
+2026-10-12T08:35:50.3487314Z    Compiling tauri-winres v0.3.6
+2026-10-12T08:35:51.0086577Z    Compiling dirs v7.0.0
+2026-10-12T08:35:51.0910402Z    Compiling miniz_oxide v0.8.9
+2026-10-12T08:35:52.1553797Z    Compiling fdeflate v0.3.7
+2026-10-12T08:35:53.1036860Z    Compiling cargo_toml v1.0.1
+2026-10-12T08:35:58.9591539Z    Compiling dpi v0.1.2
+2026-10-12T08:35:59.2145849Z    Compiling cookie v0.18.2
+2026-10-12T08:36:02.6512473Z    Compiling tauri-build v2.7.2
+2026-10-12T08:36:10.5482042Z    Compiling block-buffer v0.10.4
+2026-10-12T08:36:10.6681680Z    Compiling crypto-common v0.1.7
+2026-10-12T08:36:11.7670138Z    Compiling windows-version v0.1.7
+2026-10-12T08:36:11.8658125Z    Compiling webview2-com-macros v0.8.1
+2026-10-12T08:36:12.6083189Z    Compiling pin-project-lite v0.2.17
+2026-10-12T08:36:12.8152204Z    Compiling bitflags v1.3.2
+2026-10-12T08:36:15.2176193Z    Compiling png v0.17.16
+2026-10-12T08:36:16.5679971Z    Compiling webview2-com v0.39.1
+2026-10-12T08:36:17.9353190Z    Compiling digest v0.10.7
+2026-10-12T08:36:18.9176180Z    Compiling crossbeam-channel v0.5.17
+2026-10-12T08:36:27.3239897Z    Compiling wry v0.57.0
+2026-10-12T08:36:28.0187948Z    Compiling once_cell v1.21.4
+2026-10-12T08:36:28.2553138Z    Compiling byteorder v1.5.0
+2026-10-12T08:36:28.5074392Z    Compiling cpufeatures v0.2.17
+2026-10-12T08:36:28.5570546Z    Compiling tauri-runtime v2.12.1
+2026-10-12T08:36:28.7232783Z    Compiling tracing-core v0.1.36
+2026-10-12T08:36:28.8002102Z    Compiling sha2 v0.10.9
+2026-10-12T08:36:29.4549631Z    Compiling tracing v0.1.44
+2026-10-12T08:36:29.5077008Z    Compiling ico v0.5.0
+2026-10-12T08:36:31.4352837Z    Compiling tauri v2.12.3
+2026-10-12T08:36:34.1055154Z    Compiling png v0.18.1
+2026-10-12T08:36:36.1947454Z    Compiling getrandom v0.3.4
+2026-10-12T08:36:36.7229599Z    Compiling unicode-segmentation v1.13.3
+2026-10-12T08:36:37.3198517Z    Compiling muda v0.20.0
+2026-10-12T08:36:37.5832811Z    Compiling tauri-runtime-wry v2.12.1
+2026-10-12T08:36:37.8468243Z    Compiling tao v0.37.1
+2026-10-12T08:36:43.4072704Z    Compiling tauri-codegen v2.7.2
+2026-10-12T08:36:48.2728640Z    Compiling softbuffer v0.4.8
+2026-10-12T08:36:49.2945730Z    Compiling keyboard-types v0.8.3
+2026-10-12T08:36:49.4739036Z    Compiling serialize-to-javascript-impl v0.1.2
+2026-10-12T08:36:50.3280860Z    Compiling serialize-to-javascript v0.1.2
+2026-10-12T08:36:52.2482436Z    Compiling tauri-macros v2.7.2
+2026-10-12T08:36:55.3290630Z    Compiling tokio v1.53.2
+2026-10-12T08:36:59.5813269Z    Compiling window-vibrancy v0.8.1
+2026-10-12T08:36:59.5814541Z    Compiling aik-tauri-comparison v0.1.0 (D:\a\AI-Kubernetes\AI-Kubernetes\spikes\tauri-comparison\src-tauri)
+2026-10-12T08:36:59.5815529Z    Compiling serde_repr v0.1.21
+2026-10-12T08:37:04.0709147Z    Compiling mime v0.3.17
+2026-10-12T08:37:13.7384817Z     Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 36s
+2026-10-12T08:37:13.8825888Z      Running unittests src\main.rs (target\x86_64-pc-windows-msvc\debug\deps\aik_tauri_comparison-7eb8c67692b4c344.exe)
+2026-10-12T08:37:13.8929470Z 
+2026-10-12T08:37:13.8930192Z running 6 tests
+2026-10-12T08:37:13.8938516Z test protocol::tests::frame_reader_preserves_following_frame_and_accepts_windows_newline ... ok
+2026-10-12T08:37:13.8939923Z test protocol::tests::rejects_cross_request_workspace_protocol_and_forged_worker_effects ... ok
+2026-10-12T08:37:13.8943267Z test protocol::tests::renderer_can_select_only_three_fixed_checks ... ok
+2026-10-12T08:37:13.8946918Z test protocol::tests::rejects_duplicate_keys_invalid_utf8_and_oversized_frames ... ok
+2026-10-12T08:37:13.8950478Z test sidecar::tests::native_random_ids_are_distinct_uuid_v4 ... ok
+2026-10-12T08:37:14.2433350Z test sidecar::tests::actual_python_child_and_worker_complete_unchanged_contract ... ok
+2026-10-12T08:37:14.2434220Z 
+2026-10-12T08:37:14.2435117Z test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+2026-10-12T08:37:14.2436664Z 
+2026-10-12T08:37:14.4126470Z ##[group]Run npm run package:win
+2026-10-12T08:37:14.4127169Z [36;1mnpm run package:win[0m
+2026-10-12T08:37:14.4179586Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:37:14.4180143Z env:
+2026-10-12T08:37:14.4180404Z   PYTHONUTF8: 1
+2026-10-12T08:37:14.4180681Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:37:14.4180981Z   CI: true
+2026-10-12T08:37:14.4181227Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:37:14.4181502Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:37:14.4181757Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:37:14.4182081Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:37:14.4182539Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:37:14.4183032Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:37:14.4183443Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:37:14.4183938Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:37:14.4184287Z ##[endgroup]
+2026-10-12T08:37:15.0905243Z 
+2026-10-12T08:37:15.0906204Z > aik-tauri-stack-comparison@0.1.0 package:win
+2026-10-12T08:37:15.0907285Z > tauri build --bundles nsis --target x86_64-pc-windows-msvc -- --locked
+2026-10-12T08:37:15.0907902Z 
+2026-10-12T08:37:15.1979771Z         Info Looking up installed tauri packages to check mismatched versions...
+2026-10-12T08:37:15.8218001Z      Running beforeBuildCommand `npm run build`
+2026-10-12T08:37:16.0804356Z 
+2026-10-12T08:37:16.0805234Z > aik-tauri-stack-comparison@0.1.0 build
+2026-10-12T08:37:16.0806172Z > tsc -p tsconfig.json && vite build --base=./
+2026-10-12T08:37:16.0806695Z 
+2026-10-12T08:37:16.4931265Z [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+2026-10-12T08:37:16.5297478Z transforming...
+2026-10-12T08:37:16.5938932Z ✓ 17 modules transformed.
+2026-10-12T08:37:16.6175638Z rendering chunks...
+2026-10-12T08:37:16.6595327Z computing gzip size...
+2026-10-12T08:37:16.6635147Z dist/index.html                   0.39 kB │ gzip:  0.30 kB
+2026-10-12T08:37:16.6636321Z dist/assets/index-CDCplbkY.css    2.62 kB │ gzip:  1.13 kB
+2026-10-12T08:37:16.6637499Z dist/assets/index-BQfO12TM.js   194.70 kB │ gzip: 62.00 kB
+2026-10-12T08:37:16.6638108Z 
+2026-10-12T08:37:16.6640809Z [32m✓ built in 171ms[39m
+2026-10-12T08:37:17.4035705Z    Compiling proc-macro2 v1.0.107
+2026-10-12T08:37:17.4036376Z    Compiling quote v1.0.47
+2026-10-12T08:37:17.6727293Z    Compiling unicode-ident v1.0.27
+2026-10-12T08:37:17.8033087Z    Compiling serde_core v1.0.229
+2026-10-12T08:37:19.1751890Z    Compiling syn v3.0.8
+2026-10-12T08:37:21.2173770Z    Compiling syn v2.0.119
+2026-10-12T08:37:26.1142887Z    Compiling synstructure v0.14.0
+2026-10-12T08:37:26.8649601Z    Compiling zerofrom-derive v0.1.8
+2026-10-12T08:37:27.8415827Z    Compiling yoke-derive v0.8.4
+2026-10-12T08:37:28.5043314Z    Compiling zerovec-derive v0.11.6
+2026-10-12T08:37:29.2561211Z    Compiling displaydoc v0.2.7
+2026-10-12T08:37:29.8767659Z    Compiling serde_derive v1.0.229
+2026-10-12T08:37:30.1778807Z    Compiling cfg-if v1.0.5
+2026-10-12T08:37:30.2259332Z    Compiling siphasher v1.0.4
+2026-10-12T08:37:30.4659216Z    Compiling phf_shared v0.13.1
+2026-10-12T08:37:31.1396632Z    Compiling fastrand v2.5.0
+2026-10-12T08:37:31.3003860Z    Compiling windows-link v0.2.1
+2026-10-12T08:37:32.2503601Z    Compiling icu_normalizer_data v2.3.0
+2026-10-12T08:37:32.6182044Z    Compiling icu_properties_data v2.3.0
+2026-10-12T08:37:32.8158564Z    Compiling phf_generator v0.13.1
+2026-10-12T08:37:34.3916744Z    Compiling stable_deref_trait v1.2.1
+2026-10-12T08:37:34.4509907Z    Compiling thiserror v2.0.21
+2026-10-12T08:37:34.7952942Z    Compiling zmij v1.0.23
+2026-10-12T08:37:35.1015911Z    Compiling zerofrom v0.1.8
+2026-10-12T08:37:35.2135652Z    Compiling smallvec v1.16.3
+2026-10-12T08:37:35.4375472Z    Compiling yoke v0.8.3
+2026-10-12T08:37:35.6791338Z    Compiling thiserror-impl v2.0.21
+2026-10-12T08:37:36.4174392Z    Compiling parking_lot_core v0.9.12
+2026-10-12T08:37:36.6562202Z    Compiling zerovec v0.11.8
+2026-10-12T08:37:37.4056642Z    Compiling serde v1.0.229
+2026-10-12T08:37:37.4208440Z    Compiling phf_macros v0.13.1
+2026-10-12T08:37:37.7362519Z    Compiling typeid v1.0.3
+2026-10-12T08:37:37.9857379Z    Compiling memchr v2.8.3
+2026-10-12T08:37:38.9667474Z    Compiling num-conv v0.2.2
+2026-10-12T08:37:39.1074702Z    Compiling time-core v0.1.9
+2026-10-12T08:37:39.3313785Z    Compiling tinystr v0.8.4
+2026-10-12T08:37:39.4093283Z    Compiling phf_codegen v0.13.1
+2026-10-12T08:37:39.5219472Z    Compiling litemap v0.8.3
+2026-10-12T08:37:39.5306355Z    Compiling erased-serde v0.4.10
+2026-10-12T08:37:39.7390512Z    Compiling strsim v0.11.1
+2026-10-12T08:37:39.7827270Z    Compiling ident_case v1.0.1
+2026-10-12T08:37:39.8670796Z    Compiling itoa v1.0.18
+2026-10-12T08:37:40.0396513Z    Compiling writeable v0.6.4
+2026-10-12T08:37:40.0952959Z    Compiling darling_core v0.24.1
+2026-10-12T08:37:40.3084054Z    Compiling icu_locale_core v2.3.0
+2026-10-12T08:37:41.7759960Z    Compiling potential_utf v0.1.6
+2026-10-12T08:37:41.9115458Z    Compiling zerotrie v0.2.5
+2026-10-12T08:37:42.2499252Z    Compiling windows-sys v0.61.2
+2026-10-12T08:37:44.2521360Z    Compiling utf8_iter v1.0.4
+2026-10-12T08:37:44.3815288Z    Compiling getrandom v0.4.3
+2026-10-12T08:37:44.9775727Z    Compiling icu_collections v2.3.0
+2026-10-12T08:37:45.5514799Z    Compiling darling_macro v0.24.1
+2026-10-12T08:37:46.0187872Z    Compiling icu_provider v2.3.1
+2026-10-12T08:37:47.2858568Z    Compiling anyhow v1.0.104
+2026-10-12T08:37:47.5879581Z    Compiling version_check v0.9.5
+2026-10-12T08:37:47.8857614Z    Compiling scopeguard v1.2.0
+2026-10-12T08:37:47.9561786Z    Compiling new_debug_unreachable v1.0.6
+2026-10-12T08:37:48.0006444Z    Compiling libc v0.2.190
+2026-10-12T08:37:48.4633611Z    Compiling lock_api v0.4.14
+2026-10-12T08:37:48.7388039Z    Compiling darling v0.24.1
+2026-10-12T08:37:49.0058746Z    Compiling phf v0.13.1
+2026-10-12T08:37:49.1910706Z    Compiling string_cache_codegen v0.6.1
+2026-10-12T08:37:49.6390669Z    Compiling serde_json v1.0.154
+2026-10-12T08:37:49.6771483Z    Compiling precomputed-hash v0.1.1
+2026-10-12T08:37:49.7365429Z    Compiling web_atoms v0.2.6
+2026-10-12T08:37:50.1507936Z    Compiling parking_lot v0.12.5
+2026-10-12T08:37:50.3669797Z    Compiling serde_with_macros v3.24.0
+2026-10-12T08:37:50.5670400Z    Compiling icu_properties v2.3.0
+2026-10-12T08:37:51.9139508Z    Compiling icu_normalizer v2.3.0
+2026-10-12T08:37:52.2767874Z    Compiling semver v1.0.28
+2026-10-12T08:37:52.6389845Z    Compiling winnow v1.0.4
+2026-10-12T08:37:53.0735603Z    Compiling toml_parser v1.1.5+spec-1.1.0
+2026-10-12T08:37:53.8805824Z    Compiling idna_adapter v1.2.2
+2026-10-12T08:37:53.9906415Z    Compiling string_cache v0.9.0
+2026-10-12T08:37:54.5885768Z    Compiling serde_spanned v1.1.2
+2026-10-12T08:37:54.7045330Z    Compiling toml_datetime v1.1.2+spec-1.1.0
+2026-10-12T08:37:55.0251595Z    Compiling autocfg v1.5.1
+2026-10-12T08:37:55.4762312Z    Compiling dtoa v1.0.11
+2026-10-12T08:37:55.6089874Z    Compiling find-msvc-tools v0.1.14
+2026-10-12T08:37:56.1141307Z    Compiling percent-encoding v2.3.2
+2026-10-12T08:37:56.2921382Z    Compiling log v0.4.34
+2026-10-12T08:37:56.4773351Z    Compiling shlex v2.0.1
+2026-10-12T08:37:56.6784080Z    Compiling toml_writer v1.1.3+spec-1.1.0
+2026-10-12T08:37:56.6871345Z    Compiling cc v1.8.0
+2026-10-12T08:37:56.8944927Z    Compiling toml v1.1.8+spec-1.1.0
+2026-10-12T08:37:58.6706507Z    Compiling form_urlencoded v1.2.2
+2026-10-12T08:37:58.9621304Z    Compiling dtoa-short v0.3.5
+2026-10-12T08:37:59.0638181Z    Compiling indexmap v1.9.3
+2026-10-12T08:38:00.3163145Z    Compiling uuid v1.28.0
+2026-10-12T08:38:00.8580413Z    Compiling idna v1.1.0
+2026-10-12T08:38:01.7603964Z    Compiling tendril v0.5.1
+2026-10-12T08:38:02.0093330Z    Compiling selectors v0.38.0
+2026-10-12T08:38:02.4313307Z    Compiling aho-corasick v1.1.5
+2026-10-12T08:38:02.5935393Z    Compiling windows-strings v0.5.1
+2026-10-12T08:38:03.1806314Z    Compiling windows-result v0.4.1
+2026-10-12T08:38:04.6715529Z    Compiling windows-implement v0.60.2
+2026-10-12T08:38:05.4930600Z    Compiling derive_more-impl v2.1.1
+2026-10-12T08:38:06.7360473Z    Compiling windows-interface v0.59.3
+2026-10-12T08:38:07.7123481Z    Compiling cssparser-macros v0.7.1
+2026-10-12T08:38:08.1621482Z    Compiling camino v1.2.6
+2026-10-12T08:38:08.4623144Z    Compiling regex-syntax v0.8.11
+2026-10-12T08:38:09.5659251Z    Compiling alloc-no-stdlib v3.0.0
+2026-10-12T08:38:10.0645231Z    Compiling bitflags v2.13.2
+2026-10-12T08:38:11.0865628Z    Compiling regex-automata v0.4.18
+2026-10-12T08:38:11.9790247Z    Compiling alloc-stdlib v0.3.0
+2026-10-12T08:38:12.1068700Z    Compiling cssparser v0.37.0
+2026-10-12T08:38:13.1069878Z    Compiling windows-core v0.62.2
+2026-10-12T08:38:13.8948019Z    Compiling derive_more v2.1.1
+2026-10-12T08:38:14.7579094Z    Compiling markup5ever v0.39.0
+2026-10-12T08:38:15.0044063Z    Compiling url v2.5.8
+2026-10-12T08:38:15.7475761Z    Compiling vswhom-sys v0.1.3
+2026-10-12T08:38:16.0860068Z    Compiling winapi-util v0.1.11
+2026-10-12T08:38:16.1427946Z    Compiling servo_arc v0.4.3
+2026-10-12T08:38:16.3112516Z    Compiling serde_derive_internals v0.29.1
+2026-10-12T08:38:16.3133744Z    Compiling schemars v0.8.22
+2026-10-12T08:38:16.5359105Z    Compiling equivalent v1.0.2
+2026-10-12T08:38:16.5949737Z    Compiling rustc-hash v2.1.3
+2026-10-12T08:38:16.6882950Z    Compiling hashbrown v0.17.1
+2026-10-12T08:38:17.4733576Z    Compiling hashbrown v0.12.3
+2026-10-12T08:38:17.5290641Z    Compiling web-time v1.1.0
+2026-10-12T08:38:17.5819446Z    Compiling deranged v0.5.8
+2026-10-12T08:38:18.1017750Z    Compiling bit-vec v0.8.0
+2026-10-12T08:38:18.3549833Z    Compiling powerfmt v0.2.1
+2026-10-12T08:38:18.5275411Z    Compiling fnv v1.0.7
+2026-10-12T08:38:18.5994630Z    Compiling cfb v0.14.0
+2026-10-12T08:38:18.9976809Z    Compiling time v0.3.55
+2026-10-12T08:38:19.4992244Z    Compiling bit-set v0.8.0
+2026-10-12T08:38:20.1566600Z    Compiling schemars_derive v0.8.22
+2026-10-12T08:38:21.7065897Z    Compiling indexmap v2.14.2
+2026-10-12T08:38:22.8688333Z    Compiling same-file v1.0.6
+2026-10-12T08:38:23.7906856Z    Compiling html5ever v0.39.0
+2026-10-12T08:38:23.8933038Z    Compiling regex v1.13.1
+2026-10-12T08:38:24.8503345Z    Compiling brotli-decompressor v6.0.1
+2026-10-12T08:38:24.8681917Z    Compiling jsonptr v0.7.1
+2026-10-12T08:38:25.5797182Z    Compiling cargo-platform v0.1.9
+2026-10-12T08:38:25.8249104Z    Compiling quick-xml v0.42.0
+2026-10-12T08:38:26.3265940Z    Compiling foldhash v0.2.0
+2026-10-12T08:38:26.7666372Z    Compiling dunce v1.0.5
+2026-10-12T08:38:26.9141922Z    Compiling base64 v0.23.1
+2026-10-12T08:38:27.0894043Z    Compiling dyn-clone v1.0.20
+2026-10-12T08:38:27.1934481Z    Compiling simd-adler32 v0.3.10
+2026-10-12T08:38:27.4024614Z    Compiling bytes v1.12.1
+2026-10-12T08:38:27.4093405Z    Compiling plist v1.10.1
+2026-10-12T08:38:28.2221595Z    Compiling http v1.5.0
+2026-10-12T08:38:29.4768755Z    Compiling dom_query v0.28.0
+2026-10-12T08:38:30.6722249Z    Compiling brotli v9.0.0
+2026-10-12T08:38:31.4281733Z    Compiling cargo_metadata v0.19.2
+2026-10-12T08:38:33.6727495Z    Compiling json-patch v4.2.0
+2026-10-12T08:38:34.1901659Z    Compiling urlpattern v0.6.0
+2026-10-12T08:38:35.0340952Z    Compiling serde-untagged v0.1.9
+2026-10-12T08:38:35.2543542Z    Compiling walkdir v2.5.0
+2026-10-12T08:38:36.8456841Z    Compiling infer v0.22.0
+2026-10-12T08:38:37.3133246Z    Compiling serde_with v3.24.0
+2026-10-12T08:38:37.4683196Z    Compiling generic-array v0.14.7
+2026-10-12T08:38:37.7055685Z    Compiling windows-threading v0.2.1
+2026-10-12T08:38:37.8193406Z    Compiling ctor v1.0.13
+2026-10-12T08:38:37.9510283Z    Compiling adler2 v2.0.1
+2026-10-12T08:38:38.0546913Z    Compiling glob v0.3.4
+2026-10-12T08:38:38.6899967Z    Compiling crc32fast v1.5.2
+2026-10-12T08:38:38.9935163Z    Compiling windows-future v0.3.2
+2026-10-12T08:38:39.7827613Z    Compiling tauri-utils v2.10.1
+2026-10-12T08:38:40.4833414Z    Compiling vswhom v0.1.0
+2026-10-12T08:38:40.5863267Z    Compiling windows-numerics v0.3.1
+2026-10-12T08:38:40.7790063Z    Compiling windows-collections v0.3.2
+2026-10-12T08:38:41.4371883Z    Compiling rustc_version v0.4.1
+2026-10-12T08:38:41.7444187Z    Compiling winreg v0.56.0
+2026-10-12T08:38:42.1179390Z    Compiling time-macros v0.2.32
+2026-10-12T08:38:44.3738350Z    Compiling typenum v1.20.1
+2026-10-12T08:38:45.5765571Z    Compiling option-ext v0.2.0
+2026-10-12T08:38:54.9582686Z    Compiling dirs-sys v0.5.0
+2026-10-12T08:38:59.5928080Z    Compiling embed-resource v3.0.12
+2026-10-12T08:38:59.5928590Z    Compiling windows v0.62.2
+2026-10-12T08:39:06.9131638Z    Compiling miniz_oxide v0.9.1
+2026-10-12T08:39:12.9307836Z    Compiling webview2-com-sys v0.39.1
+2026-10-12T08:39:21.7170900Z    Compiling crossbeam-utils v0.8.23
+2026-10-12T08:39:22.2315999Z    Compiling raw-window-handle v0.6.2
+2026-10-12T08:39:22.5499771Z    Compiling heck v0.5.0
+2026-10-12T08:39:33.8743498Z    Compiling flate2 v1.1.10
+2026-10-12T08:39:36.8442909Z    Compiling tauri-winres v0.3.6
+2026-10-12T08:39:37.1819403Z    Compiling dirs v7.0.0
+2026-10-12T08:39:37.2568740Z    Compiling miniz_oxide v0.8.9
+2026-10-12T08:39:37.9588237Z    Compiling fdeflate v0.3.7
+2026-10-12T08:39:38.6616673Z    Compiling cargo_toml v1.0.1
+2026-10-12T08:39:42.8813697Z    Compiling dpi v0.1.2
+2026-10-12T08:39:45.8079315Z    Compiling cookie v0.18.2
+2026-10-12T08:39:50.4865166Z    Compiling tauri-build v2.7.2
+2026-10-12T08:39:56.9165072Z    Compiling block-buffer v0.10.4
+2026-10-12T08:39:57.0328278Z    Compiling crypto-common v0.1.7
+2026-10-12T08:39:58.5534600Z    Compiling windows-version v0.1.7
+2026-10-12T08:39:58.6424733Z    Compiling webview2-com-macros v0.8.1
+2026-10-12T08:39:59.1837241Z    Compiling bitflags v1.3.2
+2026-10-12T08:39:59.8739639Z    Compiling pin-project-lite v0.2.17
+2026-10-12T08:40:02.3722740Z    Compiling png v0.17.16
+2026-10-12T08:40:03.6826141Z    Compiling webview2-com v0.39.1
+2026-10-12T08:40:05.2758945Z    Compiling digest v0.10.7
+2026-10-12T08:40:07.1899628Z    Compiling crossbeam-channel v0.5.17
+2026-10-12T08:40:15.8544535Z    Compiling cpufeatures v0.2.17
+2026-10-12T08:40:15.9062864Z    Compiling tauri-runtime v2.12.1
+2026-10-12T08:40:16.1262571Z    Compiling wry v0.57.0
+2026-10-12T08:40:18.0432094Z    Compiling byteorder v1.5.0
+2026-10-12T08:40:18.2871931Z    Compiling tracing-core v0.1.36
+2026-10-12T08:40:18.3507482Z    Compiling once_cell v1.21.4
+2026-10-12T08:40:19.0601866Z    Compiling tracing v0.1.44
+2026-10-12T08:40:19.3303323Z    Compiling ico v0.5.0
+2026-10-12T08:40:19.9995764Z    Compiling sha2 v0.10.9
+2026-10-12T08:40:21.4985407Z    Compiling tauri v2.12.3
+2026-10-12T08:40:22.7033264Z    Compiling png v0.18.1
+2026-10-12T08:40:24.3379242Z    Compiling getrandom v0.3.4
+2026-10-12T08:40:24.6785944Z    Compiling muda v0.20.0
+2026-10-12T08:40:24.8802702Z    Compiling tauri-runtime-wry v2.12.1
+2026-10-12T08:40:25.1497312Z    Compiling unicode-segmentation v1.13.3
+2026-10-12T08:40:25.8275372Z    Compiling tao v0.37.1
+2026-10-12T08:40:32.0472593Z    Compiling tauri-codegen v2.7.2
+2026-10-12T08:40:36.9224066Z    Compiling softbuffer v0.4.8
+2026-10-12T08:40:38.5237460Z    Compiling keyboard-types v0.8.3
+2026-10-12T08:40:40.3217895Z    Compiling serialize-to-javascript-impl v0.1.2
+2026-10-12T08:40:40.7654422Z    Compiling serialize-to-javascript v0.1.2
+2026-10-12T08:40:48.2666627Z    Compiling tauri-macros v2.7.2
+2026-10-12T08:40:50.4336109Z    Compiling tokio v1.53.2
+2026-10-12T08:40:58.8017331Z    Compiling window-vibrancy v0.8.1
+2026-10-12T08:40:59.0101616Z    Compiling aik-tauri-comparison v0.1.0 (D:\a\AI-Kubernetes\AI-Kubernetes\spikes\tauri-comparison\src-tauri)
+2026-10-12T08:41:00.2729257Z    Compiling serde_repr v0.1.21
+2026-10-12T08:41:04.5604785Z    Compiling mime v0.3.17
+2026-10-12T08:41:17.3999106Z warning: unused import: `PathBuf`
+2026-10-12T08:41:17.4004886Z  --> src\sidecar.rs:8:18
+2026-10-12T08:41:17.4005958Z   |
+2026-10-12T08:41:17.4006656Z 8 |     path::{Path, PathBuf},
+2026-10-12T08:41:17.4007226Z   |                  ^^^^^^^
+2026-10-12T08:41:17.4007689Z   |
+2026-10-12T08:41:17.4008295Z   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+2026-10-12T08:41:17.4009023Z 
+2026-10-12T08:43:11.4190974Z warning: `aik-tauri-comparison` (bin "aik-tauri-comparison") generated 1 warning (run `cargo fix --bin "aik-tauri-comparison" -p aik-tauri-comparison` to apply 1 suggestion)
+2026-10-12T08:43:11.4192726Z     Finished `release` profile [optimized] target(s) in 5m 54s
+2026-10-12T08:43:11.4704357Z        Built application at: D:\a\AI-Kubernetes\AI-Kubernetes\spikes\tauri-comparison\src-tauri\target\x86_64-pc-windows-msvc\release\aik-tauri-comparison.exe
+2026-10-12T08:43:11.4808568Z         Info Patching D:\a\AI-Kubernetes\AI-Kubernetes\spikes\tauri-comparison\src-tauri\target\x86_64-pc-windows-msvc\release\aik-tauri-comparison.exe with bundle type information: nsis
+2026-10-12T08:43:11.5069329Z         Info Verifying NSIS package
+2026-10-12T08:43:11.5072982Z  Downloading https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip
+2026-10-12T08:43:11.8688453Z         Info validating hash
+2026-10-12T08:43:11.8706679Z         Info extracting NSIS
+2026-10-12T08:43:12.1390881Z  Downloading https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll
+2026-10-12T08:43:12.2709934Z         Info validating hash
+2026-10-12T08:43:12.2718651Z         Info Target: x64
+2026-10-12T08:43:12.5774566Z  Downloading https://go.microsoft.com/fwlink/?linkid=2124701
+2026-10-12T08:43:16.0029496Z      Running makensis to produce D:\a\AI-Kubernetes\AI-Kubernetes\spikes\tauri-comparison\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\AIK Tauri Comparison_0.1.0_x64-setup.exe
+2026-10-12T08:45:08.5007409Z     Finished 1 bundle at:
+2026-10-12T08:45:08.5009530Z         D:\a\AI-Kubernetes\AI-Kubernetes\spikes\tauri-comparison\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\AIK Tauri Comparison_0.1.0_x64-setup.exe (216.15 MiB)
+2026-10-12T08:45:08.5010811Z 
+2026-10-12T08:45:08.5898410Z ##[group]Run ./scripts/windows/verify-stack-comparison.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE
+2026-10-12T08:45:08.5899547Z [36;1m./scripts/windows/verify-stack-comparison.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE[0m
+2026-10-12T08:45:08.5942266Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:45:08.5942661Z env:
+2026-10-12T08:45:08.5942908Z   PYTHONUTF8: 1
+2026-10-12T08:45:08.5943176Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:45:08.5943469Z   CI: true
+2026-10-12T08:45:08.5943718Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:45:08.5943992Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:45:08.5944253Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:45:08.5944574Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:08.5945072Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:45:08.5945555Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:08.5946094Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:08.5946530Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:08.5946895Z ##[endgroup]
+2026-10-12T08:45:51.2082361Z Installed Tauri validation: PASS; same-run comparison: PASS. Evidence: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\evidence\tauri\installed-spike.json
+2026-10-12T08:45:51.2783373Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-12T08:45:51.2783979Z with:
+2026-10-12T08:45:51.2784446Z   name: windows-stack-comparison-evidence-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1
+2026-10-12T08:45:51.2785087Z   path: packaging/build/sidecar-build.json
+packaging/evidence/**
+
+2026-10-12T08:45:51.2785498Z   if-no-files-found: warn
+2026-10-12T08:45:51.2785788Z   retention-days: 14
+2026-10-12T08:45:51.2786062Z   compression-level: 6
+2026-10-12T08:45:51.2786338Z   overwrite: false
+2026-10-12T08:45:51.2786608Z   include-hidden-files: false
+2026-10-12T08:45:51.2786902Z env:
+2026-10-12T08:45:51.2787166Z   PYTHONUTF8: 1
+2026-10-12T08:45:51.2787663Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:45:51.2787971Z   CI: true
+2026-10-12T08:45:51.2788265Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:45:51.2788549Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:45:51.2788818Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:45:51.2789260Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:51.2789750Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:45:51.2790215Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:51.2790644Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:51.2791059Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:51.2791408Z ##[endgroup]
+2026-10-12T08:45:52.0785062Z (node:6036) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:45:52.0789298Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:45:52.1007357Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-12T08:45:52.1011436Z The least common ancestor is D:\a\AI-Kubernetes\AI-Kubernetes\packaging. This will be the root directory of the artifact
+2026-10-12T08:45:52.1012466Z With the provided path, there will be 13 files uploaded
+2026-10-12T08:45:52.1015348Z Artifact name is valid!
+2026-10-12T08:45:52.1015810Z Root directory input is valid!
+2026-10-12T08:45:52.4570482Z (node:6036) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-12T08:45:52.4597961Z Beginning upload of artifact content to blob storage
+2026-10-12T08:45:53.0657614Z Uploaded bytes 134386
+2026-10-12T08:45:53.0663293Z Finished uploading artifact content to blob storage!
+2026-10-12T08:45:53.0664439Z SHA256 digest of uploaded artifact zip is e8f44ed19dc7d3ab8f1aeedcbe87be9b5acb1249e8da33d9f05991f7d11ebdca
+2026-10-12T08:45:53.0667309Z Finalizing artifact upload
+2026-10-12T08:45:53.0671957Z Artifact windows-stack-comparison-evidence-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1.zip successfully finalized. Artifact ID 11736351339
+2026-10-12T08:45:53.0675773Z Artifact windows-stack-comparison-evidence-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1 has been successfully uploaded! Final size is 134386 bytes. Artifact ID is 11736351339
+2026-10-12T08:45:53.0677522Z Artifact download URL: https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38223818838/artifacts/11736351339
+2026-10-12T08:45:53.0944026Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-12T08:45:53.0950747Z with:
+2026-10-12T08:45:53.0951368Z   name: windows-stack-comparison-unsigned-installers-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1
+2026-10-12T08:45:53.0954118Z   path: packaging/dist/AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe
+spikes/tauri-comparison/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+
+2026-10-12T08:45:53.0954836Z   if-no-files-found: error
+2026-10-12T08:45:53.0956230Z   retention-days: 7
+2026-10-12T08:45:53.0956516Z   compression-level: 6
+2026-10-12T08:45:53.0956789Z   overwrite: false
+2026-10-12T08:45:53.0957096Z   include-hidden-files: false
+2026-10-12T08:45:53.0957386Z env:
+2026-10-12T08:45:53.0957638Z   PYTHONUTF8: 1
+2026-10-12T08:45:53.0957912Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:45:53.0958260Z   CI: true
+2026-10-12T08:45:53.0958513Z   RUSTUP_TOOLCHAIN: 1.99.0
+2026-10-12T08:45:53.0958907Z   CARGO_INCREMENTAL: 0
+2026-10-12T08:45:53.0959186Z   CARGO_BUILD_JOBS: 2
+2026-10-12T08:45:53.0959536Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:53.0960057Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:45:53.0960546Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:53.0961224Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:53.0961663Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:45:53.0962067Z ##[endgroup]
+2026-10-12T08:45:53.2906350Z (node:5276) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:45:53.2911165Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:45:53.9295050Z (node:5276) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-12T08:45:53.9399942Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-12T08:45:53.9442026Z The least common ancestor is D:\a\AI-Kubernetes\AI-Kubernetes. This will be the root directory of the artifact
+2026-10-12T08:45:53.9442876Z With the provided path, there will be 2 files uploaded
+2026-10-12T08:45:53.9501134Z Artifact name is valid!
+2026-10-12T08:45:53.9501654Z Root directory input is valid!
+2026-10-12T08:45:53.9667107Z Beginning upload of artifact content to blob storage
+2026-10-12T08:45:54.6526305Z Uploaded bytes 8388608
+2026-10-12T08:45:54.7465855Z Uploaded bytes 16777216
+2026-10-12T08:45:55.0956474Z Uploaded bytes 25165824
+2026-10-12T08:45:55.1030117Z Uploaded bytes 33554432
+2026-10-12T08:45:55.3311304Z Uploaded bytes 41943040
+2026-10-12T08:45:55.6252413Z Uploaded bytes 50331648
+2026-10-12T08:45:55.9921202Z Uploaded bytes 58720256
+2026-10-12T08:45:56.2367756Z Uploaded bytes 67108864
+2026-10-12T08:45:56.5123784Z Uploaded bytes 75497472
+2026-10-12T08:45:56.7570810Z Uploaded bytes 83886080
+2026-10-12T08:45:57.0246709Z Uploaded bytes 92274688
+2026-10-12T08:45:57.3507774Z Uploaded bytes 100663296
+2026-10-12T08:45:57.6531023Z Uploaded bytes 109051904
+2026-10-12T08:45:57.9827278Z Uploaded bytes 117440512
+2026-10-12T08:45:58.2415774Z Uploaded bytes 125829120
+2026-10-12T08:45:58.5669552Z Uploaded bytes 134217728
+2026-10-12T08:45:58.9059683Z Uploaded bytes 142606336
+2026-10-12T08:45:59.0283227Z Uploaded bytes 150994944
+2026-10-12T08:45:59.3444772Z Uploaded bytes 159383552
+2026-10-12T08:45:59.6576218Z Uploaded bytes 167772160
+2026-10-12T08:46:00.0493940Z Uploaded bytes 176160768
+2026-10-12T08:46:00.3579119Z Uploaded bytes 184549376
+2026-10-12T08:46:00.7736125Z Uploaded bytes 192937984
+2026-10-12T08:46:01.0850119Z Uploaded bytes 201326592
+2026-10-12T08:46:01.4727214Z Uploaded bytes 209715200
+2026-10-12T08:46:01.7738642Z Uploaded bytes 218103808
+2026-10-12T08:46:02.0824893Z Uploaded bytes 226492416
+2026-10-12T08:46:02.5574755Z Uploaded bytes 234881024
+2026-10-12T08:46:02.9253232Z Uploaded bytes 243269632
+2026-10-12T08:46:03.2317771Z Uploaded bytes 251658240
+2026-10-12T08:46:03.4718666Z Uploaded bytes 260046848
+2026-10-12T08:46:03.7918549Z Uploaded bytes 268435456
+2026-10-12T08:46:04.1872550Z Uploaded bytes 276824064
+2026-10-12T08:46:04.6416680Z Uploaded bytes 285212672
+2026-10-12T08:46:04.9452478Z Uploaded bytes 293601280
+2026-10-12T08:46:05.2015494Z Uploaded bytes 301989888
+2026-10-12T08:46:05.4752050Z Uploaded bytes 310378496
+2026-10-12T08:46:05.7304998Z Uploaded bytes 318767104
+2026-10-12T08:46:05.9729009Z Uploaded bytes 327155712
+2026-10-12T08:46:06.3632383Z Uploaded bytes 335544320
+2026-10-12T08:46:06.5791420Z Uploaded bytes 343932928
+2026-10-12T08:46:06.6639762Z Uploaded bytes 345416683
+2026-10-12T08:46:06.7098078Z Finished uploading artifact content to blob storage!
+2026-10-12T08:46:06.7103162Z SHA256 digest of uploaded artifact zip is fe4d11524cfba3aa25788c0c37ff5901d290e63d5acf7ab772d7c588eec31c7f
+2026-10-12T08:46:06.7105886Z Finalizing artifact upload
+2026-10-12T08:46:07.0352997Z Artifact windows-stack-comparison-unsigned-installers-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1.zip successfully finalized. Artifact ID 11736566200
+2026-10-12T08:46:07.0355375Z Artifact windows-stack-comparison-unsigned-installers-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1 has been successfully uploaded! Final size is 345416683 bytes. Artifact ID is 11736566200
+2026-10-12T08:46:07.0367312Z Artifact download URL: https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38223818838/artifacts/11736566200
+2026-10-12T08:46:07.0839137Z Post job cleanup.
+2026-10-12T08:46:07.3301298Z Post job cleanup.
+2026-10-12T08:46:07.5291779Z (node:6756) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:46:07.5293462Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:46:07.6296788Z [command]"C:\Program Files\Git\usr\bin\tar.exe" --posix -cf cache.tzst --exclude cache.tzst -P -C D:/a/AI-Kubernetes/AI-Kubernetes --files-from manifest.txt --force-local --use-compress-program "zstd -T0"
+2026-10-12T08:46:15.6206882Z (node:6756) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-12T08:46:16.6232203Z Sent 46333952 of 56500481 (82.0%), 43.7 MBs/sec
+2026-10-12T08:46:17.6293701Z Sent 56500481 of 56500481 (100.0%), 26.7 MBs/sec
+2026-10-12T08:46:17.8487073Z Cache saved with the key: node-cache-Windows-x64-npm-fc32869caeee1aa8ed40358e603c443fa67587370d48943264a7b70a69834ece
+2026-10-12T08:46:17.8962095Z Post job cleanup.
+2026-10-12T08:46:18.1040788Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-12T08:46:18.1362918Z git version 2.56.0.windows.1
+2026-10-12T08:46:18.1444429Z Temporarily overriding HOME='D:\a\_temp\09c72be7-cb56-4fdb-b58d-0fe7ae878f4f' before making global git config changes
+2026-10-12T08:46:18.1447388Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T08:46:18.1458648Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\AI-Kubernetes\AI-Kubernetes
+2026-10-12T08:46:18.1865648Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T08:46:18.2198934Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-12T08:46:18.8094195Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T08:46:18.8407516Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-12T08:46:19.3617642Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T08:46:19.3928935Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-12T08:46:19.9347021Z Cleaning up orphan processes
+2026-10-12T08:46:20.0682919Z Terminate orphan process: pid (5952) (vctip)
+2026-10-12T08:46:20.1662345Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-12T09:03:43.655580+00:00",
+  "reviewer": "root; direct raw report reading and direct screenshot inspection",
+  "workflow_run": {
+    "id": 38226204128,
+    "source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+    "github_completed_status": "success",
+    "root_api_retrieved": true
+  },
+  "status": "PASS",
+  "scope": "Fresh installed foundation GUI from the extracted handoff package on Windows Server 2022; not clean Windows client qualification",
+  "verified": {
+    "eight_handoff_checks": "PASS",
+    "report_and_screenshot_hash_chain": "PASS",
+    "actual_powershell51_and_original_vs_bom_parse": "PASS",
+    "fresh_execution_distinct_from_provenance": "PASS",
+    "visible_packaged_gui_and_three_actual_checks": "PASS",
+    "distinct_gui_sidecar_worker_pids": "PASS",
+    "worker_42_byte_artifact_verified_and_removed": "PASS",
+    "native_windows_user_dpapi": "PASS"
+  },
+  "files": [
+    {
+      "path": "evidence/windows-handoff/38226204128/artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/handoff-validation.json",
+      "sha256": "e6edafab58a82015cd88a291e866b46dabe843a4df6caa69fa8034c0de14a175",
+      "bytes": 7703
+    },
+    {
+      "path": "evidence/windows-handoff/38226204128/artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/installed-spike.json",
+      "sha256": "55e471da0fa531306437c875cfd09c502008c028c8dbc7817134c04e8da6cd30",
+      "bytes": 4243
+    },
+    {
+      "path": "evidence/windows-handoff/38226204128/artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/application-report.json",
+      "sha256": "c52d63bd233e88b32f23d218f0037e06bd581bd69648c6d2559caa821816bcf5",
+      "bytes": 1018
+    },
+    {
+      "path": "evidence/windows-handoff/38226204128/artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/screenshot.png",
+      "sha256": "29a0880e1bc53b9928f8b1139cf1e1997088c035891c0af8856c3376f4ffc2fd",
+      "bytes": 45114
+    }
+  ],
+  "direct_visual_review": {
+    "status": "PASS",
+    "method": "Opened the original screenshot with view_image and compared visible content with the actual application report.",
+    "image_width": 1008,
+    "image_height": 689,
+    "observations": [
+      "All three result cards and buttons are visible and show completion; overall 3/3 is visible.",
+      "Korean title and text render legibly without overlap in the captured viewport.",
+      "Sidecar 816, worker 6404 and bundled Python 3.14.8 agree with the raw application report.",
+      "A vertical scrollbar is present; no claim is made about uncaptured content below the viewport."
+    ]
+  },
+  "not_claimed": [
+    "Windows 11 clean standard-user qualification",
+    "Physical absence of developer tools",
+    "Release signature and update trust",
+    "Real vendor accounts, model selection, AGS/VM governed product integration",
+    "Complete product acceptance"
+  ],
+  "raw_reports_preserved": true
+}

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "scope": "AIK-002 Windows foundation spike sidecar build",
+  "created_at": "2026-10-12T08:52:50.4511121Z",
+  "source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+  "target": "win32-x64",
+  "python": "3.14.8",
+  "bundle_strategy": "PyInstaller onedir; no external Python required at runtime",
+  "engine_sha256": "f8d00f7e5181573556f5a9f5641970dfee44f3f9c2b4fa6e9514b44f89015ed1",
+  "runtime_libraries": [
+    {
+      "file": "python314.dll",
+      "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+    }
+  ],
+  "build_packages": [
+    {
+      "name": "altgraph",
+      "version": "0.17.5"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "pefile",
+      "version": "2024.8.26"
+    },
+    {
+      "name": "pip",
+      "version": "26.2.1"
+    },
+    {
+      "name": "pyinstaller",
+      "version": "6.22.3"
+    },
+    {
+      "name": "pyinstaller-hooks-contrib",
+      "version": "2026.8"
+    },
+    {
+      "name": "pywin32-ctypes",
+      "version": "0.2.3"
+    },
+    {
+      "name": "setuptools",
+      "version": "84.0.0"
+    }
+  ],
+  "product_integration": "NOT_RUN"
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "handoff packaging and input identity checks only",
+  "source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+  "file": "D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\handoff\\AIK-Windows-Client-Handoff-4b948f57020f.zip",
+  "bytes": 118784150,
+  "sha256": "a6edd83fd952257d5d7f731c23162aeaca30974e0cc303bbd7b0210c9e7dd23e",
+  "checksum_file": "D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\handoff\\AIK-Windows-Client-Handoff-4b948f57020f.zip.sha256",
+  "manifest_sha256": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+  "member_count": 11,
+  "windows_execution": "NOT_RUN",
+  "windows11_standard_user_clean_machine": "NOT_RUN"
+}

@@ -334,8 +334,8 @@ INSERT INTO "decisions" VALUES('DEC03','멀티벤더 인증 관리 공간','conf
 INSERT INTO "decisions" VALUES('DEC04','VM·AGS 권위 경계 유지','confirmed','VM은 Goal/Task/Attempt/verdict, AGS는 거버넌스/협업, AIK는 pool/placement/lease를 소유한다.','최초 설계 §3과 VM 권위 설계의 중복 원장 금지 원칙을 유지.','S-DESIGN');
 INSERT INTO "decisions" VALUES('DEC05','JEV 보조와 AGENT 최종 선택','confirmed','RAW 보존·앞단 별도 LLM 정형화 없음·최종 스킬 선택 AGENT를 유지한다.','사용자 정정 사항과 최초 설계 §10.','S-JEV');
 INSERT INTO "decisions" VALUES('DEC06','첫 Windows 단일 클러스터 이후 연합 확장','proposed','M0~M4는 Windows 첫 배포, M5는 두 클러스터 연합, M6는 확장으로 단계화한다.','GUI/인증/설치형 gate를 먼저 실증하기 위한 개발 순서 제안. 사용자 확정 OS 요구와 구분하며 연합 목표를 제거하지 않음.','S-DESIGN');
-INSERT INTO "decisions" VALUES('DEC07','GUI 구현 스택','proposed','첫 구현 후보는 Electron44.7.0+React/TypeScript+CPython3.14.8 sidecar다. 실제 Windows 설치 GUI·IPC·worker·DPAPI를 검증했고, 기존 AIK-002의 후보별 실행·메모리 비교를 보완한다.','VM 표현층과 EngineClient 경계를 검토한 뒤 runtime 포함 배포와 현재 진단 가능성을 기준으로 선택한 구현 후보다. 사용자가 Electron을 직접 지정한 확정 요구로 기록하지 않는다.','S-IMPL-20261012');
-INSERT INTO "decisions" VALUES('DEC08','Windows 지원 범위·설치 형식','proposed','Windows11 x64 지원 후보, 사용자별 NSIS EXE, Electron/Python runtime 포함, 정식 Authenticode·서명 설치본 수동 업데이트와 기본 사용자 데이터 보존 정책을 선택했다.','Windows Server2022의 실제 설치·제거는 통과했으나 기존 AIK-003의 깨끗한 후보 Windows·개발 도구 없는 환경 검증은 미완료다. 지원 qualification과 정식 제품 서명 성공을 주장하지 않는다.','S-IMPL-20261012');
+INSERT INTO "decisions" VALUES('DEC07','GUI 구현 스택','confirmed','첫 구현 스택을 Electron44.7.0+React19.2.8/TypeScript7.0.2+CPython3.14.8 sidecar로 확정한다. 동일 Windows job의 Tauri2.12.3 대안도 실제 설치·IPC·worker·DPAPI·메모리 관측·제거를 통과했다. 이 결정은 구현 책임자의 기술 선택이다.','동일 frozen engine을 사용한 실제 비교에서 현재 오프라인 runtime 공급 정책의 installer는 Electron113.22MiB·Tauri216.15MiB였다. GUI runtime의 앱 버전 결속 및 현재 Node/Python 빌드·검사 경로 유지 비용을 근거로 Electron을 선택한다. Tauri native working set은 더 작았으나 전체 앱 메모리·속도 우위를 일반화하지 않는다. Windows11 지원 확정이나 실제 벤더·AGS·VM 제품 연동 성공을 뜻하지 않는다.','S-STACK-20261012');
+INSERT INTO "decisions" VALUES('DEC08','Windows 지원 범위·설치 형식','proposed','Windows11 x64 지원 후보, 사용자별 NSIS EXE, Electron/Python runtime 포함, 정식 Authenticode·서명 설치본 수동 업데이트와 기본 사용자 데이터 보존 정책을 선택했다.','Windows Server2022의 실제 설치·제거, 독립 ZIP 재실행 및 기본 PowerShell5.1 전달 경로는 통과했다. 기존 AIK-003의 깨끗한 후보 Windows·개발 도구 없는 환경 검증은 미완료이며, 지원 qualification과 정식 제품 서명 성공을 주장하지 않는다.','S-HANDOFF-20261012');
 INSERT INTO "decisions" VALUES('DEC09','Windows 시크릿 backend','proposed','사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다.','비밀 참조 broker는 앱의 접근 범위를 통제한다. Windows 사용자 vault의 저장/사용자 경계와 trusted same-user native 프로세스의 직접 OS 접근 범위를 별도 명시하고 실제 보장만 검증한다.','S-DPAPI');
 INSERT INTO "decisions" VALUES('DEC10','AI-Kubernetes 라이선스','open','AIK 자체 라이선스와 재배포 notice를 배포 전에 확정한다.','최초 README는 미정. upstream 라이선스를 AIK 전체에 자동 적용하지 않음.','S-README');
 INSERT INTO "decisions" VALUES('DEC11','원격 PEER 전송과 신뢰 계약','open','버전·상호 인증·키 회수·메시지 수명·권위 회복과 입력 manifest/수신 경로 projection·준비 책임을 연합 구현 전에 확정한다.','현재 AGS 동일 사용자 로컬 PEER를 원격 신뢰 도메인과 구분.','S-AGS');
@@ -365,18 +365,18 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-12T08:05:46Z');
-INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T08:05:45Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-12T09:06:04Z');
+INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
 INSERT INTO "metadata" VALUES('upstream_ags_commit','56fef8bd189377b80f4020f506e717ab292b260a');
 INSERT INTO "metadata" VALUES('upstream_vm_commit','32bb0f9dd9f024045d24487312b50f5b703573a3');
 INSERT INTO "metadata" VALUES('canonical_data','planning/backlog.sqlite3');
 INSERT INTO "metadata" VALUES('review_snapshot','planning/backlog.sql');
-INSERT INTO "metadata" VALUES('product_status','foundation_spike_implemented; complete_product_incomplete');
+INSERT INTO "metadata" VALUES('product_status','foundation_contract_and_stack_tasks_completed; clean_windows_client_validation_blocked; complete_product_incomplete');
 INSERT INTO "metadata" VALUES('task_status_policy','Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct.');
 INSERT INTO "metadata" VALUES('scope_policy','Windows GUI confirmed; local-first release staging proposed in DEC06; federation retained in M5.');
-INSERT INTO "metadata" VALUES('evidence_policy','Pinned AGS/VM installed public-contract inspection and Windows Server 2022 packaged foundation GUI, worker, DPAPI, bundle and uninstall were executed. Full product/vendor execution and clean supported Windows installation remain unverified; preserve each evidence scope.');
+INSERT INTO "metadata" VALUES('evidence_policy','Pinned upstream installed contracts, installed Windows Server 2022 Electron/Tauri comparison, frozen workers/DPAPI, and fresh Windows PowerShell 5.1 handoff execution are verified with preserved raw evidence and independent review. Clean supported Windows without developer tools, real vendor qualification and full product acceptance remain unverified.');
 INSERT INTO "metadata" VALUES('secret_policy','Development metadata only; runtime credentials and operational ledgers never belong in this database.');
 INSERT INTO "metadata" VALUES('ownership_policy','VM owns Goal/Task/Attempt/verdict; AGS governance/peer; AIK owns pool/placement/lease.');
 INSERT INTO "metadata" VALUES('audit_baseline_commit','019cccf0bd63684d893f50d239d54fbc2bf7b033');
@@ -385,6 +385,9 @@ INSERT INTO "metadata" VALUES('product_acceptance_policy','P01-P10 define observ
 INSERT INTO "metadata" VALUES('release_scope_policy','064 covers all first_release tasks. 089 defaults to 065 and 067-075; 090 defaults to 076-079 plus 089. Selecting 066/080 requires adding the actual gate dependency at scope freeze and validating it. Unselected tasks remain todo/future; no all-roadmap-done claim.');
 INSERT INTO "metadata" VALUES('runtime_qualification_policy','082 is an actual minimal preflight probe. 019/033 allow explicit test-only candidate bindings under all existing gates for 086. Operational qualified advertising requires 086 PASS. 044 composes a real development goal; 059/064 qualify the final installer. Later resource qualifications reuse the same explicit candidate and live-evidence contract.');
 INSERT INTO "metadata" VALUES('foundation_implementation_commit','56523355d9cf3a2437989d1dd26f2e5ced1666d2');
+INSERT INTO "metadata" VALUES('selected_stack_comparison_commit','a20d3bef3f4865fc81cd3495ecc437b7a9b57cea');
+INSERT INTO "metadata" VALUES('windows_handoff_source_commit','4b948f57020f3e507683de6e538544b9bac558e7');
+INSERT INTO "metadata" VALUES('windows_handoff_package_sha256','a6edd83fd952257d5d7f731c23162aeaca30974e0cc303bbd7b0210c9e7dd23e');
 CREATE TABLE milestones (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     name TEXT NOT NULL CHECK (length(trim(name)) > 0),
@@ -458,6 +461,8 @@ INSERT INTO "sources" VALUES('S-CREDREAD','Microsoft CredRead: 현재 로그온 
 INSERT INTO "sources" VALUES('S-COMPLETE','사용자의 태스크→완제품 완료성 검증 요청','user','','2026-10-12','태스크를 그대로 따라 개발하면 완제품이 나오는지 검증하라는 요청. 반례 감사와 최소 제품 인수 조건을 도출했으며 사용자 확정 요구·기존 권위 경계를 유지한다.');
 INSERT INTO "sources" VALUES('S-VM-RUNTIME','VM의 설치형 application/runtime 주입·dispatch·intent 계약','repository','https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py','32bb0f9dd9f024045d24487312b50f5b703573a3','동일 SHA의 engine/application.py·runtime.py·cli.py 및 engine-user-workflow.md 읽기. 단일 runtime 객체 주입 seam과 VM 내부 Attempt/intent 예약을 확인했으며 AIK route/lease/effect의 효과 전 결속은 선행 통합 계약·설치형 검증 대상이다. upstream 코드 import/실행 없음.');
 INSERT INTO "sources" VALUES('S-IMPL-20261012','Windows 기반 구현·설치형 연동 실제 검증','repository','https://github.com/jaeseongs95/AI-Kubernetes/commit/56523355d9cf3a2437989d1dd26f2e5ced1666d2','56523355d9cf3a2437989d1dd26f2e5ced1666d2','기존 태스크 구현 지시에 따른 기술 선택과 실제 실행 증거. 특정 기술을 사용자가 직접 선택한 요구로 간주하지 않는다. Windows CI38219549819 PASS 범위와 미실행 조건은 evidence/에 보존한다.');
+INSERT INTO "sources" VALUES('S-STACK-20261012','Electron·Tauri 실제 Windows 비교와 첫 구현 스택 결정','repository','https://github.com/jaeseongs95/AI-Kubernetes/commit/a20d3bef3f4865fc81cd3495ecc437b7a9b57cea','a20d3bef3f4865fc81cd3495ecc437b7a9b57cea','Windows CI38223818838의 같은 job·같은 frozen engine으로 두 후보 설치·GUI·IPC·worker·DPAPI·메모리 관측·제거를 실제 검증했다. Electron 선택은 기존 개발 지시에 따른 구현 결정이며 사용자가 특정 GUI 기술을 지정했다는 뜻은 아니다. Windows11 clean 및 제품 qualification은 별도 미실행이다.');
+INSERT INTO "sources" VALUES('S-HANDOFF-20261012','독립 Windows 설치 ZIP·기본 PowerShell5.1 실제 검증','repository','https://github.com/jaeseongs95/AI-Kubernetes/commit/4b948f57020f3e507683de6e538544b9bac558e7','4b948f57020f3e507683de6e538544b9bac558e7','Windows CI38226204128: 신규 전달 ZIP의 실제 설치·GUI·sidecar·worker·DPAPI·제거 PASS. 실제5.1/Windows-1252에서 원본parse2오류/BOM0오류. 최초 모듈조회 실패와 .NETSHA256 수정 기록 보존. 깨끗한 Windows11·실제 개발 도구 부재 및 완제품은 NOT_RUN.');
 CREATE TABLE task_decisions (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     decision_id TEXT NOT NULL REFERENCES decisions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1158,6 +1163,13 @@ INSERT INTO "task_events" VALUES(233,'AIK-003','evidence_recorded',NULL,NULL,'EV
 INSERT INTO "task_events" VALUES(234,'AIK-002','decision_updated',NULL,NULL,'DEC07과 DEC08의 구현 후보 및 실제 검증 범위를 S-IMPL-20261012에 결속했다. 기존 요구사항·완료 기준·의존성은 변경하지 않았다.','2026-10-12T08:05:45Z');
 INSERT INTO "task_events" VALUES(235,'AIK-001','status_change','in_progress','done','기존 5개 완료 기준 및 verification 충족: 고정 AGS/VM 실제 설치 bytes·공개 명령·schema/façade 대조, 소유권/실행 결속 계약·12개 역할 matrix·독립 검토를 완료했다. 형식 검증에서 발견한 digest 개행 결함을 수정하고 59개 fixture PASS. 현재 AGS-VM 미호환과 실제 모델 qualification은 후행 차단으로 유지한다.','2026-10-12T08:05:45Z');
 INSERT INTO "task_events" VALUES(236,'AIK-003','status_change','in_progress','blocked','설치·runtime 공급·GUI·worker·DPAPI·제거는 Windows Server2022 관리자 CI에서 실제 PASS. 기존 criterion2 및 verification은 개발 도구가 없는 깨끗한 후보 Windows 설치를 요구한다. 현재 증거의 installed_tooling_absence/support_qualification은 NOT_RUN이므로 done으로 전환하지 않는다. 선택 Windows11 표준 사용자 환경의 동일 설치본 검증이 필요하다.','2026-10-12T08:05:46Z');
+INSERT INTO "task_events" VALUES(237,'AIK-002','decision_updated',NULL,NULL,'DEC07 confirmed: 실제 후보 비교 CI38223818838와 ADR을 근거로 Electron 첫 구현 스택을 결정했다. 사용자 기술 요구로 재분류하지 않았으며 기존 AC·verification·의존성은 보존했다.','2026-10-12T09:00:19Z');
+INSERT INTO "task_events" VALUES(238,'AIK-002','evidence_recorded',NULL,NULL,'EV-002-COMPARISON-20261012: 실제 Windows CI38223818838 같은 job·같은 frozen engine으로 Electron/Tauri 설치·GUI·typed IPC·worker·DPAPI·메모리 관측·제거 PASS. 두 ZIP digest/크기, installer/report/PNG hash 결속 및 직접 화면 검토 PASS. DEC07 구현 선택 완료. 전체 메모리·속도 우위 및 제품 연동은 주장하지 않는다.','2026-10-12T09:04:20Z');
+INSERT INTO "task_events" VALUES(239,'AIK-002','evidence_recorded',NULL,NULL,'EV-002-COMPARISON-REVIEW-20261012: 원래 AIK-002의 3 AC 및 후보별 설치성·IPC·worker 기동·메모리 verification을 독립 대조해 모두 충족 판정. DEC07 confirmed의 repository/CI 출처와 구현 결정 구분을 확인. AIK-003 기존 clean/no-tools 기준은 미충족으로 보존. SHA256 db299eef3e27761d30099920ae569b1045f284c15763aa33f03e79aed4243763','2026-10-12T09:04:20Z');
+INSERT INTO "task_events" VALUES(240,'AIK-002','status_change','in_progress','done','실제 Windows 비교 CI38223818838의 두 설치 후보·IPC·worker·DPAPI·메모리 관측과 독립 검토로 원래 3 AC 및 verification을 충족했다. DEC07 구현 선택을 확정했으며 제품 연동·깨끗한 Windows 클라이언트 지원은 미실행으로 유지한다.','2026-10-12T09:04:21Z');
+INSERT INTO "task_events" VALUES(241,'AIK-003','evidence_recorded',NULL,NULL,'EV-003-HANDOFF-20261012: 실제 소스4b948f57020f3e507683de6e538544b9bac558e7/run38226204128에서 ZIP 재추출 후 Windows PowerShell5.1 Desktop으로 신규 설치·GUI·frozen Python·worker·DPAPI·제거 및 8검사 PASS. 다운로드3ZIP/hash·11구성원·새실행·화면 직접 검토 PASS. Server 관리자 CI이므로 원래 clean/no-tools 조건은 NOT_RUN. SHA256 d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37','2026-10-12T09:06:04Z');
+INSERT INTO "task_events" VALUES(242,'AIK-003','evidence_recorded',NULL,NULL,'EV-003-LEGACY-20261012: 초기 UTF8NoBOM/CP1252 파싱 결함의 재현 근거를 보존했다. 후속 EV-003-HANDOFF 실제 WindowsPS5.1에서 원본 오류2/BOM사본 오류0을 확인했다. 최초 handoff CI38225912010의 Get-FileHash 조회 실패도 원문 보존 후 .NET SHA256으로 수정하고 새 CI에서 검증했다. 환경 qualification과 분리한다.','2026-10-12T09:06:04Z');
+INSERT INTO "task_events" VALUES(243,'AIK-003','decision_updated',NULL,NULL,'DEC08은 proposed를 유지하면서 S-HANDOFF-20261012의 실제 전달 패키지 검증 근거를 반영했다. 원래 clean/no-tools 기준과 blocked 상태는 보존했다.','2026-10-12T09:06:04Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1174,6 +1186,10 @@ INSERT INTO "task_evidence" VALUES('EV-002-ELECTRON-20261012','AIK-002','windows
 INSERT INTO "task_evidence" VALUES('EV-002-REVIEW-20261012','AIK-002','independent_review','evidence/reviews/2026-10-12-before-stack-comparison.json','세 AC는 충족하지만 기존 tasks.verification의 Tauri 대안 설치·IPC·worker·메모리 실측은 보완해야 한다. Electron 성공만으로 전체 done 처리하지 않는다.','2026-10-12T08:05:45Z');
 INSERT INTO "task_evidence" VALUES('EV-003-INSTALL-20261012','AIK-003','partial_installation_validation','evidence/windows-foundation/38219549819/verification.json','runtime 공급과 설치/제거는 Windows Server2022 관리자 CI에서 실제 PASS. 개발 도구 없는 깨끗한 후보 Windows와 표준 사용자 실행은 NOT_RUN이다.','2026-10-12T08:05:45Z');
 INSERT INTO "task_evidence" VALUES('EV-003-POLICY-20261012','AIK-003','packaging_decision','docs/windows-packaging.ko.md','Windows x64 후보·runtime 포함 NSIS·서명/업데이트/데이터 정책·성능 측정 부하를 정했다. 기존 AC2 및 verification의 깨끗한 후보 Windows 설치 검증은 미충족.','2026-10-12T08:05:45Z');
+INSERT INTO "task_evidence" VALUES('EV-002-COMPARISON-20261012','AIK-002','windows_candidate_comparison','evidence/tauri-comparison/38223818838/ci-validation.json','실제 Windows CI38223818838 같은 job·같은 frozen engine으로 Electron/Tauri 설치·GUI·typed IPC·worker·DPAPI·메모리 관측·제거 PASS. 두 ZIP digest/크기, installer/report/PNG hash 결속 및 직접 화면 검토 PASS. DEC07 구현 선택 완료. 전체 메모리·속도 우위 및 제품 연동은 주장하지 않는다.','2026-10-12T09:04:20Z');
+INSERT INTO "task_evidence" VALUES('EV-002-COMPARISON-REVIEW-20261012','AIK-002','independent_review','evidence/reviews/2026-10-12-after-stack-comparison.json','원래 AIK-002의 3 AC 및 후보별 설치성·IPC·worker 기동·메모리 verification을 독립 대조해 모두 충족 판정. DEC07 confirmed의 repository/CI 출처와 구현 결정 구분을 확인. AIK-003 기존 clean/no-tools 기준은 미충족으로 보존. SHA256 db299eef3e27761d30099920ae569b1045f284c15763aa33f03e79aed4243763','2026-10-12T09:04:20Z');
+INSERT INTO "task_evidence" VALUES('EV-003-HANDOFF-20261012','AIK-003','actual_windows_powershell_handoff','evidence/windows-handoff/38226204128/verification.json','실제 소스4b948f57020f3e507683de6e538544b9bac558e7/run38226204128에서 ZIP 재추출 후 Windows PowerShell5.1 Desktop으로 신규 설치·GUI·frozen Python·worker·DPAPI·제거 및 8검사 PASS. 다운로드3ZIP/hash·11구성원·새실행·화면 직접 검토 PASS. Server 관리자 CI이므로 원래 clean/no-tools 조건은 NOT_RUN. SHA256 d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37','2026-10-12T09:06:04Z');
+INSERT INTO "task_evidence" VALUES('EV-003-LEGACY-20261012','AIK-003','powershell_encoding_regression','evidence/reviews/2026-10-12-powershell-legacy-encoding.json','초기 UTF8NoBOM/CP1252 파싱 결함의 재현 근거를 보존했다. 후속 EV-003-HANDOFF 실제 WindowsPS5.1에서 원본 오류2/BOM사본 오류0을 확인했다. 최초 handoff CI38225912010의 Get-FileHash 조회 실패도 원문 보존 후 .NET SHA256으로 수정하고 새 CI에서 검증했다. 환경 qualification과 분리한다.','2026-10-12T09:06:04Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1970,7 +1986,7 @@ CREATE TABLE tasks (
     updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0)
 );
 INSERT INTO "tasks" VALUES('AIK-001','AGS·VM 책임·설치형 인터페이스 기준선 확정','현재 배포물의 공개 command/query, manifest, schema, 오류와 evidence 계약을 고정하고 문서 상태 차이를 해소한다.','버전별 integration-contract·capability/오류 매핑표·판본과 digest가 있는 지원 matrix','고정 SHA 문서와 실제 설치형 artifact를 대조한 검토 기록','E05','M0','P0','done','integration','Integration',1,'2026-10-12T05:36:30Z','2026-10-12T08:05:45Z');
-INSERT INTO "tasks" VALUES('AIK-002','Windows GUI 스택과 엔진 sidecar 검증','VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.','GUI 스택 ADR와 폐기 가능한 Windows spike','지원 후보별 설치성·IPC·worker 기동·메모리 비교','E01','M0','P0','in_progress','decision','Desktop',2,'2026-10-12T05:36:30Z','2026-10-12T07:27:11Z');
+INSERT INTO "tasks" VALUES('AIK-002','Windows GUI 스택과 엔진 sidecar 검증','VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.','GUI 스택 ADR와 폐기 가능한 Windows spike','지원 후보별 설치성·IPC·worker 기동·메모리 비교','E01','M0','P0','done','decision','Desktop',2,'2026-10-12T05:36:30Z','2026-10-12T09:04:21Z');
 INSERT INTO "tasks" VALUES('AIK-003','Windows 지원 환경·설치·서명 방식 결정','첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.','Windows support matrix와 packaging ADR','깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토','E09','M0','P0','blocked','decision','Release',3,'2026-10-12T05:36:30Z','2026-10-12T08:05:46Z');
 INSERT INTO "tasks" VALUES('AIK-004','GUI·총괄·실행·시크릿 프로세스와 IPC 경계','GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다. 실행 경로별 OS principal·trust profile·실제 권한과 격리 보장 범위를 명시한다.','프로세스 구획·버전형 IPC 스키마·명령 라우터','잘못된 발신자·입력·권한에 대한 IPC 통합 검증','E01','M0','P0','todo','feature','Desktop backend',5,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-005','AIK 설정·placement·lease 저장소와 마이그레이션','제품 runtime 저장소를 개발 태스크 DB와 분리하고 VM 원장을 복제하지 않는 AIK 상태를 영속화한다.','runtime DB schema·migration·참조 repository','transaction crash와 버전 변경 rollback 검증','E01','M0','P0','todo','feature','Storage',6,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
@@ -2100,6 +2116,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',236);
+INSERT INTO "sqlite_sequence" VALUES('task_events',243);
 COMMIT;
 PRAGMA foreign_keys = ON;

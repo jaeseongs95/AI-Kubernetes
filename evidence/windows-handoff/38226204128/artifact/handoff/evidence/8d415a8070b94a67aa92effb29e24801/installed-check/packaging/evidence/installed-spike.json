@@ -1,0 +1,76 @@
+﻿{
+    "schema_version":  1,
+    "scope":  "AIK-002 packaged Windows foundation spike",
+    "source_commit":  "4b948f57020f3e507683de6e538544b9bac558e7",
+    "workflow_run_id":  "38226204128",
+    "workflow_attempt":  "1",
+    "started_at":  "2026-10-12T08:54:57.1768741Z",
+    "status":  "PASS",
+    "development_artifact":  true,
+    "support_qualification":  "NOT_RUN",
+    "product_integration":  "NOT_RUN",
+    "checks":  {
+                   "install":  "PASS",
+                   "runtime_bundle":  "PASS",
+                   "packaged_gui":  "PASS",
+                   "uninstall":  "PASS"
+               },
+    "limits":  [
+                   "This installer contains an AIK-002 foundation spike, not the complete product.",
+                   "A GitHub Server runner does not qualify Windows 11 client support.",
+                   "Removing developer tools from the child PATH does not make the runner a clean computer.",
+                   "No real vendor, AGS, or VM product integration is exercised.",
+                   "Windows 11 standard-user installation, publisher signing, update trust, and product data removal remain separate release gates."
+               ],
+    "environment":  {
+                        "platform":  "win32",
+                        "architecture":  "AMD64",
+                        "os_caption":  "Microsoft Windows Server 2022 Datacenter",
+                        "os_version":  "10.0.20348",
+                        "os_build":  "20348",
+                        "os_product_type":  3,
+                        "logical_processors":  2,
+                        "memory_bytes":  8584425472,
+                        "cpu_names":  [
+                                          "AMD EPYC 7763 64-Core Processor                "
+                                      ],
+                        "administrator":  true,
+                        "github_actions":  true,
+                        "runner_image":  "win22",
+                        "runner_image_version":  "20261004.326.1"
+                    },
+    "installer":  {
+                      "file":  "AIK-Foundation-Spike-win-x64-dev-unsigned.exe",
+                      "bytes":  118718153,
+                      "sha256":  "16811e29d6e65cb5f24f072d3a8896d155c6a46bff83a376d01c2e0c1ad5c95a",
+                      "signature_status":  "NotSigned",
+                      "release_publisher_qualified":  false
+                  },
+    "runtime_bundle":  {
+                           "gui_sha256":  "6db594d72a36d66d5605cd044a373f790d2460cf9c6d839eaca8f478a854c726",
+                           "engine_sha256":  "f8d00f7e5181573556f5a9f5641970dfee44f3f9c2b4fa6e9514b44f89015ed1",
+                           "python_runtime_libraries":  [
+                                                            {
+                                                                "file":  "python314.dll",
+                                                                "sha256":  "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+                                                            }
+                                                        ],
+                           "installed_outside_source_tree":  true,
+                           "unicode_and_space_paths":  true
+                       },
+    "child_environment":  {
+                              "path":  "C:\\Windows\\System32;C:\\Windows",
+                              "pythonhome_removed":  true,
+                              "pythonpath_removed":  true,
+                              "node_options_removed":  true,
+                              "electron_run_as_node_removed":  true,
+                              "working_directory_outside_source_tree":  true,
+                              "installed_tooling_absence":  "NOT_RUN"
+                          },
+    "application_pid":  4000,
+    "application_exit_code":  0,
+    "application_report_sha256":  "c52d63bd233e88b32f23d218f0037e06bd581bd69648c6d2559caa821816bcf5",
+    "screenshot_sha256":  "29a0880e1bc53b9928f8b1139cf1e1997088c035891c0af8856c3376f4ffc2fd",
+    "completed_at":  "2026-10-12T08:55:25.8315806Z",
+    "elapsed_ms":  28664
+}

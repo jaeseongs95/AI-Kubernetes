@@ -1,0 +1,831 @@
+﻿2026-10-12T08:51:52.7999688Z Current runner version: '2.337.0'
+2026-10-12T08:51:52.8034682Z ##[group]Runner Image Provisioner
+2026-10-12T08:51:52.8036292Z Hosted Compute Agent
+2026-10-12T08:51:52.8037237Z Version: 20261002.596
+2026-10-12T08:51:52.8038342Z Commit: c3d12f3313a95f25162a1503be624f3b0617f8c0
+2026-10-12T08:51:52.8039598Z Build Date: 2026-10-02T22:28:27Z
+2026-10-12T08:51:52.8040886Z Worker ID: {980f9f86-fc05-4dd3-ba6f-b78e2bf19dab}
+2026-10-12T08:51:52.8042144Z Region: centralus
+2026-10-12T08:51:52.8043066Z Cloud: Azure
+2026-10-12T08:51:52.8043909Z ##[endgroup]
+2026-10-12T08:51:52.8046010Z ##[group]Operating System
+2026-10-12T08:51:52.8047021Z Microsoft Windows Server 2022
+2026-10-12T08:51:52.8047966Z 10.0.20348
+2026-10-12T08:51:52.8048830Z Datacenter
+2026-10-12T08:51:52.8049663Z ##[endgroup]
+2026-10-12T08:51:52.8050558Z ##[group]Runner Image
+2026-10-12T08:51:52.8051561Z Image: windows-2022
+2026-10-12T08:51:52.8052419Z Version: 20261004.326.1
+2026-10-12T08:51:52.8054693Z Included Software: https://github.com/actions/runner-images/blob/win22/20261004.326/images/windows/Windows2022-Readme.md
+2026-10-12T08:51:52.8057457Z Image Release: https://github.com/actions/runner-images/releases/tag/win22%2F20261004.326
+2026-10-12T08:51:52.8059170Z ##[endgroup]
+2026-10-12T08:51:52.8061149Z ##[group]GITHUB_TOKEN Permissions
+2026-10-12T08:51:52.8063992Z Contents: read
+2026-10-12T08:51:52.8065012Z Metadata: read
+2026-10-12T08:51:52.8065852Z ##[endgroup]
+2026-10-12T08:51:52.8068641Z Secret source: Actions
+2026-10-12T08:51:52.8070092Z Cache mode: write
+2026-10-12T08:51:52.8071155Z Prepare workflow directory
+2026-10-12T08:51:52.8635098Z Prepare all required actions
+2026-10-12T08:51:52.8705694Z Getting action download info
+2026-10-12T08:51:53.1669423Z Download action repository 'actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-10-12T08:51:53.3458479Z Download action repository 'actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-10-12T08:51:53.5683097Z Download action repository 'actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+2026-10-12T08:51:53.7415451Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-12T08:51:54.1626153Z Complete job name: legacy-powershell-package
+2026-10-12T08:51:54.3769679Z ##[group]Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+2026-10-12T08:51:54.3771476Z with:
+2026-10-12T08:51:54.3772167Z   persist-credentials: false
+2026-10-12T08:51:54.3773027Z   repository: jaeseongs95/AI-Kubernetes
+2026-10-12T08:51:54.3780717Z   token: ***
+2026-10-12T08:51:54.3781392Z   ssh-strict: true
+2026-10-12T08:51:54.3782096Z   ssh-user: git
+2026-10-12T08:51:54.3782781Z   clean: true
+2026-10-12T08:51:54.3783512Z   sparse-checkout-cone-mode: true
+2026-10-12T08:51:54.3784374Z   fetch-depth: 1
+2026-10-12T08:51:54.3785077Z   fetch-tags: false
+2026-10-12T08:51:54.3785765Z   show-progress: true
+2026-10-12T08:51:54.3786483Z   lfs: false
+2026-10-12T08:51:54.3787115Z   submodules: false
+2026-10-12T08:51:54.3787826Z   set-safe-directory: true
+2026-10-12T08:51:54.3788685Z   allow-unsafe-pr-checkout: false
+2026-10-12T08:51:54.3790006Z env:
+2026-10-12T08:51:54.3790810Z   PYTHONUTF8: 1
+2026-10-12T08:51:54.3791569Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:51:54.3792604Z   CI: true
+2026-10-12T08:51:54.3793252Z ##[endgroup]
+2026-10-12T08:51:56.4781115Z Syncing repository: jaeseongs95/AI-Kubernetes
+2026-10-12T08:51:56.4783373Z ##[group]Getting Git version info
+2026-10-12T08:51:56.4784099Z Working directory is 'D:\a\AI-Kubernetes\AI-Kubernetes'
+2026-10-12T08:51:56.4785155Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-12T08:51:56.4785777Z git version 2.56.0.windows.1
+2026-10-12T08:51:56.4787372Z ##[endgroup]
+2026-10-12T08:51:56.4792892Z Temporarily overriding HOME='D:\a\_temp\b54e861e-7050-433d-9d28-43937ad52212' before making global git config changes
+2026-10-12T08:51:56.4798025Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T08:51:56.4799320Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\AI-Kubernetes\AI-Kubernetes
+2026-10-12T08:51:56.4801156Z Deleting the contents of 'D:\a\AI-Kubernetes\AI-Kubernetes'
+2026-10-12T08:51:56.4802265Z ##[group]Initializing the repository
+2026-10-12T08:51:56.4803114Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\AI-Kubernetes\AI-Kubernetes
+2026-10-12T08:51:56.4804209Z Initialized empty Git repository in D:/a/AI-Kubernetes/AI-Kubernetes/.git/
+2026-10-12T08:51:56.4806155Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/jaeseongs95/AI-Kubernetes
+2026-10-12T08:51:56.4808156Z ##[endgroup]
+2026-10-12T08:51:56.4809028Z ##[group]Disabling automatic garbage collection
+2026-10-12T08:51:56.4809894Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-10-12T08:51:56.4811538Z ##[endgroup]
+2026-10-12T08:51:56.4812235Z ##[group]Setting up auth
+2026-10-12T08:51:56.4813111Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T08:51:56.4815680Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-12T08:51:56.7624738Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T08:51:56.7943726Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-12T08:51:57.4231619Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T08:51:57.4674236Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-12T08:51:58.0015623Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-10-12T08:51:58.0401618Z ##[endgroup]
+2026-10-12T08:51:58.0405405Z ##[group]Fetching the repository
+2026-10-12T08:51:58.0428885Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +4b948f57020f3e507683de6e538544b9bac558e7:refs/remotes/origin/main
+2026-10-12T08:51:59.3352477Z From https://github.com/jaeseongs95/AI-Kubernetes
+2026-10-12T08:51:59.3353624Z  * [new ref]         4b948f57020f3e507683de6e538544b9bac558e7 -> origin/main
+2026-10-12T08:51:59.3390577Z ##[endgroup]
+2026-10-12T08:51:59.3391521Z ##[group]Determining the checkout info
+2026-10-12T08:51:59.3393560Z ##[endgroup]
+2026-10-12T08:51:59.3404283Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-10-12T08:51:59.3845922Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-10-12T08:51:59.4156531Z ##[group]Checking out the ref
+2026-10-12T08:51:59.4166819Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B main refs/remotes/origin/main
+2026-10-12T08:51:59.5177831Z Switched to a new branch 'main'
+2026-10-12T08:51:59.5259502Z branch 'main' set up to track 'origin/main'.
+2026-10-12T08:51:59.5306003Z ##[endgroup]
+2026-10-12T08:51:59.5857490Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-10-12T08:51:59.6229529Z 4b948f57020f3e507683de6e538544b9bac558e7
+2026-10-12T08:51:59.6313516Z ##[group]Removing auth
+2026-10-12T08:51:59.6328410Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T08:51:59.6834367Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-12T08:52:00.2564964Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T08:52:00.2832874Z http.https://github.com/.extraheader
+2026-10-12T08:52:00.2876367Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-10-12T08:52:00.3188002Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-12T08:52:00.8328435Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T08:52:00.8634731Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-12T08:52:01.4090939Z ##[endgroup]
+2026-10-12T08:52:01.4607029Z ##[group]Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+2026-10-12T08:52:01.4607492Z with:
+2026-10-12T08:52:01.4607689Z   node-version: 24.21.0
+2026-10-12T08:52:01.4607897Z   cache: npm
+2026-10-12T08:52:01.4608196Z   cache-dependency-path: spikes/windows-foundation/package-lock.json
+2026-10-12T08:52:01.4608573Z   always-auth: false
+2026-10-12T08:52:01.4608781Z   check-latest: false
+2026-10-12T08:52:01.4611271Z   token: ***
+2026-10-12T08:52:01.4611471Z   package-manager-cache: true
+2026-10-12T08:52:01.4611717Z env:
+2026-10-12T08:52:01.4611880Z   PYTHONUTF8: 1
+2026-10-12T08:52:01.4612077Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:52:01.4612308Z   CI: true
+2026-10-12T08:52:01.4612476Z ##[endgroup]
+2026-10-12T08:52:01.6486720Z (node:912) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:52:01.6501249Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:52:01.6502118Z Found in cache @ C:\hostedtoolcache\windows\node\24.21.0\x64
+2026-10-12T08:52:01.6503010Z ##[group]Environment details
+2026-10-12T08:52:06.1797668Z node: v24.21.0
+2026-10-12T08:52:06.1798367Z npm: 11.19.0
+2026-10-12T08:52:06.1798839Z yarn: 1.22.22
+2026-10-12T08:52:06.1799694Z ##[endgroup]
+2026-10-12T08:52:06.2913520Z [command]C:\Windows\system32\cmd.exe /D /S /C "C:\hostedtoolcache\windows\node\24.21.0\x64\npm.cmd config get cache"
+2026-10-12T08:52:06.7602122Z C:\npm\cache
+2026-10-12T08:52:07.1050592Z Cache hit for: node-cache-Windows-x64-npm-3c1a363599477adfd609b2210507597d103b76ed03b79994b9800c524eaafdb0
+2026-10-12T08:52:07.1183420Z (node:912) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-12T08:52:09.0047539Z Received 48453724 of 48453724 (100.0%), 69.3 MBs/sec
+2026-10-12T08:52:09.0051351Z Cache Size: ~46 MB (48453724 B)
+2026-10-12T08:52:09.0052873Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/6f5eb8f3-b8a6-4081-93bf-f8cb9ea99bee/cache.tzst -P -C D:/a/AI-Kubernetes/AI-Kubernetes --force-local --use-compress-program "zstd -d"
+2026-10-12T08:52:09.6078029Z Cache restored successfully
+2026-10-12T08:52:09.6116612Z Cache restored from key: node-cache-Windows-x64-npm-3c1a363599477adfd609b2210507597d103b76ed03b79994b9800c524eaafdb0
+2026-10-12T08:52:09.6477808Z ##[group]Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+2026-10-12T08:52:09.6478279Z with:
+2026-10-12T08:52:09.6478461Z   python-version: 3.14.8
+2026-10-12T08:52:09.6478690Z   architecture: x64
+2026-10-12T08:52:09.6478881Z   check-latest: false
+2026-10-12T08:52:09.6481314Z   token: ***
+2026-10-12T08:52:09.6481511Z   update-environment: true
+2026-10-12T08:52:09.6481947Z   allow-prereleases: false
+2026-10-12T08:52:09.6482164Z   freethreaded: false
+2026-10-12T08:52:09.6482350Z env:
+2026-10-12T08:52:09.6482512Z   PYTHONUTF8: 1
+2026-10-12T08:52:09.6482707Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:52:09.6482937Z   CI: true
+2026-10-12T08:52:09.6483101Z ##[endgroup]
+2026-10-12T08:52:09.8141318Z ##[group]Installed versions
+2026-10-12T08:52:09.8209265Z Successfully set up CPython (3.14.8)
+2026-10-12T08:52:09.8210065Z ##[endgroup]
+2026-10-12T08:52:09.8512126Z ##[group]Run python -m unittest discover -s tests -p test_windows_handoff.py -v
+2026-10-12T08:52:09.8512876Z [36;1mpython -m unittest discover -s tests -p test_windows_handoff.py -v[0m
+2026-10-12T08:52:09.8513347Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:52:09.8685261Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:52:09.8685636Z env:
+2026-10-12T08:52:09.8685822Z   PYTHONUTF8: 1
+2026-10-12T08:52:09.8686037Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:52:09.8686307Z   CI: true
+2026-10-12T08:52:09.8686571Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:09.8687041Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:52:09.8687526Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:09.8687940Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:09.8688399Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:09.8688724Z ##[endgroup]
+2026-10-12T08:52:11.7869903Z test_bom_is_not_duplicated_and_invalid_utf8_is_rejected (test_windows_handoff.WindowsHandoffRegressionTests.test_bom_is_not_duplicated_and_invalid_utf8_is_rejected) ... ok
+2026-10-12T08:52:11.8185696Z test_changed_installer_is_rejected_before_output (test_windows_handoff.WindowsHandoffRegressionTests.test_changed_installer_is_rejected_before_output) ... ok
+2026-10-12T08:52:11.8443106Z test_existing_output_and_checksum_are_never_overwritten (test_windows_handoff.WindowsHandoffRegressionTests.test_existing_output_and_checksum_are_never_overwritten) ... ok
+2026-10-12T08:52:11.8747980Z test_installed_engine_and_python_dll_mismatches_are_rejected (test_windows_handoff.WindowsHandoffRegressionTests.test_installed_engine_and_python_dll_mismatches_are_rejected) ... ok
+2026-10-12T08:52:12.5667478Z test_package_preserves_original_bytes_bom_conversion_and_member_hashes (test_windows_handoff.WindowsHandoffRegressionTests.test_package_preserves_original_bytes_bom_conversion_and_member_hashes) ... ok
+2026-10-12T08:52:12.6020976Z test_source_and_raw_gui_evidence_must_match (test_windows_handoff.WindowsHandoffRegressionTests.test_source_and_raw_gui_evidence_must_match) ... ok
+2026-10-12T08:52:17.8854030Z test_tampered_delivered_script_is_rejected_before_any_install (test_windows_handoff.WindowsHandoffRegressionTests.test_tampered_delivered_script_is_rejected_before_any_install) ... ok
+2026-10-12T08:52:17.8857153Z test_uninstalled_failure_and_unpacked_gui_cannot_be_handed_off (test_windows_handoff.WindowsHandoffRegressionTests.test_uninstalled_failure_and_unpacked_gui_cannot_be_handed_off) ... ok
+2026-10-12T08:52:17.8858663Z 
+2026-10-12T08:52:17.8864324Z ----------------------------------------------------------------------
+2026-10-12T08:52:17.8864933Z Ran 8 tests in 6.021s
+2026-10-12T08:52:17.8865141Z 
+2026-10-12T08:52:17.8865255Z OK
+2026-10-12T08:52:17.9068413Z ##[group]Run npm ci --no-audit --no-fund
+2026-10-12T08:52:17.9068813Z [36;1mnpm ci --no-audit --no-fund[0m
+2026-10-12T08:52:17.9112214Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:52:17.9112563Z env:
+2026-10-12T08:52:17.9112734Z   PYTHONUTF8: 1
+2026-10-12T08:52:17.9112951Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:52:17.9113192Z   CI: true
+2026-10-12T08:52:17.9113457Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:17.9113928Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:52:17.9114563Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:17.9114979Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:17.9115384Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:17.9115697Z ##[endgroup]
+2026-10-12T08:52:22.3532809Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-10-12T08:52:22.4357316Z npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+2026-10-12T08:52:22.5118179Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-12T08:52:23.0477492Z npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-10-12T08:52:25.8870037Z 
+2026-10-12T08:52:25.8871048Z added 303 packages in 7s
+2026-10-12T08:52:25.8902256Z npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+2026-10-12T08:52:25.8903993Z npm warn install-scripts   electron-winstaller@5.4.0 (install: node ./script/select-7z-arch.js)
+2026-10-12T08:52:25.8905175Z npm warn install-scripts
+2026-10-12T08:52:25.8906428Z npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+2026-10-12T08:52:27.0947681Z ##[group]Run $env:PYTHONPATH = Join-Path $env:GITHUB_WORKSPACE 'spikes/windows-foundation/python'
+2026-10-12T08:52:27.0948948Z [36;1m$env:PYTHONPATH = Join-Path $env:GITHUB_WORKSPACE 'spikes/windows-foundation/python'[0m
+2026-10-12T08:52:27.0949975Z [36;1mpython -m unittest discover -s spikes/windows-foundation/tests -v[0m
+2026-10-12T08:52:27.0950791Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:52:27.1021352Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:52:27.1021932Z env:
+2026-10-12T08:52:27.1022210Z   PYTHONUTF8: 1
+2026-10-12T08:52:27.1022565Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:52:27.1022994Z   CI: true
+2026-10-12T08:52:27.1023438Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:27.1024260Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:52:27.1025129Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:27.1025858Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:27.1026564Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:27.1027129Z ##[endgroup]
+2026-10-12T08:52:28.1020905Z test_dispatch_does_not_mutate_input (test_sidecar.ProtocolTests.test_dispatch_does_not_mutate_input) ... ok
+2026-10-12T08:52:28.1024005Z test_frame_rejects_duplicate_keys_and_oversize (test_sidecar.ProtocolTests.test_frame_rejects_duplicate_keys_and_oversize) ... ok
+2026-10-12T08:52:28.1715813Z test_invalid_bootstrap_exits_without_effect (test_sidecar.ProtocolTests.test_invalid_bootstrap_exits_without_effect) ... ok
+2026-10-12T08:52:28.1717768Z test_non_windows_vault_is_not_run (test_sidecar.ProtocolTests.test_non_windows_vault_is_not_run) ... skipped 'Non-Windows refusal only'
+2026-10-12T08:52:28.5807749Z test_real_pipe_bootstrap_health_and_worker (test_sidecar.ProtocolTests.test_real_pipe_bootstrap_health_and_worker) ... ok
+2026-10-12T08:52:28.5810287Z test_real_worker_writes_verifies_and_removes_temporary_file (test_sidecar.ProtocolTests.test_real_worker_writes_verifies_and_removes_temporary_file) ... ok
+2026-10-12T08:52:28.5811927Z test_rejects_extra_fields (test_sidecar.ProtocolTests.test_rejects_extra_fields) ... ok
+2026-10-12T08:52:28.5815851Z test_rejects_scope_version_command_and_payload (test_sidecar.ProtocolTests.test_rejects_scope_version_command_and_payload) ... ok
+2026-10-12T08:52:28.5817443Z test_cleanup_failure_prevents_success (test_vault.VaultContractUnitTests.test_cleanup_failure_prevents_success) ... ok
+2026-10-12T08:52:28.5819467Z test_non_windows_returns_not_run_without_loading_native_or_touching_store (test_vault.VaultContractUnitTests.test_non_windows_returns_not_run_without_loading_native_or_touching_store) ... ok
+2026-10-12T08:52:28.5821587Z test_public_probe_rejects_supplied_secret_and_path (test_vault.VaultContractUnitTests.test_public_probe_rejects_supplied_secret_and_path) ... ok
+2026-10-12T08:52:28.5823277Z test_raw_exception_and_paths_do_not_escape (test_vault.VaultContractUnitTests.test_raw_exception_and_paths_do_not_escape) ... ok
+2026-10-12T08:52:28.5825094Z test_unit_decryption_error_still_wipes_and_cleans_up (test_vault.VaultContractUnitTests.test_unit_decryption_error_still_wipes_and_cleans_up) ... ok
+2026-10-12T08:52:28.5826954Z test_unit_mismatch_is_failure_and_still_cleans_up (test_vault.VaultContractUnitTests.test_unit_mismatch_is_failure_and_still_cleans_up) ... ok
+2026-10-12T08:52:28.5828956Z test_unit_roundtrip_wipes_payload_and_removes_only_own_run (test_vault.VaultContractUnitTests.test_unit_roundtrip_wipes_payload_and_removes_only_own_run) ... ok
+2026-10-12T08:52:28.5831052Z test_native_failure_also_releases_returned_allocation (test_vault.VaultNativeBoundaryUnitTests.test_native_failure_also_releases_returned_allocation) ... ok
+2026-10-12T08:52:28.5845523Z test_native_plaintext_is_wiped_and_localfree_called_after_compare (test_vault.VaultNativeBoundaryUnitTests.test_native_plaintext_is_wiped_and_localfree_called_after_compare) ... ok
+2026-10-12T08:52:28.5848121Z test_windows_types_and_pointer_width_are_declared_explicitly (test_vault.VaultNativeBoundaryUnitTests.test_windows_types_and_pointer_width_are_declared_explicitly) ... ok
+2026-10-12T08:52:28.5850421Z test_failed_atomic_replace_keeps_old_file_and_cleans_temporary (test_vault.VaultStorageUnitTests.test_failed_atomic_replace_keeps_old_file_and_cleans_temporary) ... ok
+2026-10-12T08:52:28.5852486Z test_oversized_read_rejected_before_native_call (test_vault.VaultStorageUnitTests.test_oversized_read_rejected_before_native_call) ... ok
+2026-10-12T08:52:28.5854328Z test_symlink_in_application_store_is_rejected (test_vault.VaultStorageUnitTests.test_symlink_in_application_store_is_rejected) ... ok
+2026-10-12T08:52:28.5856514Z test_real_windows_dpapi_corruption_cannot_match_synthetic_payload (test_vault.WindowsNativeVaultTests.test_real_windows_dpapi_corruption_cannot_match_synthetic_payload) ... ok
+2026-10-12T08:52:28.5858507Z test_real_windows_dpapi_file_roundtrip (test_vault.WindowsNativeVaultTests.test_real_windows_dpapi_file_roundtrip) ... ok
+2026-10-12T08:52:28.5859332Z 
+2026-10-12T08:52:28.5859690Z ----------------------------------------------------------------------
+2026-10-12T08:52:28.5860247Z Ran 23 tests in 0.423s
+2026-10-12T08:52:28.5860473Z 
+2026-10-12T08:52:28.5860597Z OK (skipped=1)
+2026-10-12T08:52:28.6117210Z ##[group]Run $env:AIK_SPIKE_PYTHON = (Get-Command python).Source
+2026-10-12T08:52:28.6118072Z [36;1m$env:AIK_SPIKE_PYTHON = (Get-Command python).Source[0m
+2026-10-12T08:52:28.6118646Z [36;1mnpm test[0m
+2026-10-12T08:52:28.6119107Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:52:28.6119723Z [36;1mnpm run build[0m
+2026-10-12T08:52:28.6120196Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:52:28.6189759Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:52:28.6190468Z env:
+2026-10-12T08:52:28.6190771Z   PYTHONUTF8: 1
+2026-10-12T08:52:28.6191115Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:52:28.6191536Z   CI: true
+2026-10-12T08:52:28.6192130Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:28.6192994Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:52:28.6194232Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:28.6194993Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:28.6195742Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:28.6196409Z ##[endgroup]
+2026-10-12T08:52:30.1779967Z 
+2026-10-12T08:52:30.1780366Z > aik-windows-foundation-spike@0.1.0 test
+2026-10-12T08:52:30.1780983Z > node --test tests/*.test.cjs
+2026-10-12T08:52:30.1781270Z 
+2026-10-12T08:52:30.1782225Z ✔ IPC rejects unknown commands, credentials, scopes and protocol versions (2.3084ms)
+2026-10-12T08:52:30.1783528Z ✔ only the exact app window, main frame and URL are trusted (0.2806ms)
+2026-10-12T08:52:30.1784775Z ✔ response schema rejects secret fields and mismatched request identity (0.5665ms)
+2026-10-12T08:52:30.1786028Z ✔ sanitized failures never echo arbitrary request values (0.2127ms)
+2026-10-12T08:52:30.1787371Z ✔ sidecar child does not inherit provider secrets or Python injection variables (12.4405ms)
+2026-10-12T08:52:30.1788869Z ✔ Node client executes real Python IPC and separate file worker (206.738ms)
+2026-10-12T08:52:30.1790185Z ✔ unexpected child death is reported without leaving a hanging request (83.5208ms)
+2026-10-12T08:52:30.1791348Z ✔ child startup errors are sanitized and bounded (4.7471ms)
+2026-10-12T08:52:30.1792050Z ℹ tests 8
+2026-10-12T08:52:30.1792437Z ℹ suites 0
+2026-10-12T08:52:30.1792806Z ℹ pass 8
+2026-10-12T08:52:30.1793173Z ℹ fail 0
+2026-10-12T08:52:30.1793543Z ℹ cancelled 0
+2026-10-12T08:52:30.1793961Z ℹ skipped 0
+2026-10-12T08:52:30.1794357Z ℹ todo 0
+2026-10-12T08:52:30.1794768Z ℹ duration_ms 499.9004
+2026-10-12T08:52:30.3083833Z 
+2026-10-12T08:52:30.3112616Z > aik-windows-foundation-spike@0.1.0 build
+2026-10-12T08:52:30.3139385Z > tsc -p tsconfig.json && vite build --base=./
+2026-10-12T08:52:30.3179868Z 
+2026-10-12T08:52:31.0397473Z [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+2026-10-12T08:52:31.0848065Z transforming...
+2026-10-12T08:52:31.1613668Z ✓ 15 modules transformed.
+2026-10-12T08:52:31.1857924Z rendering chunks...
+2026-10-12T08:52:31.2188592Z computing gzip size...
+2026-10-12T08:52:31.2225278Z dist/index.html                   0.70 kB │ gzip:  0.41 kB
+2026-10-12T08:52:31.2226298Z dist/assets/index-CDCplbkY.css    2.62 kB │ gzip:  1.13 kB
+2026-10-12T08:52:31.2227518Z dist/assets/index-C7lDYET8.js   193.80 kB │ gzip: 61.57 kB
+2026-10-12T08:52:31.2228230Z 
+2026-10-12T08:52:31.2232232Z [32m✓ built in 181ms[39m
+2026-10-12T08:52:31.4203253Z ##[group]Run ./scripts/windows/build-sidecar.ps1
+2026-10-12T08:52:31.4203735Z [36;1m./scripts/windows/build-sidecar.ps1[0m
+2026-10-12T08:52:31.4243523Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:52:31.4243888Z env:
+2026-10-12T08:52:31.4244074Z   PYTHONUTF8: 1
+2026-10-12T08:52:31.4244288Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:52:31.4244535Z   CI: true
+2026-10-12T08:52:31.4244825Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:31.4245298Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:52:31.4245749Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:31.4246154Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:31.4246572Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:31.4246889Z ##[endgroup]
+2026-10-12T08:52:37.7670291Z Collecting PyInstaller==6.22.3 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 4))
+2026-10-12T08:52:37.7676019Z   Downloading pyinstaller-6.22.3-py3-none-win_amd64.whl (1.5 MB)
+2026-10-12T08:52:37.7677023Z      ---------------------------------------- 1.5/1.5 MB 22.6 MB/s  0:00:00
+2026-10-12T08:52:37.8018085Z Collecting altgraph==0.17.5 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 6))
+2026-10-12T08:52:37.8141679Z   Downloading altgraph-0.17.5-py2.py3-none-any.whl (21 kB)
+2026-10-12T08:52:37.8734517Z Collecting packaging==26.3 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 8))
+2026-10-12T08:52:37.8869374Z   Downloading packaging-26.3-py3-none-any.whl (129 kB)
+2026-10-12T08:52:37.9520633Z Collecting pyinstaller-hooks-contrib==2026.8 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 10))
+2026-10-12T08:52:37.9645797Z   Downloading pyinstaller_hooks_contrib-2026.8-py3-none-any.whl (462 kB)
+2026-10-12T08:52:38.1414584Z Collecting setuptools==84.0.0 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 12))
+2026-10-12T08:52:38.1635793Z   Downloading setuptools-84.0.0-py3-none-any.whl (818 kB)
+2026-10-12T08:52:38.1997428Z      ---------------------------------------- 818.2/818.2 kB 17.4 MB/s  0:00:00
+2026-10-12T08:52:38.2524982Z Collecting pefile==2024.8.26 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 14))
+2026-10-12T08:52:38.2689995Z   Downloading pefile-2024.8.26-py3-none-any.whl (74 kB)
+2026-10-12T08:52:38.3584848Z Collecting pywin32-ctypes==0.2.3 (from -r D:\a\AI-Kubernetes\AI-Kubernetes\packaging\requirements-build.windows.lock (line 16))
+2026-10-12T08:52:38.3745762Z   Downloading pywin32_ctypes-0.2.3-py3-none-any.whl (30 kB)
+2026-10-12T08:52:38.4179651Z Installing collected packages: altgraph, setuptools, pywin32-ctypes, pyinstaller-hooks-contrib, PyInstaller, pefile, packaging
+2026-10-12T08:52:40.7913732Z 
+2026-10-12T08:52:40.7930654Z Successfully installed PyInstaller-6.22.3 altgraph-0.17.5 packaging-26.3 pefile-2024.8.26 pyinstaller-hooks-contrib-2026.8 pywin32-ctypes-0.2.3 setuptools-84.0.0
+2026-10-12T08:52:41.2141452Z No broken requirements found.
+2026-10-12T08:52:41.6397121Z 253 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.8
+2026-10-12T08:52:41.6402072Z 253 INFO: Python: 3.14.8
+2026-10-12T08:52:41.6617447Z 275 INFO: Platform: Windows-2022Server-10.0.20348-SP0
+2026-10-12T08:52:41.6618774Z 275 INFO: Python environment: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\venv
+2026-10-12T08:52:41.6624486Z 275 INFO: wrote D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-spec\aik-engine.spec
+2026-10-12T08:52:41.6697615Z 283 INFO: Removing temporary files and cleaning cache in C:\Users\runneradmin\AppData\Local\pyinstaller
+2026-10-12T08:52:41.6707519Z 284 INFO: Module search paths (PYTHONPATH):
+2026-10-12T08:52:41.6710752Z ['D:\\a\\AI-Kubernetes\\AI-Kubernetes',
+2026-10-12T08:52:41.6711793Z  'C:\\hostedtoolcache\\windows\\Python\\3.14.8\\x64\\python314.zip',
+2026-10-12T08:52:41.6712722Z  'C:\\hostedtoolcache\\windows\\Python\\3.14.8\\x64\\DLLs',
+2026-10-12T08:52:41.6713570Z  'C:\\hostedtoolcache\\windows\\Python\\3.14.8\\x64\\Lib',
+2026-10-12T08:52:41.6714371Z  'C:\\hostedtoolcache\\windows\\Python\\3.14.8\\x64',
+2026-10-12T08:52:41.6715203Z  'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv',
+2026-10-12T08:52:41.6716193Z  'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages',
+2026-10-12T08:52:41.6717712Z  'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\spikes\\windows-foundation\\python']
+2026-10-12T08:52:41.9359435Z 549 INFO: checking Analysis
+2026-10-12T08:52:41.9360593Z 549 INFO: Building Analysis because Analysis-00.toc is non existent
+2026-10-12T08:52:41.9361551Z 549 INFO: Looking for Python shared library...
+2026-10-12T08:52:41.9362760Z 549 INFO: Using Python shared library: C:\hostedtoolcache\windows\Python\3.14.8\x64\python314.dll
+2026-10-12T08:52:41.9363848Z 549 INFO: Running Analysis Analysis-00.toc
+2026-10-12T08:52:41.9364633Z 549 INFO: Target bytecode optimization level: 0
+2026-10-12T08:52:41.9365400Z 549 INFO: Initializing module dependency graph...
+2026-10-12T08:52:41.9393526Z 552 INFO: Initializing module graph hook caches...
+2026-10-12T08:52:41.9528575Z 566 INFO: Analyzing modules for base_library.zip ...
+2026-10-12T08:52:43.9476638Z 2560 INFO: Processing standard module hook 'hook-encodings.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:52:45.3350665Z 3021 INFO: Processing standard module hook 'hook-pickle.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:52:45.3353147Z 3142 INFO: Processing standard module hook 'hook-math.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:52:45.3355384Z 3358 INFO: Processing standard module hook 'hook-difflib.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:52:45.3357653Z 3379 INFO: Processing standard module hook 'hook-heapq.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:52:48.5959592Z 7209 INFO: Caching module dependency graph...
+2026-10-12T08:52:48.6326930Z 7245 INFO: Analyzing D:\a\AI-Kubernetes\AI-Kubernetes\spikes\windows-foundation\python\sidecar_entry.py
+2026-10-12T08:52:48.7543446Z 7367 INFO: Processing standard module hook 'hook-sysconfig.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:52:48.7651937Z 7378 INFO: Processing standard module hook 'hook-_ctypes.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2026-10-12T08:52:48.7722733Z 7385 INFO: Processing module hooks (post-graph stage)...
+2026-10-12T08:52:48.7900477Z 7403 INFO: Performing binary vs. data reclassification (1 entries)
+2026-10-12T08:52:48.7916212Z 7405 INFO: Looking for ctypes DLLs
+2026-10-12T08:52:48.8011833Z 7414 INFO: Analyzing run-time hooks ...
+2026-10-12T08:52:48.8025194Z 7415 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\build\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+2026-10-12T08:52:48.8097827Z 7423 INFO: Creating base_library.zip...
+2026-10-12T08:52:48.8358561Z 7449 INFO: Looking for dynamic libraries
+2026-10-12T08:52:48.9660422Z 7579 INFO: Extra DLL search directories (AddDllDirectory): []
+2026-10-12T08:52:48.9661542Z 7579 INFO: Extra DLL search directories (PATH): []
+2026-10-12T08:52:49.6270389Z 8240 INFO: Warnings written to D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\warn-aik-engine.txt
+2026-10-12T08:52:49.6460982Z 8259 INFO: Graph cross-reference written to D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\xref-aik-engine.html
+2026-10-12T08:52:49.6617321Z 8275 INFO: checking PYZ
+2026-10-12T08:52:49.6618306Z 8275 INFO: Building PYZ because PYZ-00.toc is non existent
+2026-10-12T08:52:49.6619768Z 8275 INFO: Building PYZ (ZlibArchive) D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\PYZ-00.pyz
+2026-10-12T08:52:49.7901078Z 8403 INFO: Building PYZ (ZlibArchive) D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\PYZ-00.pyz completed successfully.
+2026-10-12T08:52:49.8074685Z 8420 INFO: checking PKG
+2026-10-12T08:52:49.8075772Z 8421 INFO: Building PKG because PKG-00.toc is non existent
+2026-10-12T08:52:49.8076751Z 8421 INFO: Building PKG (CArchive) aik-engine.pkg
+2026-10-12T08:52:49.8157530Z 8429 INFO: Building PKG (CArchive) aik-engine.pkg completed successfully.
+2026-10-12T08:52:49.8165834Z 8429 INFO: Bootloader D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+2026-10-12T08:52:49.8167326Z 8430 INFO: checking EXE
+2026-10-12T08:52:49.8168152Z 8430 INFO: Building EXE because EXE-00.toc is non existent
+2026-10-12T08:52:49.8169051Z 8430 INFO: Building EXE from EXE-00.toc
+2026-10-12T08:52:49.8170572Z 8430 INFO: Copying bootloader EXE to D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\pyinstaller-work\aik-engine\aik-engine.exe
+2026-10-12T08:52:49.8240552Z 8437 INFO: Copying icon to EXE
+2026-10-12T08:52:49.8259887Z 8439 INFO: Copying 0 resources to EXE
+2026-10-12T08:52:49.8260650Z 8439 INFO: Embedding manifest in EXE
+2026-10-12T08:52:49.8276054Z 8441 INFO: Appending PKG archive to EXE
+2026-10-12T08:52:49.8288655Z 8442 INFO: Fixing EXE headers
+2026-10-12T08:52:49.9085693Z 8521 INFO: Building EXE from EXE-00.toc completed successfully.
+2026-10-12T08:52:49.9099770Z 8523 INFO: checking COLLECT
+2026-10-12T08:52:49.9101075Z 8523 INFO: Building COLLECT because COLLECT-00.toc is non existent
+2026-10-12T08:52:49.9103667Z 8523 INFO: Building COLLECT COLLECT-00.toc
+2026-10-12T08:52:50.0174445Z 8630 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+2026-10-12T08:52:50.0191173Z 8632 INFO: Build complete! The results are available in: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\engine
+2026-10-12T08:52:50.5571305Z Frozen Windows sidecar created: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\build\engine\aik-engine\aik-engine.exe
+2026-10-12T08:52:50.5959173Z ##[group]Run npm run package:win
+2026-10-12T08:52:50.5959723Z [36;1mnpm run package:win[0m
+2026-10-12T08:52:50.6000975Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:52:50.6001343Z env:
+2026-10-12T08:52:50.6001523Z   PYTHONUTF8: 1
+2026-10-12T08:52:50.6001727Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:52:50.6001975Z   CI: true
+2026-10-12T08:52:50.6002253Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:50.6002709Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:52:50.6003152Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:50.6003552Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:50.6003966Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:52:50.6004292Z ##[endgroup]
+2026-10-12T08:52:51.3552776Z 
+2026-10-12T08:52:51.3553887Z > aik-windows-foundation-spike@0.1.0 package:win
+2026-10-12T08:52:51.3555250Z > electron-builder --config ../../packaging/electron-builder.cjs --win --x64 --publish never
+2026-10-12T08:52:51.3556127Z 
+2026-10-12T08:52:52.1275085Z   • electron-builder  version=26.15.3 os=10.0.20348
+2026-10-12T08:52:52.1353186Z   • loaded configuration  file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\electron-builder.cjs
+2026-10-12T08:52:53.2639135Z   • executing @electron/rebuild  electronVersion=44.7.0 arch=x64 buildFromSource=false workspaceRoot=D:\a\AI-Kubernetes\AI-Kubernetes\spikes\windows-foundation projectDir=./ appDir=./
+2026-10-12T08:52:53.2641116Z   • installing native dependencies  arch=x64
+2026-10-12T08:52:53.4789375Z   • completed installing native dependencies
+2026-10-12T08:52:53.4859295Z   • packaging       platform=win32 arch=x64 electron=44.7.0 appOutDir=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\win-unpacked
+2026-10-12T08:52:53.7672266Z   • downloaded      label=electron progress=100%
+2026-10-12T08:53:00.2039731Z   • downloaded electron zip extracted successfully  output=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\win-unpacked
+2026-10-12T08:53:00.2259016Z   • searching for node modules  pm=npm searchDir=D:\a\AI-Kubernetes\AI-Kubernetes\spikes\windows-foundation
+2026-10-12T08:53:02.2775805Z   • updating asar integrity executable resource  executablePath=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\win-unpacked\AIK Foundation Spike.exe
+2026-10-12T08:53:02.3157530Z   • default Electron icon is used  reason=application icon is not set
+2026-10-12T08:53:02.6549397Z   • file signing skipped via signExecutable configuration  file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\win-unpacked\AIK Foundation Spike.exe
+2026-10-12T08:53:02.6563810Z   • building        target=nsis file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe archs=x64 oneClick=true perMachine=false
+2026-10-12T08:53:02.7794403Z   • downloaded      label=7zip-win-x64.tar.gz progress=100%
+2026-10-12T08:54:16.8870489Z   • downloaded      label=nsis-resources-3.4.1.7z progress=100%
+2026-10-12T08:54:17.1331162Z   • downloaded      label=nsis-3.0.4.1.7z progress=100%
+2026-10-12T08:54:19.0059158Z   • file signing skipped via signExecutable configuration  file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.__uninstaller.exe
+2026-10-12T08:54:20.1514869Z   • file signing skipped via signExecutable configuration  file=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe
+2026-10-12T08:54:20.1518418Z   • building block map  blockMapFile=D:\a\AI-Kubernetes\AI-Kubernetes\packaging\dist\AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe.blockmap
+2026-10-12T08:54:24.9155087Z ##[group]Run ./scripts/windows/verify-installed-spike.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE
+2026-10-12T08:54:24.9156073Z [36;1m./scripts/windows/verify-installed-spike.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE[0m
+2026-10-12T08:54:24.9196799Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:54:24.9197179Z env:
+2026-10-12T08:54:24.9197354Z   PYTHONUTF8: 1
+2026-10-12T08:54:24.9197560Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:54:24.9197804Z   CI: true
+2026-10-12T08:54:24.9198070Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:24.9198515Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:54:24.9198961Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:24.9199360Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:24.9199763Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:24.9200133Z ##[endgroup]
+2026-10-12T08:54:51.8454496Z Installed foundation-spike validation: PASS. Evidence: D:\a\AI-Kubernetes\AI-Kubernetes\packaging\evidence\installed-spike.json
+2026-10-12T08:54:51.8964655Z ##[group]Run $Installers = @(Get-ChildItem -LiteralPath 'packaging/dist' -File -Filter 'AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe')
+2026-10-12T08:54:51.8966530Z [36;1m$Installers = @(Get-ChildItem -LiteralPath 'packaging/dist' -File -Filter 'AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe')[0m
+2026-10-12T08:54:51.8967907Z [36;1mif ($Installers.Count -ne 1) { throw 'Exactly one validated installer is required.' }[0m
+2026-10-12T08:54:51.8968871Z [36;1m$HandoffRoot = Join-Path $env:GITHUB_WORKSPACE 'packaging/handoff'[0m
+2026-10-12T08:54:51.8969770Z [36;1mNew-Item -ItemType Directory -Path $HandoffRoot | Out-Null[0m
+2026-10-12T08:54:51.8970882Z [36;1m$ZipPath = Join-Path $HandoffRoot ('AIK-Windows-Client-Handoff-' + $env:GITHUB_SHA.Substring(0, 12) + '.zip')[0m
+2026-10-12T08:54:51.8972456Z [36;1mpython tools/build_windows_handoff.py --installer $Installers[0].FullName --source-commit $env:GITHUB_SHA --output $ZipPath |[0m
+2026-10-12T08:54:51.8973978Z [36;1m  Set-Content -LiteralPath (Join-Path $HandoffRoot 'build-handoff.json') -Encoding utf8[0m
+2026-10-12T08:54:51.8974903Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:54:51.8975702Z [36;1mGet-Content -LiteralPath (Join-Path $HandoffRoot 'build-handoff.json')[0m
+2026-10-12T08:54:51.9051644Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:54:51.9052211Z env:
+2026-10-12T08:54:51.9052483Z   PYTHONUTF8: 1
+2026-10-12T08:54:51.9052825Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:54:51.9053215Z   CI: true
+2026-10-12T08:54:51.9053648Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:51.9054426Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:54:51.9055231Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:51.9055927Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:51.9056605Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:51.9057151Z ##[endgroup]
+2026-10-12T08:54:53.1242155Z {
+2026-10-12T08:54:53.1243436Z   "schema_version": 1,
+2026-10-12T08:54:53.1244079Z   "status": "PASS",
+2026-10-12T08:54:53.1244691Z   "scope": "handoff packaging and input identity checks only",
+2026-10-12T08:54:53.1245986Z   "source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+2026-10-12T08:54:53.1247159Z   "file": "D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\handoff\\AIK-Windows-Client-Handoff-4b948f57020f.zip",
+2026-10-12T08:54:53.1248361Z   "bytes": 118784150,
+2026-10-12T08:54:53.1249038Z   "sha256": "a6edd83fd952257d5d7f731c23162aeaca30974e0cc303bbd7b0210c9e7dd23e",
+2026-10-12T08:54:53.1250965Z   "checksum_file": "D:\\a\\AI-Kubernetes\\AI-Kubernetes\\packaging\\handoff\\AIK-Windows-Client-Handoff-4b948f57020f.zip.sha256",
+2026-10-12T08:54:53.1252456Z   "manifest_sha256": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+2026-10-12T08:54:53.1253262Z   "member_count": 11,
+2026-10-12T08:54:53.1253673Z   "windows_execution": "NOT_RUN",
+2026-10-12T08:54:53.1254397Z   "windows11_standard_user_clean_machine": "NOT_RUN"
+2026-10-12T08:54:53.1258453Z }
+2026-10-12T08:54:53.2092472Z ##[group]Run $Archives = @(Get-ChildItem -LiteralPath 'packaging/handoff' -File -Filter '*.zip')
+2026-10-12T08:54:53.2093765Z [36;1m$Archives = @(Get-ChildItem -LiteralPath 'packaging/handoff' -File -Filter '*.zip')[0m
+2026-10-12T08:54:53.2094798Z [36;1mif ($Archives.Count -ne 1) { throw 'Exactly one handoff ZIP is required.' }[0m
+2026-10-12T08:54:53.2095891Z [36;1m$HandoffRunRoot = Join-Path ([IO.Path]::GetTempPath()) ('AIK 전달 ' + [Guid]::NewGuid().ToString('N'))[0m
+2026-10-12T08:54:53.2097014Z [36;1m$PackageDirectory = Join-Path $HandoffRunRoot '패키지 경로'[0m
+2026-10-12T08:54:53.2097883Z [36;1m$EvidenceParent = Join-Path $HandoffRunRoot '실제 실행 증거'[0m
+2026-10-12T08:54:53.2098923Z [36;1mExpand-Archive -LiteralPath $Archives[0].FullName -DestinationPath $PackageDirectory[0m
+2026-10-12T08:54:53.2100395Z [36;1m('AIK_HANDOFF_PACKAGE_DIR=' + $PackageDirectory) | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8[0m
+2026-10-12T08:54:53.2101693Z [36;1m('AIK_HANDOFF_EVIDENCE_PARENT=' + $EvidenceParent) | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8[0m
+2026-10-12T08:54:53.2166315Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:54:53.2262511Z env:
+2026-10-12T08:54:53.2262882Z   PYTHONUTF8: 1
+2026-10-12T08:54:53.2263245Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:54:53.2263672Z   CI: true
+2026-10-12T08:54:53.2264125Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:53.2264936Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:54:53.2265728Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:53.2266452Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:53.2267175Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:53.2267767Z ##[endgroup]
+2026-10-12T08:54:54.3568290Z ##[group]Run if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1 -or $PSVersionTable.PSEdition -ne 'Desktop') {
+2026-10-12T08:54:54.3570206Z [36;1mif ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1 -or $PSVersionTable.PSEdition -ne 'Desktop') {[0m
+2026-10-12T08:54:54.3571501Z [36;1m  throw 'This verification requires actual Windows PowerShell 5.1.'[0m
+2026-10-12T08:54:54.3572132Z [36;1m}[0m
+2026-10-12T08:54:54.3572647Z [36;1m$env:PATH = (Join-Path $env:SystemRoot 'System32') + ';' + $env:SystemRoot[0m
+2026-10-12T08:54:54.3573668Z [36;1m$env:PSModulePath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'[0m
+2026-10-12T08:54:54.3574767Z [36;1mforeach ($Name in @('PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {[0m
+2026-10-12T08:54:54.3575773Z [36;1m  Remove-Item -LiteralPath ('Env:' + $Name) -ErrorAction SilentlyContinue[0m
+2026-10-12T08:54:54.3576480Z [36;1m}[0m
+2026-10-12T08:54:54.3577378Z [36;1m$LegacyPowerShell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'[0m
+2026-10-12T08:54:54.3579212Z [36;1m& $LegacyPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $env:AIK_HANDOFF_PACKAGE_DIR 'run-validation.ps1') -EvidenceParent $env:AIK_HANDOFF_EVIDENCE_PARENT[0m
+2026-10-12T08:54:54.3580754Z [36;1mif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }[0m
+2026-10-12T08:54:54.3636515Z shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.EXE -command ". '{0}'"
+2026-10-12T08:54:54.3637219Z env:
+2026-10-12T08:54:54.3637492Z   PYTHONUTF8: 1
+2026-10-12T08:54:54.3637819Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:54:54.3638226Z   CI: true
+2026-10-12T08:54:54.3638650Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:54.3639425Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:54:54.3640202Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:54.3640909Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:54.3641600Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:54:54.3642593Z   AIK_HANDOFF_PACKAGE_DIR: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\패키지 경로
+2026-10-12T08:54:54.3643946Z   AIK_HANDOFF_EVIDENCE_PARENT: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\실제 실행 증거
+2026-10-12T08:54:54.3644864Z ##[endgroup]
+2026-10-12T08:55:25.9530037Z Handoff verification: PASS
+2026-10-12T08:55:25.9541085Z Evidence: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\실제 실행 증거\8d415a8070b94a67aa92effb29e24801\handoff-validation.json
+2026-10-12T08:55:26.0030760Z ##[group]Run if ([string]::IsNullOrWhiteSpace($env:AIK_HANDOFF_EVIDENCE_PARENT) -or -not (Test-Path -LiteralPath $env:AIK_HANDOFF_EVIDENCE_PARENT)) {
+2026-10-12T08:55:26.0031938Z [36;1mif ([string]::IsNullOrWhiteSpace($env:AIK_HANDOFF_EVIDENCE_PARENT) -or -not (Test-Path -LiteralPath $env:AIK_HANDOFF_EVIDENCE_PARENT)) {[0m
+2026-10-12T08:55:26.0032770Z [36;1m  throw 'The independent handoff execution did not create its evidence directory.'[0m
+2026-10-12T08:55:26.0033188Z [36;1m}[0m
+2026-10-12T08:55:26.0033640Z [36;1mCopy-Item -LiteralPath $env:AIK_HANDOFF_EVIDENCE_PARENT -Destination 'packaging/handoff/evidence' -Recurse[0m
+2026-10-12T08:55:26.0034484Z [36;1m$Reports = @(Get-ChildItem -LiteralPath 'packaging/handoff/evidence' -Recurse -File -Filter 'handoff-validation.json')[0m
+2026-10-12T08:55:26.0035258Z [36;1mif ($Reports.Count -ne 1) { throw 'Exactly one independent execution report is required.' }[0m
+2026-10-12T08:55:26.0035951Z [36;1m$Report = Get-Content -LiteralPath $Reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json[0m
+2026-10-12T08:55:26.0036625Z [36;1mif ($Report.status -ne 'PASS' -or $Report.observed_execution.powershell_edition -ne 'Desktop' -or[0m
+2026-10-12T08:55:26.0037240Z [36;1m    $Report.observed_execution.powershell_version -notlike '5.1.*' -or[0m
+2026-10-12T08:55:26.0037884Z [36;1m    $Report.checks.delivered_script_parse -ne 'PASS' -or $Report.checks.actual_gui_evidence -ne 'PASS') {[0m
+2026-10-12T08:55:26.0038564Z [36;1m  throw 'Actual legacy PowerShell, BOM parse, and installed GUI evidence did not pass.'[0m
+2026-10-12T08:55:26.0038984Z [36;1m}[0m
+2026-10-12T08:55:26.0039348Z [36;1mif ($Report.qualification.windows11_standard_user_clean_machine -ne 'NOT_RUN' -or[0m
+2026-10-12T08:55:26.0039906Z [36;1m    $Report.qualification.developer_tools_absence -ne 'NOT_RUN' -or[0m
+2026-10-12T08:55:26.0040383Z [36;1m    $Report.observed_windows_environment.os_product_type -ne 3) {[0m
+2026-10-12T08:55:26.0040889Z [36;1m  throw 'The Server CI run must preserve unqualified clean Windows client status.'[0m
+2026-10-12T08:55:26.0041296Z [36;1m}[0m
+2026-10-12T08:55:26.0041495Z [36;1m$Report | ConvertTo-Json -Depth 16[0m
+2026-10-12T08:55:26.0080523Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-12T08:55:26.0081027Z env:
+2026-10-12T08:55:26.0081206Z   PYTHONUTF8: 1
+2026-10-12T08:55:26.0081421Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:55:26.0081667Z   CI: true
+2026-10-12T08:55:26.0081928Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:26.0082392Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:55:26.0082843Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:26.0083256Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:26.0083651Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:26.0084224Z   AIK_HANDOFF_PACKAGE_DIR: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\패키지 경로
+2026-10-12T08:55:26.0084988Z   AIK_HANDOFF_EVIDENCE_PARENT: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\실제 실행 증거
+2026-10-12T08:55:26.0085533Z ##[endgroup]
+2026-10-12T08:55:26.7344961Z {
+2026-10-12T08:55:26.7370702Z   "schema_version": 1,
+2026-10-12T08:55:26.7374400Z   "scope": "Independent AIK foundation installer handoff verification",
+2026-10-12T08:55:26.7377501Z   "started_at": "2026-10-12T08:54:55.1123454Z",
+2026-10-12T08:55:26.7378235Z   "status": "PASS",
+2026-10-12T08:55:26.7407228Z   "evidence_directory": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\\실제 실행 증거\\8d415a8070b94a67aa92effb29e24801",
+2026-10-12T08:55:26.7425346Z   "package_source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+2026-10-12T08:55:26.7426119Z   "observed_execution": {
+2026-10-12T08:55:26.7426595Z     "github_actions": true,
+2026-10-12T08:55:26.7430779Z     "github_sha": "4b948f57020f3e507683de6e538544b9bac558e7",
+2026-10-12T08:55:26.7431759Z     "github_run_id": "38226204128",
+2026-10-12T08:55:26.7432405Z     "github_run_attempt": "1",
+2026-10-12T08:55:26.7433024Z     "powershell_version": "5.1.20348.5622",
+2026-10-12T08:55:26.7433743Z     "powershell_edition": "Desktop",
+2026-10-12T08:55:26.7434400Z     "default_encoding_code_page": 1252,
+2026-10-12T08:55:26.7435173Z     "default_encoding_web_name": "Windows-1252",
+2026-10-12T08:55:26.7435830Z     "culture": "en-US",
+2026-10-12T08:55:26.7436335Z     "ui_culture": "en-US",
+2026-10-12T08:55:26.7436967Z     "os_version": "Microsoft Windows NT 10.0.20348.0",
+2026-10-12T08:55:26.7437627Z     "platform": "Win32NT",
+2026-10-12T08:55:26.7438199Z     "process_architecture": "AMD64",
+2026-10-12T08:55:26.7439229Z     "is_64_bit_process": true
+2026-10-12T08:55:26.7440743Z   },
+2026-10-12T08:55:26.7441086Z   "checks": {
+2026-10-12T08:55:26.7441515Z     "package_member_hashes": "PASS",
+2026-10-12T08:55:26.7442132Z     "verifier_bom_conversion": "PASS",
+2026-10-12T08:55:26.7442688Z     "legacy_powershell_51": "PASS",
+2026-10-12T08:55:26.7443553Z     "delivered_script_parse": "PASS",
+2026-10-12T08:55:26.7444244Z     "installed_gui_worker_dpapi_uninstall": "PASS",
+2026-10-12T08:55:26.7445309Z     "installed_engine_identity": "PASS",
+2026-10-12T08:55:26.7446003Z     "installed_python_dll_identity": "PASS",
+2026-10-12T08:55:26.7446686Z     "actual_gui_evidence": "PASS"
+2026-10-12T08:55:26.7447214Z   },
+2026-10-12T08:55:26.7447658Z   "qualification": {
+2026-10-12T08:55:26.7448267Z     "windows11_standard_user_clean_machine": "NOT_RUN",
+2026-10-12T08:55:26.7448895Z     "developer_tools_absence": "NOT_RUN",
+2026-10-12T08:55:26.7449422Z     "release_signing": "NOT_RUN",
+2026-10-12T08:55:26.7449911Z     "product_integration": "NOT_RUN"
+2026-10-12T08:55:26.7450364Z   },
+2026-10-12T08:55:26.7450688Z   "limits": [
+2026-10-12T08:55:26.7451385Z     "PASS applies to this package and the actual bounded foundation checks only.",
+2026-10-12T08:55:26.7452371Z     "This is an unsigned development spike; the complete product is not implemented.",
+2026-10-12T08:55:26.7453358Z     "An unsigned manifest verifies member consistency, not publisher authenticity.",
+2026-10-12T08:55:26.7454960Z     "Observed Windows and user properties do not prove a clean machine or absent developer tools.",
+2026-10-12T08:55:26.7456289Z     "A Server administrator CI execution does not qualify Windows 11 standard-user support.",
+2026-10-12T08:55:26.7457647Z     "GitHub identity variables are inherited as observed; local execution does not synthesize them."
+2026-10-12T08:55:26.7458582Z   ],
+2026-10-12T08:55:26.7459361Z   "manifest_sha256": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+2026-10-12T08:55:26.7460247Z   "legacy_script_parse": {
+2026-10-12T08:55:26.7460733Z     "original": {
+2026-10-12T08:55:26.7461171Z       "status": "FAIL",
+2026-10-12T08:55:26.7461643Z       "error_count": 2,
+2026-10-12T08:55:26.7462108Z       "errors": [
+2026-10-12T08:55:26.7462527Z         {
+2026-10-12T08:55:26.7463001Z           "id": "UnexpectedToken",
+2026-10-12T08:55:26.7468415Z           "message": "Unexpected token 'PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {\r\n        $StartInfo.EnvironmentVariables.Remove($VariableName)\r\n    }\r\n    $Result.child_environment = [ordered]@{\r\n        path = $StartInfo.EnvironmentVariables['PATH']\r\n        pythonhome_removed = $true\r\n        pythonpath_removed = $true\r\n        node_options_removed = $true\r\n        electron_run_as_node_removed = $true\r\n        working_directory_outside_source_tree = $true\r\n        installed_tooling_absence = 'NOT_RUN'\r\n    }\r\n    $ApplicationProcess = New-Object Diagnostics.Process\r\n    $ApplicationProcess.StartInfo = $StartInfo\r\n    if (-not $ApplicationProcess.Start()) { throw 'The' in expression or statement.",
+2026-10-12T08:55:26.7473280Z           "start_line": 152
+2026-10-12T08:55:26.7474571Z         },
+2026-10-12T08:55:26.7475086Z         {
+2026-10-12T08:55:26.7475635Z           "id": "TerminatorExpectedAtEndOfString",
+2026-10-12T08:55:26.7476429Z           "message": "The string is missing the terminator: '.",
+2026-10-12T08:55:26.7477112Z           "start_line": 259
+2026-10-12T08:55:26.7477588Z         }
+2026-10-12T08:55:26.7477977Z       ]
+2026-10-12T08:55:26.7478355Z     },
+2026-10-12T08:55:26.7478849Z     "delivered_bom_copy": {
+2026-10-12T08:55:26.7479369Z       "status": "PASS",
+2026-10-12T08:55:26.7479845Z       "error_count": 0,
+2026-10-12T08:55:26.7480303Z       "errors": []
+2026-10-12T08:55:26.7480719Z     },
+2026-10-12T08:55:26.7481201Z     "original_failure_required": false
+2026-10-12T08:55:26.7481769Z   },
+2026-10-12T08:55:26.7482182Z   "child_environment": {
+2026-10-12T08:55:26.7482778Z     "path": "C:\\Windows\\System32;C:\\Windows",
+2026-10-12T08:55:26.7486490Z     "powershell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+2026-10-12T08:55:26.7487494Z     "external_python_and_node_path": "EXCLUDED",
+2026-10-12T08:55:26.7488202Z     "installed_tooling_absence": "NOT_RUN",
+2026-10-12T08:55:26.7489187Z     "execution_policy_scope": "child process only; no persistent policy change or elevation"
+2026-10-12T08:55:26.7490066Z   },
+2026-10-12T08:55:26.7490473Z   "verifier_pid": 6068,
+2026-10-12T08:55:26.7490956Z   "verifier_exit_code": 0,
+2026-10-12T08:55:26.7491788Z   "installed_report": "installed-check/packaging/evidence/installed-spike.json",
+2026-10-12T08:55:26.7493037Z   "installed_report_sha256": "55e471da0fa531306437c875cfd09c502008c028c8dbc7817134c04e8da6cd30",
+2026-10-12T08:55:26.7494000Z   "observed_windows_environment": {
+2026-10-12T08:55:26.7494562Z     "platform": "win32",
+2026-10-12T08:55:26.7495068Z     "architecture": "AMD64",
+2026-10-12T08:55:26.7495724Z     "os_caption": "Microsoft Windows Server 2022 Datacenter",
+2026-10-12T08:55:26.7496624Z     "os_version": "10.0.20348",
+2026-10-12T08:55:26.7497149Z     "os_build": "20348",
+2026-10-12T08:55:26.7497642Z     "os_product_type": 3,
+2026-10-12T08:55:26.7498262Z     "logical_processors": 2,
+2026-10-12T08:55:26.7498808Z     "memory_bytes": 8584425472,
+2026-10-12T08:55:26.7499322Z     "cpu_names": [
+2026-10-12T08:55:26.7500068Z       "AMD EPYC 7763 64-Core Processor                "
+2026-10-12T08:55:26.7500664Z     ],
+2026-10-12T08:55:26.7501090Z     "administrator": true,
+2026-10-12T08:55:26.7501584Z     "github_actions": true,
+2026-10-12T08:55:26.7502079Z     "runner_image": "win22",
+2026-10-12T08:55:26.7502648Z     "runner_image_version": "20261004.326.1"
+2026-10-12T08:55:26.7503184Z   },
+2026-10-12T08:55:26.7503822Z   "screenshot": "installed-check/packaging/evidence/screenshot.png",
+2026-10-12T08:55:26.7504586Z   "visual_review": "NOT_RUN",
+2026-10-12T08:55:26.7505214Z   "completed_at": "2026-10-12T08:55:25.9395867Z"
+2026-10-12T08:55:26.7505796Z }
+2026-10-12T08:55:26.8088924Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-12T08:55:26.8089651Z with:
+2026-10-12T08:55:26.8090238Z   name: windows-client-handoff-evidence-4b948f57020f3e507683de6e538544b9bac558e7-1
+2026-10-12T08:55:26.8091598Z   path: packaging/build/sidecar-build.json
+packaging/evidence/**
+packaging/handoff/build-handoff.json
+packaging/handoff/evidence/**
+
+2026-10-12T08:55:26.8092650Z   if-no-files-found: warn
+2026-10-12T08:55:26.8093005Z   retention-days: 14
+2026-10-12T08:55:26.8093326Z   compression-level: 6
+2026-10-12T08:55:26.8093650Z   overwrite: false
+2026-10-12T08:55:26.8093963Z   include-hidden-files: false
+2026-10-12T08:55:26.8094319Z env:
+2026-10-12T08:55:26.8094576Z   PYTHONUTF8: 1
+2026-10-12T08:55:26.8094891Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:55:26.8095281Z   CI: true
+2026-10-12T08:55:26.8095703Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:26.8096529Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:55:26.8097286Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:26.8097953Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:26.8098611Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:26.8099573Z   AIK_HANDOFF_PACKAGE_DIR: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\패키지 경로
+2026-10-12T08:55:26.8100896Z   AIK_HANDOFF_EVIDENCE_PARENT: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\실제 실행 증거
+2026-10-12T08:55:26.8101783Z ##[endgroup]
+2026-10-12T08:55:27.0474024Z (node:7312) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:55:27.0480316Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:55:27.0734045Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-12T08:55:27.0830308Z The least common ancestor is D:\a\AI-Kubernetes\AI-Kubernetes\packaging. This will be the root directory of the artifact
+2026-10-12T08:55:27.0831498Z With the provided path, there will be 16 files uploaded
+2026-10-12T08:55:27.0832587Z Artifact name is valid!
+2026-10-12T08:55:27.0833171Z Root directory input is valid!
+2026-10-12T08:55:27.4305946Z (node:7312) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-12T08:55:27.4309411Z Beginning upload of artifact content to blob storage
+2026-10-12T08:55:27.6338077Z Uploaded bytes 97834
+2026-10-12T08:55:27.6825242Z Finished uploading artifact content to blob storage!
+2026-10-12T08:55:27.6826796Z SHA256 digest of uploaded artifact zip is e8511e83cc732875b2a031fe3b3be9586a9988f9ddfb51a60c9365efdec55cf9
+2026-10-12T08:55:27.6828014Z Finalizing artifact upload
+2026-10-12T08:55:27.9133544Z Artifact windows-client-handoff-evidence-4b948f57020f3e507683de6e538544b9bac558e7-1.zip successfully finalized. Artifact ID 11736737827
+2026-10-12T08:55:27.9140560Z Artifact windows-client-handoff-evidence-4b948f57020f3e507683de6e538544b9bac558e7-1 has been successfully uploaded! Final size is 97834 bytes. Artifact ID is 11736737827
+2026-10-12T08:55:27.9142919Z Artifact download URL: https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38226204128/artifacts/11736737827
+2026-10-12T08:55:27.9469721Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-12T08:55:27.9470482Z with:
+2026-10-12T08:55:27.9471128Z   name: windows-client-handoff-package-4b948f57020f3e507683de6e538544b9bac558e7-1
+2026-10-12T08:55:27.9472048Z   path: packaging/handoff/*.zip
+packaging/handoff/*.sha256
+
+2026-10-12T08:55:27.9472654Z   if-no-files-found: error
+2026-10-12T08:55:27.9473046Z   retention-days: 7
+2026-10-12T08:55:27.9473403Z   compression-level: 6
+2026-10-12T08:55:27.9473769Z   overwrite: false
+2026-10-12T08:55:27.9474117Z   include-hidden-files: false
+2026-10-12T08:55:27.9474512Z env:
+2026-10-12T08:55:27.9474806Z   PYTHONUTF8: 1
+2026-10-12T08:55:27.9475157Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:55:27.9475594Z   CI: true
+2026-10-12T08:55:27.9476045Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:27.9476885Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:55:27.9477763Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:27.9478496Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:27.9479227Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:27.9480289Z   AIK_HANDOFF_PACKAGE_DIR: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\패키지 경로
+2026-10-12T08:55:27.9481671Z   AIK_HANDOFF_EVIDENCE_PARENT: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\실제 실행 증거
+2026-10-12T08:55:27.9482636Z ##[endgroup]
+2026-10-12T08:55:28.1799353Z (node:3308) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:55:28.1800984Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:55:28.1885747Z With the provided path, there will be 2 files uploaded
+2026-10-12T08:55:28.1892955Z Artifact name is valid!
+2026-10-12T08:55:28.1893981Z Root directory input is valid!
+2026-10-12T08:55:28.4503760Z Beginning upload of artifact content to blob storage
+2026-10-12T08:55:28.7451471Z (node:3308) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-12T08:55:29.3045491Z Uploaded bytes 8388608
+2026-10-12T08:55:29.5411512Z Uploaded bytes 16777216
+2026-10-12T08:55:29.6238926Z Uploaded bytes 25165824
+2026-10-12T08:55:29.8640937Z Uploaded bytes 33554432
+2026-10-12T08:55:30.1514722Z Uploaded bytes 41943040
+2026-10-12T08:55:30.4683463Z Uploaded bytes 50331648
+2026-10-12T08:55:30.7420728Z Uploaded bytes 58720256
+2026-10-12T08:55:31.0976040Z Uploaded bytes 67108864
+2026-10-12T08:55:31.3355947Z Uploaded bytes 75497472
+2026-10-12T08:55:31.6043045Z Uploaded bytes 83886080
+2026-10-12T08:55:31.8692613Z Uploaded bytes 92274688
+2026-10-12T08:55:32.1397336Z Uploaded bytes 100663296
+2026-10-12T08:55:32.5292158Z Uploaded bytes 109051904
+2026-10-12T08:55:32.8035133Z Uploaded bytes 117440512
+2026-10-12T08:55:32.9032103Z Uploaded bytes 118782135
+2026-10-12T08:55:32.9459090Z Finished uploading artifact content to blob storage!
+2026-10-12T08:55:32.9464856Z SHA256 digest of uploaded artifact zip is b53d1547ede73dcd4fa4b3e56dfdbf84c87a83e809f6fcf5420890d3760ff305
+2026-10-12T08:55:32.9468092Z Finalizing artifact upload
+2026-10-12T08:55:33.2072394Z Artifact windows-client-handoff-package-4b948f57020f3e507683de6e538544b9bac558e7-1.zip successfully finalized. Artifact ID 11736453349
+2026-10-12T08:55:33.2075103Z Artifact windows-client-handoff-package-4b948f57020f3e507683de6e538544b9bac558e7-1 has been successfully uploaded! Final size is 118782135 bytes. Artifact ID is 11736453349
+2026-10-12T08:55:33.2085340Z Artifact download URL: https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38226204128/artifacts/11736453349
+2026-10-12T08:55:33.2387606Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-10-12T08:55:33.2388157Z with:
+2026-10-12T08:55:33.2388620Z   name: windows-client-handoff-unsigned-installer-4b948f57020f3e507683de6e538544b9bac558e7-1
+2026-10-12T08:55:33.2389299Z   path: packaging/dist/AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe
+2026-10-12T08:55:33.2389717Z   if-no-files-found: error
+2026-10-12T08:55:33.2389955Z   retention-days: 7
+2026-10-12T08:55:33.2390175Z   compression-level: 6
+2026-10-12T08:55:33.2390400Z   overwrite: false
+2026-10-12T08:55:33.2390623Z   include-hidden-files: false
+2026-10-12T08:55:33.2390865Z env:
+2026-10-12T08:55:33.2391044Z   PYTHONUTF8: 1
+2026-10-12T08:55:33.2391257Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-12T08:55:33.2391521Z   CI: true
+2026-10-12T08:55:33.2391803Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:33.2392363Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.8\x64/lib/pkgconfig
+2026-10-12T08:55:33.2392878Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:33.2393331Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:33.2393775Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.8\x64
+2026-10-12T08:55:33.2394414Z   AIK_HANDOFF_PACKAGE_DIR: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\패키지 경로
+2026-10-12T08:55:33.2395276Z   AIK_HANDOFF_EVIDENCE_PARENT: C:\Users\runneradmin\AppData\Local\Temp\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\실제 실행 증거
+2026-10-12T08:55:33.2395891Z ##[endgroup]
+2026-10-12T08:55:33.4390208Z (node:7108) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:55:33.4391870Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:55:33.4471031Z With the provided path, there will be 1 file uploaded
+2026-10-12T08:55:33.4478716Z Artifact name is valid!
+2026-10-12T08:55:33.4479859Z Root directory input is valid!
+2026-10-12T08:55:33.7364930Z Beginning upload of artifact content to blob storage
+2026-10-12T08:55:34.0612436Z (node:7108) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-12T08:55:34.6324750Z Uploaded bytes 8388608
+2026-10-12T08:55:34.9904676Z Uploaded bytes 16777216
+2026-10-12T08:55:35.0686020Z Uploaded bytes 25165824
+2026-10-12T08:55:35.4618199Z Uploaded bytes 33554432
+2026-10-12T08:55:35.8704432Z Uploaded bytes 41943040
+2026-10-12T08:55:36.1854040Z Uploaded bytes 50331648
+2026-10-12T08:55:36.6289991Z Uploaded bytes 58720256
+2026-10-12T08:55:37.0544149Z Uploaded bytes 67108864
+2026-10-12T08:55:37.4002658Z Uploaded bytes 75497472
+2026-10-12T08:55:37.7939564Z Uploaded bytes 83886080
+2026-10-12T08:55:38.1561005Z Uploaded bytes 92274688
+2026-10-12T08:55:38.5022987Z Uploaded bytes 100663296
+2026-10-12T08:55:38.8496318Z Uploaded bytes 109051904
+2026-10-12T08:55:39.1439993Z Uploaded bytes 117440512
+2026-10-12T08:55:39.2110217Z Uploaded bytes 118715788
+2026-10-12T08:55:39.2573916Z Finished uploading artifact content to blob storage!
+2026-10-12T08:55:39.2579201Z SHA256 digest of uploaded artifact zip is eb984963ca300858986ff30810b43d753279ad24ec8e25ace1e3f315bfaaae56
+2026-10-12T08:55:39.2582362Z Finalizing artifact upload
+2026-10-12T08:55:39.7400221Z Artifact windows-client-handoff-unsigned-installer-4b948f57020f3e507683de6e538544b9bac558e7-1.zip successfully finalized. Artifact ID 11736503454
+2026-10-12T08:55:39.7403185Z Artifact windows-client-handoff-unsigned-installer-4b948f57020f3e507683de6e538544b9bac558e7-1 has been successfully uploaded! Final size is 118715788 bytes. Artifact ID is 11736503454
+2026-10-12T08:55:39.7413555Z Artifact download URL: https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38226204128/artifacts/11736503454
+2026-10-12T08:55:39.7722398Z Post job cleanup.
+2026-10-12T08:55:39.9559620Z Post job cleanup.
+2026-10-12T08:55:40.1205397Z (node:6376) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T08:55:40.1207113Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T08:55:40.1214204Z Cache hit occurred on the primary key node-cache-Windows-x64-npm-3c1a363599477adfd609b2210507597d103b76ed03b79994b9800c524eaafdb0, not saving cache.
+2026-10-12T08:55:40.1540406Z Post job cleanup.
+2026-10-12T08:55:40.3933791Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-12T08:55:40.4234514Z git version 2.56.0.windows.1
+2026-10-12T08:55:40.4314378Z Temporarily overriding HOME='D:\a\_temp\14d5467a-ebaa-4aff-97fb-3e7c4a408a52' before making global git config changes
+2026-10-12T08:55:40.4315946Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T08:55:40.4327025Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\AI-Kubernetes\AI-Kubernetes
+2026-10-12T08:55:40.4715910Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T08:55:40.5039191Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-12T08:55:41.0142957Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T08:55:41.0451585Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-12T08:55:41.6709647Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T08:55:41.7020378Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-12T08:55:42.2185371Z Cleaning up orphan processes
+2026-10-12T08:55:42.2667507Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

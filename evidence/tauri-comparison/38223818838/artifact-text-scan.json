@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "credential_forms_detected": 0,
+  "files": [
+    {
+      "file": "evidence/installed-spike.json",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "evidence/stack-comparison.json",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "evidence/application.stdout.log",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "evidence/application.stderr.log",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "evidence/application-report.json",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "build/sidecar-build.json",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "evidence/tauri/installed-spike.json",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "evidence/tauri/application.stdout.log",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "evidence/tauri/application.stderr.log",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    },
+    {
+      "file": "evidence/tauri/application-report.json",
+      "redactions_needed": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      }
+    }
+  ]
+}

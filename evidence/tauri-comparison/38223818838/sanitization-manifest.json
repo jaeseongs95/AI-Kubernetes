@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "purpose": "Temporary signed URL queries and known credential forms removed if detected; raw source files retained in scratch.",
+  "method": "HTTPS query-key inspection, Authorization headers, recognized token prefixes and named credential assignments; no generic path/PID/hash/package redaction. UTF-8 BOM is removed when present and explicitly recorded, even when credential redaction counts are zero.",
+  "files": [
+    {
+      "source_file": "job-114726304615.log",
+      "source_sha256": "22538cb04840862ffc08daf3e04d754cd89adef96bbd4ce3f1f0329660941a0a",
+      "source_bytes": 110236,
+      "sanitized_file": "job-114726304615.log",
+      "sanitized_sha256": "3b88404b27ef1db73f032387a2eb61b2a05202e9de2ae08a9576c77c5c59947b",
+      "sanitized_bytes": 110233,
+      "redactions": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      },
+      "utf8_bom_removed": true,
+      "source_crlf_count": 1470,
+      "sanitized_crlf_count": 1470,
+      "encoding": "UTF-8 BOM removed when present; original line endings otherwise preserved"
+    },
+    {
+      "source_file": "github-run-completed.json",
+      "source_sha256": "95c23fce633f63045bb47ab6a3383e080df2f4271b79dc1b34fff9a9d1f09993",
+      "source_bytes": 13129,
+      "sanitized_file": "github-run-completed.json",
+      "sanitized_sha256": "95c23fce633f63045bb47ab6a3383e080df2f4271b79dc1b34fff9a9d1f09993",
+      "sanitized_bytes": 13129,
+      "redactions": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      },
+      "utf8_bom_removed": false,
+      "source_crlf_count": 0,
+      "sanitized_crlf_count": 0,
+      "encoding": "UTF-8 BOM removed when present; original line endings otherwise preserved"
+    },
+    {
+      "source_file": "github-artifacts.json",
+      "source_sha256": "dd49010789729b5e9a7701cf485dd323a9cf592e72efaa17e97b2afe7d728106",
+      "source_bytes": 1768,
+      "sanitized_file": "github-artifacts.json",
+      "sanitized_sha256": "dd49010789729b5e9a7701cf485dd323a9cf592e72efaa17e97b2afe7d728106",
+      "sanitized_bytes": 1768,
+      "redactions": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      },
+      "utf8_bom_removed": false,
+      "source_crlf_count": 0,
+      "sanitized_crlf_count": 0,
+      "encoding": "UTF-8 BOM removed when present; original line endings otherwise preserved"
+    },
+    {
+      "source_file": "github-jobs-completed.json",
+      "source_sha256": "bdafd2d7c0d7e11273b5bf787d101de71a4f2614a679496b71045c6d78649180",
+      "source_bytes": 4078,
+      "sanitized_file": "github-jobs-completed.json",
+      "sanitized_sha256": "bdafd2d7c0d7e11273b5bf787d101de71a4f2614a679496b71045c6d78649180",
+      "sanitized_bytes": 4078,
+      "redactions": {
+        "signed_url_query": 0,
+        "authorization": 0,
+        "known_token": 0,
+        "credential_assignment": 0
+      },
+      "utf8_bom_removed": false,
+      "source_crlf_count": 0,
+      "sanitized_crlf_count": 0,
+      "encoding": "UTF-8 BOM removed when present; original line endings otherwise preserved"
+    }
+  ]
+}

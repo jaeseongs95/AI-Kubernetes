@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-12T08:54:07.501518+00:00",
+  "reviewer": "/root",
+  "scope": "Independent actual application report, worker artifact identity and direct screenshot inspection; installer archive integrity is recorded separately.",
+  "source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+  "workflow_run_id": "38223818838",
+  "status": "PASS",
+  "same_engine_identity": "PASS",
+  "candidates": [
+    {
+      "candidate": "electron",
+      "report_identity": "PASS",
+      "bounded_worker_effect": "PASS",
+      "application_report_sha256": "92e9958be7a7766a5d9c078cb9e3aa275996be7f8c0884e092ad60aa6d4c4e05",
+      "sidecar_pid": 1712,
+      "worker_pid": 2164,
+      "engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922"
+    },
+    {
+      "candidate": "tauri",
+      "report_identity": "PASS",
+      "bounded_worker_effect": "PASS",
+      "application_report_sha256": "824b074900bbd74e0c1bf74133b52b46d57e6110f0aa2c08d342072cad982246",
+      "sidecar_pid": 1960,
+      "worker_pid": 7096,
+      "engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922"
+    }
+  ],
+  "visual_review": [
+    {
+      "path": "evidence/screenshot.png",
+      "sha256": "9af33a2efafcd313a55636c861101a6913cb80318759ac62e6118b6877dd4c6e",
+      "width": 1008,
+      "height": 689,
+      "review_method": "The root assistant opened the actual PNG using view_image and inspected the rendered image.",
+      "status": "PASS",
+      "observations": [
+        "All three actual result cards show completion, with the expected sidecar and separate worker PIDs.",
+        "Korean headings, button labels, and result text are readable without overlapping the three controls.",
+        "The page scrolls vertically; lower scope text is not fully visible in this capture."
+      ]
+    },
+    {
+      "path": "evidence/tauri/screenshot.png",
+      "sha256": "2052f2252e8db93a5084a793dda18278aace298ec9590628a855b78c4b4897ec",
+      "width": 1044,
+      "height": 788,
+      "review_method": "The root assistant opened the actual PNG using view_image and inspected the rendered image.",
+      "status": "PASS",
+      "observations": [
+        "All three actual result cards show completion, with the expected sidecar and separate worker PIDs.",
+        "Korean headings, button labels, and result text are readable without overlapping the three controls.",
+        "The page scrolls vertically; lower scope text is not fully visible in this capture."
+      ]
+    },
+    {
+      "path": "evidence/tauri/screenshot-desktop-crop.png",
+      "sha256": "5550c7a539e4641f70ae2f14e2d68cd0a367203030b6b7ec866a3d4abd265517",
+      "status": "AUXILIARY",
+      "review_method": "Opened using view_image.",
+      "observations": [
+        "The Windows taskbar overlaps the lower desktop crop; the separate PrintWindow capture is the primary Tauri visual evidence."
+      ]
+    }
+  ],
+  "measurement_corrections": [
+    "The raw comparison explanatory text names getProcessMemoryInfo for Electron renderer memory. Actual main.cjs uses app.getAppMetrics(), matches getOSProcessId(), and reads memory.workingSetSize; values are unchanged.",
+    "Electron elapsed starts at module-level performance.now(); Tauri uses its native Instant. Neither is an external process-create stopwatch, so no startup ranking is asserted."
+  ],
+  "not_claimed": [
+    "clean Windows 11 standard-user installation",
+    "developer tools absent from the host",
+    "whole-application memory or speed superiority",
+    "real provider/model/AGS/VM product execution"
+  ]
+}

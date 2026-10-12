@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "scope": "AIK-003 independent Windows client handoff of the verified AIK-002 foundation spike",
+  "source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+  "source_identity": {
+    "binding": "source_commit identifies the already-built installer and engine; it is matched to supplied build and installed evidence",
+    "file_observation": "files below are current workspace inputs read by this packaging tool; they are not asserted to belong to source_commit, and no offline Git revision lookup is performed",
+    "files": [
+      {
+        "path": "scripts/windows/verify-installed-spike.ps1",
+        "sha256": "00a956111792d1742372bef19794da373d00c6e86f21ed3f61ab447c52b01516"
+      },
+      {
+        "path": "scripts/windows/build-sidecar.ps1",
+        "sha256": "ad4d0d78ef2c889721356a0a4cfdc17fc842e579722679bec19c1d49b4aa9cef"
+      },
+      {
+        "path": "packaging/electron-builder.cjs",
+        "sha256": "1526ae755bc93b2c1622d978029d0884730531600d91dd0be9c36e71df82e45c"
+      },
+      {
+        "path": "packaging/requirements-build.windows.lock",
+        "sha256": "c0a3661b64df31a9749e50436552612489028e7174694364ac707fe5fe670ac0"
+      },
+      {
+        "path": "spikes/windows-foundation/package.json",
+        "sha256": "0dacd1dd57e28c4a902b7a54d74cbfae3ffb982a5ed91f9766096062ce2c2fae"
+      },
+      {
+        "path": "spikes/windows-foundation/package-lock.json",
+        "sha256": "e1e2cf7996df90670b9815023406e58eacceb91091afbba91d2566228fc21628"
+      },
+      {
+        "path": "tools/build_windows_handoff.py",
+        "sha256": "ef6f07fa0fee4c00b585df5a843e0da3e8849edaccc3cd36c5a1d31a45b0147b"
+      },
+      {
+        "path": "tools/windows_handoff/run-validation.ps1",
+        "sha256": "38bcd4a3e280fb80969f7342cd527f6b43b0f6f6e2b459ae56d7b4254a22c489"
+      },
+      {
+        "path": "tools/windows_handoff/run-validation.cmd",
+        "sha256": "3b116c0a44470c89a7e1e6cc7378da910bdb65491940b6423619c55f86333a4f"
+      },
+      {
+        "path": "tools/windows_handoff/README.ko.md",
+        "sha256": "d711903358fbe8e2bfad9c348dcd97e2c9b56d4482a6bddc9308b01bf8134337"
+      },
+      {
+        "path": ".github/workflows/windows-client-handoff.yml",
+        "sha256": "1c979964ac601eefc2d8c7421649d77f86ae4df0cb89997c50b33cec5cfddc58"
+      }
+    ]
+  },
+  "development_artifact": true,
+  "installer": {
+    "path": "installer/AIK-Foundation-Spike-win-x64-dev-unsigned.exe",
+    "original_file": "AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe",
+    "bytes": 118718153,
+    "sha256": "16811e29d6e65cb5f24f072d3a8896d155c6a46bff83a376d01c2e0c1ad5c95a",
+    "observed_signature_status": "NotSigned",
+    "release_publisher_qualified": false
+  },
+  "runtime": {
+    "python_version": "3.14.8",
+    "engine_sha256": "f8d00f7e5181573556f5a9f5641970dfee44f3f9c2b4fa6e9514b44f89015ed1",
+    "python_runtime_libraries": [
+      {
+        "file": "python314.dll",
+        "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+      }
+    ]
+  },
+  "verifier": {
+    "source_path": "scripts/windows/verify-installed-spike.ps1",
+    "original_package_path": "provenance/verify-installed-spike.original.ps1",
+    "original_sha256": "00a956111792d1742372bef19794da373d00c6e86f21ed3f61ab447c52b01516",
+    "delivered_path": "verify-installed-spike.ps1",
+    "delivered_sha256": "7c897d4180dfa703e3637932b18df2f21f30f46e514e957345cf2f3961e6b66f",
+    "transformation": "prepend UTF-8 BOM; all original bytes unchanged"
+  },
+  "prior_validation": {
+    "workflow_run_id": "38226204128",
+    "workflow_attempt": "1",
+    "status": "PASS",
+    "environment": {
+      "platform": "win32",
+      "architecture": "AMD64",
+      "os_caption": "Microsoft Windows Server 2022 Datacenter",
+      "os_version": "10.0.20348",
+      "os_build": "20348",
+      "os_product_type": 3,
+      "logical_processors": 2,
+      "memory_bytes": 8584425472,
+      "cpu_names": [
+        "AMD EPYC 7763 64-Core Processor                "
+      ],
+      "administrator": true,
+      "github_actions": true,
+      "runner_image": "win22",
+      "runner_image_version": "20261004.326.1"
+    },
+    "report_sha256": "e5e36af9ec2c9f144fe5c62b9b38c05ec5e636d6abb6b3607913a5c24a49de33"
+  },
+  "files": [
+    {
+      "path": "README.ko.md",
+      "bytes": 6734,
+      "sha256": "d711903358fbe8e2bfad9c348dcd97e2c9b56d4482a6bddc9308b01bf8134337"
+    },
+    {
+      "path": "installer/AIK-Foundation-Spike-win-x64-dev-unsigned.exe",
+      "bytes": 118718153,
+      "sha256": "16811e29d6e65cb5f24f072d3a8896d155c6a46bff83a376d01c2e0c1ad5c95a"
+    },
+    {
+      "path": "provenance/application-report.json",
+      "bytes": 1020,
+      "sha256": "5d38eb3b2baa9811e51be575306bc6d21dbd153e166489f3fb9c861719eba641"
+    },
+    {
+      "path": "provenance/installed-spike.json",
+      "bytes": 2917,
+      "sha256": "e5e36af9ec2c9f144fe5c62b9b38c05ec5e636d6abb6b3607913a5c24a49de33"
+    },
+    {
+      "path": "provenance/screenshot.png",
+      "bytes": 45227,
+      "sha256": "c6905e3438c3a184eae46b825c480968feaacacf8162883ed703ff8be9a49109"
+    },
+    {
+      "path": "provenance/sidecar-build.json",
+      "bytes": 1226,
+      "sha256": "7f44437c66634b1794ded31e660eca00542fea07d9f7c9cbd19b4f578e0c1273"
+    },
+    {
+      "path": "provenance/verify-installed-spike.original.ps1",
+      "bytes": 13614,
+      "sha256": "00a956111792d1742372bef19794da373d00c6e86f21ed3f61ab447c52b01516"
+    },
+    {
+      "path": "run-validation.cmd",
+      "bytes": 361,
+      "sha256": "3b116c0a44470c89a7e1e6cc7378da910bdb65491940b6423619c55f86333a4f"
+    },
+    {
+      "path": "run-validation.ps1",
+      "bytes": 17054,
+      "sha256": "38bcd4a3e280fb80969f7342cd527f6b43b0f6f6e2b459ae56d7b4254a22c489"
+    },
+    {
+      "path": "verify-installed-spike.ps1",
+      "bytes": 13617,
+      "sha256": "7c897d4180dfa703e3637932b18df2f21f30f46e514e957345cf2f3961e6b66f"
+    }
+  ],
+  "qualification": {
+    "windows11_standard_user_clean_machine": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "product_integration": "NOT_RUN",
+    "release_signing": "NOT_RUN"
+  },
+  "limits": [
+    "Packaging prior PASS evidence is not a new Windows execution.",
+    "Manifest hashes detect changed members; this unsigned ZIP is not a publisher trust mechanism.",
+    "The wrapper records actual execution provenance and never creates GitHub identity variables.",
+    "A Server administrator run with a restricted child PATH is not a clean Windows 11 standard-user run."
+  ]
+}

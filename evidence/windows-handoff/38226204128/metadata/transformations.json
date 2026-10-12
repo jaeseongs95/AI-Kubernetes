@@ -1,0 +1,42 @@
+[
+  {
+    "file": "windows-job.log",
+    "raw_sha256": "05df94aca3c73a3d4c710b296dc0b18228cfc51131a516f339ace5d199b2b185",
+    "repository_sha256": "05df94aca3c73a3d4c710b296dc0b18228cfc51131a516f339ace5d199b2b185",
+    "redactions": {
+      "signed_url": 0,
+      "github_token": 0,
+      "bearer": 0
+    }
+  },
+  {
+    "file": "workflow-run.json",
+    "raw_sha256": "a8450e705485b8d13ea6b043803791be28230c826a027fbf2d47a878344fde01",
+    "repository_sha256": "a8450e705485b8d13ea6b043803791be28230c826a027fbf2d47a878344fde01",
+    "redactions": {
+      "signed_url": 0,
+      "github_token": 0,
+      "bearer": 0
+    }
+  },
+  {
+    "file": "workflow-jobs.json",
+    "raw_sha256": "964702c41149e8e11975d755eed61a225c0cc5ade077999470daf3fd76e34f3c",
+    "repository_sha256": "964702c41149e8e11975d755eed61a225c0cc5ade077999470daf3fd76e34f3c",
+    "redactions": {
+      "signed_url": 0,
+      "github_token": 0,
+      "bearer": 0
+    }
+  },
+  {
+    "file": "workflow-artifacts.json",
+    "raw_sha256": "13e64c5e66745e86d43d169ee998ead88bb1356efe709e4a44f3e6d1f3323231",
+    "repository_sha256": "13e64c5e66745e86d43d169ee998ead88bb1356efe709e4a44f3e6d1f3323231",
+    "redactions": {
+      "signed_url": 0,
+      "github_token": 0,
+      "bearer": 0
+    }
+  }
+]

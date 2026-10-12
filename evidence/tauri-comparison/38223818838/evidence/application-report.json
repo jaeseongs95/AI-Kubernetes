@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "AIK-002 Windows foundation spike",
+  "platform": "win32",
+  "window_visible": true,
+  "renderer_node_access": false,
+  "checks": {
+    "health": {
+      "status": "PASS",
+      "code": "SIDECAR_READY",
+      "pid": 1712,
+      "platform": "win32",
+      "python_version": "3.14.8",
+      "frozen": true,
+      "product_integration": "NOT_RUN"
+    },
+    "worker": {
+      "status": "PASS",
+      "code": "WORKER_PROBE_OK",
+      "pid": 2164,
+      "parent_pid": 1712,
+      "artifact_bytes": 42,
+      "artifact_sha256": "82b2d2ffd52c4fcda74566e4950be2d32f128d466444883442aee643d34c10ee",
+      "temporary_artifact_removed": true
+    },
+    "vault": {
+      "status": "PASS",
+      "backend": "windows-user-dpapi",
+      "code": "VAULT_ROUNDTRIP_OK"
+    }
+  },
+  "metrics": {
+    "elapsed_ms": 2441,
+    "main_rss_bytes": 99901440,
+    "renderer_working_set_kb": 87344
+  },
+  "electron_version": "44.7.0",
+  "packaged": true,
+  "product_integration": "NOT_RUN"
+}

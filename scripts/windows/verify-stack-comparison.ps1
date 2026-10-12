@@ -372,7 +372,7 @@ $Comparison = [ordered]@{
     performance_ranking = 'NOT_ASSERTED'
     measurement_limits = @(
         'Each candidate runs sequentially on the same CI runner with the same frozen engine; no randomized repeats or clean Windows 11 runs.',
-        'Electron main_rss_bytes is Node process.memoryUsage().rss; renderer_working_set_kb is Electron getProcessMemoryInfo().workingSetSize.',
+        'Electron main_rss_bytes is Node process.memoryUsage().rss; renderer_working_set_kb is Electron app.getAppMetrics(), matched to webContents.getOSProcessId(), then memory.workingSetSize.',
         'Tauri native main_working_set_bytes and process_tree values are Win32 GetProcessMemoryInfo WorkingSetSize, captured immediately after three checks.',
         'The separate Tauri WebView2 role snapshot uses Win32_Process identity plus .NET Process.WorkingSet64, shortly after the native report.',
         'WebView2 browser, GPU and utility processes are retained separately. Shared memory may be double-counted by working-set sums; exited worker memory is absent.',

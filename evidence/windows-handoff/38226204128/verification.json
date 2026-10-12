@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "Downloaded artifact hashes, actual Windows PowerShell 5.1 execution evidence, and reviewed GUI screenshots",
+  "source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+  "workflow_run_id": 38226204128,
+  "job_id": 114734211621,
+  "workflow_url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38226204128",
+  "workflow_conclusion": "success",
+  "prior_failed_attempt": {
+    "workflow_run_id": 38225912010,
+    "source_commit": "fe93df71a19759590515327c6cfb1d7b27d95c8c",
+    "scope": "Regression failure before installer build or GUI execution"
+  },
+  "package": {
+    "file": "AIK-Windows-Client-Handoff-4b948f57020f.zip",
+    "bytes": 118784150,
+    "sha256": "a6edd83fd952257d5d7f731c23162aeaca30974e0cc303bbd7b0210c9e7dd23e",
+    "manifest_sha256": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+    "members_verified": 11
+  },
+  "installer": {
+    "file": "AIK-Foundation-Spike-0.1.0-win-x64-dev-unsigned.exe",
+    "bytes": 118718153,
+    "sha256": "16811e29d6e65cb5f24f072d3a8896d155c6a46bff83a376d01c2e0c1ad5c95a",
+    "observed_signature_status": "NotSigned",
+    "release_publisher_qualified": false
+  },
+  "runtime": {
+    "python_version": "3.14.8",
+    "engine_sha256": "f8d00f7e5181573556f5a9f5641970dfee44f3f9c2b4fa6e9514b44f89015ed1",
+    "python_runtime_libraries": [
+      {
+        "file": "python314.dll",
+        "sha256": "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+      }
+    ]
+  },
+  "actual_legacy_powershell": {
+    "github_actions": true,
+    "github_sha": "4b948f57020f3e507683de6e538544b9bac558e7",
+    "github_run_id": "38226204128",
+    "github_run_attempt": "1",
+    "powershell_version": "5.1.20348.5622",
+    "powershell_edition": "Desktop",
+    "default_encoding_code_page": 1252,
+    "default_encoding_web_name": "Windows-1252",
+    "culture": "en-US",
+    "ui_culture": "en-US",
+    "os_version": "Microsoft Windows NT 10.0.20348.0",
+    "platform": "Win32NT",
+    "process_architecture": "AMD64",
+    "is_64_bit_process": true
+  },
+  "legacy_parse": {
+    "original_error_count": 2,
+    "delivered_bom_error_count": 0,
+    "status": "PASS"
+  },
+  "execution_checks": {
+    "package_member_hashes": "PASS",
+    "verifier_bom_conversion": "PASS",
+    "legacy_powershell_51": "PASS",
+    "delivered_script_parse": "PASS",
+    "installed_gui_worker_dpapi_uninstall": "PASS",
+    "installed_engine_identity": "PASS",
+    "installed_python_dll_identity": "PASS",
+    "actual_gui_evidence": "PASS"
+  },
+  "distinct_execution": {
+    "baseline_started_at": "2026-10-12T08:54:25.3439001Z",
+    "baseline_completed_at": "2026-10-12T08:54:51.8106283Z",
+    "handoff_started_at": "2026-10-12T08:54:57.1768741Z",
+    "handoff_completed_at": "2026-10-12T08:55:25.8315806Z",
+    "baseline_application_pid": 7316,
+    "handoff_application_pid": 4000,
+    "handoff_sidecar_pid": 816,
+    "handoff_worker_pid": 6404,
+    "app_report_hash_changed": true
+  },
+  "source_input_observations": [
+    {
+      "path": "scripts/windows/verify-installed-spike.ps1",
+      "observed_sha256": "00a956111792d1742372bef19794da373d00c6e86f21ed3f61ab447c52b01516",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    },
+    {
+      "path": "scripts/windows/build-sidecar.ps1",
+      "observed_sha256": "ad4d0d78ef2c889721356a0a4cfdc17fc842e579722679bec19c1d49b4aa9cef",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    },
+    {
+      "path": "packaging/electron-builder.cjs",
+      "observed_sha256": "1526ae755bc93b2c1622d978029d0884730531600d91dd0be9c36e71df82e45c",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    },
+    {
+      "path": "packaging/requirements-build.windows.lock",
+      "observed_sha256": "c0a3661b64df31a9749e50436552612489028e7174694364ac707fe5fe670ac0",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    },
+    {
+      "path": "spikes/windows-foundation/package.json",
+      "observed_sha256": "0dacd1dd57e28c4a902b7a54d74cbfae3ffb982a5ed91f9766096062ce2c2fae",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    },
+    {
+      "path": "spikes/windows-foundation/package-lock.json",
+      "observed_sha256": "e1e2cf7996df90670b9815023406e58eacceb91091afbba91d2566228fc21628",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    },
+    {
+      "path": "tools/build_windows_handoff.py",
+      "observed_sha256": "ef6f07fa0fee4c00b585df5a843e0da3e8849edaccc3cd36c5a1d31a45b0147b",
+      "match": "exact local bytes"
+    },
+    {
+      "path": "tools/windows_handoff/run-validation.ps1",
+      "observed_sha256": "38bcd4a3e280fb80969f7342cd527f6b43b0f6f6e2b459ae56d7b4254a22c489",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    },
+    {
+      "path": "tools/windows_handoff/run-validation.cmd",
+      "observed_sha256": "3b116c0a44470c89a7e1e6cc7378da910bdb65491940b6423619c55f86333a4f",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    },
+    {
+      "path": "tools/windows_handoff/README.ko.md",
+      "observed_sha256": "d711903358fbe8e2bfad9c348dcd97e2c9b56d4482a6bddc9308b01bf8134337",
+      "match": "exact local bytes"
+    },
+    {
+      "path": ".github/workflows/windows-client-handoff.yml",
+      "observed_sha256": "1c979964ac601eefc2d8c7421649d77f86ae4df0cb89997c50b33cec5cfddc58",
+      "match": "local LF normalized to observed Windows checkout CRLF"
+    }
+  ],
+  "gui_visual_review": {
+    "status": "PASS",
+    "reviewer": "/root/implement_windows_handoff",
+    "observed": [
+      "Actual new execution and baseline screenshots were opened.",
+      "All three checks show completion and 3 / 3.",
+      "Korean labels are readable with no overlapping cards or controls.",
+      "New screenshot shows sidecar 816 and worker 6404, matching the new application report."
+    ],
+    "screenshot_sha256": "29a0880e1bc53b9928f8b1139cf1e1997088c035891c0af8856c3376f4ffc2fd"
+  },
+  "independent_review": {
+    "reviewer": "/root/implement_upstream_contract",
+    "status": "PASS",
+    "scope": "Actual raw JSON, source/runtime/report hash binding, distinct execution evidence and GUI screenshot reviewed; no code changes."
+  },
+  "qualification": {
+    "windows11_standard_user_clean_machine": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "release_signing": "NOT_RUN",
+    "product_integration": "NOT_RUN"
+  },
+  "observed_windows_environment": {
+    "platform": "win32",
+    "architecture": "AMD64",
+    "os_caption": "Microsoft Windows Server 2022 Datacenter",
+    "os_version": "10.0.20348",
+    "os_build": "20348",
+    "os_product_type": 3,
+    "logical_processors": 2,
+    "memory_bytes": 8584425472,
+    "cpu_names": [
+      "AMD EPYC 7763 64-Core Processor                "
+    ],
+    "administrator": true,
+    "github_actions": true,
+    "runner_image": "win22",
+    "runner_image_version": "20261004.326.1"
+  },
+  "metadata_transformations": [
+    {
+      "file": "windows-job.log",
+      "raw_sha256": "05df94aca3c73a3d4c710b296dc0b18228cfc51131a516f339ace5d199b2b185",
+      "repository_sha256": "05df94aca3c73a3d4c710b296dc0b18228cfc51131a516f339ace5d199b2b185",
+      "redactions": {
+        "signed_url": 0,
+        "github_token": 0,
+        "bearer": 0
+      }
+    },
+    {
+      "file": "workflow-run.json",
+      "raw_sha256": "a8450e705485b8d13ea6b043803791be28230c826a027fbf2d47a878344fde01",
+      "repository_sha256": "a8450e705485b8d13ea6b043803791be28230c826a027fbf2d47a878344fde01",
+      "redactions": {
+        "signed_url": 0,
+        "github_token": 0,
+        "bearer": 0
+      }
+    },
+    {
+      "file": "workflow-jobs.json",
+      "raw_sha256": "964702c41149e8e11975d755eed61a225c0cc5ade077999470daf3fd76e34f3c",
+      "repository_sha256": "964702c41149e8e11975d755eed61a225c0cc5ade077999470daf3fd76e34f3c",
+      "redactions": {
+        "signed_url": 0,
+        "github_token": 0,
+        "bearer": 0
+      }
+    },
+    {
+      "file": "workflow-artifacts.json",
+      "raw_sha256": "13e64c5e66745e86d43d169ee998ead88bb1356efe709e4a44f3e6d1f3323231",
+      "repository_sha256": "13e64c5e66745e86d43d169ee998ead88bb1356efe709e4a44f3e6d1f3323231",
+      "redactions": {
+        "signed_url": 0,
+        "github_token": 0,
+        "bearer": 0
+      }
+    }
+  ],
+  "limits": [
+    "Windows Server 2022 administrator CI is not a clean Windows 11 standard-user machine.",
+    "Restricted PATH does not prove installed developer tools are absent.",
+    "Synthetic foundation checks do not qualify vendor account storage, model routing, AGS/VM integration, publisher signing, or a finished product.",
+    "Raw screenshots record capture; explicit visual review above is a separate observation."
+  ],
+  "evidence_layout": "artifact/ preserves all 16 source artifact members with identical bytes; metadata/ preserves decoded CI logs and metadata with transformation hashes.",
+  "actual_new_screenshot": "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/screenshot.png",
+  "download_records": [
+    "downloads/evidence-download-validation.json",
+    "downloads/package-download-validation.json",
+    "downloads/installer-download-validation.json"
+  ],
+  "artifact_raw_sha256": {
+    "artifact/build/sidecar-build.json": "7f44437c66634b1794ded31e660eca00542fea07d9f7c9cbd19b4f578e0c1273",
+    "artifact/evidence/application-report.json": "5d38eb3b2baa9811e51be575306bc6d21dbd153e166489f3fb9c861719eba641",
+    "artifact/evidence/application.stderr.log": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "artifact/evidence/application.stdout.log": "dba5166ad9db9ba648c1032ebbd34dcd0d085b50023b839ef5c68ca1db93a563",
+    "artifact/evidence/installed-spike.json": "e5e36af9ec2c9f144fe5c62b9b38c05ec5e636d6abb6b3607913a5c24a49de33",
+    "artifact/evidence/screenshot.png": "c6905e3438c3a184eae46b825c480968feaacacf8162883ed703ff8be9a49109",
+    "artifact/handoff/build-handoff.json": "f7d4517e5b97fbff27424f437bff43070d9691c49df4aa19ff8f5c0c4d0562ed",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/handoff-manifest.json": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/handoff-validation.json": "e6edafab58a82015cd88a291e866b46dabe843a4df6caa69fa8034c0de14a175",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/application-report.json": "c52d63bd233e88b32f23d218f0037e06bd581bd69648c6d2559caa821816bcf5",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/application.stderr.log": "f01a374e9c81e3db89b3a42940c4d6a5447684986a1296e42bf13f196eed6295",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/application.stdout.log": "60116575bb1b6772ed22ba93bfa53bef0a772667da1812c1c3fc0a46cd93bc3e",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/installed-spike.json": "55e471da0fa531306437c875cfd09c502008c028c8dbc7817134c04e8da6cd30",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/screenshot.png": "29a0880e1bc53b9928f8b1139cf1e1997088c035891c0af8856c3376f4ffc2fd",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/verifier.stderr.log": "f01a374e9c81e3db89b3a42940c4d6a5447684986a1296e42bf13f196eed6295",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/verifier.stdout.log": "0bbb74d9f14e5b288eb60ab9b7a26e49ab1fc05d2d3c22e80c4cc9e12b9e8216"
+  },
+  "retained_evidence_sha256": {
+    "README.ko.md": "0c6bfdb2fe7f37c50f28bcb07e828740ed8e70a5694605a709df6211832912ff",
+    "artifact/build/sidecar-build.json": "7f44437c66634b1794ded31e660eca00542fea07d9f7c9cbd19b4f578e0c1273",
+    "artifact/evidence/application-report.json": "5d38eb3b2baa9811e51be575306bc6d21dbd153e166489f3fb9c861719eba641",
+    "artifact/evidence/application.stderr.log": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "artifact/evidence/application.stdout.log": "dba5166ad9db9ba648c1032ebbd34dcd0d085b50023b839ef5c68ca1db93a563",
+    "artifact/evidence/installed-spike.json": "e5e36af9ec2c9f144fe5c62b9b38c05ec5e636d6abb6b3607913a5c24a49de33",
+    "artifact/evidence/screenshot.png": "c6905e3438c3a184eae46b825c480968feaacacf8162883ed703ff8be9a49109",
+    "artifact/handoff/build-handoff.json": "f7d4517e5b97fbff27424f437bff43070d9691c49df4aa19ff8f5c0c4d0562ed",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/handoff-manifest.json": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/handoff-validation.json": "e6edafab58a82015cd88a291e866b46dabe843a4df6caa69fa8034c0de14a175",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/application-report.json": "c52d63bd233e88b32f23d218f0037e06bd581bd69648c6d2559caa821816bcf5",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/application.stderr.log": "f01a374e9c81e3db89b3a42940c4d6a5447684986a1296e42bf13f196eed6295",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/application.stdout.log": "60116575bb1b6772ed22ba93bfa53bef0a772667da1812c1c3fc0a46cd93bc3e",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/installed-spike.json": "55e471da0fa531306437c875cfd09c502008c028c8dbc7817134c04e8da6cd30",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/installed-check/packaging/evidence/screenshot.png": "29a0880e1bc53b9928f8b1139cf1e1997088c035891c0af8856c3376f4ffc2fd",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/verifier.stderr.log": "f01a374e9c81e3db89b3a42940c4d6a5447684986a1296e42bf13f196eed6295",
+    "artifact/handoff/evidence/8d415a8070b94a67aa92effb29e24801/verifier.stdout.log": "0bbb74d9f14e5b288eb60ab9b7a26e49ab1fc05d2d3c22e80c4cc9e12b9e8216",
+    "downloads/evidence-download-validation.json": "6657a320af8662675b216be106e94bd794dbe4cf948dd087ece4a227a3c60a26",
+    "downloads/installer-download-validation.json": "c55c698f3f249ece66ab56c0e73243aa2c3f040c4f41022b0aa5a782985497c5",
+    "downloads/package-download-validation.json": "ba93280979f2e7b6e8f1177caaebc2fe34d46e17ed2ed9a5f98893c70da9adbd",
+    "metadata/transformations.json": "c583a4f0b9998b43a70897e91bd0cbae6571bc5a6c7cd411d48ed66899f4c93e",
+    "metadata/windows-job.log": "05df94aca3c73a3d4c710b296dc0b18228cfc51131a516f339ace5d199b2b185",
+    "metadata/workflow-artifacts.json": "13e64c5e66745e86d43d169ee998ead88bb1356efe709e4a44f3e6d1f3323231",
+    "metadata/workflow-jobs.json": "964702c41149e8e11975d755eed61a225c0cc5ade077999470daf3fd76e34f3c",
+    "metadata/workflow-run.json": "a8450e705485b8d13ea6b043803791be28230c826a027fbf2d47a878344fde01",
+    "root-review.json": "fda4456d950347b37e16608d4cb9843642f02f7a4fe72ea47a7de504ea4b7477"
+  },
+  "root_review": {
+    "path": "root-review.json",
+    "sha256": "fda4456d950347b37e16608d4cb9843642f02f7a4fe72ea47a7de504ea4b7477",
+    "status": "PASS",
+    "scope": "Root directly inspected the new screenshot, source/runtime/app/PNG hash chain, distinct execution provenance and real legacy parser observations."
+  }
+}

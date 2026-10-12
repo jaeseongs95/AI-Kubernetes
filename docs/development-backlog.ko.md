@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-12T08:05:46Z`
-- 검토일 (UTC): `2026-10-12T08:05:45Z`
+- 수정일 (UTC): `2026-10-12T09:06:04Z`
+- 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
-- 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 16개
-- 상태: 미착수 87개 · 진행 중 1개 · 진행 차단 1개 · 완료 1개 · 취소 0개
+- 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
+- 상태: 미착수 87개 · 진행 중 0개 · 진행 차단 1개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -32,7 +32,7 @@ python tools/backlog.py report
 
 | 단계 | 범위 | 태스크 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 착수 가능 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 6 | 1 | 1 | 1 | 0 | 0 |
+| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 6 | 0 | 1 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 14 | 0 | 0 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 27 | 0 | 0 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
@@ -92,13 +92,13 @@ python tools/backlog.py report
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 진행 중 (`in_progress`) |
+| 상태 | 완료 (`done`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop |
 | 작업 유형 | 결정 (`decision`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 2 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T07:27:11Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T09:04:21Z` |
 
 VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.
 
@@ -107,7 +107,7 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 - **선행 작업:** 없음
 - **요구사항:** [D07](#d07), [P10](#p10), [U03](#u03), [U04](#u04), [U08](#u08)
 - **출처:** [S-USER](#s-user), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
-- **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (제안)
+- **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (확정)
 
 **완료 기준**
 
@@ -119,6 +119,8 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 
 - `EV-002-ELECTRON-20261012` · windows_installed_gui · `evidence/windows-foundation/38219549819/installed-spike.json` · 소스56523355d9cf3a2437989d1dd26f2e5ced1666d2의 Windows CI38219549819 첫 실행: install/bundle/실제 GUI/worker/DPAPI/uninstall PASS. 후보별 실측 비교가 남아 전체 태스크는 in_progress. · `2026-10-12T08:05:45Z`
 - `EV-002-REVIEW-20261012` · independent_review · `evidence/reviews/2026-10-12-before-stack-comparison.json` · 세 AC는 충족하지만 기존 tasks.verification의 Tauri 대안 설치·IPC·worker·메모리 실측은 보완해야 한다. Electron 성공만으로 전체 done 처리하지 않는다. · `2026-10-12T08:05:45Z`
+- `EV-002-COMPARISON-20261012` · windows_candidate_comparison · `evidence/tauri-comparison/38223818838/ci-validation.json` · 실제 Windows CI38223818838 같은 job·같은 frozen engine으로 Electron/Tauri 설치·GUI·typed IPC·worker·DPAPI·메모리 관측·제거 PASS. 두 ZIP digest/크기, installer/report/PNG hash 결속 및 직접 화면 검토 PASS. DEC07 구현 선택 완료. 전체 메모리·속도 우위 및 제품 연동은 주장하지 않는다. · `2026-10-12T09:04:20Z`
+- `EV-002-COMPARISON-REVIEW-20261012` · independent_review · `evidence/reviews/2026-10-12-after-stack-comparison.json` · 원래 AIK-002의 3 AC 및 후보별 설치성·IPC·worker 기동·메모리 verification을 독립 대조해 모두 충족 판정. DEC07 confirmed의 repository/CI 출처와 구현 결정 구분을 확인. AIK-003 기존 clean/no-tools 기준은 미충족으로 보존. SHA256 db299eef3e27761d30099920ae569b1045f284c15763aa33f03e79aed4243763 · `2026-10-12T09:04:20Z`
 
 ### AIK-003
 
@@ -154,6 +156,8 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 
 - `EV-003-INSTALL-20261012` · partial_installation_validation · `evidence/windows-foundation/38219549819/verification.json` · runtime 공급과 설치/제거는 Windows Server2022 관리자 CI에서 실제 PASS. 개발 도구 없는 깨끗한 후보 Windows와 표준 사용자 실행은 NOT_RUN이다. · `2026-10-12T08:05:45Z`
 - `EV-003-POLICY-20261012` · packaging_decision · `docs/windows-packaging.ko.md` · Windows x64 후보·runtime 포함 NSIS·서명/업데이트/데이터 정책·성능 측정 부하를 정했다. 기존 AC2 및 verification의 깨끗한 후보 Windows 설치 검증은 미충족. · `2026-10-12T08:05:45Z`
+- `EV-003-HANDOFF-20261012` · actual_windows_powershell_handoff · `evidence/windows-handoff/38226204128/verification.json` · 실제 소스4b948f57020f3e507683de6e538544b9bac558e7/run38226204128에서 ZIP 재추출 후 Windows PowerShell5.1 Desktop으로 신규 설치·GUI·frozen Python·worker·DPAPI·제거 및 8검사 PASS. 다운로드3ZIP/hash·11구성원·새실행·화면 직접 검토 PASS. Server 관리자 CI이므로 원래 clean/no-tools 조건은 NOT_RUN. SHA256 d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37 · `2026-10-12T09:06:04Z`
+- `EV-003-LEGACY-20261012` · powershell_encoding_regression · `evidence/reviews/2026-10-12-powershell-legacy-encoding.json` · 초기 UTF8NoBOM/CP1252 파싱 결함의 재현 근거를 보존했다. 후속 EV-003-HANDOFF 실제 WindowsPS5.1에서 원본 오류2/BOM사본 오류0을 확인했다. 최초 handoff CI38225912010의 Get-FileHash 조회 실패도 원문 보존 후 .NET SHA256으로 수정하고 새 CI에서 검증했다. 환경 qualification과 분리한다. · `2026-10-12T09:06:04Z`
 
 ### AIK-083
 
@@ -210,7 +214,7 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 - **선행 작업:** [AIK-001](#aik-001), [AIK-002](#aik-002), [AIK-083](#aik-083)
 - **요구사항:** [D01](#d01), [D04](#d04), [P05](#p05), [U03](#u03)
 - **출처:** [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
-- **관련 결정:** [DEC04](#dec04) (확정), [DEC07](#dec07) (제안)
+- **관련 결정:** [DEC04](#dec04) (확정), [DEC07](#dec07) (확정)
 
 **완료 기준**
 
@@ -1762,7 +1766,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **선행 작업:** [AIK-002](#aik-002), [AIK-004](#aik-004), [AIK-043](#aik-043), [AIK-044](#aik-044)
 - **요구사항:** [P10](#p10), [U03](#u03), [U04](#u04), [U08](#u08)
 - **출처:** [S-USER](#s-user), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
-- **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (제안)
+- **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (확정)
 
 **완료 기준**
 
@@ -3441,25 +3445,25 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 
 **GUI 구현 스택**
 
-- 상태: 제안 (`proposed`)
-- 출처: [S-IMPL-20261012](#s-impl-20261012)
+- 상태: 확정 (`confirmed`)
+- 출처: [S-STACK-20261012](#s-stack-20261012)
 - 관련 태스크: [AIK-002](#aik-002), [AIK-004](#aik-004), [AIK-045](#aik-045)
 
-**결정 내용:** 첫 구현 후보는 Electron44.7.0+React/TypeScript+CPython3.14.8 sidecar다. 실제 Windows 설치 GUI·IPC·worker·DPAPI를 검증했고, 기존 AIK-002의 후보별 실행·메모리 비교를 보완한다.
+**결정 내용:** 첫 구현 스택을 Electron44.7.0+React19.2.8/TypeScript7.0.2+CPython3.14.8 sidecar로 확정한다. 동일 Windows job의 Tauri2.12.3 대안도 실제 설치·IPC·worker·DPAPI·메모리 관측·제거를 통과했다. 이 결정은 구현 책임자의 기술 선택이다.
 
-**이유:** VM 표현층과 EngineClient 경계를 검토한 뒤 runtime 포함 배포와 현재 진단 가능성을 기준으로 선택한 구현 후보다. 사용자가 Electron을 직접 지정한 확정 요구로 기록하지 않는다.
+**이유:** 동일 frozen engine을 사용한 실제 비교에서 현재 오프라인 runtime 공급 정책의 installer는 Electron113.22MiB·Tauri216.15MiB였다. GUI runtime의 앱 버전 결속 및 현재 Node/Python 빌드·검사 경로 유지 비용을 근거로 Electron을 선택한다. Tauri native working set은 더 작았으나 전체 앱 메모리·속도 우위를 일반화하지 않는다. Windows11 지원 확정이나 실제 벤더·AGS·VM 제품 연동 성공을 뜻하지 않는다.
 
 ### DEC08
 
 **Windows 지원 범위·설치 형식**
 
 - 상태: 제안 (`proposed`)
-- 출처: [S-IMPL-20261012](#s-impl-20261012)
+- 출처: [S-HANDOFF-20261012](#s-handoff-20261012)
 - 관련 태스크: [AIK-003](#aik-003), [AIK-083](#aik-083), [AIK-057](#aik-057), [AIK-088](#aik-088)
 
 **결정 내용:** Windows11 x64 지원 후보, 사용자별 NSIS EXE, Electron/Python runtime 포함, 정식 Authenticode·서명 설치본 수동 업데이트와 기본 사용자 데이터 보존 정책을 선택했다.
 
-**이유:** Windows Server2022의 실제 설치·제거는 통과했으나 기존 AIK-003의 깨끗한 후보 Windows·개발 도구 없는 환경 검증은 미완료다. 지원 qualification과 정식 제품 서명 성공을 주장하지 않는다.
+**이유:** Windows Server2022의 실제 설치·제거, 독립 ZIP 재실행 및 기본 PowerShell5.1 전달 경로는 통과했다. 기존 AIK-003의 깨끗한 후보 Windows·개발 도구 없는 환경 검증은 미완료이며, 지원 qualification과 정식 제품 서명 성공을 주장하지 않는다.
 
 ### DEC09
 
@@ -3593,6 +3597,16 @@ Windows 사용자 저장소의 접근 경계에 관한 공식 문서. 앱 broker
 
 Windows 사용자 범위 DPAPI 검토 근거. 머신 범위를 기본으로 선택하지 않음. 일반적인 동일 사용자/기기 경계와 예외를 구분.
 
+### S-HANDOFF-20261012
+
+**독립 Windows 설치 ZIP·기본 PowerShell5.1 실제 검증**
+
+- 구분: 저장소 기준선 (`repository`)
+- 기준 버전 / 날짜: `4b948f57020f3e507683de6e538544b9bac558e7`
+- 원문: [https://github.com/jaeseongs95/AI-Kubernetes/commit/4b948f57020f3e507683de6e538544b9bac558e7](https://github.com/jaeseongs95/AI-Kubernetes/commit/4b948f57020f3e507683de6e538544b9bac558e7)
+
+Windows CI38226204128: 신규 전달 ZIP의 실제 설치·GUI·sidecar·worker·DPAPI·제거 PASS. 실제5.1/Windows-1252에서 원본parse2오류/BOM0오류. 최초 모듈조회 실패와 .NETSHA256 수정 기록 보존. 깨끗한 Windows11·실제 개발 도구 부재 및 완제품은 NOT_RUN.
+
 ### S-IMPL-20261012
 
 **Windows 기반 구현·설치형 연동 실제 검증**
@@ -3622,6 +3636,16 @@ JEV는 AGS/VM 내부 보조 계층. RAW 보존, 앞단 별도 LLM 정형화 없�
 - 원문: [https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/README.md](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/README.md)
 
 문서 확인. 저장소 전체 tree에는 README와 최초 설계만 존재; 제품 구현·검증 결과 없음.
+
+### S-STACK-20261012
+
+**Electron·Tauri 실제 Windows 비교와 첫 구현 스택 결정**
+
+- 구분: 저장소 기준선 (`repository`)
+- 기준 버전 / 날짜: `a20d3bef3f4865fc81cd3495ecc437b7a9b57cea`
+- 원문: [https://github.com/jaeseongs95/AI-Kubernetes/commit/a20d3bef3f4865fc81cd3495ecc437b7a9b57cea](https://github.com/jaeseongs95/AI-Kubernetes/commit/a20d3bef3f4865fc81cd3495ecc437b7a9b57cea)
+
+Windows CI38223818838의 같은 job·같은 frozen engine으로 두 후보 설치·GUI·IPC·worker·DPAPI·메모리 관측·제거를 실제 검증했다. Electron 선택은 기존 개발 지시에 따른 구현 결정이며 사용자가 특정 GUI 기술을 지정했다는 뜻은 아니다. Windows11 clean 및 제품 qualification은 별도 미실행이다.
 
 ### S-USER
 
@@ -3691,23 +3715,26 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `baseline_commit` | 0367932ce2fa9369a3420a4867283167ea319188 |
 | `canonical_data` | planning/backlog.sqlite3 |
 | `created_at` | 2026-10-12T05:36:30Z |
-| `evidence_policy` | Pinned AGS/VM installed public-contract inspection and Windows Server 2022 packaged foundation GUI, worker, DPAPI, bundle and uninstall were executed. Full product/vendor execution and clean supported Windows installation remain unverified; preserve each evidence scope. |
+| `evidence_policy` | Pinned upstream installed contracts, installed Windows Server 2022 Electron/Tauri comparison, frozen workers/DPAPI, and fresh Windows PowerShell 5.1 handoff execution are verified with preserved raw evidence and independent review. Clean supported Windows without developer tools, real vendor qualification and full product acceptance remain unverified. |
 | `foundation_implementation_commit` | 56523355d9cf3a2437989d1dd26f2e5ced1666d2 |
 | `language` | ko |
 | `ownership_policy` | VM owns Goal/Task/Attempt/verdict; AGS governance/peer; AIK owns pool/placement/lease. |
 | `product_acceptance_policy` | P01-P10 define observable first-release journeys; P11 federation; P12 selected extensions. Implementation, GUI/installer and same-build release evidence are required. Planning and structural checks are not product execution evidence. |
 | `product_completeness_baseline_commit` | dc6d60b67c0ccd2e56849992440de2eb639aa36c |
-| `product_status` | foundation_spike_implemented; complete_product_incomplete |
+| `product_status` | foundation_contract_and_stack_tasks_completed; clean_windows_client_validation_blocked; complete_product_incomplete |
 | `project` | AI-Kubernetes |
 | `release_scope_policy` | 064 covers all first_release tasks. 089 defaults to 065 and 067-075; 090 defaults to 076-079 plus 089. Selecting 066/080 requires adding the actual gate dependency at scope freeze and validating it. Unselected tasks remain todo/future; no all-roadmap-done claim. |
 | `review_snapshot` | planning/backlog.sql |
-| `reviewed_at` | 2026-10-12T08:05:45Z |
+| `reviewed_at` | 2026-10-12T09:06:04Z |
 | `runtime_qualification_policy` | 082 is an actual minimal preflight probe. 019/033 allow explicit test-only candidate bindings under all existing gates for 086. Operational qualified advertising requires 086 PASS. 044 composes a real development goal; 059/064 qualify the final installer. Later resource qualifications reuse the same explicit candidate and live-evidence contract. |
 | `schema_version` | 1 |
 | `scope_policy` | Windows GUI confirmed; local-first release staging proposed in DEC06; federation retained in M5. |
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
+| `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-12T08:05:46Z |
+| `updated_at` | 2026-10-12T09:06:04Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |
+| `windows_handoff_package_sha256` | a6edd83fd952257d5d7f731c23162aeaca30974e0cc303bbd7b0210c9e7dd23e |
+| `windows_handoff_source_commit` | 4b948f57020f3e507683de6e538544b9bac558e7 |

@@ -7,17 +7,27 @@
 
 단순한 LLM API 라우터나 새로운 subagent 프레임워크가 아니다. **작업 계약 → 자원 탐색 → 배치 → 실행 → 결과 회수 → 검증 → 자원 반환**을 벤더와 실행 위치에 종속되지 않게 만드는 상위 제어 계층을 지향한다.
 
-> **상태: Windows 기반 구현·실행 검증 진행.** AIK-001의 설치형 연동 계약을 완료했고, [Windows 기반 spike](spikes/windows-foundation/README.ko.md)의 실제 설치·GUI·Python/worker IPC·사용자 DPAPI·제거가 Windows CI에서 통과했다. AIK-002의 후보별 실측 비교는 진행 중이며, AIK-003의 깨끗한 후보 Windows 설치 검증은 미완료다. [구현·실행 기록](docs/implementation-2026-10-12.ko.md)에 근거와 범위를 보존한다. 멀티벤더 인증·총괄 모델 지정·AGS/VM 제품 통합과 첫 출시는 후속 태스크다.
+> **상태: AIK-001·002 기반 구현과 검증 완료, AIK-003의 깨끗한 Windows 설치 검증은 차단 상태.** 설치형 upstream 계약을 고정하고, 같은 Windows CI job에서 Electron·Tauri의 실제 설치·GUI·Python/worker IPC·사용자 DPAPI·메모리·제거를 검증했다. Windows 기본 PowerShell 5.1 전달 스크립트도 실제 검사와 설치 앱 실행을 통과했다. [구현·실행 기록](docs/implementation-2026-10-12.ko.md)에 최초 실행부터 최신 결과까지 보존한다. 멀티벤더 인증 공간·총괄 모델 지정·Windows GUI 완제품과 첫 출시는 미완료다.
 
 [개발 계획·검토](docs/development-plan.ko.md) · [완제품 완료성 검토](docs/product-completeness.ko.md) · [이전 장부 도구 감사](docs/audit-2026-10-12.ko.md) · [전체 개발 태스크](docs/development-backlog.ko.md) · [SQLite 장부](planning/backlog.sqlite3) · [최초 설계문서](docs/initial-design.ko.md) · [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite) · [VibeMarshal](https://github.com/jaeseongs95/vibemarshal)
 
-## 첫 제품의 사용자 경험
+## 첫 제품의 사용자 경험 — 구현 목표
 
 1. **멀티벤더 인증 공간:** GUI에서 여러 벤더 계정, API 키, 지원되는 구독 호스트를 연결·확인·교체·해제한다. 실제 비밀은 Windows 사용자 저장소 또는 공식 호스트 저장소가 보관하고 앱에는 비밀 참조만 노출한다.
 2. **총괄 에이전트 지정:** Dot처럼 목표를 받고 작업을 위임·회수·보고하는 총괄의 실행 자원, 모델, 지원 추론 수준과 대체 정책을 설정한다. 총괄과 worker/검토 역할의 프로필은 분리한다.
 3. **Windows GUI 운영:** 사용자 프로젝트 폴더를 열거나 만들고 목표를 제출한다. 실제 파일 생성·수정·검증·재작업, 결과 열기/저장, 자원·비용·인가 범위 확인, 중단·재시작·백업 복원까지 GUI로 제공한다. GUI 창과 실행 중인 총괄/worker의 수명은 구분한다.
 
-첫 구현 후보는 Electron·React/TypeScript·Python sidecar와 runtime을 포함한 NSIS 사용자별 설치본이다. VibeMarshal의 GUI 자산과 EngineClient 경계를 검토했으며, 선택 근거·지원 후보·남은 비교는 [Windows ADR](docs/windows-packaging.ko.md)에 기록한다.
+구현 결정 `DEC07: confirmed`에 따라 **Electron 44.7.0·React 19.2.8·TypeScript 7.0.2·Python 3.14.8 sidecar**와 runtime을 포함한 NSIS 사용자별 설치본을 사용한다. VibeMarshal의 GUI 자산과 EngineClient 경계를 검토했고, 독립 Tauri 2 비교도 실제 실행했다. 구현 선택 근거와 최초 지원 후보 Windows 11 x64의 검증 조건은 [Windows ADR](docs/windows-packaging.ko.md)에 있다. 위 세 사용자 기능의 제품 구현은 후속 태스크에 남아 있다.
+
+### 현재 실행으로 확인한 범위
+
+| 실행 | 확인한 내용 | 근거 |
+| --- | --- | --- |
+| 최초 Electron 설치 검증 | 실제 GUI 버튼·frozen Python·별도 worker·DPAPI·제거 PASS | [38219549819](evidence/windows-foundation/38219549819/README.ko.md) |
+| 같은 job의 Electron·Tauri 비교 | 두 후보 설치·세 작업·메모리·화면·제거 PASS. 설치 파일은 각각 118,717,783 / 226,652,464 bytes | [38223818838](evidence/tauri-comparison/38223818838/README.ko.md) |
+| Windows PowerShell 5.1 전달 검증 | 기존 source의 CP1252 해석 오류 2개를 확인하고 전달본의 UTF-8 BOM 실행 사본에서 0개. 새 전달 경로로 실제 GUI·worker·DPAPI·제거 PASS | [38226204128](evidence/windows-handoff/38226204128/README.ko.md) |
+
+비교 실행은 Windows Server 2022의 같은 실행기와 같은 frozen Python 실행본을 사용했다. Tauri는 offline WebView2 installer를 포함했고, 실행 때에는 사전 설치된 131.0.2903.86을 재사용했다. 단일 메모리 관측으로 전체 앱 성능 우위를 정하지 않았다. **Windows 11 표준 사용자·개발 도구가 없는 깨끗한 환경의 기반 설치 검증은 아직 `NOT_RUN`**이며 AIK-003의 차단 사유다.
 
 ## 왜 만드는가
 
@@ -112,7 +122,7 @@ VM과 AGS의 **현재 구현 상태는 각 원본 저장소 문서가 기준**�
 
 ## 개발 장부
 
-`planning/backlog.sqlite3`가 개발 태스크 정본이다. 요구사항·출처·단계·우선순위·담당 구성요소·의존성·완료 기준·검증 방법·상태 이력·증거를 연결한다. **90개 태스크, 311개 완료 기준, 365개 의존성**을 관리한다. 현재 구현 착수 상태는 SQLite와 생성 장부를 따른다. v0.4 완료성 검토에서 8개 태스크를 추가하고 기존 39개의 본문을 보강했다. P01~P12는 구체적인 사용자 행동·통과 결과·실패 차단 조건을 가진 파생 인수 요구사항이다.
+`planning/backlog.sqlite3`가 개발 태스크 정본이다. 요구사항·출처·단계·우선순위·담당 구성요소·의존성·완료 기준·검증 방법·상태 이력·증거를 연결한다. **90개 태스크, 311개 완료 기준, 365개 의존성**을 관리한다. 최신 상태는 **done 2개(AIK-001·002), blocked 1개(AIK-003), todo 87개, ready 0개**다. 기존 의존성을 유지하므로 AIK-003의 실제 환경 검증이 끝나야 AIK-083과 후속 구현이 열린다. v0.4 완료성 검토에서 8개 태스크를 추가하고 기존 39개의 본문을 보강했다. P01~P12는 구체적인 사용자 행동·통과 결과·실패 차단 조건을 가진 파생 인수 요구사항이다.
 
 | 단계 | 범위 | 태스크 |
 | --- | --- | ---: |
@@ -149,7 +159,7 @@ python -m unittest discover -s tests -v
 
 ## 프로젝트 상태
 
-**2026-10-12 · 계획 v0.4에 따른 구현 시작.** 실제 Windows 설치 GUI 기반과 설치형 upstream 검사기를 추가했다. 장부의 기존 90개 태스크·311개 완료 기준·365개 의존성은 보존했으며, 완료는 실행 근거와 독립 검토가 있는 범위에만 기록한다. 실제 벤더·사용자 프로젝트·총괄 모델·AGS/VM 제품 연동과 출시 판정은 미완료다. 최신 태스크 상태는 [SQLite 생성 장부](docs/development-backlog.ko.md)를 따른다.
+**2026-10-12 · 계획 v0.4의 AIK-001·002 구현·검증 완료.** 설치형 upstream 검사기와 실제 Windows 설치 GUI 기반을 구현하고, Electron·Tauri 비교와 PowerShell 5.1 전달 경로를 실행했다. 장부의 기존 90개 태스크·311개 완료 기준·365개 의존성을 보존했으며, AIK-003의 깨끗한 Windows 11·개발 도구 부재 검증은 `blocked`로 남긴다. 이 기반 검증과 실제 벤더·사용자 프로젝트·총괄 모델·AGS/VM 제품 연동 및 출시 판정은 각각의 기존 태스크로 관리한다. 최신 태스크 상태는 [SQLite 생성 장부](docs/development-backlog.ko.md)를 따른다.
 
 ## 라이선스
 

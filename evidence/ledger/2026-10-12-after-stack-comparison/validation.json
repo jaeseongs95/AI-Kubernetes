@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-12T09:07:36.415649+00:00",
+  "status": "PASS",
+  "scope": "Final SQLite status/evidence/decision maintenance, original task invariants and generated snapshots; not product execution",
+  "commands": [
+    {
+      "name": "validate",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "tools/backlog.py",
+        "validate"
+      ],
+      "exit_code": 0,
+      "log": "evidence/ledger/2026-10-12-after-stack-comparison/validate.log",
+      "sha256": "1ff6309eceb65cf72a5f457e2baf0b05b622bcdc8dc3fb37344aa411de6335aa"
+    },
+    {
+      "name": "ready",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "tools/backlog.py",
+        "list",
+        "--ready"
+      ],
+      "exit_code": 0,
+      "log": "evidence/ledger/2026-10-12-after-stack-comparison/ready.log",
+      "sha256": "c220cf7e595da13d4ba190e927933875c26c1042c57381957a42b2500d900af3"
+    }
+  ],
+  "requirements_and_dependencies_preserved": {
+    "requirements": true,
+    "task_requirements": true,
+    "acceptance_criteria": true,
+    "task_dependencies": true,
+    "milestones": true,
+    "epics": true,
+    "task_sources": true,
+    "task_decisions": true
+  },
+  "task_fields_other_than_status_and_updated_at_preserved": true,
+  "prior_events_evidence_and_sources_preserved": true,
+  "decisions_other_than_DEC07_DEC08_preserved": true,
+  "sql_snapshot_matches": true,
+  "generated_backlog_matches": true,
+  "sql_restore_all_tables_identical_and_valid": true,
+  "task_counts": {
+    "blocked": 1,
+    "done": 2,
+    "todo": 87
+  },
+  "ready_tasks": 0,
+  "counts": {
+    "tasks": 90,
+    "requirements": 29,
+    "acceptance_criteria": 311,
+    "task_dependencies": 365,
+    "sources": 18,
+    "decisions": 13,
+    "task_evidence": 12,
+    "task_events": 243
+  },
+  "task_evidence_references_exist": true,
+  "evidence_files": [
+    {
+      "id": "EV-001-CONTRACT-20261012",
+      "reference": "contracts/upstream/integration-contract.json",
+      "sha256": "1042604824fd7f77563f893b13dd292871abbb85fd278e77480f3c2fedaf7ea0"
+    },
+    {
+      "id": "EV-001-INSTALLED-20261012",
+      "reference": "contracts/upstream/installed-inspection.json",
+      "sha256": "b8a12c1c713a950afbde319c8750dba4d71b547e9fda0bfe054f9344b7c3b417"
+    },
+    {
+      "id": "EV-001-REVIEW-20261012",
+      "reference": "evidence/reviews/2026-10-12-before-stack-comparison.json",
+      "sha256": "36aeee65d8983aa58d9b5dd3b3c1ff2ecbb9ee8a0d63e41c8336fb67bb6c9066"
+    },
+    {
+      "id": "EV-001-SCHEMA-20261012",
+      "reference": "evidence/upstream/2026-10-12/schema-validation.json",
+      "sha256": "a3aa7c001f97ba9298605a1673e6448d1c458cdf7e5b5950b345e8a6c4781d26"
+    },
+    {
+      "id": "EV-002-COMPARISON-20261012",
+      "reference": "evidence/tauri-comparison/38223818838/ci-validation.json",
+      "sha256": "b652bbac989f0032992d7ef6b2573969fbb738ca5002adfda74f263c34dd9a84"
+    },
+    {
+      "id": "EV-002-COMPARISON-REVIEW-20261012",
+      "reference": "evidence/reviews/2026-10-12-after-stack-comparison.json",
+      "sha256": "db299eef3e27761d30099920ae569b1045f284c15763aa33f03e79aed4243763"
+    },
+    {
+      "id": "EV-002-ELECTRON-20261012",
+      "reference": "evidence/windows-foundation/38219549819/installed-spike.json",
+      "sha256": "0be3253034500fac16c2b84c8b9f2bc13681c14b32a4126b2a1e73c8d149bd9d"
+    },
+    {
+      "id": "EV-002-REVIEW-20261012",
+      "reference": "evidence/reviews/2026-10-12-before-stack-comparison.json",
+      "sha256": "36aeee65d8983aa58d9b5dd3b3c1ff2ecbb9ee8a0d63e41c8336fb67bb6c9066"
+    },
+    {
+      "id": "EV-003-HANDOFF-20261012",
+      "reference": "evidence/windows-handoff/38226204128/verification.json",
+      "sha256": "d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37"
+    },
+    {
+      "id": "EV-003-INSTALL-20261012",
+      "reference": "evidence/windows-foundation/38219549819/verification.json",
+      "sha256": "b9d91768e90de03824c4e7172e33b6eecf6f469a02dfa2edd83a5491bf20b528"
+    },
+    {
+      "id": "EV-003-LEGACY-20261012",
+      "reference": "evidence/reviews/2026-10-12-powershell-legacy-encoding.json",
+      "sha256": "7d1aa2dd534fa7221a3f7e76714060be6afc44e53a2b7b0e5bc56fb5ee4ab647"
+    },
+    {
+      "id": "EV-003-POLICY-20261012",
+      "reference": "docs/windows-packaging.ko.md",
+      "sha256": "57dc5051465cb84f3e78b1662cc03fb35d6da180a788382e53a0c77e40f3fec1"
+    }
+  ],
+  "database_sha256": "11227e31488a20a90aec9b3c4960b45ae2205f3115f73992144c5127dc18ac67",
+  "snapshot_sha256": "9d7adb3803dfcf0a87f1ace16af0033701e4eb323deea6d4193234b7bbab07c5",
+  "generated_report_sha256": "07b1f97122faaa16e8cd4d76bd427c33255372578dd5875a491e300182e13b3b",
+  "comparison_baseline_backup_sha256": "7ff9193d8e742240589b1b3bcac006637e1a7496cc37fd5b1d4d24242573cb37",
+  "not_rerun": "Prior 72 ledger/upstream regression tests and real Windows CI tests remain separately scoped historical executions. This check verifies the actual final data mutation and SQL restoration."
+}

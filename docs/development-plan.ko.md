@@ -9,7 +9,7 @@
 - 개발 태스크 정본: [planning/backlog.sqlite3](../planning/backlog.sqlite3)
 - 읽기용 전체 태스크: [development-backlog.ko.md](development-backlog.ko.md)
 - Git 비교·복원용 생성본: [planning/backlog.sql](../planning/backlog.sql)
-- 제품 상태: **Windows 기반 구현 진행.** 실제 설치 GUI·worker·DPAPI 시험과 설치형 연동 계약 근거는 [구현 기록](implementation-2026-10-12.ko.md)에 있다. 전체 제품 기능·출시는 미완료다.
+- 제품 상태: **AIK-001·002 기반 구현 완료, AIK-003의 깨끗한 Windows 클라이언트 검증은 차단 상태.** 실제 설치 GUI·worker·DPAPI, Electron·Tauri 비교, PowerShell 5.1 전달 패키지 및 설치형 연동 계약 근거는 [구현 기록](implementation-2026-10-12.ko.md)에 있다. 전체 제품 기능·출시는 미완료다.
 
 ## 검토 결론
 
@@ -32,7 +32,8 @@ v0.4는 사용자가 태스크를 따라 개발했을 때 실제 설치·사용�
 | 구현안 제안 | 사용자 범위 Windows vault와 비밀 참조 broker | DEC09 **proposed** |
 | 초기 지원 범위 제안 | 두 벤더의 API/구독 연결과 역할별 실제 도구 실행; 필수/선택/미지원 matrix 확정 | DEC12 **proposed** |
 | 제품 인수·출시 제안 | P01~P12, 같은 판본의 실제 검증, 선택 확장의 실제 gate 선행 연결 | DEC13 **proposed** |
-| 구현 후보 제안 | Electron·Python sidecar, Windows x64·사용자별 NSIS; 실측 비교와 깨끗한 설치 검증 상태를 별도 기록 | DEC07·DEC08 **proposed** |
+| 구현 기술 결정 | 실제 Windows 후보 비교를 마치고 Electron·React/TypeScript·Python sidecar 선택; 사용자가 GUI 기술을 직접 지정한 요구와 구분 | DEC07 **confirmed**, 저장소·CI 근거 |
+| Windows 지원·설치 후보 | Windows 11 x64·사용자별 NSIS·runtime 포함; 깨끗한 클라이언트에서의 설치 검증이 남음 | DEC08 **proposed** |
 | 열린 선택 | 라이선스, 원격 전송 규약 | DEC10·DEC11 **open** |
 
 SQLite `requirements.origin`은 `user`와 `derived`를 구분한다. `sources`는 사용자 요구, 고정 SHA의 저장소 내용, 공식 문서를 구분한다. `decisions.status`는 `confirmed`, `proposed`, `open`으로 관리한다. 구현 선택을 사용자 확정 사항으로 기록하지 않는다.
@@ -75,7 +76,7 @@ adapter 구현, 실제 사전 probe, 운영 적합성, 사용자 목표와 설�
 
 matrix는 `route_id`, provider, 인증 유형, 역할, 필수/선택, **adapter 구현 상태와 qualification 상태**, 사유·시각·근거 및 revision/digest를 가진다. 012~015는 미지원 응답만 반환하는 stub으로 완료할 수 없다. 019의 공통 개발은 모든 후보 adapter를 기다리지 않도록 의존성 4개를 제거했다. 선택 경로가 미지원이어도 다른 qualified 경로를 계속 검증할 수 있지만, **필수 경로가 미지원 또는 `NOT_RUN`이면 해당 qualification과 출시 작업은 완료할 수 없다.**
 
-두 벤더 및 API/지원 구독·총괄/worker 실행이라는 제안 범위는 유지한다. 필수 matrix를 바꾸면 DEC12와 영향·재검증 근거를 함께 갱신한다. 이 matrix는 앞으로 AIK-001에서 만드는 제품 산출물이며, 개발 장부 도구가 실제 provider의 지원을 자동 판정하는 기능은 아니다.
+두 벤더 및 API/지원 구독·총괄/worker 실행이라는 제안 범위는 유지한다. 필수 matrix를 바꾸면 DEC12와 영향·재검증 근거를 함께 갱신한다. AIK-001에서 [지원 matrix](../contracts/upstream/support-matrix.json)의 조합·판본·현재 미실행 상태를 고정했다. 개별 조합의 인증·모델·도구 실행 qualification은 후행 태스크에서 검증하며, 개발 장부 도구가 실제 provider의 지원을 자동 판정하지 않는다.
 
 019/033은 `implemented`, `probe_verified`, `candidate_for_qualification`, `qualified`를 구분한다. 고정 test-only candidate로 086 및 같은 계약의 후속 qualification을 시작하되 기존 인가·budget/lease·AGS A2/VM gate는 모두 적용한다. 일반 실행은 해당 역할·도구 조합에서 실제 통과한 경로만 사용한다. 미검증 자원을 운영에 광고하거나 최초 시험이 자신의 PASS를 먼저 요구하는 순환을 만들지 않는다.
 
@@ -141,11 +142,11 @@ GUI를 닫는 것과 worker를 취소하는 것은 별도 동작으로 정의한
 
 058은 각 소유자의 공개 checkpoint/복원 절차와 공통 manifest로 AIK 설정·VM 이력·AGS 근거·실제 artifact의 복구 지점을 맞춘다. 설정-only 이동과 전체 상태 복원을 구분하고 혼합 시점·누락/변조 근거·중복 효과를 거절한다. 088/059가 이 backend를 GUI와 앱이 부팅되지 않을 때의 설치 복구 화면에 연결해 실제 사용자 복원을 검증한다.
 
-VM GUI의 Tauri 2+React/TypeScript+Python sidecar 제안과 기존 UI 자산을 검토하되 AI-Kubernetes 스택으로 자동 확정하지 않는다. 지원 Windows 버전·CPU 아키텍처·installer·서명 방식도 검증을 거쳐 결정한다. [VM GUI 설계 기준선](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md)
+VM GUI의 Tauri 2+React/TypeScript+Python sidecar 제안과 기존 UI 자산을 검토하고, AIK-002에서 두 후보를 실제 비교한 후 AI-Kubernetes의 첫 구현 스택을 Electron으로 결정했다. 지원 Windows 클라이언트와 installer·서명 정책의 실행 검증은 AIK-003 및 각각의 후행 제품 태스크 상태를 따른다. [VM GUI 설계 기준선](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md), [현재 구현 결정](windows-packaging.ko.md)
 
 ## 4. 기존 프로젝트 검토 결과와 선행 조건
 
-이번 검토는 저장소 파일·문서·패키지 metadata를 읽은 결과다. 제품 코드를 실행하거나 upstream 테스트를 수행하지 않았다.
+아래 표는 **최초 계획 단계**에서 저장소 파일·문서·패키지 metadata를 읽어 확인한 기준선이다. 당시에는 제품 코드나 upstream 테스트를 실행하지 않았다. 이후 AIK-001의 실제 설치형 artifact·공개 명령 검사와 Windows 기반 실행은 [구현 기록](implementation-2026-10-12.ko.md)에 별도로 보존한다.
 
 | 대상 | 확인한 기준선 | 확인 내용 | 개발 반영 |
 | --- | --- | --- | --- |
@@ -192,11 +193,13 @@ M0~M4의 **72개**가 현재 제안한 첫 Windows 배포 범위이며 064의 �
 
 **P0:** 핵심 계약·기능·출시 gate. **P1:** 운영 품질·후속 기능. **P2:** 추가 확장. 우선순위는 착수 순서를 조정하는 값이며 첫 출시의 P1도 필수다. 후속 선택 기능은 scope 확정 때 해당 gate 의존성에 반영하고 미선택은 미완료로 유지한다. 범위별 출시 완료와 전체 태스크 완료를 구분한다. [선택 조합·출시 기준](product-completeness.ko.md#5-어느-범위까지-해야-어떤-완제품인가)
 
-당장 선행 작업 없이 착수할 수 있는 항목은 다음 세 개다.
+최초 선행 작업 세 개의 현재 상태는 다음과 같다.
 
-1. **AIK-001:** AGS·VM 책임·설치형 인터페이스 기준선.
-2. **AIK-002:** Windows GUI 스택과 엔진 sidecar spike.
-3. **AIK-003:** Windows 지원 환경·설치·서명 방식.
+1. **AIK-001 — done:** 고정 AGS·VM 설치형 artifact의 실제 인터페이스 검사와 통합 계약·지원 matrix 기준선을 완료했다. 운영 호환성의 발견된 차단은 후행 통합 과제로 남긴다.
+2. **AIK-002 — done:** Electron·Tauri를 같은 Windows job과 같은 frozen Python engine으로 설치·실행·비교하고 첫 구현 스택을 결정했다.
+3. **AIK-003 — blocked:** 설치·runtime·서명/업데이트 정책과 독립 실행 ZIP을 만들고 Windows Server 2022/PowerShell 5.1에서 실제 검증했다. 원래 완료 기준의 **개발 도구가 없는 깨끗한 후보 Windows 클라이언트** 실행 근거는 아직 없다.
+
+현재 장부의 `v_ready_tasks`는 **0개**다. AIK-083은 기존 의존성상 001·002·003 완료 후 착수하며, 후속 기능은 그 인수 계약에 이어진다. CI의 PATH에서 개발 도구를 제외한 성공을 실제 도구 부재로 해석하거나, 기존 003 완료 조건과 의존성을 변경해 후행 작업을 열지 않는다. 다음 실기 검증에 사용할 [독립 Windows 전달 패키지](../tools/windows_handoff/README.ko.md)는 빌드·다운로드·기본 PowerShell 실행까지 확인했다.
 
 ## 6. 개발 장부 구조
 
@@ -213,7 +216,7 @@ M0~M4의 **72개**가 현재 제안한 첫 Windows 배포 범위이며 064의 �
 | `task_evidence` | 완료 근거의 참조와 요약 |
 | `metadata` | schema·기준선·작성 시각·소유권 및 정본 정책 |
 
-현재 **90개 태스크, 29개 요구사항(사용자 9·파생 20), 13개 결정, 16개 출처, 311개 완료 기준, 365개 의존성**이다. 파생 요구 20개는 기존 D01~D08과 인수 흐름 P01~P12다. 태스크별 기준 수는 필요한 계약에 따라 다르다. 실제 구현에 따른 상태·증거·변경 이력은 [생성 장부](development-backlog.ko.md)와 [구현 검증 JSON](../planning/implementation-validation.json)에 기록한다. 이전 `created` 90건과 `review_refined` 132건은 계획 등록·보강 이력으로 보존하며, 새 구현·실행 근거와 구분한다.
+현재 **90개 태스크, 29개 요구사항(사용자 9·파생 20), 13개 결정, 18개 출처, 311개 완료 기준, 365개 의존성**이다. 파생 요구 20개는 기존 D01~D08과 인수 흐름 P01~P12다. 태스크별 기준 수는 필요한 계약에 따라 다르다. 실제 구현에 따른 상태·증거·변경 이력은 [생성 장부](development-backlog.ko.md)와 [구현 검증 JSON](../planning/implementation-validation.json)에 기록한다. 이전 `created` 90건과 `review_refined` 132건은 계획 등록·보강 이력으로 보존하며, 새 구현·실행 근거와 구분한다.
 
 `v_backlog`는 작업별 선행 잔여 수·기준 수·증거 수를 보여준다. `v_ready_tasks`는 `todo`이면서 모든 선행 작업이 `done`인 항목이다. `v_milestone_summary`는 단계별 상태·착수 가능 수를 집계한다.
 
@@ -283,6 +286,6 @@ DB와 SQL/Markdown은 서로 다른 파일이라 하나의 원자적 커밋은 �
 
 ## 검증 범위
 
-이 변경에서는 **제품 계획의 완료성, 개발 장부와 장부 유지보수 도구**를 검증한다. 사용자 여정·실행 효과·배포/복구의 반례를 독립 재검토하고 출시 집합·선택 조합·qualification 순서·구현/GUI/gate 연결을 검사한다. SQLite의 신뢰 스키마·버전·metadata·값·이력·선행 검증과 기존 동시 게시·복원·출력/롤백 회귀도 수행한다. 실제 실행 결과와 환경·파일 해시는 [검증 기록](../planning/validation.json), 이번 반례와 정정은 [완제품 완료성 보고서](product-completeness.ko.md)에 남긴다. 이전 결과는 [v0.3 감사](audit-2026-10-12.ko.md)에서 구분한다.
+계획 검토 단계에서는 **제품 계획의 완료성, 개발 장부와 장부 유지보수 도구**를 검증했다. 사용자 여정·실행 효과·배포/복구의 반례를 독립 재검토하고 출시 집합·선택 조합·qualification 순서·구현/GUI/gate 연결을 검사했다. SQLite의 신뢰 스키마·버전·metadata·값·이력·선행 검증과 동시 게시·복원·출력/롤백 회귀도 수행했다. 그 당시 실행 결과와 환경·파일 해시는 [계획 검증 기록](../planning/validation.json), 반례와 정정은 [완제품 완료성 보고서](product-completeness.ko.md)에 보존한다. 이전 결과는 [v0.3 감사](audit-2026-10-12.ko.md)에서 구분한다.
 
-Windows 제품 설치, 실제 벤더 로그인, 모델 실행, AGS/VM gate, 원격 클러스터 E2E는 이 변경의 실행 결과가 아니며 각각 장부의 미완료 개발/검증 태스크다.
+후속 구현 단계에서는 고정 AGS·VM artifact, 실제 설치된 Electron·Tauri GUI, Python sidecar·worker·DPAPI, Windows 기본 PowerShell 전달본까지 실행했다. [구현 검증 기록](../planning/implementation-validation.json)이 최신 상태와 근거다. 깨끗한 Windows 클라이언트 지원, 실제 벤더 로그인·모델 실행, AGS/VM 운영 gate, 원격 클러스터 E2E와 제품 출시는 여전히 해당 미완료 개발·검증 태스크에 남아 있다.

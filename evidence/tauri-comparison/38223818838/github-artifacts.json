@@ -1,0 +1,42 @@
+{
+  "artifacts": [
+    {
+      "id": 11736566200,
+      "name": "windows-stack-comparison-unsigned-installers-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1",
+      "size_in_bytes": 345416683,
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/actions/artifacts/11736566200",
+      "archive_download_url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/actions/artifacts/11736566200/zip",
+      "expired": false,
+      "created_at": "2026-10-12T08:46:06Z",
+      "expires_at": "2026-10-19T08:45:53Z",
+      "updated_at": "2026-10-12T08:46:06Z",
+      "digest": "sha256:fe4d11524cfba3aa25788c0c37ff5901d290e63d5acf7ab772d7c588eec31c7f",
+      "workflow_run": {
+        "id": 38223818838,
+        "repository_id": 1415080263,
+        "head_repository_id": 1415080263,
+        "head_branch": "main",
+        "head_sha": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea"
+      }
+    },
+    {
+      "id": 11736351339,
+      "name": "windows-stack-comparison-evidence-a20d3bef3f4865fc81cd3495ecc437b7a9b57cea-1",
+      "size_in_bytes": 134386,
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/actions/artifacts/11736351339",
+      "archive_download_url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/actions/artifacts/11736351339/zip",
+      "expired": false,
+      "created_at": "2026-10-12T08:45:52Z",
+      "expires_at": "2026-10-26T08:45:52Z",
+      "updated_at": "2026-10-12T08:45:52Z",
+      "digest": "sha256:e8f44ed19dc7d3ab8f1aeedcbe87be9b5acb1249e8da33d9f05991f7d11ebdca",
+      "workflow_run": {
+        "id": 38223818838,
+        "repository_id": 1415080263,
+        "head_repository_id": 1415080263,
+        "head_branch": "main",
+        "head_sha": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea"
+      }
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "app_version": "0.1.0",
+  "checks": {
+    "health": {
+      "code": "SIDECAR_READY",
+      "frozen": true,
+      "pid": 1960,
+      "platform": "win32",
+      "product_integration": "NOT_RUN",
+      "python_version": "3.14.8",
+      "status": "PASS"
+    },
+    "vault": {
+      "backend": "windows-user-dpapi",
+      "code": "VAULT_ROUNDTRIP_OK",
+      "status": "PASS"
+    },
+    "worker": {
+      "artifact_bytes": 42,
+      "artifact_sha256": "82b2d2ffd52c4fcda74566e4950be2d32f128d466444883442aee643d34c10ee",
+      "code": "WORKER_PROBE_OK",
+      "parent_pid": 1960,
+      "pid": 7096,
+      "status": "PASS",
+      "temporary_artifact_removed": true
+    }
+  },
+  "engine_frozen": true,
+  "metrics": {
+    "elapsed_ms": 9593,
+    "main_working_set_bytes": 22339584,
+    "measurement_note": "One post-check live working-set snapshot. Includes current app descendants; exited worker is absent. This is not a peak, long-run, or clean-Windows benchmark.",
+    "process_tree": [
+      {
+        "name": "msedgewebview2.exe",
+        "parent_pid": 5116,
+        "pid": 1508,
+        "working_set_bytes": 97120256
+      },
+      {
+        "name": "msedgewebview2.exe",
+        "parent_pid": 1508,
+        "pid": 1560,
+        "working_set_bytes": 30130176
+      },
+      {
+        "name": "aik-engine.exe",
+        "parent_pid": 5116,
+        "pid": 1960,
+        "working_set_bytes": 24657920
+      },
+      {
+        "name": "msedgewebview2.exe",
+        "parent_pid": 1508,
+        "pid": 5000,
+        "working_set_bytes": 7917568
+      },
+      {
+        "name": "aik-tauri-comparison.exe",
+        "parent_pid": 6764,
+        "pid": 5116,
+        "working_set_bytes": 22339584
+      },
+      {
+        "name": "conhost.exe",
+        "parent_pid": 1960,
+        "pid": 5740,
+        "working_set_bytes": 11165696
+      },
+      {
+        "name": "msedgewebview2.exe",
+        "parent_pid": 1508,
+        "pid": 6304,
+        "working_set_bytes": 18829312
+      },
+      {
+        "name": "msedgewebview2.exe",
+        "parent_pid": 1508,
+        "pid": 6496,
+        "working_set_bytes": 69255168
+      },
+      {
+        "name": "msedgewebview2.exe",
+        "parent_pid": 1508,
+        "pid": 6980,
+        "working_set_bytes": 50343936
+      }
+    ],
+    "process_tree_status": "MEASURED",
+    "process_tree_working_set_bytes": 331759616,
+    "webview2_process_count": 6,
+    "webview2_working_set_bytes": 273596416
+  },
+  "native_pid": 5116,
+  "packaged": true,
+  "platform": "win32",
+  "product_integration": "NOT_RUN",
+  "renderer_bridge": "three typed fixed check names; no shell, argv, path, secret, or result input",
+  "renderer_node_access": null,
+  "renderer_node_access_status": "NOT_MEASURED_BY_NATIVE_BACKEND",
+  "schema_version": 1,
+  "scope": "AIK-002 independent Tauri Windows foundation comparison",
+  "sidecar_pid": 1960,
+  "status": "PASS",
+  "tauri_version": "2.12.3",
+  "webview2_version": "131.0.2903.86",
+  "window_visible": true,
+  "windows11_clean_install": "NOT_RUN"
+}

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "recorded_at": "2026-10-12T08:09:20.175230+00:00",
-  "status": "IN_PROGRESS",
-  "phase": "Installed Electron foundation passed; Tauri alternative measurement in progress",
+  "recorded_at": "2026-10-12T09:08:26.744700+00:00",
+  "status": "BLOCKED",
+  "phase": "AIK-001 and AIK-002 completed; AIK-003 clean selected Windows client installation remains blocked",
   "foundation_source_commit": "56523355d9cf3a2437989d1dd26f2e5ced1666d2",
   "windows_workflow_run": {
     "id": 38219549819,
@@ -21,7 +21,7 @@
     {
       "id": "AIK-002",
       "title": "Windows GUI 스택과 엔진 sidecar 검증",
-      "status": "in_progress",
+      "status": "done",
       "verification": "지원 후보별 설치성·IPC·worker 기동·메모리 비교"
     },
     {
@@ -33,20 +33,19 @@
   ],
   "task_counts": {
     "blocked": 1,
-    "done": 1,
-    "in_progress": 1,
+    "done": 2,
     "todo": 87
   },
-  "task_evidence_count": 8,
+  "task_evidence_count": 12,
   "full_product_execution": "NOT_RUN",
   "upstream_compatibility": "BLOCKED: missing host-integration.json and fm/hello -32601",
   "required_followups": [
-    "Complete existing AIK-002 candidate installation, IPC, worker startup and memory comparison.",
-    "Execute the AIK-003 small installed spike on a clean selected Windows client without developer tools.",
-    "Keep real vendor/model/governed tool qualification and product GUI/release gates separate."
+    "Execute the existing AIK-003 small installer spike in a clean selected Windows client environment with no developer tools; the independent ZIP and actual PowerShell 5.1 execution path are ready.",
+    "After AIK-003 is verified, start AIK-083 using the unchanged dependency graph.",
+    "Resolve the recorded upstream AGS/VM compatibility blockers in their existing tasks, and implement real vendor/model/governed tool qualification and product GUI/release gates."
   ],
   "existing_criteria_and_dependency_graph_changed": false,
-  "database_sha256": "9768fe876eeb606bc14648324f7fd79a2c662362c0baa4a4415ae900df93661a",
+  "database_sha256": "11227e31488a20a90aec9b3c4960b45ae2205f3115f73992144c5127dc18ac67",
   "evidence": [
     {
       "path": "contracts/upstream/installed-inspection.json",
@@ -79,6 +78,110 @@
     {
       "path": "evidence/ledger/2026-10-12-before-stack-comparison/validation.json",
       "sha256": "246277f8fb861bc98bcb19ada847c17a9c7c882abe911b14dd1ff78ad90e1d20"
+    },
+    {
+      "path": "evidence/tauri-comparison/38223818838/ci-validation.json",
+      "sha256": "b652bbac989f0032992d7ef6b2573969fbb738ca5002adfda74f263c34dd9a84"
+    },
+    {
+      "path": "evidence/tauri-comparison/38223818838/root-review.json",
+      "sha256": "de2534a6ccbc090eb91dc1961372bc642f999fcb092f9c487828baab50512663"
+    },
+    {
+      "path": "evidence/tauri-comparison/38223818838/measurement-api-correction.json",
+      "sha256": "a5a77b3be69c4c2b308899d68bd79ac161fa124db727c24a83a0f702ddc44ffd"
+    },
+    {
+      "path": "evidence/reviews/2026-10-12-after-stack-comparison.json",
+      "sha256": "db299eef3e27761d30099920ae569b1045f284c15763aa33f03e79aed4243763"
+    },
+    {
+      "path": "evidence/reviews/2026-10-12-powershell-legacy-encoding.json",
+      "sha256": "7d1aa2dd534fa7221a3f7e76714060be6afc44e53a2b7b0e5bc56fb5ee4ab647"
+    },
+    {
+      "path": "evidence/windows-handoff/38225912010/failure-analysis.json",
+      "sha256": "cf36ac96a5f41e1233dd543c90c1dd560639c401c83ac0deb27e6c19848fe9c7"
+    },
+    {
+      "path": "evidence/windows-handoff/38226204128/verification.json",
+      "sha256": "d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37"
+    },
+    {
+      "path": "evidence/windows-handoff/38226204128/root-review.json",
+      "sha256": "fda4456d950347b37e16608d4cb9843642f02f7a4fe72ea47a7de504ea4b7477"
+    },
+    {
+      "path": "evidence/ledger/2026-10-12-after-stack-comparison/validation.json",
+      "sha256": "7bc85557dbd3e65cc588489f69a0f4c7f0d9a90effababc5d33636438a1925e7"
     }
-  ]
+  ],
+  "status_scope": "Existing backlog progression; completed foundation implementation and actual Server CI passes remain valid within their recorded scope",
+  "ready_tasks": 0,
+  "selected_stack": {
+    "decision_id": "DEC07",
+    "status": "confirmed",
+    "decision_kind": "implementation decision, not a user-selected GUI framework requirement",
+    "electron": "44.7.0",
+    "react": "19.2.8",
+    "typescript": "7.0.2",
+    "python": "3.14.8",
+    "runtime_strategy": "Electron GUI runtime plus PyInstaller onedir Python, NSIS per-user installer"
+  },
+  "windows_stack_comparison": {
+    "source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+    "workflow_run": 38223818838,
+    "job": 114726304615,
+    "url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38223818838",
+    "attempt": 1,
+    "status": "PASS",
+    "scope": "Same Windows Server 2022 job and frozen engine; actual Electron/Tauri installation, visible GUI, IPC, distinct file worker, native DPAPI, process memory observations and uninstall",
+    "actual_gui_visual_review": "PASS",
+    "electron_installer_bytes": 118717783,
+    "tauri_installer_bytes": 226652464,
+    "same_engine_sha256": "3622009e92310d1593d67a35c84d5ceb7d5817b048c795a5d58d22a0c501c922",
+    "whole_product_memory_or_speed_ranking": "NOT_MEASURED",
+    "webview2_absent_machine_install": "NOT_RUN"
+  },
+  "windows_client_handoff": {
+    "source_commit": "4b948f57020f3e507683de6e538544b9bac558e7",
+    "workflow_run": 38226204128,
+    "job": 114734211621,
+    "url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38226204128",
+    "status": "PASS",
+    "scope": "New install from extracted standalone ZIP with actual Windows PowerShell 5.1 Desktop on Server 2022; fresh GUI/worker/DPAPI/uninstall and artifact/runtime identity",
+    "powershell": "5.1.20348.5622",
+    "default_code_page": 1252,
+    "original_script_parse_errors": 2,
+    "delivered_bom_script_parse_errors": 0,
+    "fresh_execution_verified": true,
+    "direct_gui_visual_review": "PASS",
+    "package_bytes": 118784150,
+    "package_sha256": "a6edd83fd952257d5d7f731c23162aeaca30974e0cc303bbd7b0210c9e7dd23e",
+    "package_artifact_url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38226204128/artifacts/11736453349",
+    "prior_failed_run": 38225912010,
+    "observed_failure": "Legacy Get-FileHash command was unavailable during a regression check before installer build",
+    "fix": "Streaming .NET SHA256 with disposal; existing tamper refusal retained",
+    "clean_windows11_standard_user": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "release_signing": "NOT_RUN",
+    "product_integration": "NOT_RUN"
+  },
+  "snapshot_sha256": "9d7adb3803dfcf0a87f1ace16af0033701e4eb323deea6d4193234b7bbab07c5",
+  "remaining_environment_block": {
+    "task": "AIK-003",
+    "original_acceptance_criterion": "개발 도구가 없는 환경에서 필요한 runtime을 어떻게 공급할지 검증한다.",
+    "original_verification": "깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토",
+    "selected_candidate": "Windows 11 x64 standard-user client",
+    "available_actual_environment": "Windows Server 2022 administrator runner with developer tools installed",
+    "reason": "Removing tools from child PATH does not establish a clean client or physical developer-tools absence",
+    "no_new_complete_product_gate_added": true
+  },
+  "complete_product": {
+    "status": "NOT_IMPLEMENTED",
+    "multi_vendor_secret_management": "NOT_IMPLEMENTED; synthetic user-DPAPI foundation only",
+    "director_model_selection": "NOT_IMPLEMENTED",
+    "windows_gui": "FOUNDATION_INSTALLED_AND_EXECUTED; product screens and workflows pending",
+    "signed_windows_release": "NOT_RUN"
+  }
 }

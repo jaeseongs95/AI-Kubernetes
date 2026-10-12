@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "tested_source_commit": "a20d3bef3f4865fc81cd3495ecc437b7a9b57cea",
+  "raw_artifact_kept_unchanged": true,
+  "correction": "Electron renderer memory is app.getAppMetrics() matched by webContents.getOSProcessId(), then memory.workingSetSize, in Kilobytes. The tested metadata inaccurately names getProcessMemoryInfo(). Actual measurements and comparisons are unchanged.",
+  "elapsed_ms_note": "Electron starts at its main-module performance.now(); Tauri starts at native run() Instant. Neither uses the external process-creation instant. These elapsed values do not establish startup or speed superiority.",
+  "official_reference": "https://www.electronjs.org/docs/latest/api/structures/memory-info",
+  "changes": [
+    {
+      "file": "scripts/windows/verify-stack-comparison.ps1",
+      "tested_source_sha256": "2134cb936a2b787946a31f0d65c367e9f79da5265f34291ea41667db6e47541d",
+      "corrected_source_sha256": "148ed739355884a4f751e206f470bd11b75cfde308a84e502d1dd56e6104b7ca",
+      "change_type": "description string only; measurement expressions, control flow, and acceptance conditions unchanged",
+      "diff": "--- scripts/windows/verify-stack-comparison.ps1 (tested commit a20d3bef)\n+++ scripts/windows/verify-stack-comparison.ps1 (description corrected)\n@@ -372,7 +372,7 @@\n     performance_ranking = 'NOT_ASSERTED'\n     measurement_limits = @(\n         'Each candidate runs sequentially on the same CI runner with the same frozen engine; no randomized repeats or clean Windows 11 runs.',\n-        'Electron main_rss_bytes is Node process.memoryUsage().rss; renderer_working_set_kb is Electron getProcessMemoryInfo().workingSetSize.',\n+        'Electron main_rss_bytes is Node process.memoryUsage().rss; renderer_working_set_kb is Electron app.getAppMetrics(), matched to webContents.getOSProcessId(), then memory.workingSetSize.',\n         'Tauri native main_working_set_bytes and process_tree values are Win32 GetProcessMemoryInfo WorkingSetSize, captured immediately after three checks.',\n         'The separate Tauri WebView2 role snapshot uses Win32_Process identity plus .NET Process.WorkingSet64, shortly after the native report.',\n         'WebView2 browser, GPU and utility processes are retained separately. Shared memory may be double-counted by working-set sums; exited worker memory is absent.',\n"
+    },
+    {
+      "file": "spikes/tauri-comparison/README.ko.md",
+      "tested_source_sha256": "f7c567fecb878422361a7d268ffa3f03968e1f876a303506b876077f8625ba8e",
+      "corrected_source_sha256": "80276682db451f74755bac6448b622f4d80439acebfd9ba7ef9116568547e574",
+      "change_type": "description string only; measurement expressions, control flow, and acceptance conditions unchanged",
+      "diff": "--- spikes/tauri-comparison/README.ko.md (tested commit a20d3bef)\n+++ spikes/tauri-comparison/README.ko.md (description corrected)\n@@ -71,7 +71,7 @@\n | 관측값 | 시점·방법 | 비교할 때의 한계 |\n | --- | --- | --- |\n | Electron main RSS | 세 작업 후 Node `process.memoryUsage().rss` | Tauri native main과 셸 구조가 다름 |\n-| Electron renderer working set | 세 작업 후 Electron `getProcessMemoryInfo().workingSetSize` | KB 단위; 전체 Chromium process 합계가 아님 |\n+| Electron renderer working set | 세 작업 후 Electron `app.getAppMetrics()`에서 renderer PID를 찾아 `memory.workingSetSize` | KB 단위; 전체 Chromium process 합계가 아님 |\n | Tauri native main working set | 세 작업 후 Win32 `GetProcessMemoryInfo` | bytes 단위; WebView2는 별도 프로세스 |\n | Tauri process tree | 같은 native snapshot의 현재 자손 | 종료한 worker는 없고 공유 메모리는 중복 계상될 수 있음 |\n | WebView2 renderer/browser/GPU/utility | native report 직후, 화면 capture 전 `.NET Process.WorkingSet64` | native snapshot과 엄밀히 동시에 수집되지 않음; 각 역할을 구분해 보존 |\n"
+    }
+  ],
+  "corrected_description_powershell_ast": "PASS"
+}

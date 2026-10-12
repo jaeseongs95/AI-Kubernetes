@@ -1,0 +1,106 @@
+﻿{
+    "schema_version":  1,
+    "scope":  "Independent AIK foundation installer handoff verification",
+    "started_at":  "2026-10-12T08:54:55.1123454Z",
+    "status":  "PASS",
+    "evidence_directory":  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\AIK 전달 b79c44bd25b14df2b5da8c656d7044c1\\실제 실행 증거\\8d415a8070b94a67aa92effb29e24801",
+    "package_source_commit":  "4b948f57020f3e507683de6e538544b9bac558e7",
+    "observed_execution":  {
+                               "github_actions":  true,
+                               "github_sha":  "4b948f57020f3e507683de6e538544b9bac558e7",
+                               "github_run_id":  "38226204128",
+                               "github_run_attempt":  "1",
+                               "powershell_version":  "5.1.20348.5622",
+                               "powershell_edition":  "Desktop",
+                               "default_encoding_code_page":  1252,
+                               "default_encoding_web_name":  "Windows-1252",
+                               "culture":  "en-US",
+                               "ui_culture":  "en-US",
+                               "os_version":  "Microsoft Windows NT 10.0.20348.0",
+                               "platform":  "Win32NT",
+                               "process_architecture":  "AMD64",
+                               "is_64_bit_process":  true
+                           },
+    "checks":  {
+                   "package_member_hashes":  "PASS",
+                   "verifier_bom_conversion":  "PASS",
+                   "legacy_powershell_51":  "PASS",
+                   "delivered_script_parse":  "PASS",
+                   "installed_gui_worker_dpapi_uninstall":  "PASS",
+                   "installed_engine_identity":  "PASS",
+                   "installed_python_dll_identity":  "PASS",
+                   "actual_gui_evidence":  "PASS"
+               },
+    "qualification":  {
+                          "windows11_standard_user_clean_machine":  "NOT_RUN",
+                          "developer_tools_absence":  "NOT_RUN",
+                          "release_signing":  "NOT_RUN",
+                          "product_integration":  "NOT_RUN"
+                      },
+    "limits":  [
+                   "PASS applies to this package and the actual bounded foundation checks only.",
+                   "This is an unsigned development spike; the complete product is not implemented.",
+                   "An unsigned manifest verifies member consistency, not publisher authenticity.",
+                   "Observed Windows and user properties do not prove a clean machine or absent developer tools.",
+                   "A Server administrator CI execution does not qualify Windows 11 standard-user support.",
+                   "GitHub identity variables are inherited as observed; local execution does not synthesize them."
+               ],
+    "manifest_sha256":  "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+    "legacy_script_parse":  {
+                                "original":  {
+                                                 "status":  "FAIL",
+                                                 "error_count":  2,
+                                                 "errors":  [
+                                                                {
+                                                                    "id":  "UnexpectedToken",
+                                                                    "message":  "Unexpected token \u0027PYTHONHOME\u0027, \u0027PYTHONPATH\u0027, \u0027NODE_OPTIONS\u0027, \u0027ELECTRON_RUN_AS_NODE\u0027)) {\r\n        $StartInfo.EnvironmentVariables.Remove($VariableName)\r\n    }\r\n    $Result.child_environment = [ordered]@{\r\n        path = $StartInfo.EnvironmentVariables[\u0027PATH\u0027]\r\n        pythonhome_removed = $true\r\n        pythonpath_removed = $true\r\n        node_options_removed = $true\r\n        electron_run_as_node_removed = $true\r\n        working_directory_outside_source_tree = $true\r\n        installed_tooling_absence = \u0027NOT_RUN\u0027\r\n    }\r\n    $ApplicationProcess = New-Object Diagnostics.Process\r\n    $ApplicationProcess.StartInfo = $StartInfo\r\n    if (-not $ApplicationProcess.Start()) { throw \u0027The\u0027 in expression or statement.",
+                                                                    "start_line":  152
+                                                                },
+                                                                {
+                                                                    "id":  "TerminatorExpectedAtEndOfString",
+                                                                    "message":  "The string is missing the terminator: \u0027.",
+                                                                    "start_line":  259
+                                                                }
+                                                            ]
+                                             },
+                                "delivered_bom_copy":  {
+                                                           "status":  "PASS",
+                                                           "error_count":  0,
+                                                           "errors":  [
+
+                                                                      ]
+                                                       },
+                                "original_failure_required":  false
+                            },
+    "child_environment":  {
+                              "path":  "C:\\Windows\\System32;C:\\Windows",
+                              "powershell":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                              "external_python_and_node_path":  "EXCLUDED",
+                              "installed_tooling_absence":  "NOT_RUN",
+                              "execution_policy_scope":  "child process only; no persistent policy change or elevation"
+                          },
+    "verifier_pid":  6068,
+    "verifier_exit_code":  0,
+    "installed_report":  "installed-check/packaging/evidence/installed-spike.json",
+    "installed_report_sha256":  "55e471da0fa531306437c875cfd09c502008c028c8dbc7817134c04e8da6cd30",
+    "observed_windows_environment":  {
+                                         "platform":  "win32",
+                                         "architecture":  "AMD64",
+                                         "os_caption":  "Microsoft Windows Server 2022 Datacenter",
+                                         "os_version":  "10.0.20348",
+                                         "os_build":  "20348",
+                                         "os_product_type":  3,
+                                         "logical_processors":  2,
+                                         "memory_bytes":  8584425472,
+                                         "cpu_names":  [
+                                                           "AMD EPYC 7763 64-Core Processor                "
+                                                       ],
+                                         "administrator":  true,
+                                         "github_actions":  true,
+                                         "runner_image":  "win22",
+                                         "runner_image_version":  "20261004.326.1"
+                                     },
+    "screenshot":  "installed-check/packaging/evidence/screenshot.png",
+    "visual_review":  "NOT_RUN",
+    "completed_at":  "2026-10-12T08:55:25.9395867Z"
+}
