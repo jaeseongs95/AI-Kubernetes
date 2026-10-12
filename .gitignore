@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+.env
+.env.*
+!.env.example
+/runtime-data/
+/local-secrets/
+/dist/

@@ -7,9 +7,17 @@
 
 단순한 LLM API 라우터나 새로운 subagent 프레임워크가 아니다. **작업 계약 → 자원 탐색 → 배치 → 실행 → 결과 회수 → 검증 → 자원 반환**을 벤더와 실행 위치에 종속되지 않게 만드는 상위 제어 계층을 지향한다.
 
-> **상태: 최초 설계(Concept / Pre-implementation).** 이 저장소의 문서는 목표 아키텍처다. 모든 벤더 연동, 원격 PEER, 자동 확장, API/구독 연결이 현재 구현·지원·검증됐다는 의미가 아니다.
+> **상태: 설계·개발 태스크 수립(Pre-implementation).** 첫 제품은 **Windows GUI**로 제공한다. 멀티벤더 인증 관리와 **총괄 에이전트의 실행 모델 지정**을 필수 기능으로 구체화했다. 개발 장부는 작성됐으며 제품 기능의 구현·연동·출시 검증은 앞으로 진행한다.
 
-[최초 설계문서](docs/initial-design.ko.md) · [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite) · [VibeMarshal](https://github.com/jaeseongs95/vibemarshal)
+[개발 계획·검토](docs/development-plan.ko.md) · [전체 개발 태스크](docs/development-backlog.ko.md) · [SQLite 장부](planning/backlog.sqlite3) · [최초 설계문서](docs/initial-design.ko.md) · [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite) · [VibeMarshal](https://github.com/jaeseongs95/vibemarshal)
+
+## 첫 제품의 사용자 경험
+
+1. **멀티벤더 인증 공간:** GUI에서 여러 벤더 계정, API 키, 지원되는 구독 호스트를 연결·확인·교체·해제한다. 실제 비밀은 Windows 사용자 저장소 또는 공식 호스트 저장소가 보관하고 앱에는 비밀 참조만 노출한다.
+2. **총괄 에이전트 지정:** Dot처럼 목표를 받고 작업을 위임·회수·보고하는 총괄의 실행 자원, 모델, 지원 추론 수준과 대체 정책을 설정한다. 총괄과 worker/검토 역할의 프로필은 분리한다.
+3. **Windows GUI 운영:** 목표 입력부터 자원·worker 현황, 승인 범위, 결과·근거·비용, 일시정지와 재시작 복구까지 GUI로 제공한다. GUI 창과 실행 중인 총괄/worker의 수명은 구분한다.
+
+GUI 기술 스택, Windows 세부 지원 버전·CPU·설치 형식은 검증 태스크에서 결정한다. 기존 VibeMarshal의 GUI 자산과 EngineClient 계약을 재사용 후보로 검토한다.
 
 ## 왜 만드는가
 
@@ -93,13 +101,39 @@ VM과 AGS의 **현재 구현 상태는 각 원본 저장소 문서가 기준**�
 
 ## 최초 릴리스 목표
 
-- 동일 컴퓨터에서 서로 다른 **2종 이상의 실행 adapter**를 안전하게 등록하고 capability를 조회한다.
-- 단일 Goal의 독립 Task를 **VM 작업 계약에 따라** 배치하고, AGS/VM 검증을 거쳐 결과를 회수한다.
-- lease, 중복 실행 방지, 권한 경계, 중단·복구 이력을 기록한다.
-- **독립 클러스터 2개 간** PEER 연결·작업 위임·결과 회수를 실증한다.
-- 실제 지연·토큰·비용을 측정하여 병렬화의 이득과 비용을 분리해 보고한다.
+- Windows 설치본에서 여러 벤더의 API 및 지원 구독 호스트를 등록하고 시크릿 수명주기를 관리한다.
+- 사용자가 지정한 총괄 모델이 목표를 받아 **서로 다른 두 벤더의 qualified 자원**에 VM의 독립 Task를 배치한다.
+- AGS gate와 VM validation/verdict를 통과해 결과·근거·실제 모델·사용량을 회수한다.
+- 모든 핵심 작업을 GUI에서 수행하고 일시정지·취소·창 재열기·재시작 때 기존 실행을 복구한다.
+- 설치·업데이트·비밀 경계·장애 복구·독립 검토를 동일 배포 후보에서 검증한다.
 
-구체적인 단계, 데이터 계약, 실패 모델과 수용 기준은 [최초 설계문서](docs/initial-design.ko.md)에 있다.
+**개발 순서 제안:** 단일 클러스터 Windows 배포(M0~M4)를 먼저 검증한 뒤, **독립 클러스터 2개 간 PEER 연결·위임·결과 회수(M5)**로 확장한다. 연합은 핵심 제품 목표로 유지한다. 이 단계화는 장부의 `DEC06: proposed`로 기록했으며, 사용자가 확정한 Windows/GUI 요구와 구분한다.
+
+## 개발 장부
+
+`planning/backlog.sqlite3`가 개발 태스크 정본이다. 요구사항·출처·단계·우선순위·담당 구성요소·의존성·완료 기준·검증 방법·상태 이력·증거를 연결한다. **82개 태스크, 246개 완료 기준, 300개 의존성**을 등록했다. 초기 상태는 전부 `todo`다.
+
+| 단계 | 범위 | 태스크 |
+| --- | --- | ---: |
+| M0 | 통합 계약·Windows 기반 결정 | 8 |
+| M1 | 인증 보관·멀티벤더 연결 | 14 |
+| M2 | 총괄·AGS/VM 실행 통합과 upstream 준비 조건 | 24 |
+| M3 | Windows GUI 실제 연결 | 12 |
+| M4 | Windows 첫 배포 검증 | 8 |
+| M5 | 탄력 운영·원격 PEER 연합 | 11 |
+| M6 | 로컬 모델·추가 벤더·조직·배포 확장 | 5 |
+
+[전체 태스크와 완료 기준](docs/development-backlog.ko.md) · [Git에서 비교할 SQL 스냅샷](planning/backlog.sql)
+
+장부 도구는 Python 표준 라이브러리만 사용한다. 제품 런타임과 별개다.
+
+```bash
+python tools/backlog.py validate
+python tools/backlog.py list --ready
+python tools/backlog.py list --milestone M1
+```
+
+유지보수·복원·상태 변경 절차는 [개발 계획](docs/development-plan.ko.md#개발-장부-사용법)에 있다.
 
 ## 설계 범위와 비범위
 
@@ -109,7 +143,7 @@ VM과 AGS의 **현재 구현 상태는 각 원본 저장소 문서가 기준**�
 
 ## 프로젝트 상태
 
-**2026-10-12 · 초기 설계 v0.1.** README와 초기 아키텍처 문서부터 출발한다. 아직 이 저장소의 구현 결과, 테스트 통과, 다중 클러스터 운영 성공을 주장하지 않는다. 각 기존 프로젝트의 현재 통과 조건·호스트 제한은 해당 upstream 문서에 따른다.
+**2026-10-12 · 개발 계획 v0.2.** 최초 아키텍처를 검토하고 Windows GUI·인증 관리·총괄 모델 설정을 개발 태스크로 구체화했다. AGS/VM의 실제 설치형 호환성과 실행 관측은 선행 qualification 태스크로 추적한다. 장부 검증 통과는 제품 또는 upstream 실행 검증 통과를 의미하지 않는다.
 
 ## 라이선스
 

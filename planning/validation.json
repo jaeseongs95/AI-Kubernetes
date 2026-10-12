@@ -1,0 +1,87 @@
+{
+  "baseline_commit": "0367932ce2fa9369a3420a4867283167ea319188",
+  "counts": {
+    "tasks": 82,
+    "requirements": 17,
+    "acceptance_criteria": 246,
+    "task_dependencies": 300,
+    "decisions": 12,
+    "sources": 12,
+    "task_events": 104,
+    "task_evidence": 0
+  },
+  "checks": {
+    "sqlite_integrity_check": "ok",
+    "foreign_keys": 0,
+    "sql_restore_all_schema_and_rows_equal": true,
+    "user_version_preserved": 1,
+    "markdown_task_and_criteria_coverage": true,
+    "relative_document_links_valid": true,
+    "python_syntax_valid": true,
+    "product_and_upstream_execution": "NOT_RUN: development planning only"
+  },
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 69,
+      "sha256": "c9bf8b13489af50797df473551d612f75d0e81ae01c2eeb41544083ff2aa434d",
+      "git_blob_sha1": "d07cc8c1a57ccfdc303a86b9eef9bc15947fcda1"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 133,
+      "sha256": "0ef896c89188cb4fcc7ec7697fd1d5f9bfdd6d3e2ae021c8d478cef733c6b363",
+      "git_blob_sha1": "08ecd8d761200e79d461b00a90ba96994fdc8e26"
+    },
+    {
+      "path": "README.md",
+      "bytes": 12304,
+      "sha256": "f29f6d731afaa848b4c6711df0a8f89f305eb663d2af63894c86d2f132573006",
+      "git_blob_sha1": "1b8ed5129ffd8bef87f7bb5ef169bf8f91867226"
+    },
+    {
+      "path": "docs/development-backlog.ko.md",
+      "bytes": 149750,
+      "sha256": "bc612bfd71edb03aec8089be5c2e92b62b4605d8d320eeefda5d56032c0cf1c7",
+      "git_blob_sha1": "1489db8ce1c0d4618cc01cf66dff2acddc0baadc"
+    },
+    {
+      "path": "docs/development-plan.ko.md",
+      "bytes": 20026,
+      "sha256": "ee07fbebf574688c26e604683d186ab9ba288da90905416eade0d981c7c969d7",
+      "git_blob_sha1": "1d91134d3bbb0449c49cf72d0b00311513100dc3"
+    },
+    {
+      "path": "docs/initial-design.ko.md",
+      "bytes": 26238,
+      "sha256": "c43fe4e5cd55d36522f8ddfccdf8e6802453e57a18f55a624398b78fe87d04e5",
+      "git_blob_sha1": "d956f89c614b523b3cac93fdc2a3caba417415c5"
+    },
+    {
+      "path": "planning/backlog.sql",
+      "bytes": 168140,
+      "sha256": "50dd0d24d72ca19fc09a717ab63fb5f90bb2e87352624163ddb86575c6511742",
+      "git_blob_sha1": "84ad02fb9e791ce314530bf03996e063a66b8d64"
+    },
+    {
+      "path": "planning/backlog.sqlite3",
+      "bytes": 303104,
+      "sha256": "cc4430a19c627c9d05c7747cebb056ab317b8307c696d48fdc55bad1ec986af5",
+      "git_blob_sha1": "2ebf9c41c420fa02975d0a22a64f29e3f10f2c86"
+    },
+    {
+      "path": "planning/schema.sql",
+      "bytes": 7269,
+      "sha256": "443231b61dc7edc762720b80972755b74f48cf92e3f3021152a1ae89eb6e9ae8",
+      "git_blob_sha1": "18b340d3420c809c3b8643654e083e77bad6f222"
+    },
+    {
+      "path": "tools/backlog.py",
+      "bytes": 31556,
+      "sha256": "319d89882210e42f7569d53c0191c9877d481be56703b27fb9e28d10b13362db",
+      "git_blob_sha1": "795b986dcc21035fb153c028d8bdd0c629b211e9"
+    }
+  ],
+  "validated_at": "2026-10-12T05:44:56Z",
+  "validation_scope": "Initial development planning change; hashes of the other delivered files at validation time."
+}

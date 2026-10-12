@@ -6,6 +6,8 @@
 - **구현 상태:** 설계 단계. 문서의 계약·상태·API 예시는 제안이며, 현재 동작하는 구현을 의미하지 않는다.
 - **기반 프로젝트:** [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite), [VibeMarshal](https://github.com/jaeseongs95/vibemarshal)
 
+> **2026-10-12 후속 개발 계획:** 이 문서는 최초 아키텍처 v0.1 기록이다. 이후 사용자가 **멀티벤더 인증 관리 공간, 총괄 에이전트 모델 지정, Windows GUI 첫 출시**를 확정했다. 최신 작업 범위와 완료 기준은 [개발 계획 v0.2](development-plan.ko.md), [SQLite 장부](../planning/backlog.sqlite3), [전체 태스크](development-backlog.ko.md)를 기준으로 한다. 아래 §13의 최초 마일스톤·두 클러스터 E2E는 원안이며, 현재 장부는 단일 Windows 클러스터 E2E와 후속 연합 E2E를 구분하는 순서를 `DEC06: proposed`로 제시한다. VM/AGS의 책임 경계와 연합 비전은 유지한다.
+
 ## 1. 문제 정의와 비전
 
 AI 에이전트 사용자가 이미 확보한 컴퓨팅 자원은 벤더·인증·실행 호스트마다 분리돼 있다. 구독형 CLI/Cloud 세션, 사용량 기반 API, 로컬 LLM, 원격 컴퓨터의 에이전트는 서로 다른 생명주기와 권한을 갖는다. 이들을 수동으로 연결하면 작업 수가 늘수록 다음 문제가 발생한다.
