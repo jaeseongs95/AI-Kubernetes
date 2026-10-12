@@ -1,0 +1,1101 @@
+{
+  "schema_version": 1,
+  "record_type": "actual_product_validation_preflight",
+  "recorded_at_utc": "2026-10-12T07:18:08.023504Z",
+  "requested_work": "실제 검증까지 진행해줘.",
+  "target": {
+    "repository": "jaeseongs95/AI-Kubernetes",
+    "branch": "main",
+    "commit": "641d99d93169db182fc7c4f66f377ffb146a5067",
+    "tree": "115d58dbd28f74440b521de434b6f8109f50a7a5",
+    "database_sha256": "e17ac9d22f6cca6ebb0341d6b14cd9a3677c97ff17fec4ddc95b7c5485410df0"
+  },
+  "decision": {
+    "preflight": "BLOCKED",
+    "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+    "primary_blocker": "확인한 저장소에는 AI-Kubernetes 제품 구현, 빌드 진입점, Windows 설치본이 없다.",
+    "actual_product_validation": "NOT_RUN",
+    "product_scenario_executions": 0,
+    "product_scenarios_passed": 0,
+    "product_scenarios_failed": 0,
+    "release_readiness": "NO_GO_MISSING_IMPLEMENTATION_AND_EVIDENCE",
+    "meaning": "실행 대상 조사에서 중단됐다. 실제 제품 실행의 PASS 또는 FAIL을 관측한 결과가 아니다."
+  },
+  "executed_checks": [
+    {
+      "id": "RVP-01",
+      "kind": "remote_repository_discovery",
+      "result": "OBSERVED",
+      "evidence": "repository_queries"
+    },
+    {
+      "id": "RVP-02",
+      "kind": "current_remote_tree_vs_local_full_file_hashes",
+      "result": "MATCH",
+      "file_count": 17,
+      "evidence": "source_manifest"
+    },
+    {
+      "id": "RVP-03",
+      "kind": "read_only_sqlite_integrity_and_status_queries",
+      "result": "OBSERVED",
+      "evidence": "backlog"
+    },
+    {
+      "id": "RVP-04",
+      "kind": "transitive_runtime_prerequisite_calculation",
+      "result": "ALL_PREREQUISITES_TODO",
+      "evidence": "runtime_routes"
+    },
+    {
+      "id": "RVP-05",
+      "kind": "local_os_and_command_presence",
+      "result": "OBSERVED",
+      "evidence": "execution_environment"
+    }
+  ],
+  "repository_queries": [
+    {
+      "kind": "main",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/branches/main",
+      "method": "GET",
+      "status": "OBSERVED",
+      "response": {
+        "name": "main",
+        "commit_sha": "641d99d93169db182fc7c4f66f377ffb146a5067",
+        "tree_sha": "115d58dbd28f74440b521de434b6f8109f50a7a5",
+        "commit_url": "https://github.com/jaeseongs95/AI-Kubernetes/commit/641d99d93169db182fc7c4f66f377ffb146a5067"
+      }
+    },
+    {
+      "kind": "branches",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/branches?per_page=100&page=1",
+      "method": "GET",
+      "status": "OBSERVED",
+      "response": [
+        {
+          "name": "main",
+          "commit": {
+            "sha": "641d99d93169db182fc7c4f66f377ffb146a5067",
+            "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/commits/641d99d93169db182fc7c4f66f377ffb146a5067"
+          },
+          "protected": false
+        }
+      ]
+    },
+    {
+      "kind": "tags",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/tags?per_page=100&page=1",
+      "method": "GET",
+      "status": "UNSUPPORTED_ENDPOINT",
+      "response": {
+        "error": "HTTPError: 400: GitHub Fetch URL is not an allowed public GitHub repository or search endpoint. (Response: None)",
+        "error_code": "INVALID_ARGUMENT"
+      }
+    },
+    {
+      "kind": "tag_refs",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/git/matching-refs/tags/",
+      "method": "GET",
+      "status": "OBSERVED",
+      "response": []
+    },
+    {
+      "kind": "releases",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/releases?per_page=100&page=1",
+      "method": "GET",
+      "status": "OBSERVED",
+      "response": []
+    },
+    {
+      "kind": "workflows",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/actions/workflows?per_page=100&page=1",
+      "method": "GET",
+      "status": "UNSUPPORTED_ENDPOINT",
+      "response": {
+        "error": "HTTPError: 400: GitHub Fetch URL is not an allowed public GitHub repository or search endpoint. (Response: None)",
+        "error_code": "INVALID_ARGUMENT"
+      }
+    },
+    {
+      "kind": "runs",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/actions/runs?per_page=100&page=1",
+      "method": "GET",
+      "status": "OBSERVED",
+      "response": {
+        "total_count": 0,
+        "workflow_runs": []
+      }
+    },
+    {
+      "kind": "artifacts",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/actions/artifacts?per_page=100&page=1",
+      "method": "GET",
+      "status": "UNSUPPORTED_ENDPOINT",
+      "response": {
+        "error": "HTTPError: 400: GitHub Fetch URL is not an allowed public GitHub repository or search endpoint. (Response: None)",
+        "error_code": "INVALID_ARGUMENT"
+      }
+    },
+    {
+      "kind": "recursive_tree",
+      "url": "https://api.github.com/repos/jaeseongs95/AI-Kubernetes/git/trees/115d58dbd28f74440b521de434b6f8109f50a7a5?recursive=1",
+      "method": "GET",
+      "status": "OBSERVED",
+      "response": {
+        "sha": "115d58dbd28f74440b521de434b6f8109f50a7a5",
+        "truncated": false,
+        "blob_count": 17
+      }
+    }
+  ],
+  "source_manifest": [
+    {
+      "path": ".gitattributes",
+      "bytes": 69,
+      "sha256": "c9bf8b13489af50797df473551d612f75d0e81ae01c2eeb41544083ff2aa434d",
+      "git_blob_sha1": "d07cc8c1a57ccfdc303a86b9eef9bc15947fcda1",
+      "matches_remote_tree": true
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 152,
+      "sha256": "6994a96871e3ca8953f67155044df8a9bf674be40bd46b8bce4d2e304b0d2bb8",
+      "git_blob_sha1": "edf71c93007fbe3f0b6eeb378986f11edb758909",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "README.md",
+      "bytes": 14392,
+      "sha256": "5f799da74a50a8e95553cda6501229e53c3b5509852a3d3ac534de8e0ef4972c",
+      "git_blob_sha1": "813391119952a9df5477cdfb8d0889e0509de7fb",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "docs/audit-2026-10-12.ko.md",
+      "bytes": 16444,
+      "sha256": "8b90535641a13bf887b0f4c49ac39807baf95a145d708424eb87693e90268e76",
+      "git_blob_sha1": "6b23b6bb369bd4ea8daeaaa160537a857b559530",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "docs/development-backlog.ko.md",
+      "bytes": 219569,
+      "sha256": "8e7fd3a2778c6810aa68f178e019e1b361b90ddf2f1496e0ec0ff2b16db0f119",
+      "git_blob_sha1": "00072205fd9e5394ddf8c3a89f3cb514e8a59c23",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "docs/development-plan.ko.md",
+      "bytes": 31812,
+      "sha256": "96f28fab244722a10cf738af8fd48729c768548b08792a19a93cd33fe095c345",
+      "git_blob_sha1": "a942e4230ffae953cbfc90ae554d2362dd8e459b",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "docs/initial-design.ko.md",
+      "bytes": 26238,
+      "sha256": "efeb58532363fb549a78a4646c2434b9794cfb28ae38ae1d823482e27c93e0f6",
+      "git_blob_sha1": "90f16664056ca1f2396021905a85bccd012f0899",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "docs/product-completeness.ko.md",
+      "bytes": 25387,
+      "sha256": "0098972faf4e41189fa82dcad988a92b36089b78e7c8af5a3df37f47818282cb",
+      "git_blob_sha1": "fa90e15f49f159fb172563c3310d7a5f9936deaa",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "planning/backlog.sql",
+      "bytes": 280688,
+      "sha256": "29c22ab9febea5e39f74804f509cedafd648a52bf446f920d9b24e6efd39a29f",
+      "git_blob_sha1": "4ffa95131f8219591855ac84dd1e6d3e310177d8",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "planning/backlog.sqlite3",
+      "bytes": 462848,
+      "sha256": "e17ac9d22f6cca6ebb0341d6b14cd9a3677c97ff17fec4ddc95b7c5485410df0",
+      "git_blob_sha1": "553dde094d98714155c9661c4a4cd3a7b3aec61a",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "planning/schema.sql",
+      "bytes": 7294,
+      "sha256": "309baad9bb951d909e834cbe5909e0b26ddfb4dfec81ecfedc897ef905cabd6a",
+      "git_blob_sha1": "6405d71b5ea2aea858053f267d8324c1580f5c46",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "planning/validation.json",
+      "bytes": 28070,
+      "sha256": "c6a8221cb68b40e83f6afb30a7091dba6a4c054e5f143d2a77996f6c59b841a5",
+      "git_blob_sha1": "be5835a31ca5d779d0ab385a599a45522c885617",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "tests/test_backlog_io.py",
+      "bytes": 16539,
+      "sha256": "f7aba2815625b4550280ee757980bf676f53ef97630979f7073e48f4619afc56",
+      "git_blob_sha1": "4f447c320d04fb8dc16f444693839bce7d009f9d",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "tests/test_backlog_paths.py",
+      "bytes": 6082,
+      "sha256": "b2d93ed531171f2cc20e56faec2a64f5f6fbd2ed41ebaf2d9ccd5a8109cf1289",
+      "git_blob_sha1": "8cf1aa992c4b5de697571ecd8ecb86260b5959be",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "tests/test_backlog_validation.py",
+      "bytes": 11456,
+      "sha256": "f71510c7b69cca799e8f8637aceaa56088840eb81fd22201332132f14160875b",
+      "git_blob_sha1": "37368f6e2153501b70fc2a97ba51150d0aaa17ed",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "tests/test_product_plan.py",
+      "bytes": 11189,
+      "sha256": "0592bd16d95e6740b7bb094f23b4a2a0c148b4e2e3c3efb262f4c2e96f53a7b8",
+      "git_blob_sha1": "1bcac3317e33466ae60497ad35978c662885d506",
+      "matches_remote_tree": true
+    },
+    {
+      "path": "tools/backlog.py",
+      "bytes": 46040,
+      "sha256": "ed8ebad9ecfc1e7063b91e235b30a066b171b9db2ecb360f30c095ed2dedee8a",
+      "git_blob_sha1": "49d52cf8f8552483e1918c3c66320cd476769a89",
+      "matches_remote_tree": true
+    }
+  ],
+  "product_inventory": {
+    "scope": "확인한 유일한 main 브랜치의 전체 Git tree, tag refs, Releases 및 Actions runs",
+    "application_sources": [],
+    "product_build_entrypoints": [],
+    "windows_installers": [],
+    "current_commit_workflow_sources": [],
+    "python_sources": [
+      "tests/test_backlog_io.py",
+      "tests/test_backlog_paths.py",
+      "tests/test_backlog_validation.py",
+      "tests/test_product_plan.py",
+      "tools/backlog.py"
+    ],
+    "python_source_role": "장부 유지보수 CLI와 장부·계획 검증 시험",
+    "readme_state": "Pre-implementation",
+    "branches": [
+      "main"
+    ],
+    "tag_ref_count": 0,
+    "release_count": 0,
+    "actions_run_count": 0,
+    "workflows_api_count": null,
+    "artifacts_api_count": null,
+    "unsupported_api_note": "저장소 전체 workflows/artifacts 목록 API가 지원되지 않아 API 개수를 0으로 단정하지 않는다. 현재 커밋의 workflow 소스는 전체 tree에서 없음으로 확인했다."
+  },
+  "backlog": {
+    "database_open_mode": "ro",
+    "database_sha256_before": "e17ac9d22f6cca6ebb0341d6b14cd9a3677c97ff17fec4ddc95b7c5485410df0",
+    "database_sha256_after": "e17ac9d22f6cca6ebb0341d6b14cd9a3677c97ff17fec4ddc95b7c5485410df0",
+    "queries": [
+      {
+        "sql": "PRAGMA integrity_check",
+        "rows": [
+          {
+            "integrity_check": "ok"
+          }
+        ]
+      },
+      {
+        "sql": "PRAGMA foreign_key_check",
+        "rows": []
+      },
+      {
+        "sql": "SELECT status, count(*) AS count FROM tasks GROUP BY status",
+        "rows": [
+          {
+            "status": "todo",
+            "count": 90
+          }
+        ]
+      },
+      {
+        "sql": "SELECT count(*) AS count FROM task_evidence",
+        "rows": [
+          {
+            "count": 0
+          }
+        ]
+      }
+    ],
+    "ready_tasks_by_dependency_graph": [
+      {
+        "id": "AIK-001",
+        "title": "AGS·VM 책임·설치형 인터페이스 기준선 확정",
+        "status": "todo",
+        "sequence": 1
+      },
+      {
+        "id": "AIK-002",
+        "title": "Windows GUI 스택과 엔진 sidecar 검증",
+        "status": "todo",
+        "sequence": 2
+      },
+      {
+        "id": "AIK-003",
+        "title": "Windows 지원 환경·설치·서명 방식 결정",
+        "status": "todo",
+        "sequence": 3
+      }
+    ],
+    "status_mutations": [],
+    "completion_evidence_insertions": [],
+    "new_tasks_created": 0,
+    "interpretation": "제품 선행 태스크가 모두 todo이므로 검사 기록을 제품 완료 근거로 추가하지 않았다."
+  },
+  "runtime_routes": [
+    {
+      "task_id": "AIK-008",
+      "name": "설치형 AGS/VM 진단",
+      "status": "NOT_RUN",
+      "needed_target": "고정 provenance의 실제 AGS plugin과 VM 설치 패키지, 공개 conformance/manifest 호출 및 AIK 진단 command",
+      "current_target_observation": "저장소에는 진단 명세만 있고 설치형 통합 진단 실행 코드·배포물·receipt가 없다.",
+      "unmet_direct_dependencies": [
+        "AIK-001",
+        "AIK-083"
+      ],
+      "all_predecessors": [
+        "AIK-001",
+        "AIK-002",
+        "AIK-003",
+        "AIK-083"
+      ],
+      "predecessor_count": 4,
+      "all_predecessors_todo": true
+    },
+    {
+      "task_id": "AIK-082",
+      "name": "실제 provider 최소 probe",
+      "status": "NOT_RUN",
+      "needed_target": "고정 지원 matrix, 구현된 API/native adapter, 사용자가 연결한 계정 참조, 실제 provider network와 관측 receipt",
+      "current_target_observation": "API/native adapter 구현과 계정 binding 코드가 없다. 계정·외부 접근 가능성은 이 검사에서 확인하지 않았다.",
+      "unmet_direct_dependencies": [
+        "AIK-008",
+        "AIK-012",
+        "AIK-013",
+        "AIK-014",
+        "AIK-015",
+        "AIK-020"
+      ],
+      "all_predecessors": [
+        "AIK-001",
+        "AIK-002",
+        "AIK-003",
+        "AIK-083",
+        "AIK-004",
+        "AIK-005",
+        "AIK-007",
+        "AIK-008",
+        "AIK-009",
+        "AIK-010",
+        "AIK-011",
+        "AIK-012",
+        "AIK-013",
+        "AIK-014",
+        "AIK-015",
+        "AIK-016",
+        "AIK-019",
+        "AIK-020"
+      ],
+      "predecessor_count": 18,
+      "all_predecessors_todo": true
+    },
+    {
+      "task_id": "AIK-086",
+      "name": "설치형 운영 적합성 검증",
+      "status": "NOT_RUN",
+      "needed_target": "실제 AIK runtime dispatch·workspace·tool loop·lease·관측/복구와 VM/AGS 설치물, 필수 runtime/역할 matrix, 시험용 계정 binding",
+      "current_target_observation": "실행할 AIK 통합 패키지나 product entrypoint가 없다. manifest/receipt는 태스크 산출물 명세만 존재한다.",
+      "unmet_direct_dependencies": [
+        "AIK-022",
+        "AIK-024",
+        "AIK-028",
+        "AIK-031",
+        "AIK-032",
+        "AIK-035",
+        "AIK-036",
+        "AIK-039",
+        "AIK-040",
+        "AIK-081",
+        "AIK-082",
+        "AIK-084",
+        "AIK-085"
+      ],
+      "all_predecessors": [
+        "AIK-001",
+        "AIK-002",
+        "AIK-003",
+        "AIK-083",
+        "AIK-004",
+        "AIK-005",
+        "AIK-006",
+        "AIK-007",
+        "AIK-008",
+        "AIK-009",
+        "AIK-010",
+        "AIK-011",
+        "AIK-012",
+        "AIK-013",
+        "AIK-014",
+        "AIK-015",
+        "AIK-016",
+        "AIK-017",
+        "AIK-018",
+        "AIK-019",
+        "AIK-020",
+        "AIK-021",
+        "AIK-022",
+        "AIK-023",
+        "AIK-024",
+        "AIK-025",
+        "AIK-031",
+        "AIK-084",
+        "AIK-029",
+        "AIK-085",
+        "AIK-026",
+        "AIK-027",
+        "AIK-028",
+        "AIK-040",
+        "AIK-081",
+        "AIK-082",
+        "AIK-032",
+        "AIK-033",
+        "AIK-034",
+        "AIK-035",
+        "AIK-036",
+        "AIK-037",
+        "AIK-038",
+        "AIK-039"
+      ],
+      "predecessor_count": 44,
+      "all_predecessors_todo": true
+    },
+    {
+      "task_id": "AIK-044",
+      "name": "두 벤더 의존 개발 작업 E2E",
+      "status": "NOT_RUN",
+      "needed_target": "086을 통과한 설치형 통합 패키지, 실제 총괄과 두 벤더 계정, 임시 사용자 프로젝트, worker가 수정할 수 없는 사전 oracle",
+      "current_target_observation": "통합 패키지·총괄·provider adapter·작업 실행 루프가 없다.",
+      "unmet_direct_dependencies": [
+        "AIK-022",
+        "AIK-026",
+        "AIK-027",
+        "AIK-028",
+        "AIK-030",
+        "AIK-038",
+        "AIK-039",
+        "AIK-040",
+        "AIK-041",
+        "AIK-042",
+        "AIK-043",
+        "AIK-086"
+      ],
+      "all_predecessors": [
+        "AIK-001",
+        "AIK-002",
+        "AIK-003",
+        "AIK-083",
+        "AIK-004",
+        "AIK-005",
+        "AIK-006",
+        "AIK-007",
+        "AIK-008",
+        "AIK-009",
+        "AIK-010",
+        "AIK-011",
+        "AIK-012",
+        "AIK-013",
+        "AIK-014",
+        "AIK-015",
+        "AIK-016",
+        "AIK-017",
+        "AIK-018",
+        "AIK-019",
+        "AIK-020",
+        "AIK-021",
+        "AIK-022",
+        "AIK-023",
+        "AIK-024",
+        "AIK-025",
+        "AIK-031",
+        "AIK-084",
+        "AIK-029",
+        "AIK-085",
+        "AIK-026",
+        "AIK-027",
+        "AIK-028",
+        "AIK-040",
+        "AIK-081",
+        "AIK-082",
+        "AIK-032",
+        "AIK-030",
+        "AIK-033",
+        "AIK-034",
+        "AIK-035",
+        "AIK-036",
+        "AIK-037",
+        "AIK-038",
+        "AIK-039",
+        "AIK-086",
+        "AIK-041",
+        "AIK-042",
+        "AIK-043"
+      ],
+      "predecessor_count": 49,
+      "all_predecessors_todo": true
+    },
+    {
+      "task_id": "AIK-059",
+      "name": "Windows GUI 설치본 E2E",
+      "status": "NOT_RUN",
+      "needed_target": "동일 hash의 Windows installer/runtime manifest, 깨끗한 지원 Windows 사용자 환경, GUI·vault·account/model 연결과 유지보수 복구 경로",
+      "current_target_observation": "Windows GUI 소스·설치본·runtime bundle·support matrix 확정본이 없다.",
+      "unmet_direct_dependencies": [
+        "AIK-057",
+        "AIK-058",
+        "AIK-088"
+      ],
+      "all_predecessors": [
+        "AIK-001",
+        "AIK-002",
+        "AIK-003",
+        "AIK-083",
+        "AIK-004",
+        "AIK-005",
+        "AIK-006",
+        "AIK-007",
+        "AIK-008",
+        "AIK-009",
+        "AIK-010",
+        "AIK-011",
+        "AIK-012",
+        "AIK-013",
+        "AIK-014",
+        "AIK-015",
+        "AIK-016",
+        "AIK-017",
+        "AIK-018",
+        "AIK-019",
+        "AIK-020",
+        "AIK-021",
+        "AIK-022",
+        "AIK-023",
+        "AIK-024",
+        "AIK-025",
+        "AIK-031",
+        "AIK-084",
+        "AIK-029",
+        "AIK-085",
+        "AIK-026",
+        "AIK-027",
+        "AIK-028",
+        "AIK-040",
+        "AIK-081",
+        "AIK-082",
+        "AIK-032",
+        "AIK-030",
+        "AIK-033",
+        "AIK-034",
+        "AIK-035",
+        "AIK-036",
+        "AIK-037",
+        "AIK-038",
+        "AIK-039",
+        "AIK-086",
+        "AIK-041",
+        "AIK-042",
+        "AIK-043",
+        "AIK-044",
+        "AIK-045",
+        "AIK-087",
+        "AIK-046",
+        "AIK-047",
+        "AIK-048",
+        "AIK-049",
+        "AIK-050",
+        "AIK-051",
+        "AIK-052",
+        "AIK-053",
+        "AIK-054",
+        "AIK-055",
+        "AIK-056",
+        "AIK-057",
+        "AIK-058",
+        "AIK-088"
+      ],
+      "predecessor_count": 66,
+      "all_predecessors_todo": true
+    },
+    {
+      "task_id": "AIK-064",
+      "name": "첫 Windows 출시 실제 판정",
+      "status": "NOT_RUN",
+      "needed_target": "P01~P10 및 장애·비밀·성능·독립 검토를 같은 Windows 배포 후보에서 실행한 근거",
+      "current_target_observation": "제품 구현·실행·배포 후보 및 제품 완료 근거가 없어 출시 판정은 NO_GO다. 이는 실행한 기능 시험의 FAIL과 다르다.",
+      "unmet_direct_dependencies": [
+        "AIK-058",
+        "AIK-059",
+        "AIK-060",
+        "AIK-061",
+        "AIK-062",
+        "AIK-063",
+        "AIK-083",
+        "AIK-087",
+        "AIK-088"
+      ],
+      "all_predecessors": [
+        "AIK-001",
+        "AIK-002",
+        "AIK-003",
+        "AIK-083",
+        "AIK-004",
+        "AIK-005",
+        "AIK-006",
+        "AIK-007",
+        "AIK-008",
+        "AIK-009",
+        "AIK-010",
+        "AIK-011",
+        "AIK-012",
+        "AIK-013",
+        "AIK-014",
+        "AIK-015",
+        "AIK-016",
+        "AIK-017",
+        "AIK-018",
+        "AIK-019",
+        "AIK-020",
+        "AIK-021",
+        "AIK-022",
+        "AIK-023",
+        "AIK-024",
+        "AIK-025",
+        "AIK-031",
+        "AIK-084",
+        "AIK-029",
+        "AIK-085",
+        "AIK-026",
+        "AIK-027",
+        "AIK-028",
+        "AIK-040",
+        "AIK-081",
+        "AIK-082",
+        "AIK-032",
+        "AIK-030",
+        "AIK-033",
+        "AIK-034",
+        "AIK-035",
+        "AIK-036",
+        "AIK-037",
+        "AIK-038",
+        "AIK-039",
+        "AIK-086",
+        "AIK-041",
+        "AIK-042",
+        "AIK-043",
+        "AIK-044",
+        "AIK-045",
+        "AIK-087",
+        "AIK-046",
+        "AIK-047",
+        "AIK-048",
+        "AIK-049",
+        "AIK-050",
+        "AIK-051",
+        "AIK-052",
+        "AIK-053",
+        "AIK-054",
+        "AIK-055",
+        "AIK-056",
+        "AIK-057",
+        "AIK-058",
+        "AIK-088",
+        "AIK-059",
+        "AIK-060",
+        "AIK-061",
+        "AIK-062",
+        "AIK-063"
+      ],
+      "predecessor_count": 71,
+      "all_predecessors_todo": true
+    }
+  ],
+  "first_windows_acceptance_journeys": [
+    {
+      "id": "P01",
+      "title": "설치 후 멀티벤더 인증의 전체 수명주기",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-003",
+        "AIK-083",
+        "AIK-010",
+        "AIK-012",
+        "AIK-013",
+        "AIK-014",
+        "AIK-015",
+        "AIK-019",
+        "AIK-022",
+        "AIK-086",
+        "AIK-046",
+        "AIK-047",
+        "AIK-057",
+        "AIK-059",
+        "AIK-063",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P02",
+      "title": "사용자 프로젝트 선택과 실제 실행 입력 결속",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-083",
+        "AIK-007",
+        "AIK-021",
+        "AIK-031",
+        "AIK-084",
+        "AIK-085",
+        "AIK-035",
+        "AIK-037",
+        "AIK-087",
+        "AIK-050",
+        "AIK-057",
+        "AIK-059",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P03",
+      "title": "총괄·개발·검토 모델 지정의 실효성",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-083",
+        "AIK-019",
+        "AIK-020",
+        "AIK-023",
+        "AIK-024",
+        "AIK-028",
+        "AIK-082",
+        "AIK-033",
+        "AIK-035",
+        "AIK-036",
+        "AIK-086",
+        "AIK-048",
+        "AIK-049",
+        "AIK-059",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P04",
+      "title": "RAW 목표에서 의존 작업·실제 수정·검증·재작업까지",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-083",
+        "AIK-025",
+        "AIK-031",
+        "AIK-084",
+        "AIK-029",
+        "AIK-085",
+        "AIK-026",
+        "AIK-027",
+        "AIK-030",
+        "AIK-033",
+        "AIK-035",
+        "AIK-037",
+        "AIK-086",
+        "AIK-042",
+        "AIK-044",
+        "AIK-087",
+        "AIK-050",
+        "AIK-053",
+        "AIK-054",
+        "AIK-059",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P05",
+      "title": "인가·비밀·사용량 한도를 지키는 실제 실행",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-083",
+        "AIK-004",
+        "AIK-009",
+        "AIK-017",
+        "AIK-018",
+        "AIK-020",
+        "AIK-022",
+        "AIK-029",
+        "AIK-085",
+        "AIK-040",
+        "AIK-034",
+        "AIK-035",
+        "AIK-086",
+        "AIK-053",
+        "AIK-055",
+        "AIK-060",
+        "AIK-061",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P06",
+      "title": "개별 도구 효과·취소·중단 이후의 안전한 회복",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-083",
+        "AIK-031",
+        "AIK-029",
+        "AIK-085",
+        "AIK-035",
+        "AIK-038",
+        "AIK-039",
+        "AIK-086",
+        "AIK-052",
+        "AIK-056",
+        "AIK-059",
+        "AIK-060",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P07",
+      "title": "완성 산출물의 사용자 인계와 보존",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-083",
+        "AIK-017",
+        "AIK-084",
+        "AIK-037",
+        "AIK-038",
+        "AIK-042",
+        "AIK-044",
+        "AIK-054",
+        "AIK-058",
+        "AIK-059",
+        "AIK-063",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P08",
+      "title": "GUI 감독의 연속성과 자원 반환",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-083",
+        "AIK-006",
+        "AIK-025",
+        "AIK-027",
+        "AIK-040",
+        "AIK-035",
+        "AIK-036",
+        "AIK-038",
+        "AIK-039",
+        "AIK-041",
+        "AIK-043",
+        "AIK-050",
+        "AIK-051",
+        "AIK-052",
+        "AIK-055",
+        "AIK-056",
+        "AIK-059",
+        "AIK-060",
+        "AIK-062",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P09",
+      "title": "GUI 유지보수와 일관된 제품 상태 복원",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-083",
+        "AIK-005",
+        "AIK-007",
+        "AIK-021",
+        "AIK-031",
+        "AIK-037",
+        "AIK-039",
+        "AIK-054",
+        "AIK-056",
+        "AIK-057",
+        "AIK-058",
+        "AIK-088",
+        "AIK-059",
+        "AIK-061",
+        "AIK-063",
+        "AIK-064"
+      ]
+    },
+    {
+      "id": "P10",
+      "title": "고정 Windows 설치본의 품질·지원·출시 판정",
+      "actual_execution_status": "NOT_RUN",
+      "reason_code": "PRODUCT_TARGET_NOT_IMPLEMENTED",
+      "mapped_task_ids": [
+        "AIK-002",
+        "AIK-003",
+        "AIK-083",
+        "AIK-045",
+        "AIK-057",
+        "AIK-058",
+        "AIK-088",
+        "AIK-059",
+        "AIK-060",
+        "AIK-061",
+        "AIK-062",
+        "AIK-063",
+        "AIK-064"
+      ]
+    }
+  ],
+  "existing_implementation_path": [
+    {
+      "stage": "현재 착수 가능",
+      "tasks": [
+        "AIK-001",
+        "AIK-002",
+        "AIK-003"
+      ],
+      "needed_work": "설치형 AGS/VM 실제 계약 확정, Windows GUI/sidecar/vault spike, 지원/설치 기준 결정. 이 중 실제 Windows spike는 실제 Windows 실행 환경이 필요하다."
+    },
+    {
+      "stage": "최초 실제 provider 관측",
+      "tasks": [
+        "AIK-083",
+        "AIK-004",
+        "AIK-005",
+        "AIK-007",
+        "AIK-008",
+        "AIK-009",
+        "AIK-010",
+        "AIK-011",
+        "AIK-012",
+        "AIK-013",
+        "AIK-014",
+        "AIK-015",
+        "AIK-016",
+        "AIK-019",
+        "AIK-020",
+        "AIK-082"
+      ],
+      "needed_work": "기존 선행 순서를 따라 제품 기반·인증/adapter·matrix를 구현한 뒤 실제 계정으로 082 최소 probe를 수행한다. probe는 운영 적합성 PASS가 아니다."
+    },
+    {
+      "stage": "실제 governed 실행",
+      "tasks": [
+        "AIK-081",
+        "AIK-031",
+        "AIK-032",
+        "AIK-084",
+        "AIK-085",
+        "AIK-029",
+        "AIK-033",
+        "AIK-034",
+        "AIK-035",
+        "AIK-036",
+        "AIK-039",
+        "AIK-086"
+      ],
+      "needed_work": "호환 upstream artifact와 AIK 연결·개발 도구·lease·effect/관측·복구를 구현해 086을 실제 실행한다. 나열한 번호는 압축된 역할 체인이고 정확한 전이 선행 집합은 runtime_routes[].all_predecessors를 따른다."
+    },
+    {
+      "stage": "실제 완성품 여정",
+      "tasks": [
+        "AIK-044",
+        "AIK-045",
+        "AIK-046",
+        "AIK-047",
+        "AIK-048",
+        "AIK-049",
+        "AIK-050",
+        "AIK-051",
+        "AIK-052",
+        "AIK-053",
+        "AIK-054",
+        "AIK-055",
+        "AIK-056",
+        "AIK-087",
+        "AIK-057",
+        "AIK-058",
+        "AIK-088",
+        "AIK-059",
+        "AIK-060",
+        "AIK-061",
+        "AIK-062",
+        "AIK-063",
+        "AIK-064"
+      ],
+      "needed_work": "086 통과 경로의 A/B→C 실제 개발 목표 뒤 GUI/배포/복구를 구현하고 같은 설치본에서 P01~P10을 실행한다."
+    }
+  ],
+  "execution_environment": {
+    "os": "Linux",
+    "kernel": "6.18.44",
+    "architecture": "x86_64",
+    "python": "3.12.14",
+    "command_presence": {
+      "git": true,
+      "node": true,
+      "npm": true,
+      "cargo": false,
+      "rustc": false,
+      "pwsh": false,
+      "powershell": false,
+      "wine": false,
+      "docker": false,
+      "gh": false,
+      "codex": false,
+      "claude": false
+    },
+    "native_windows_product_execution": false,
+    "interpretation": "추후 실제 Windows 설치본 시험에는 Windows 실행 환경도 필요하다. 이번 검사의 첫 차단 원인은 제품 구현 부재다."
+  },
+  "account_readiness": {
+    "status": "UNKNOWN_NOT_INSPECTED",
+    "statement": "사용자의 연결 계정/시크릿 존재 여부를 검사하지 않았고 없다고 단정하지 않는다. 실제 probe 전에 제품의 credential broker를 통해 계정 참조를 연결해야 한다."
+  },
+  "upstream_execution": {
+    "status": "NOT_RUN",
+    "scope_note": "AGS/VM 최신 버전 또는 독립 제품의 실행 상태를 이 결과로 판단하지 않는다."
+  },
+  "historical_backlog_regressions": {
+    "source": "planning/validation.json",
+    "source_commit": "641d99d93169db182fc7c4f66f377ffb146a5067",
+    "recorded_at_utc": "2026-10-12T06:58:29Z",
+    "scope": "Linux 장부 도구와 개발 계획 구조",
+    "total": 65,
+    "passed": 65,
+    "new_run_in_this_validation": false,
+    "counts_toward_product_execution": false
+  },
+  "limits": [
+    "저장소 밖의 미게시 구현·개인 Windows PC 파일은 이 조사 범위에 포함되지 않는다.",
+    "사용자 계정과 시크릿은 검사하지 않았으므로 준비 여부는 미확인이다.",
+    "최신 upstream 제품을 import·실행·시험하지 않았다.",
+    "Windows GUI, vault, 실제 모델 선택·호출, 도구 효과, 복구, 설치/업데이트 시나리오는 전부 NOT_RUN이다.",
+    "이 기록은 계획을 구현하면 완제품이 나온다는 실증이나 제품 출시 승인으로 사용할 수 없다."
+  ]
+}
