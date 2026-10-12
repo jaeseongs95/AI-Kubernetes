@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-12T12:22:34Z`
+- 수정일 (UTC): `2026-10-12T12:53:57Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 87개 · 진행 중 0개 · 진행 차단 1개 · 완료 2개 · 취소 0개
+- 상태: 미착수 86개 · 진행 중 0개 · 진행 차단 2개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -32,7 +32,7 @@ python tools/backlog.py report
 
 | 단계 | 범위 | 태스크 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 착수 가능 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 6 | 0 | 1 | 2 | 0 | 0 |
+| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 5 | 0 | 2 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 14 | 0 | 0 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 27 | 0 | 0 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
@@ -234,13 +234,13 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Storage |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 6 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T12:53:57Z` |
 
 제품 runtime 저장소를 개발 태스크 DB와 분리하고 VM 원장을 복제하지 않는 AIK 상태를 영속화한다.
 
@@ -259,7 +259,7 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-005-RUNTIME-LOCAL-20261012` · implementation_validation · `evidence/runtime-storage/2026-10-12/README.ko.md` · 사용자의 한 태스크 구현·커밋·푸시 지시에 따라 독립 runtime 저장소를 구현했다. 다섯 metadata 모델·VM/AGS 외부 ID, revision CAS·원자 transaction, v1→v2 migration, 실제 hot journal writer 강제 종료와 복구, 복합 migration 복원 실패의 원본 사본 보존, 개발 원장/Git 경로 분리를 검증했다. 로컬 21/21 PASS, skip 0; 소스별 SHA-256 및 한계 기록. 원래 완료 기준·의존성 보존, AIK-083 미완료이므로 완료 승격하지 않음. Windows/Linux CI는 푸시 후 별도 실제 근거 기록. · `2026-10-12T12:53:57Z`
 
 ### AIK-006
 
@@ -3734,7 +3734,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-12T12:22:34Z |
+| `updated_at` | 2026-10-12T12:53:57Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

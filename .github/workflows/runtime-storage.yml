@@ -1,0 +1,56 @@
+name: Runtime storage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/aik_runtime/**'
+      - 'tests/test_runtime_storage.py'
+      - 'tools/verify_runtime_storage.py'
+      - '.github/workflows/runtime-storage.yml'
+  pull_request:
+    paths:
+      - 'src/aik_runtime/**'
+      - 'tests/test_runtime_storage.py'
+      - 'tools/verify_runtime_storage.py'
+      - '.github/workflows/runtime-storage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-storage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  storage:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - name: Checkout the exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Use the pinned CPython runtime
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Verify persistence, revision conflicts and real crash recovery
+        shell: bash
+        run: python tools/verify_runtime_storage.py --output "$RUNNER_TEMP/runtime-storage-validation.json"
+      - name: Preserve source-bound storage validation results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: runtime-storage-${{ matrix.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/runtime-storage-validation.json
+          if-no-files-found: error
+          retention-days: 14
