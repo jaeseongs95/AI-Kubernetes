@@ -2,5 +2,7 @@
 *.py text eol=lf
 *.sql text eol=lf
 *.sqlite3 binary
+# This workflow is included in the storage validation source hashes.
+.github/workflows/runtime-storage.yml text eol=lf
 # Archived execution evidence is bound by raw-byte hashes. Never normalize it.
 evidence/** -text

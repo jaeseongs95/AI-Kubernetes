@@ -1,0 +1,32 @@
+{
+  "task_id": "AIK-005",
+  "id": 38252450171,
+  "head_sha": "d07f5c18c602be55f98ea509052d7f3cbe9a6ab5",
+  "status": "completed",
+  "conclusion": "failure",
+  "url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38252450171",
+  "created_at": "2026-10-12T12:58:25Z",
+  "updated_at": "2026-10-12T12:58:54Z",
+  "artifacts": [
+    {
+      "id": 11749226180,
+      "name": "runtime-storage-ubuntu-24.04-d07f5c18c602be55f98ea509052d7f3cbe9a6ab5-1",
+      "size_in_bytes": 2001,
+      "digest": "sha256:92730bb31ce65238bc375c2123d87f1e3d66e0c7a37951ca20165b69cbb08c83",
+      "created_at": "2026-10-12T12:58:35Z",
+      "expires_at": "2026-10-26T12:58:34Z",
+      "head_sha": "d07f5c18c602be55f98ea509052d7f3cbe9a6ab5",
+      "local_archive": "linux.zip"
+    },
+    {
+      "id": 11749031257,
+      "name": "runtime-storage-windows-2022-d07f5c18c602be55f98ea509052d7f3cbe9a6ab5-1",
+      "size_in_bytes": 2152,
+      "digest": "sha256:99679c870f4fa86426c5d45a5dec5232f2dca5b8ddc9e02235073d7a2cdfe068",
+      "created_at": "2026-10-12T12:58:49Z",
+      "expires_at": "2026-10-26T12:58:48Z",
+      "head_sha": "d07f5c18c602be55f98ea509052d7f3cbe9a6ab5",
+      "local_archive": "windows.zip"
+    }
+  ]
+}

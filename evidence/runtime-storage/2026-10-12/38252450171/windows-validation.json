@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "task_id": "AIK-005",
+  "status": "FAIL",
+  "scope": "Synthetic runtime metadata storage, real filesystem/concurrency/process crash and migration tests",
+  "started_at": "2026-10-12T12:58:40.789267+00:00",
+  "completed_at": "2026-10-12T12:58:48.499015+00:00",
+  "elapsed_seconds": 7.71,
+  "source_commit": "d07f5c18c602be55f98ea509052d7f3cbe9a6ab5",
+  "working_tree_dirty": false,
+  "github": {
+    "github_sha": "d07f5c18c602be55f98ea509052d7f3cbe9a6ab5",
+    "github_run_id": "38252450171",
+    "github_run_attempt": "1",
+    "runner_os": "Windows",
+    "imageos": "win22",
+    "imageversion": "20261004.326.1"
+  },
+  "host": {
+    "platform": "Windows-2022Server-10.0.20348-SP0",
+    "python": "3.14.8",
+    "sqlite": "3.50.4",
+    "architecture": "AMD64"
+  },
+  "tests_run": 21,
+  "passed": 20,
+  "failed": 1,
+  "errors": 0,
+  "skipped": 0,
+  "passed_tests": [
+    "test_runtime_storage.RuntimeStorageTests.test_actual_process_death_before_commit_recovers_without_partial_records",
+    "test_runtime_storage.RuntimeStorageTests.test_all_five_metadata_models_persist_across_reopen_with_external_ids",
+    "test_runtime_storage.RuntimeStorageTests.test_backlog_and_tracked_untracked_or_ignored_git_destinations_are_rejected",
+    "test_runtime_storage.RuntimeStorageTests.test_busy_writer_times_out_without_partial_write_and_can_retry",
+    "test_runtime_storage.RuntimeStorageTests.test_corrupt_foreign_and_unknown_version_databases_are_preserved",
+    "test_runtime_storage.RuntimeStorageTests.test_default_location_uses_per_user_state_outside_the_working_directory",
+    "test_runtime_storage.RuntimeStorageTests.test_duplicate_create_conflicts_and_revision_checked_delete_removes_only_its_record",
+    "test_runtime_storage.RuntimeStorageTests.test_exception_rolls_back_every_write_in_a_multi_record_transaction",
+    "test_runtime_storage.RuntimeStorageTests.test_hardlinked_database_alias_is_rejected_and_original_bytes_are_preserved",
+    "test_runtime_storage.RuntimeStorageTests.test_incoherent_old_schema_data_blocks_migration_without_rewriting_the_source",
+    "test_runtime_storage.RuntimeStorageTests.test_later_revision_conflict_rolls_back_earlier_successful_batch_writes",
+    "test_runtime_storage.RuntimeStorageTests.test_missing_parents_and_cross_pool_relationships_cannot_be_saved",
+    "test_runtime_storage.RuntimeStorageTests.test_paginated_queries_are_bounded_and_have_no_duplicate_or_skipped_ids",
+    "test_runtime_storage.RuntimeStorageTests.test_partial_migration_failure_preserves_original_bytes_schema_and_records",
+    "test_runtime_storage.RuntimeStorageTests.test_referenced_parent_delete_and_cross_pool_update_preserve_the_graph",
+    "test_runtime_storage.RuntimeStorageTests.test_resolved_git_alias_is_rejected_before_creating_any_parent_directory",
+    "test_runtime_storage.RuntimeStorageTests.test_schema_one_migration_preserves_all_models_and_their_revisions",
+    "test_runtime_storage.RuntimeStorageTests.test_secret_payload_extra_fields_and_forged_frozen_records_are_rejected",
+    "test_runtime_storage.RuntimeStorageTests.test_stale_update_and_delete_from_a_second_store_preserve_newer_revision",
+    "test_runtime_storage.RuntimeStorageTests.test_symlink_file_and_parent_destinations_are_rejected_without_touching_targets"
+  ],
+  "failures": [
+    {
+      "test": "test_runtime_storage.RuntimeStorageTests.test_failed_migration_publication_and_restore_retain_a_recoverable_raw_backup",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\AI-Kubernetes\\AI-Kubernetes\\tests\\test_runtime_storage.py\", line 421, in test_failed_migration_publication_and_restore_retain_a_recoverable_raw_backup\n    with self.assertRaises(MigrationError) as failed:\n         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\nAssertionError: MigrationError not raised\n"
+    }
+  ],
+  "error_details": [],
+  "skip_details": [],
+  "sources": [
+    {
+      "path": "src/aik_runtime/__init__.py",
+      "sha256": "b65a2c4d2b82ff86e7b408b91ce712fbcbad94eee1d46181ba243ab3ab56c6c3"
+    },
+    {
+      "path": "src/aik_runtime/errors.py",
+      "sha256": "6d2244f4c519c6e29bd3fc39fb79c20a8c6a433bee9e9eab211e8f5b0e953964"
+    },
+    {
+      "path": "src/aik_runtime/models.py",
+      "sha256": "4f3189219c90734a8e682de3e7e3182a76469c88978d89e05406d740af21e46b"
+    },
+    {
+      "path": "src/aik_runtime/paths.py",
+      "sha256": "c83c9ab6ebd53333f5fd4044683ce0ecad0e475f004c74c1186441ae8a49a090"
+    },
+    {
+      "path": "src/aik_runtime/schema.py",
+      "sha256": "031f97487a649507036db92bb5075d00bed823f7fb86bb3bfa462def4ec2c221"
+    },
+    {
+      "path": "src/aik_runtime/storage.py",
+      "sha256": "bccf96adc4012541d3b31767edc999c119dad4fba8f7760fa4998b3c23e3d660"
+    },
+    {
+      "path": "tests/test_runtime_storage.py",
+      "sha256": "c00fdc151e6198800c708abeea9c6de78dc56016c0be2c1c311c7bc1c079d773"
+    },
+    {
+      "path": "tools/verify_runtime_storage.py",
+      "sha256": "e8b59165fbedf23efc5ec6e9dfe2e184023cdf1f14faae7d5a592c5e0ab338a0"
+    },
+    {
+      "path": ".github/workflows/runtime-storage.yml",
+      "sha256": "8c6057c11189b76501ca6ad06de8296e1d717a9dd01d968409d0133fcd189fa7"
+    }
+  ],
+  "qualification": {
+    "product_integration": "NOT_RUN",
+    "clean_windows11_client": "NOT_RUN",
+    "vm_ags_authority": "EXTERNAL",
+    "secret_material_storage": "NOT_SUPPORTED"
+  }
+}

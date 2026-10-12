@@ -37,4 +37,19 @@
 
 ## CI
 
-전용 `Runtime storage` workflow가 동일한 구현 commit에서 `ubuntu-24.04`와 `windows-2022`를 실행한다. 각 결과는 source commit·파일 SHA-256·실행기 정보·테스트별 결과와 함께 artifact로 남는다. 이 최초 구현 기록 시점에는 아직 푸시 전이므로 CI 결과는 **PENDING**이며, 실제 완료 후 실행 링크와 원본 artifact를 추가한다.
+전용 `Runtime storage` workflow가 동일한 구현 commit에서 `ubuntu-24.04`와 `windows-2022`를 실행한다. 각 결과는 source commit·파일 SHA-256·실행기 정보·테스트별 결과와 함께 artifact로 남는다.
+
+### 첫 실행과 Windows 오류 주입기 수정
+
+구현 commit [`d07f5c1`](https://github.com/jaeseongs95/AI-Kubernetes/commit/d07f5c18c602be55f98ea509052d7f3cbe9a6ab5)의 [실행 38252450171](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38252450171)은 다음 결과였다. 두 작업 모두 CPython 3.14.8을 사용했고 `working_tree_dirty=false`였다.
+
+| 환경 | 실제 결과 | 원본 근거 |
+| --- | --- | --- |
+| Ubuntu 24.04 | 21/21 PASS, failure/error/skip 0 | [JSON](38252450171/linux-validation.json), [artifact ZIP](38252450171/linux.zip) |
+| Windows Server 2022 | 20 PASS, 1 FAIL, error/skip 0 | [JSON](38252450171/windows-validation.json), [artifact ZIP](38252450171/windows.zip) |
+
+Windows에서는 복합 migration 실패 시험이 `MigrationError not raised`로 실패했다. 오류 주입기가 원래 경로 표기와 `RuntimeStore`가 정규화한 목적지를 직접 비교하고 있어 Windows TEMP의 짧은 이름/긴 이름이 다르면 주입을 놓칠 수 있었다. 기대 경로와 관측 목적지를 모두 `resolve()`한 뒤 비교하도록 고쳤으며, 게시와 원본 복원에 **정확히 한 번씩 두 번의 실패가 주입됐는지**도 검사한다. 원본 pair의 byte 보존과 그 사본의 실제 복구 기준은 유지했다. runtime 구현 소스는 변경하지 않았다. 수정 후 [로컬 저장소 검증](local-correction-validation.json)도 21/21 PASS, failure/error/skip 0이었다.
+
+첫 Windows 실행은 검증 대상 아홉 파일 중 workflow 한 파일이 Git blob과 다른 hash였다. Git checkout의 LF→CRLF 변환만으로 그 hash가 정확히 재현됨을 확인했다. `.gitattributes`에서 이 workflow 경로만 LF로 고정해 다음 실행에서는 모든 검증 대상 파일이 동일한 bytes를 사용하게 했다. 기존 원본 근거는 변환하거나 덮어쓰지 않았다.
+
+[실행·artifact 메타데이터](38252450171/run.json)에 원격 artifact ID와 digest를 보존했다. 다운로드한 두 ZIP 모두 GitHub가 제공한 크기와 SHA-256이 일치하며, JSON은 각 원본 ZIP에서 추출한 bytes 그대로다. 수정 소스의 Windows/Linux CI 재실행 결과는 아직 **PENDING**이다.

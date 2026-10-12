@@ -409,20 +409,27 @@ class RuntimeStorageTests(unittest.TestCase):
         models = self.create_v1_database()
         original_database, original_journal = self.kill_writer_after_disk_spill(V1_CRASH_WRITER)
         real_replace = storage.os.replace
+        fault_target = self.database.resolve(strict=True)
         rejected_sources = []
 
         def reject_database_replacement(source, destination):
-            if Path(destination) == self.database:
+            # Windows TEMP may use an 8.3 name while RuntimeStore publishes to
+            # the resolved long path. Match the same canonical destination.
+            if Path(destination).resolve(strict=False) == fault_target:
                 rejected_sources.append(Path(source).name)
                 raise PermissionError("synthetic publication and rollback sharing violation")
             return real_replace(source, destination)
 
+        failure = None
         with mock.patch.object(storage.os, "replace", side_effect=reject_database_replacement):
-            with self.assertRaises(MigrationError) as failed:
+            try:
                 RuntimeStore(self.database)
-        self.assertIn("checked.sqlite3", rejected_sources)
-        self.assertIn("restore-database", rejected_sources)
-        recovery = failed.exception.recovery_directory
+            except MigrationError as error:
+                failure = error
+        self.assertEqual(rejected_sources, ["checked.sqlite3", "restore-database"],
+                         "Both publication and source restoration must receive exactly one injected failure.")
+        self.assertIsInstance(failure, MigrationError)
+        recovery = failure.recovery_directory
         self.assertTrue(recovery.is_dir())
         self.assertEqual((recovery / "original.sqlite3").read_bytes(), original_database)
         self.assertEqual((recovery / "original.sqlite3-journal").read_bytes(), original_journal)
