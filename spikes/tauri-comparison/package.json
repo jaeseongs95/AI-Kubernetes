@@ -1,0 +1,24 @@
+{
+  "name": "aik-tauri-stack-comparison",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AIK-002 disposable Tauri 2 comparison with the same frozen Python worker and Windows DPAPI workloads",
+  "author": "AI-Kubernetes contributors",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && vite build --base=./",
+    "package:win": "tauri build --bundles nsis --target x86_64-pc-windows-msvc -- --locked",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "@tauri-apps/api": "2.12.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "@tauri-apps/cli": "2.12.2"
+  }
+}

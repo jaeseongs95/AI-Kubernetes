@@ -1,0 +1,42 @@
+{
+  "exit_code": 2,
+  "report": {
+    "schema_version": 1,
+    "scope": "AIK-002 installed Tauri candidate, compared with the same-run Electron candidate",
+    "source_commit": null,
+    "workflow_run_id": null,
+    "workflow_attempt": null,
+    "started_at": "2026-10-12T08:17:18.0453040Z",
+    "status": "BLOCKED",
+    "development_artifact": true,
+    "support_qualification": "NOT_RUN",
+    "product_integration": "NOT_RUN",
+    "checks": {
+      "install": "NOT_RUN",
+      "runtime_bundle": "NOT_RUN",
+      "packaged_gui": "NOT_RUN",
+      "screenshot_capture": "NOT_RUN",
+      "visual_review": "NOT_RUN",
+      "uninstall": "NOT_RUN"
+    },
+    "webview2_supply": {
+      "configured_mode": "offlineInstaller",
+      "silent": true,
+      "install_scope": "currentUser",
+      "runtime_absent_install": "NOT_RUN",
+      "note": "The NSIS bundle embeds the Evergreen offline installer. An already installed compatible runtime can be reused; this run does not simulate runtime absence."
+    },
+    "limits": [
+      "The three workloads are synthetic foundation probes, not VM, AGS, vendor login, or complete product execution.",
+      "Windows Server CI does not qualify a clean Windows 11 standard-user installation.",
+      "Developer tools are removed from the app PATH, but remain installed on the CI host.",
+      "Memory is a single live snapshot after the three probes; it is not a peak or long-run performance benchmark.",
+      "Electron and Tauri native/main and renderer metrics use different process APIs and must not be combined into a universal whole-app ranking.",
+      "Captured screenshots require separate visual inspection; capture success alone is not visual correctness.",
+      "Signing, trusted updating, actual vendors, and product data removal remain separate release gates."
+    ],
+    "error": "A real Windows x64 environment is required to compare installed desktop candidates.",
+    "completed_at": "2026-10-12T08:17:18.0804715Z",
+    "elapsed_ms": 37.0
+  }
+}

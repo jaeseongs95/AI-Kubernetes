@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "local_platform": "linux",
+  "frontend_typecheck_vite_build": "PASS",
+  "powershell_ast": "PASS",
+  "tauri_cli_published_schema": "PASS",
+  "schema_options": "Ajv unicodeRegExp:false; URI, UUID and Rust numeric formats explicitly registered",
+  "workflow_yaml_and_action_sha_pins": "PASS",
+  "linux_execution_guard": {
+    "status": "PASS",
+    "actual_exit_code": 2,
+    "windows_runtime_result": "BLOCKED",
+    "windows_checks": "NOT_RUN"
+  },
+  "rust_local_execution_tests": {
+    "pass": 6,
+    "failed": 0,
+    "ignored": 0,
+    "actual_python_sidecar_and_separate_worker": true,
+    "linux_vault": "NOT_RUN",
+    "source": "../tauri-rust/rust-validation.json"
+  },
+  "windows_native_compile_and_run": "NOT_RUN",
+  "files": {
+    ".github/workflows/windows-stack-comparison.yml": "ba54560d6c25ae9ba9cc6029cd06be3c9769c47dd5d7724dce41c8a2c5b32df3",
+    "scripts/windows/verify-stack-comparison.ps1": "2134cb936a2b787946a31f0d65c367e9f79da5265f34291ea41667db6e47541d",
+    "spikes/tauri-comparison/.gitignore": "768cbe8eefe3381633e8698ad64f3c90df67bdf9dabdae238f5be68e8bd3c640",
+    "spikes/tauri-comparison/README.ko.md": "f7c567fecb878422361a7d268ffa3f03968e1f876a303506b876077f8625ba8e",
+    "spikes/tauri-comparison/index.html": "5e3c3823e7131490b2abae5ec77943861e807b9181921ee1dd46edb9f3258148",
+    "spikes/tauri-comparison/package-lock.json": "71c02ccc748a3d9468d58d3430b681d320adf97e7cb272cb01f62ec5bc728a34",
+    "spikes/tauri-comparison/package.json": "2df562dd8a28557316227fce25a5b4ab12eafb1cbc8ef2d8807f87e20d568311",
+    "spikes/tauri-comparison/src/contracts.ts": "a9687c56c0a36c23d0c4afb177b11bcb00e52a80633e407de02b90e34e6c6ba5",
+    "spikes/tauri-comparison/src/main.tsx": "d47a971fa1a9ef542e52baf0bfc5a8b1cc4f1b6db15c3335b3b428baa48ec9fd",
+    "spikes/tauri-comparison/src/style.css": "689e9c1d7cb27589037e180ee02a950b9fa142cca36e921d83219e7f41a0fb89",
+    "spikes/tauri-comparison/src/vite-env.d.ts": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
+    "spikes/tauri-comparison/src-tauri/Cargo.lock": "b12be3b8c7de1e2ec65eb9a9e246f6f0739a8585e7383e5f57e1d6701509244c",
+    "spikes/tauri-comparison/src-tauri/Cargo.toml": "2ad79a44cfb35c86cea716707c501d22bf77f794ed252a2ef734a6b08dacb7ae",
+    "spikes/tauri-comparison/src-tauri/build.rs": "a07275dd956cd01753e1cc21ca191ce21021eb145c19a24dc0c032b0efd1043f",
+    "spikes/tauri-comparison/src-tauri/capabilities/main.json": "a9fa17a510b5440022ebd3ed97b7c8fa082ee3d162ca4565dffd264ec26697ee",
+    "spikes/tauri-comparison/src-tauri/icons/icon.ico": "1226fd5aa88ab227bcbfb5f6a231d053f2dac1a776bf9f2a1af427e56463a57e",
+    "spikes/tauri-comparison/src-tauri/icons/icon.png": "c12277312c82f491826752c3ec6c2bbf56fd5ceb411bde3b00b8770a40aff7da",
+    "spikes/tauri-comparison/src-tauri/icons/source.svg": "8ce2d32271846dcc9a233245a5753a3707eb8945a153482f33e1ec426197ceea",
+    "spikes/tauri-comparison/src-tauri/rust-toolchain.toml": "747421328e97d4be7b0b95d671cea9896d237d3914ff6b52aa786c57297ee2c1",
+    "spikes/tauri-comparison/src-tauri/src/desktop.rs": "0162e88430d55121b815e958c718813f05eea9148fa0df3c9166b2450d110968",
+    "spikes/tauri-comparison/src-tauri/src/main.rs": "a4b7b834db69f5ba8397a84a49391bf5482bf626a3e27faed1569f126b4a8278",
+    "spikes/tauri-comparison/src-tauri/src/native.rs": "ad6d28fab603116e54075c9b0d7675caaf6e67da5ff8566775e24b768c30d158",
+    "spikes/tauri-comparison/src-tauri/src/protocol.rs": "7d417895e8199692811f15170f4c4f493d2d50fcdeec4f9242d368d6a98b5ff7",
+    "spikes/tauri-comparison/src-tauri/src/sidecar.rs": "e1bd6239d6a55c69a7efb1d3e6857be7adcab00f3b3f2451c3dd316bdb99f84c",
+    "spikes/tauri-comparison/src-tauri/tauri.conf.json": "e0eb6f2e50df04a645cbeba26963bf616d09180d1edb1a87d391a1b56afbcd88",
+    "spikes/tauri-comparison/tsconfig.json": "cd0639f19a39ce6ff3d972d43666df37c86d9f36f45ee58d2b1098c805ceec28"
+  }
+}

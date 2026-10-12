@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-12T08:15:09.497419+00:00",
+  "platform": "linux",
+  "rust": "1.99.0",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--manifest-path",
+    "spikes/tauri-comparison/src-tauri/Cargo.toml",
+    "--",
+    "--test-threads=1"
+  ],
+  "python": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+  "status": "PASS",
+  "tests": {
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  "actual_workload": [
+    "Rust IPC client spawned unchanged Python sidecar",
+    "health response validated including same sidecar PID",
+    "separate actual worker wrote, fsynced, read, SHA256-verified, removed 42-byte synthetic file",
+    "worker parent PID and cleanup validated",
+    "native child reaped on close"
+  ],
+  "vault_result": "NOT_RUN: this verification ran on Linux",
+  "windows_desktop_and_job_object": "NOT_RUN: requires Windows CI",
+  "product_integration": "NOT_RUN",
+  "source_files": [
+    {
+      "path": "spikes/tauri-comparison/src-tauri/Cargo.toml",
+      "sha256": "2ad79a44cfb35c86cea716707c501d22bf77f794ed252a2ef734a6b08dacb7ae"
+    },
+    {
+      "path": "spikes/tauri-comparison/src-tauri/Cargo.lock",
+      "sha256": "b12be3b8c7de1e2ec65eb9a9e246f6f0739a8585e7383e5f57e1d6701509244c"
+    },
+    {
+      "path": "spikes/tauri-comparison/src-tauri/rust-toolchain.toml",
+      "sha256": "747421328e97d4be7b0b95d671cea9896d237d3914ff6b52aa786c57297ee2c1"
+    },
+    {
+      "path": "spikes/tauri-comparison/src-tauri/src/main.rs",
+      "sha256": "a4b7b834db69f5ba8397a84a49391bf5482bf626a3e27faed1569f126b4a8278"
+    },
+    {
+      "path": "spikes/tauri-comparison/src-tauri/src/protocol.rs",
+      "sha256": "7d417895e8199692811f15170f4c4f493d2d50fcdeec4f9242d368d6a98b5ff7"
+    },
+    {
+      "path": "spikes/tauri-comparison/src-tauri/src/sidecar.rs",
+      "sha256": "e1bd6239d6a55c69a7efb1d3e6857be7adcab00f3b3f2451c3dd316bdb99f84c"
+    },
+    {
+      "path": "spikes/tauri-comparison/src-tauri/src/native.rs",
+      "sha256": "ad6d28fab603116e54075c9b0d7675caaf6e67da5ff8566775e24b768c30d158"
+    },
+    {
+      "path": "spikes/tauri-comparison/src-tauri/src/desktop.rs",
+      "sha256": "0162e88430d55121b815e958c718813f05eea9148fa0df3c9166b2450d110968"
+    }
+  ],
+  "post_test_source_changes": [
+    {
+      "recorded_at": "2026-10-12T08:16:48.756322+00:00",
+      "path": "spikes/tauri-comparison/src-tauri/src/desktop.rs",
+      "previous_sha256": "e238dac38e61d9cf3b51161f1baa913c4131b5773a09510def9abe471a1dcf0a",
+      "sha256": "0162e88430d55121b815e958c718813f05eea9148fa0df3c9166b2450d110968",
+      "change": "is_smoke uses try_lock and SIDECAR_BUSY to avoid waiting on the UI thread while a check holds the backend lock",
+      "verification": "source review; Windows runtime/fault injection NOT_RUN; Linux test result unchanged (this module is cfg(windows))"
+    }
+  ]
+}

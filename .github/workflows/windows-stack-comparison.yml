@@ -1,0 +1,131 @@
+name: Windows desktop stack comparison
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'spikes/windows-foundation/**'
+      - 'spikes/tauri-comparison/**'
+      - 'packaging/**'
+      - 'scripts/windows/**'
+      - '.github/workflows/windows-stack-comparison.yml'
+  pull_request:
+    paths:
+      - 'spikes/windows-foundation/**'
+      - 'spikes/tauri-comparison/**'
+      - 'packaging/**'
+      - 'scripts/windows/**'
+      - '.github/workflows/windows-stack-comparison.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-stack-comparison-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed-candidates:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: '1'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CI: 'true'
+      RUSTUP_TOOLCHAIN: '1.99.0'
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - name: Checkout the exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Use the pinned build Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: |
+            spikes/windows-foundation/package-lock.json
+            spikes/tauri-comparison/package-lock.json
+      - name: Use the pinned build CPython
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Install the pinned Rust toolchain
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal --no-self-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup target add x86_64-pc-windows-msvc --toolchain 1.99.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustc --version --verbose
+          cargo --version
+      - name: Install the locked Electron build dependencies
+        working-directory: spikes/windows-foundation
+        run: npm ci --no-audit --no-fund
+      - name: Test the shared Python implementation on actual Windows
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = Join-Path $env:GITHUB_WORKSPACE 'spikes/windows-foundation/python'
+          python -m unittest discover -s spikes/windows-foundation/tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test and build the existing Electron candidate
+        working-directory: spikes/windows-foundation
+        shell: pwsh
+        run: |
+          $env:AIK_SPIKE_PYTHON = (Get-Command python).Source
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Freeze the exact same Python sidecar for both candidates
+        shell: pwsh
+        run: ./scripts/windows/build-sidecar.ps1
+      - name: Build the existing unsigned Electron installer
+        working-directory: spikes/windows-foundation
+        run: npm run package:win
+      - name: Install and exercise the existing Electron candidate
+        shell: pwsh
+        run: ./scripts/windows/verify-installed-spike.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE
+      - name: Install the locked Tauri build dependencies
+        working-directory: spikes/tauri-comparison
+        run: npm ci --no-audit --no-fund
+      - name: Build the equivalent Tauri renderer
+        working-directory: spikes/tauri-comparison
+        run: npm run build
+      - name: Test the Rust IPC against the actual shared Python engine
+        working-directory: spikes/tauri-comparison/src-tauri
+        shell: pwsh
+        run: |
+          $env:AIK_SPIKE_PYTHON = (Get-Command python).Source
+          cargo test --locked --target x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build the independent unsigned Tauri NSIS installer
+        working-directory: spikes/tauri-comparison
+        run: npm run package:win
+      - name: Install and observe the Tauri candidate and compare evidence
+        shell: pwsh
+        run: ./scripts/windows/verify-stack-comparison.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE
+      - name: Preserve both candidates and comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-stack-comparison-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            packaging/build/sidecar-build.json
+            packaging/evidence/**
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve the exact two unsigned installers used in validation
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-stack-comparison-unsigned-installers-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            packaging/dist/AIK-Foundation-Spike-*-win-x64-dev-unsigned.exe
+            spikes/tauri-comparison/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7

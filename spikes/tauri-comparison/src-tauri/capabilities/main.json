@@ -1,0 +1,8 @@
+{
+  "identifier": "main-comparison-window",
+  "description": "Only the local comparison window invokes the application-owned fixed probe commands.",
+  "windows": [
+    "main"
+  ],
+  "permissions": ["allow-is-smoke", "allow-run-check", "allow-finish-smoke"]
+}

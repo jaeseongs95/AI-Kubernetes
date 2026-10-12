@@ -1,0 +1,40 @@
+   Compiling aik-tauri-comparison v0.1.0 (/workspace/scratch/676b40286607/AI-Kubernetes/spikes/tauri-comparison/src-tauri)
+warning: method `report_name` is never used
+  --> src/protocol.rs:33:12
+   |
+25 | impl Check {
+   | ---------- method in this implementation
+...
+33 |     pub fn report_name(self) -> &'static str {
+   |            ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `failure` is never used
+   --> src/protocol.rs:274:8
+    |
+274 | pub fn failure(check: Check, request_id: &str, code: &str) -> Value {
+    |        ^^^^^^^
+
+warning: associated function `bundled` is never used
+  --> src/sidecar.rs:46:12
+   |
+45 | impl Sidecar {
+   | ------------ associated function in this implementation
+46 |     pub fn bundled(resource_directory: &Path) -> Result<Self, &'static str> {
+   |            ^^^^^^^
+
+warning: `aik-tauri-comparison` (bin "aik-tauri-comparison" test) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.01s
+     Running unittests src/main.rs (spikes/tauri-comparison/src-tauri/target/debug/deps/aik_tauri_comparison-113fa6b132599448)
+
+running 6 tests
+test protocol::tests::frame_reader_preserves_following_frame_and_accepts_windows_newline ... ok
+test protocol::tests::rejects_cross_request_workspace_protocol_and_forged_worker_effects ... ok
+test protocol::tests::rejects_duplicate_keys_invalid_utf8_and_oversized_frames ... ok
+test protocol::tests::renderer_can_select_only_three_fixed_checks ... ok
+test sidecar::tests::actual_python_child_and_worker_complete_unchanged_contract ... ok
+test sidecar::tests::native_random_ids_are_distinct_uuid_v4 ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
