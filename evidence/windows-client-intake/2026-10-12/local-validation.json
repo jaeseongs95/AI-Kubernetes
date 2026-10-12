@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "task_id": "AIK-003",
+  "base_commit": "7fc8525957fd37d31a2f6d18345816920da0e8b6",
+  "recorded_at": "2026-10-12T12:06:13.105631+00:00",
+  "record_type": "Observed command results recorded by implementing assistant",
+  "implementation_status": "validated_locally",
+  "task_status": "blocked",
+  "host": {
+    "platform": "Linux",
+    "python": "3.12.14",
+    "powershell": "7.6.6 Core on Linux"
+  },
+  "tests": [
+    {
+      "command": "AIK_HANDOFF_TEST_POWERSHELL=<PowerShell 7.6.6 executable> python -m unittest discover -s tests -v",
+      "tests_run": 113,
+      "passed": 113,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 14.763,
+      "exit_code": 0
+    },
+    {
+      "command": "python tools/review_windows_client.py --evidence-root <preserved 38226204128 execution> --expected-manifest-sha256 f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+      "exit_code": 2,
+      "status": "BLOCKED",
+      "errors": [],
+      "scope": "Expected rejection of historical Server/admin evidence as clean-client qualification"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "tools/review_windows_client.py",
+      "sha256": "7c62426b2a9533f15c08a9fdc108fd09310eef854c206c6af472d8341b6082af"
+    },
+    {
+      "path": "tools/windows_handoff/collect-client-environment.ps1",
+      "sha256": "b69576c64b55a5a6414d823a08ecad26679061c4658b8314b8826d73c5c8950e"
+    },
+    {
+      "path": "tools/windows_handoff/run-validation.ps1",
+      "sha256": "4c5433afebfcfe426ca7988375e3cbcb6eca153643e2905c3f5544004b2d1618"
+    },
+    {
+      "path": "tools/build_windows_handoff.py",
+      "sha256": "4d3df20ebad2227b905a81e32d2818670150eed707377deaa30fd6c350b2b431"
+    },
+    {
+      "path": "tests/test_windows_client_review.py",
+      "sha256": "f39d9decc183a782e5920f0e5d32d62511a2565c6b5e27492652be30b49d86b4"
+    },
+    {
+      "path": "tests/test_windows_handoff.py",
+      "sha256": "7ef8376a98f2a11b9148fd120eb3aa7026eb0a640529a96f66099c132e16c88d"
+    },
+    {
+      "path": ".github/workflows/windows-client-handoff.yml",
+      "sha256": "28012f5128645b1f1284b1c9a30c5b3afcbe426c2c5e32bd0d02a7d67bbf2002"
+    }
+  ],
+  "qualification": {
+    "current_windows_powershell51_collection": "NOT_RUN",
+    "clean_windows11_standard_user": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "product_integration": "NOT_RUN",
+    "release_signing": "NOT_RUN"
+  },
+  "remaining_blocker": "AIK-003 AC2 and original verification require a real clean supported Windows client installation and independent review. Synthetic fixtures and Server CI cannot complete that task."
+}

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "task_id": "AIK-003",
+  "status": "BLOCKED",
+  "scope": "Evidence integrity and readiness for independent clean-client review",
+  "checked_at": "2026-10-12T12:06:13.093082+00:00",
+  "expected_manifest_sha256": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+  "files": [
+    {
+      "path": "handoff-manifest.json",
+      "sha256": "f71b452cb4c90543d84bca4e73b919f6714af5dd11309a2df02610832343957d",
+      "bytes": 6501
+    },
+    {
+      "path": "handoff-validation.json",
+      "sha256": "e6edafab58a82015cd88a291e866b46dabe843a4df6caa69fa8034c0de14a175",
+      "bytes": 7703
+    },
+    {
+      "path": "installed-check/packaging/evidence/installed-spike.json",
+      "sha256": "55e471da0fa531306437c875cfd09c502008c028c8dbc7817134c04e8da6cd30",
+      "bytes": 4243
+    },
+    {
+      "path": "installed-check/packaging/evidence/application-report.json",
+      "sha256": "c52d63bd233e88b32f23d218f0037e06bd581bd69648c6d2559caa821816bcf5",
+      "bytes": 1018
+    },
+    {
+      "path": "installed-check/packaging/evidence/screenshot.png",
+      "sha256": "29a0880e1bc53b9928f8b1139cf1e1997088c035891c0af8856c3376f4ffc2fd",
+      "bytes": 45114
+    }
+  ],
+  "blockers": [
+    "NOT_WINDOWS_X64_CLIENT",
+    "NOT_WINDOWS11_CANDIDATE",
+    "ELEVATED_OR_UNKNOWN_USER",
+    "MISSING_PREINSTALL_CLIENT_OBSERVATIONS"
+  ],
+  "errors": [],
+  "qualification": {
+    "windows11_standard_user_clean_machine": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "release_signing": "NOT_RUN",
+    "product_integration": "NOT_RUN"
+  },
+  "manual_review_required": [
+    "Verify the operator's clean-machine preparation records and image provenance.",
+    "Inspect the fresh screenshot and actual installation results.",
+    "Review hardware, current Windows support/security updates, paths and offline conditions against the pinned ADR.",
+    "Record independent AIK-003 acceptance evidence before changing task status."
+  ],
+  "package_source_commit": "4b948f57020f3e507683de6e538544b9bac558e7"
+}

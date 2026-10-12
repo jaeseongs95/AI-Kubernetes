@@ -93,6 +93,7 @@ class WindowsHandoffRegressionTests(unittest.TestCase):
             self.assertEqual(original, (ROOT / handoff.VERIFIER_SOURCE).read_bytes())
             self.assertEqual(archive.read("verify-installed-spike.ps1"), handoff.BOM + original)
             self.assertTrue(archive.read("run-validation.ps1").isascii())
+            self.assertTrue(archive.read("collect-client-environment.ps1").isascii())
             self.assertTrue(archive.read("run-validation.cmd").isascii())
             self.assertEqual(set(archive.namelist()), {item["path"] for item in manifest["files"]} | {"handoff-manifest.json"})
             for item in manifest["files"]:
@@ -161,6 +162,12 @@ class WindowsHandoffRegressionTests(unittest.TestCase):
             handoff.utf8_bom_copy(b"\xff\xfe")
 
     def test_tampered_delivered_script_is_rejected_before_any_install(self) -> None:
+        self.check_tampered_member("verify-installed-spike.ps1")
+
+    def test_tampered_environment_collector_is_rejected_before_execution(self) -> None:
+        self.check_tampered_member("collect-client-environment.ps1")
+
+    def check_tampered_member(self, name: str) -> None:
         executable = os.environ.get("AIK_HANDOFF_TEST_POWERSHELL") or shutil.which("powershell") or shutil.which("pwsh")
         if not executable:
             self.skipTest("No PowerShell executable available for the real wrapper negative test.")
@@ -168,7 +175,7 @@ class WindowsHandoffRegressionTests(unittest.TestCase):
         extracted = Path(self.temp.name) / "extracted"
         with zipfile.ZipFile(self.output) as archive:
             archive.extractall(extracted)
-        delivered = extracted / "verify-installed-spike.ps1"
+        delivered = extracted / name
         delivered.write_bytes(delivered.read_bytes() + b"\nthrow 'tampered'\n")
         evidence_parent = Path(self.temp.name) / "negative-evidence"
         child = subprocess.run(
@@ -181,9 +188,43 @@ class WindowsHandoffRegressionTests(unittest.TestCase):
         self.assertEqual(len(reports), 1, child.stdout + child.stderr)
         report = json.loads(reports[0].read_text(encoding="utf-8-sig"))
         self.assertEqual(report["status"], "FAIL")
-        self.assertIn("Changed package member: verify-installed-spike.ps1", report["error"])
+        self.assertIn("Changed package member: " + name, report["error"])
         self.assertEqual(report["checks"]["installed_gui_worker_dpapi_uninstall"], "NOT_RUN")
         self.assertNotIn("verifier_pid", report)
+
+    def test_actual_powershell_environment_collector_contract(self) -> None:
+        executable = os.environ.get("AIK_HANDOFF_TEST_POWERSHELL") or shutil.which("powershell") or shutil.which("pwsh")
+        if not executable:
+            self.skipTest("No PowerShell executable available for the collector contract test.")
+        harness = Path(self.temp.name) / "collector-harness.ps1"
+        harness.write_text(
+            "param([string] $CollectorPath)\n. $CollectorPath\n"
+            "Get-AikClientEnvironment -ExecutionId ('1' * 32) -ManifestSha256 ('2' * 64) | ConvertTo-Json -Depth 16\n",
+            encoding="ascii",
+        )
+        child = subprocess.run(
+            [executable, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(harness),
+             "-CollectorPath", str(ROOT / "tools/windows_handoff/collect-client-environment.ps1")],
+            capture_output=True, text=True, timeout=90, check=False,
+        )
+        self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+        observation = json.loads(child.stdout)
+        self.assertEqual(observation["schema_version"], 1)
+        self.assertEqual(observation["execution_id"], "1" * 32)
+        self.assertEqual(observation["manifest_sha256"], "2" * 64)
+        self.assertNotIn("qualification", observation)
+        probes = observation["tool_inventory"]["probes"]
+        self.assertEqual({p["name"] for p in probes}, {
+            "operating_system", "user_token", "hardware", "path_commands", "uninstall_registry", "known_locations"})
+        if os.name == "nt":
+            self.assertEqual(observation["os"]["platform"], "win32")
+            self.assertIn(observation["status"], ("COMPLETE", "INCOMPLETE"))
+        else:
+            self.assertEqual(observation["status"], "UNSUPPORTED")
+            self.assertEqual(observation["tool_inventory"]["status"], "INCOMPLETE")
+            self.assertIsNone(observation["user"]["elevated"])
+            self.assertIsNone(observation["user"]["administrator_group_member"])
+            self.assertTrue(observation["errors"])
 
 
 if __name__ == "__main__":

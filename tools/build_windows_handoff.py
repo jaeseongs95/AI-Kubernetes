@@ -31,6 +31,7 @@ SOURCE_FILES = (
     "spikes/windows-foundation/package-lock.json",
     "tools/build_windows_handoff.py",
     "tools/windows_handoff/run-validation.ps1",
+    "tools/windows_handoff/collect-client-environment.ps1",
     "tools/windows_handoff/run-validation.cmd",
     "tools/windows_handoff/README.ko.md",
     ".github/workflows/windows-client-handoff.yml",
@@ -167,10 +168,13 @@ def build_handoff(
     delivered, transformation = utf8_bom_copy(original)
     wrapper = (root / "tools/windows_handoff/run-validation.ps1").read_bytes()
     launcher = (root / "tools/windows_handoff/run-validation.cmd").read_bytes()
-    require(wrapper.isascii() and launcher.isascii(), "The legacy PowerShell wrapper and launcher must be ASCII only.")
+    collector = (root / "tools/windows_handoff/collect-client-environment.ps1").read_bytes()
+    require(wrapper.isascii() and launcher.isascii() and collector.isascii(),
+            "The legacy PowerShell wrapper, collector and launcher must be ASCII only.")
     members: dict[str, bytes | Path] = {
         "run-validation.ps1": wrapper,
         "run-validation.cmd": launcher,
+        "collect-client-environment.ps1": collector,
         "README.ko.md": (root / "tools/windows_handoff/README.ko.md").read_bytes(),
         INSTALLER_MEMBER: installer,
         "verify-installed-spike.ps1": delivered,

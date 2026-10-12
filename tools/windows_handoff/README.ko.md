@@ -26,6 +26,8 @@
 |---|---|
 | `handoff-validation.json` | 실행한 PowerShell 버전·에디션·기본 문자 인코딩·문화권, 실제 Windows 정보, 각 검사 결과, 원본/BOM 스크립트의 실제 parser 결과 |
 | `handoff-manifest.json` | 패키지가 만들어진 소스 commit, 설치 파일 및 원본/변환 스크립트 SHA-256, 예상 engine·Python DLL SHA-256 |
+| `client-environment.json` | 설치 전 원래 PATH에서 수집한 OS 판본·계정 토큰·CPU/RAM·개발 도구 관측. 실행 ID와 manifest SHA-256에 연결됨 |
+| `client-preparation.template.json` | 같은 실행에 연결된 환경 준비 기록의 빈 양식. 실행자가 실제 준비 근거를 기입해야 함 |
 | `verifier.stdout.log`, `verifier.stderr.log` | 기본 PowerShell 5.1이 실행한 설치 검증의 출력 |
 | `installed-check/packaging/evidence/installed-spike.json` | 실제 설치·GUI·runtime·제거와 환경 관측 결과 |
 | `installed-check/packaging/evidence/application-report.json` | 실제 앱이 기록한 GUI, frozen Python, 별도 worker, DPAPI 결과 |
@@ -37,9 +39,32 @@ Manifest의 `source_commit`은 이미 빌드된 설치 파일과 엔진의 출�
 
 ## Windows 지원 판정 범위
 
-검증 프로그램이 `PASS`를 기록해도 **깨끗한 Windows 11 일반 사용자 환경의 지원 자격을 자동으로 PASS로 바꾸지 않습니다.** 해당 컴퓨터가 실제로 Windows 11 클라이언트인지, 개발 도구가 없는 새 환경인지, 관리자 권한 없이 실행했는지는 환경 준비 기록 및 실제 결과와 함께 검토해야 합니다. `qualification.windows11_standard_user_clean_machine`과 `qualification.developer_tools_absence`는 자동 판정하지 않아 `NOT_RUN`으로 남습니다.
+검증 프로그램이 `PASS`를 기록해도 **깨끗한 Windows 11 일반 사용자 환경의 지원 자격을 자동으로 PASS로 바꾸지 않습니다.** 설치 전 수집기는 OS의 client/server 구분·build·EditionID·DisplayVersion, 실제 토큰의 elevation과 Administrators SID 포함 여부, CPU/RAM, 원래 PATH·uninstall registry·일반 설치 위치의 개발 도구를 관측합니다. 비승격 관리자 토큰에 남은 deny-only 관리자 SID도 확인합니다. Python WindowsApps 실행 별칭은 별도 관측하며, 기본 .NET runtime만으로 SDK 설치를 판정하지 않습니다. 읽기 실패·탐색 한도 초과는 `INCOMPLETE`로 남습니다.
+
+관측 범위에서 도구를 발견하지 않았다는 사실만으로 새 환경을 입증할 수는 없습니다. 실제 Windows 클라이언트·깨끗한 설치 준비·표준 사용자 실행은 환경 준비 기록과 새 설치 결과를 함께 검토합니다. `qualification.windows11_standard_user_clean_machine`과 `qualification.developer_tools_absence`는 `NOT_RUN`을 유지합니다.
 
 GitHub의 Windows Server 2022 관리자 runner에서 Python/Node 경로를 제외한 실행은 전달본과 포함 runtime의 동작 근거입니다. 실제 깨끗한 Windows 11 일반 사용자 검증을 대신하지 않습니다. 게시자 서명, 업데이트 신뢰, 완제품 기능과 완제품 데이터 제거 검증도 이 패키지의 통과 범위에 포함되지 않습니다.
+
+## 새 실행 증거 검토
+
+1. 검증 전에 환경을 준비한 실제 시각·방법·설치 이미지 출처·개발 도구 설치 이력을 남깁니다. 검증 실행 뒤 새 증거 폴더의 `client-preparation.template.json`을 `client-preparation.json`으로 복사하고 실제 기록을 기입합니다. `execution_id`, `manifest_sha256`, `client_environment_sha256`는 생성된 값을 유지합니다. 환경을 준비하지 않았다면 빈 칸을 추정으로 채우지 않습니다.
+2. `operator`에 준비 담당자, `prepared_at`에 **검증 시작 전의 실제 준비 시각**(시간대 포함 ISO 8601), `method`에 `clean_install` 또는 `clean_vm_image`, `description`에 구체적인 준비 방법을 기록합니다. `development_tools_installed`는 실제 도구 설치 여부입니다. 비어 있는 기본 양식은 검토 차단 상태로 처리됩니다.
+3. 원본 설치·이미지 출처 등 준비 근거를 증거 폴더의 `preparation/` 아래에 보존하고 `records`에 각각의 상대 경로와 SHA-256을 기록합니다. 예: `{"path":"preparation/install-record.txt","sha256":"실제 파일의 64자리 SHA-256"}`. 수집한 환경과 준비 담당자의 진술은 별도로 기록됩니다.
+4. 폴더 전체를 검토용 컴퓨터로 옮긴 뒤 아래 검사기를 실행합니다. Python은 **검토용 컴퓨터**에서 사용합니다. 검증 PC의 개발 도구 부재 조건을 위해 검증 중 Python을 설치할 필요가 없습니다.
+
+```powershell
+python tools/review_windows_client.py --evidence-root "D:\AIK evidence\실행ID" --expected-manifest-sha256 "신뢰한 빌드 기록의 manifest_sha256"
+```
+
+`--expected-manifest-sha256`은 신뢰하는 CI 빌드의 `build-handoff.json`에서 가져옵니다. 제출된 폴더 내부의 값만 다시 복사해서 신뢰 근거로 사용하지 않습니다. 도구는 입력 파일을 수정하지 않고 JSON을 표준 출력으로 내보냅니다. 원하면 검토용 출력 파일로 저장할 수 있습니다.
+
+| 상태 / 종료 코드 | 의미 |
+|---|---|
+| `READY_FOR_REVIEW` / `0` | manifest·새 실행·설치본·runtime·화면·환경·준비 첨부의 연결이 일치하여 독립 검토할 수 있음 |
+| `BLOCKED` / `2` | 실제 실행 미통과, 후보 Windows/표준 사용자 조건 불충족, 도구 발견, 관측 오류, 준비 기록 누락 등 |
+| `FAIL` / `1` | 파일 변경·잘못된 hash·실행 ID·시간 모순·위험한 경로·잘못된 JSON 등 |
+
+`READY_FOR_REVIEW`는 지원 판정이 아닙니다. 담당자의 환경 준비 진술과 이미지 출처, 화면, 최신 보안 업데이트·hardware·경로·오프라인 조건을 독립 검토하고 AIK-003 원장에 근거를 기록해야 합니다. 검사기는 원장 상태를 바꾸지 않습니다. 판본 후보는 기존 ADR의 Windows 11 25H2/build 26200 및 26H2/build 26300, Home/Pro 계열을 사용하며 최신 지원 여부를 자동 조회하지 않습니다. 과거 Server CI 증거는 무결성을 검토할 수 있지만 청정 클라이언트 검증에는 `BLOCKED`입니다.
 
 ## 인코딩 처리
 

@@ -11,7 +11,8 @@ $PackageRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
 if ([string]::IsNullOrWhiteSpace($EvidenceParent)) {
     $EvidenceParent = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'AIK/ClientHandoffEvidence'
 }
-$EvidenceRoot = Join-Path ([IO.Path]::GetFullPath($EvidenceParent)) ([Guid]::NewGuid().ToString('N'))
+$ExecutionId = [Guid]::NewGuid().ToString('N')
+$EvidenceRoot = Join-Path ([IO.Path]::GetFullPath($EvidenceParent)) $ExecutionId
 if (Test-Path -LiteralPath $EvidenceRoot) { throw 'Refusing to reuse an existing validation directory.' }
 New-Item -ItemType Directory -Path $EvidenceRoot | Out-Null
 $IsolatedRoot = Join-Path $EvidenceRoot 'installed-check'
@@ -20,7 +21,8 @@ $ReportPath = Join-Path $EvidenceRoot 'handoff-validation.json'
 $Child = $null
 $ExitCode = 1
 $Result = [ordered]@{
-    schema_version = 1
+    schema_version = 2
+    execution_id = $ExecutionId
     scope = 'Independent AIK foundation installer handoff verification'
     started_at = [DateTime]::UtcNow.ToString('o')
     status = 'FAIL'
@@ -125,7 +127,7 @@ try {
     $Result.package_source_commit = $Manifest.source_commit
     $Result.manifest_sha256 = Get-Sha256 $ManifestPath
     $RequiredMembers = @(
-        'README.ko.md', 'run-validation.cmd', 'run-validation.ps1',
+        'README.ko.md', 'run-validation.cmd', 'run-validation.ps1', 'collect-client-environment.ps1',
         'installer/AIK-Foundation-Spike-win-x64-dev-unsigned.exe',
         'verify-installed-spike.ps1', 'provenance/verify-installed-spike.original.ps1',
         'provenance/sidecar-build.json', 'provenance/installed-spike.json',
@@ -186,6 +188,31 @@ try {
     }
     Assert-Condition ($Result.legacy_script_parse.delivered_bom_copy.status -eq 'PASS') 'The delivered verifier failed the actual legacy parser.'
     $Result.checks.delivered_script_parse = 'PASS'
+
+    # Collect the host before either the child PATH or the installed application
+    # can change what is observed. Absence of detections is not qualification.
+    $CollectorPath = Join-Path $PackageRoot 'collect-client-environment.ps1'
+    Assert-Condition ((Parse-ObservedScript $CollectorPath).status -eq 'PASS') 'The environment collector failed the legacy parser.'
+    . $CollectorPath
+    $EnvironmentReportPath = Join-Path $EvidenceRoot 'client-environment.json'
+    $ClientEnvironment = Get-AikClientEnvironment -ExecutionId $ExecutionId -ManifestSha256 $Result.manifest_sha256
+    $ClientEnvironment | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath $EnvironmentReportPath -Encoding utf8
+    $Result.client_environment_report = 'client-environment.json'
+    $Result.client_environment_sha256 = Get-Sha256 $EnvironmentReportPath
+    $Result.client_environment_status = $ClientEnvironment.status
+    $PreparationTemplate = [ordered]@{
+        schema_version = 1
+        execution_id = $ExecutionId
+        manifest_sha256 = $Result.manifest_sha256
+        client_environment_sha256 = $Result.client_environment_sha256
+        operator = $null
+        prepared_at = $null
+        method = $null
+        description = $null
+        development_tools_installed = $null
+        records = @()
+    }
+    $PreparationTemplate | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $EvidenceRoot 'client-preparation.template.json') -Encoding utf8
 
     $PowerShellPath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
     $StartInfo = New-Object Diagnostics.ProcessStartInfo

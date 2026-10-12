@@ -5,8 +5,9 @@ on:
     branches: [main]
     paths:
       - 'tools/build_windows_handoff.py'
+      - 'tools/review_windows_client.py'
       - 'tools/windows_handoff/**'
-      - 'tests/test_windows_handoff.py'
+      - 'tests/test_windows*.py'
       - 'spikes/windows-foundation/**'
       - 'packaging/**'
       - 'scripts/windows/build-sidecar.ps1'
@@ -15,8 +16,9 @@ on:
   pull_request:
     paths:
       - 'tools/build_windows_handoff.py'
+      - 'tools/review_windows_client.py'
       - 'tools/windows_handoff/**'
-      - 'tests/test_windows_handoff.py'
+      - 'tests/test_windows*.py'
       - 'spikes/windows-foundation/**'
       - 'packaging/**'
       - 'scripts/windows/build-sidecar.ps1'
@@ -58,7 +60,7 @@ jobs:
       - name: Verify handoff identity and encoding regression guards
         shell: pwsh
         run: |
-          python -m unittest discover -s tests -p test_windows_handoff.py -v
+          python -m unittest discover -s tests -p 'test_windows*.py' -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install the locked desktop build dependencies
         working-directory: spikes/windows-foundation
@@ -116,7 +118,8 @@ jobs:
           if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1 -or $PSVersionTable.PSEdition -ne 'Desktop') {
             throw 'This verification requires actual Windows PowerShell 5.1.'
           }
-          $env:PATH = (Join-Path $env:SystemRoot 'System32') + ';' + $env:SystemRoot
+          # Preserve the original host PATH for the preinstall inventory. The
+          # delivered wrapper still isolates PATH for its installer child.
           $env:PSModulePath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'
           foreach ($Name in @('PYTHONHOME', 'PYTHONPATH', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE')) {
             Remove-Item -LiteralPath ('Env:' + $Name) -ErrorAction SilentlyContinue
@@ -145,7 +148,32 @@ jobs:
               $Report.observed_windows_environment.os_product_type -ne 3) {
             throw 'The Server CI run must preserve unqualified clean Windows client status.'
           }
+          $EnvironmentPath = Join-Path $Reports[0].DirectoryName 'client-environment.json'
+          $EnvironmentReport = Get-Content -LiteralPath $EnvironmentPath -Raw -Encoding utf8 | ConvertFrom-Json
+          if ($EnvironmentReport.execution_id -ne $Report.execution_id -or $EnvironmentReport.os.product_type -ne 3) {
+            throw 'The fresh preinstall environment must be bound to this Server execution.'
+          }
+          foreach ($ProbeName in @('operating_system', 'user_token', 'hardware', 'path_commands')) {
+            $Probe = @($EnvironmentReport.tool_inventory.probes | Where-Object { $_.name -eq $ProbeName })
+            if ($Probe.Count -ne 1 -or $Probe[0].status -ne 'PASS') { throw ('Actual environment probe failed: ' + $ProbeName) }
+          }
+          if ($EnvironmentReport.user.elevated -ne $true -or $EnvironmentReport.user.administrator_group_member -ne $true -or
+              @($EnvironmentReport.tool_inventory.detections).Count -eq 0) {
+            throw 'The original Server administrator and developer tools must remain observable.'
+          }
+          $BuildReport = Get-Content -LiteralPath 'packaging/handoff/build-handoff.json' -Raw -Encoding utf8 | ConvertFrom-Json
+          $ReviewJson = python tools/review_windows_client.py --evidence-root $Reports[0].DirectoryName --expected-manifest-sha256 $BuildReport.manifest_sha256
+          $ReviewExit = $LASTEXITCODE
+          $ReviewJson | Set-Content -LiteralPath (Join-Path $Reports[0].DirectoryName 'client-evidence-review.json') -Encoding utf8
+          $Review = $ReviewJson | ConvertFrom-Json
+          if ($ReviewExit -ne 2 -or $Review.status -ne 'BLOCKED' -or @($Review.errors).Count -ne 0 -or
+              $Review.blockers -notcontains 'NOT_WINDOWS_X64_CLIENT') {
+            throw 'Server evidence must pass integrity review while remaining blocked for clean-client qualification.'
+          }
           $Report | ConvertTo-Json -Depth 16
+          # Exit 2 was an expected clean-client rejection, already checked above.
+          # Do not let the runner propagate that native exit code as step failure.
+          exit 0
       - name: Preserve raw build and both actual validation executions
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

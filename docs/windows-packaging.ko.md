@@ -159,3 +159,11 @@ exit code는 PASS `0`, FAIL `1`, 실행 조건 미충족 BLOCKED `2`다. Windows
 첫 전달 검증 [run 38225912010](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38225912010)은 회귀 검사 중 `Get-FileHash` 명령을 찾지 못해 실패했다. 해시 계산을 모듈 조회에 의존하지 않는 기본 .NET의 streaming SHA-256으로 수정한 뒤 위 새 run에서 회귀와 실제 실행이 통과했다. 실패 로그는 [당시 근거](../evidence/windows-handoff/38225912010/failure-analysis.json)에 보존한다. 어떤 상속 경로가 모듈 발견 실패를 일으켰는지에 대한 추정은 관측된 실패·수정 후 성공과 구분한다.
 
 다음 실기에서는 [전달 패키지 사용법](../tools/windows_handoff/README.ko.md)에 따라 아티팩트의 ZIP을 모두 압축 해제하고 `run-validation.cmd`를 실행한다. 별도 Python·Node·Git·소스 checkout이 필요하지 않은 경로다. 실행 후 화면에 표시되는 `Evidence:` 폴더에 원본 보고서와 PNG가 남는다. [이번 실제 실행 근거](../evidence/windows-handoff/38226204128/README.ko.md)는 Windows Server 2022 관리자 환경의 결과이므로, **깨끗한 Windows 11 일반 사용자·개발 도구 부재는 `NOT_RUN`이며 AIK-003은 blocked를 유지한다.**
+
+## 7. AIK-003 환경 관측과 독립 검토 준비
+
+`collect-client-environment.ps1`는 설치 및 자식 PATH 변경 전에 실제 Windows 판본, 현재 프로세스 토큰의 승격·관리자 그룹, CPU/RAM과 원래 PATH·registry·일반 설치 위치의 개발 도구를 수집한다. 각 probe의 성공/실패를 보존하며 탐색 범위 밖의 도구 부재나 깨끗한 설치를 자동 주장하지 않는다. wrapper의 새 schema 2 보고서는 실행 ID·manifest·환경 JSON의 hash를 연결하고 환경 준비 기록의 빈 양식을 함께 만든다. collector도 전달 패키지의 hash 검사 대상이다.
+
+`tools/review_windows_client.py`는 신뢰한 빌드의 manifest SHA-256을 입력받아 새 설치/GUI/runtime/PNG·사전 환경·준비 첨부의 hash와 실행 시각을 검사한다. 이전 provenance 재사용, 실행 ID 모순, 변경된 파일, 링크/경로 탈출은 거절한다. Server·비승격 관리자 계정·도구 발견·관측/준비 기록 누락은 검토 차단 사유다. 통과 상태는 `READY_FOR_REVIEW`이며 Windows 지원·서명·제품 통합은 `NOT_RUN`을 유지한다. 환경 준비 기록과 직접 화면 검토를 포함한 원래 완료 조건이 충족돼야 AIK-003을 완료할 수 있다.
+
+CI에서도 수집기 실행 전에는 부모 PATH를 유지하고 설치 검증 자식만 기존 방식으로 격리한다. 실제 Windows Server 관리자·개발 도구가 관측되는지, 같은 설치 증거의 무결성 검토가 성공하되 클라이언트 qualification은 차단되는지 확인한다. [실행·준비 기록 사용법](../tools/windows_handoff/README.ko.md#새-실행-증거-검토)
