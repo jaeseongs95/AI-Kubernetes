@@ -1,0 +1,155 @@
+{
+  "task_id": "AIK-005",
+  "id": 38253102371,
+  "head_sha": "882f80f3a7d22bad2eed4ae552864bd3eeb963d4",
+  "status": "completed",
+  "conclusion": "success",
+  "url": "https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38253102371",
+  "created_at": "2026-10-12T13:04:00Z",
+  "updated_at": "2026-10-12T13:04:26Z",
+  "jobs": [
+    {
+      "id": 114824132698,
+      "name": "storage (windows-2022)",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Checkout the exact source revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Use the pinned CPython runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Verify persistence, revision conflicts and real crash recovery",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Preserve source-bound storage validation results",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Post Use the pinned CPython runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Post Checkout the exact source revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        }
+      ]
+    },
+    {
+      "id": 114824133073,
+      "name": "storage (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Checkout the exact source revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Use the pinned CPython runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Verify persistence, revision conflicts and real crash recovery",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Preserve source-bound storage validation results",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Post Use the pinned CPython runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Post Checkout the exact source revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 11748728046,
+      "name": "runtime-storage-ubuntu-24.04-882f80f3a7d22bad2eed4ae552864bd3eeb963d4-1",
+      "size_in_bytes": 2001,
+      "digest": "sha256:1b5d24b2bc9e1bc1b021da73fc72cc11c7141efdaf6643ede5fcb6063fcb36f4",
+      "created_at": "2026-10-12T13:04:10Z",
+      "expires_at": "2026-10-26T13:04:09Z",
+      "head_sha": "882f80f3a7d22bad2eed4ae552864bd3eeb963d4",
+      "local_archive": "linux.zip"
+    },
+    {
+      "id": 11748427810,
+      "name": "runtime-storage-windows-2022-882f80f3a7d22bad2eed4ae552864bd3eeb963d4-1",
+      "size_in_bytes": 1992,
+      "digest": "sha256:ade86e2f04aaaadf0e9d8ec8d2433f7849a0e606e5f7a2c254e83020a41de122",
+      "created_at": "2026-10-12T13:04:22Z",
+      "expires_at": "2026-10-26T13:04:21Z",
+      "head_sha": "882f80f3a7d22bad2eed4ae552864bd3eeb963d4",
+      "local_archive": "windows.zip"
+    }
+  ],
+  "verification": {
+    "artifact_sha256_and_size_match_github": true,
+    "json_bytes_match_zip_entries": true,
+    "source_files_match_git_blobs_per_os": 9,
+    "passed_test_ids_identical_across_os": 21,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

@@ -52,4 +52,17 @@ Windows에서는 복합 migration 실패 시험이 `MigrationError not raised`�
 
 첫 Windows 실행은 검증 대상 아홉 파일 중 workflow 한 파일이 Git blob과 다른 hash였다. Git checkout의 LF→CRLF 변환만으로 그 hash가 정확히 재현됨을 확인했다. `.gitattributes`에서 이 workflow 경로만 LF로 고정해 다음 실행에서는 모든 검증 대상 파일이 동일한 bytes를 사용하게 했다. 기존 원본 근거는 변환하거나 덮어쓰지 않았다.
 
-[실행·artifact 메타데이터](38252450171/run.json)에 원격 artifact ID와 digest를 보존했다. 다운로드한 두 ZIP 모두 GitHub가 제공한 크기와 SHA-256이 일치하며, JSON은 각 원본 ZIP에서 추출한 bytes 그대로다. 수정 소스의 Windows/Linux CI 재실행 결과는 아직 **PENDING**이다.
+[실행·artifact 메타데이터](38252450171/run.json)에 원격 artifact ID와 digest를 보존했다. 다운로드한 두 ZIP 모두 GitHub가 제공한 크기와 SHA-256이 일치하며, JSON은 각 원본 ZIP에서 추출한 bytes 그대로다.
+
+### 수정 후 최종 실행 — 두 환경 PASS
+
+수정 commit [`882f80f`](https://github.com/jaeseongs95/AI-Kubernetes/commit/882f80f3a7d22bad2eed4ae552864bd3eeb963d4)의 [실행 38253102371](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38253102371)이 **success**로 완료됐다.
+
+| 환경 | 실제 실행 환경 | 결과 | 원본 근거 |
+| --- | --- | --- | --- |
+| Ubuntu 24.04 | Python 3.14.8, SQLite 3.45.1, x86_64 | **21/21 PASS**, failure/error/skip 0 | [JSON](38253102371/linux-validation.json), [artifact ZIP](38253102371/linux.zip) |
+| Windows Server 2022 | Python 3.14.8, SQLite 3.50.4, AMD64 | **21/21 PASS**, failure/error/skip 0 | [JSON](38253102371/windows-validation.json), [artifact ZIP](38253102371/windows.zip) |
+
+두 결과의 `source_commit`과 `GITHUB_SHA`는 모두 `882f80f3a7d22bad2eed4ae552864bd3eeb963d4`이고, `working_tree_dirty=false`다. 각 OS의 아홉 source hash가 이 commit의 Git blob bytes와 **모두 일치**한다. 통과한 21개 고유 테스트 ID도 두 환경에서 동일하다. Windows에서도 실제 writer 강제 종료, OS 잠금, 기본 사용자 경로, 링크 거절, migration/복원 복합 오류 주입과 원본 사본의 실제 복구가 스킵 없이 실행됐다.
+
+[실행·artifact 검증 기록](38253102371/run.json)에 job·artifact ID와 digest를 남겼다. 두 ZIP의 크기·SHA-256을 GitHub 메타데이터와 대조했고, 보존 JSON이 해당 ZIP의 원본 항목과 byte-identical함을 확인했다. 이 CI 결과는 AIK-005 저장 부품의 실행 근거이며 원장 상태는 여전히 **AIK-083 대기 `blocked`**다.

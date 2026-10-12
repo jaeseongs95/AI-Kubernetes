@@ -3,7 +3,7 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-12T12:53:57Z`
+- 수정일 (UTC): `2026-10-12T13:06:19Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
@@ -240,7 +240,7 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 6 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T12:53:57Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T13:06:19Z` |
 
 제품 runtime 저장소를 개발 태스크 DB와 분리하고 VM 원장을 복제하지 않는 AIK 상태를 영속화한다.
 
@@ -260,6 +260,7 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 **기록된 증거**
 
 - `EV-AIK-005-RUNTIME-LOCAL-20261012` · implementation_validation · `evidence/runtime-storage/2026-10-12/README.ko.md` · 사용자의 한 태스크 구현·커밋·푸시 지시에 따라 독립 runtime 저장소를 구현했다. 다섯 metadata 모델·VM/AGS 외부 ID, revision CAS·원자 transaction, v1→v2 migration, 실제 hot journal writer 강제 종료와 복구, 복합 migration 복원 실패의 원본 사본 보존, 개발 원장/Git 경로 분리를 검증했다. 로컬 21/21 PASS, skip 0; 소스별 SHA-256 및 한계 기록. 원래 완료 기준·의존성 보존, AIK-083 미완료이므로 완료 승격하지 않음. Windows/Linux CI는 푸시 후 별도 실제 근거 기록. · `2026-10-12T12:53:57Z`
+- `EV-AIK-005-RUNTIME-CI-38253102371` · ci_validation · `https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38253102371` · AIK-005 구현 commit d07f5c1 및 Windows 오류 주입기 보정 commit 882f80f3a7d22bad2eed4ae552864bd3eeb963d4의 전용 CI 38253102371이 Ubuntu 24.04와 Windows Server 2022에서 각각 21/21 PASS, failure/error/skip 0으로 완료됐다. 양OS 원본 artifact ZIP·JSON 보존, GitHub digest/크기 대조 및 각9개 source hash의 해당 Git blob 일치를 확인했다. 첫 Windows20/21 실패 근거도 보존하고 canonical 경로 오류 주입을 강화했다. runtime core는 최초 구현 이후 불변. AIK-083 todo 및 원래 완료 기준·의존성은 유지하므로 AIK-005 blocked를 유지한다. 근거: evidence/runtime-storage/2026-10-12/README.ko.md. · `2026-10-12T13:06:19Z`
 
 ### AIK-006
 
@@ -3734,7 +3735,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-12T12:53:57Z |
+| `updated_at` | 2026-10-12T13:06:19Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |
