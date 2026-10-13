@@ -169,4 +169,4 @@ python -m unittest discover -s tests -v
 
 ## 라이선스
 
-**미정.** 이 저장소에 별도의 `LICENSE`가 명시되기 전까지 AGS의 MIT 또는 VM의 Apache-2.0 라이선스가 이 프로젝트 전체에 자동 적용된다고 가정하지 않는다.
+이 프로젝트의 자체 소스는 [MIT License](LICENSE)로 배포한다. 저장소에 보존한 upstream 산출물(예: `evidence/upstream/` 아래 VM wheel)과 제3자 구성요소는 각자의 라이선스를 따르며, 이 MIT 라이선스가 그 라이선스를 대체하지 않는다.
