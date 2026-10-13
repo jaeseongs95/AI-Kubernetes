@@ -6,10 +6,13 @@ Order of start (fail-closed):
 3. runner connection/login probe (no model turn);
 4. optional task-scoped credential grant (aik_broker), IDs only to the runner;
 5. runner.start and actual model/effort observation; a mismatch stops it.
-Any failure releases the grant and the supervisor lock and returns concrete
-setup issues. stop() rejects new work and never deletes in-flight leases or
-inbox items. Wake signals reach the runner only while RUNNING and only when
-the inbox has leasable work.
+Any failure revokes the grant and releases the supervisor lock, then returns
+concrete setup issues. Exception: when a started runner session could not be
+stopped, the grant is revoked but supervisor ownership is kept (state FAILED,
+runner stop pending) so no second director can start beside a live session.
+stop() rejects new work and never deletes in-flight leases or inbox items.
+Wake signals reach the runner only while RUNNING and only when the inbox has
+leasable work.
 """
 
 from __future__ import annotations
@@ -24,7 +27,7 @@ from aik_inbox import InboxStore, WakePolicy
 from aik_profiles import ExecutionDecision
 from aik_profiles.models import ExecutionChoice
 from aik_runtime.errors import StorageError
-from aik_supervisor import Attachment, SupervisorError, launch
+from aik_supervisor import Attachment, launch
 
 from .errors import DirectorError, InvalidDirectorConfig
 from .models import (
@@ -119,6 +122,9 @@ class Director:
         self._grant_id: str | None = None
         self._observation: Observation | None = None
         self._issues: tuple = ()
+        # True while a started runner session could not be stopped: ownership
+        # is kept and only a successful stop() retry releases it.
+        self._stop_pending = False
         self._policy = None if inbox is None else WakePolicy(inbox, self._deliver_wake)
 
     # ------------------------------------------------------------ records
@@ -293,11 +299,25 @@ class Director:
         except Exception:
             return False
 
+    def _keep_unstopped(self, session, binding, observation, grant_id) -> None:
+        """runner.stop failed: revoke the grant but keep single ownership.
+
+        The pending flag is set first so that no later failure path releases
+        the supervisor lock while the session may still be alive.
+        """
+        self._stop_pending = True
+        self._session, self._binding, self._observation, self._grant_id = session, binding, observation, None
+        self._revoke(grant_id)
+        self._record("runner_stop_failed", "RUNNER_STOP_FAILED")
+
     def _fail_start(self, status: str, issues: tuple, code: str, state: str, grant_id=None,
                     binding=None, observation=None) -> StartResult:
         instance = self._instance_id()
+        if self._stop_pending:
+            issues = issues + _issue("runner", "RUNNER_STOP_FAILED", "retry")
         self._record("start_failed", code, status=status, issue_codes=tuple(issue.code for issue in issues))
-        self._release(grant_id)
+        if not self._stop_pending:
+            self._release(grant_id)
         self._issues = issues
         self._state = state
         return StartResult(status, instance, binding, observation, issues, safe_code(code))
@@ -309,7 +329,7 @@ class Director:
             binding, grant_id, issues = self._preflight()
             self._revoke(grant_id)
             status = "ready" if not issues else classify(issues)
-            if self._state != "RUNNING":
+            if self._state != "RUNNING" and not self._stop_pending:
                 self._issues = issues
             self._record("check_passed" if not issues else "check_failed",
                          None if not issues else issues[0].code, status=status,
@@ -318,19 +338,31 @@ class Director:
 
     def start(self) -> StartResult:
         with self._mutex:
+            self._record("start_requested")
             if self._state in ("RUNNING", "STARTING", "STOPPING"):
                 self._record("start_rejected_duplicate", "ALREADY_RUNNING")
                 return StartResult("already_running", self._instance_id(), self._binding, self._observation,
                                    (), "ALREADY_RUNNING")
+            if self._stop_pending:
+                # The previous session may still be alive; stop() must succeed first.
+                self._record("start_rejected_stop_pending", "RUNNER_STOP_FAILED")
+                return StartResult("failed", self._instance_id(), self._binding, self._observation,
+                                   _issue("runner", "RUNNER_STOP_FAILED", "retry"), "RUNNER_STOP_FAILED")
             self._state = "STARTING"
             self._issues = ()
             config = self.config
             try:
                 owner = launch(config.workspace_id, component="director", state_root=config.state_root,
                                store=config.runtime_store, attach_timeout=config.attach_timeout)
-            except (SupervisorError, StorageError, OSError):
+            except Exception:
                 return self._fail_start("unavailable", _issue("supervisor", "SUPERVISOR_UNAVAILABLE", "retry"),
                                         "SUPERVISOR_UNAVAILABLE", "FAILED")
+            except BaseException:
+                try:
+                    self._record("start_failed", "UNCLASSIFIED", status="failed", issue_codes=())
+                finally:
+                    self._state = "FAILED"
+                raise
             if type(owner) is Attachment:
                 self._state = "STOPPED"
                 self._record("start_rejected_duplicate", "ALREADY_RUNNING", instance=owner.record.instance_id,
@@ -338,6 +370,9 @@ class Director:
                 return StartResult("already_running", owner.record.instance_id, None, None, (), "ALREADY_RUNNING")
             self._supervisor = owner
             grant_id = None
+            binding = None
+            session = None
+            needs_stop = False
             try:
                 binding, grant_id, issues = self._preflight()
                 if issues:
@@ -348,23 +383,42 @@ class Director:
                 except Exception:
                     return self._fail_start("failed", _issue("runner", "RUNNER_START_FAILED", "retry"),
                                             "RUNNER_START_FAILED", "FAILED", grant_id, binding)
+                needs_stop = True
                 if type(session) is not RunnerSession:
-                    self._stop_runner(session)
+                    needs_stop = False
+                    if not self._stop_runner(session):
+                        self._keep_unstopped(session, binding, None, grant_id)
                     return self._fail_start("failed", _issue("runner", "RUNNER_SESSION_INVALID", "retry"),
                                             "RUNNER_SESSION_INVALID", "FAILED", grant_id, binding)
                 observation = Observation.of(binding, session)
-                self._record("observed", None if observation.matches is not False else "OBSERVED_BINDING_MISMATCH",
+                if observation.matches is False:
+                    observed_code = "OBSERVED_BINDING_MISMATCH"
+                elif observation.matches is None:
+                    observed_code = "OBSERVATION_INCOMPLETE"
+                else:
+                    observed_code = None
+                self._record("observed", observed_code,
                              session_id=session.session_id, requested_model=binding.model,
                              requested_effort=binding.effort, observed_model=observation.observed_model,
                              observed_effort=observation.observed_effort, matches=observation.matches)
                 if observation.matches is False:
-                    self._stop_runner(session)
+                    needs_stop = False
+                    if not self._stop_runner(session):
+                        self._keep_unstopped(session, binding, observation, grant_id)
                     return self._fail_start("failed",
                                             _issue("model", "OBSERVED_BINDING_MISMATCH", "select_model"),
                                             "OBSERVED_BINDING_MISMATCH", "FAILED", grant_id, binding, observation)
             except BaseException:
-                self._release(grant_id)
-                self._state = "FAILED"
+                try:
+                    self._record("start_failed", "UNCLASSIFIED", status="failed", issue_codes=())
+                finally:
+                    if needs_stop:
+                        needs_stop = False
+                        if not self._stop_runner(session):
+                            self._keep_unstopped(session, binding, None, grant_id)
+                    if not self._stop_pending:
+                        self._release(grant_id)
+                    self._state = "FAILED"
                 raise
             self._binding, self._session, self._grant_id, self._observation = binding, session, grant_id, observation
             self._state = "RUNNING"
@@ -393,32 +447,51 @@ class Director:
             return tuple(ids), False
 
     def stop(self) -> StopResult:
-        """Reject new work and release ownership; in-flight jobs stay untouched."""
+        """Reject new work; release ownership only after the runner has stopped.
+
+        In-flight jobs stay untouched. If runner.stop fails, the grant is
+        revoked but ownership is kept (state FAILED) and "stop_failed" is
+        returned; calling stop() again retries the runner stop.
+        """
         with self._mutex:
-            if self._state != "RUNNING":
-                return StopResult("not_running", (), True, (), True, True)
+            if self._state != "RUNNING" and not self._stop_pending:
+                # Nothing was scanned or stopped: report unknown, not absent.
+                self._record("stop_rejected_not_running", "NOT_RUNNING")
+                return StopResult("not_running", (), False, (), False, False)
             instance = self._instance_id()
+            retry = self._stop_pending
             self._state = "STOPPING"
-            self._record("stop_requested")
             runner_stopped = False
+            report = None
             inbox_ids, inbox_complete = (), False
             try:
+                self._record("stop_requested", retry=retry)
                 runner_stopped = self._stop_runner(self._session)
-                if not runner_stopped:
-                    self._record("stop_runner_failed", "RUNNER_STOP_FAILED")
                 inbox_ids, inbox_complete = self._inbox_leased()
             finally:
-                report = self._release(self._grant_id)
-                self._session = self._binding = self._observation = None
-                self._grant_id = None
-                self._state = "STOPPED"
+                if runner_stopped:
+                    grant_id, self._grant_id = self._grant_id, None
+                    self._stop_pending = False
+                    self._session = self._binding = self._observation = None
+                    self._issues = ()
+                    self._state = "STOPPED"
+                    report = self._release(grant_id)
+                else:
+                    self._state = "FAILED"
+                    self._issues = _issue("runner", "RUNNER_STOP_FAILED", "retry")
+                    self._keep_unstopped(self._session, self._binding, self._observation, self._grant_id)
+            if not runner_stopped:
+                self._record("stop_failed", "RUNNER_STOP_FAILED", instance=instance,
+                             inbox_leased_ids=inbox_ids, inbox_scan_complete=inbox_complete,
+                             runner_stopped=False)
+                return StopResult("stop_failed", (), False, inbox_ids, inbox_complete, False)
             lease_ids = () if report is None else tuple(report.in_flight_lease_ids)
             complete = report is not None and report.scan_complete is True
-            self._record("stopped", None if runner_stopped else "RUNNER_STOP_FAILED", instance=instance,
+            self._record("stopped", None, instance=instance,
                          in_flight_lease_ids=lease_ids, scan_complete=complete,
                          inbox_leased_ids=inbox_ids, inbox_scan_complete=inbox_complete,
-                         runner_stopped=runner_stopped)
-            return StopResult("stopped", lease_ids, complete, inbox_ids, inbox_complete, runner_stopped)
+                         runner_stopped=True)
+            return StopResult("stopped", lease_ids, complete, inbox_ids, inbox_complete, True)
 
     def _deliver_wake(self, signal) -> None:
         if self._state != "RUNNING" or self._session is None:
@@ -441,7 +514,7 @@ class Director:
         """In-process health payload; it never triggers a model turn."""
         with self._mutex:
             runner = "not_running"
-            if self._state == "RUNNING":
+            if self._state == "RUNNING" or self._stop_pending:
                 try:
                     value = self._runner.health(self._session)
                 except Exception:
@@ -464,5 +537,7 @@ class Director:
                 "observed_effort": observation.observed_effort if observation else None,
                 "observation_match": observation.matches if observation else None,
                 "runner": runner,
+                "runner_stop_pending": self._stop_pending,
+                "event_sink_failures": self.sink_failures,
                 "issues": [issue.to_dict() for issue in self._issues],
             }
