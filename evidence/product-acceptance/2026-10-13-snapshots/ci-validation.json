@@ -1,0 +1,71 @@
+{
+  "task_id": "AIK-083",
+  "source_commit": "387aa4b32f2cbbfc60739890a29c04e2272abff3",
+  "base_commit": "b60f7c71c96dd0d95fa98214d744db04dd65e562",
+  "recorded_at": "2026-10-13T06:24:36Z",
+  "github_run_id": "38356398778",
+  "tests": {
+    "baseline": {
+      "tests": 8,
+      "passed": 0,
+      "failing_cases": [
+        "test_product_acceptance_snapshots.AcceptanceSnapshotTests.test_01_json_object_key_order_does_not_change_the_verdict",
+        "test_product_acceptance_snapshots.AcceptanceSnapshotTests.test_02_receipt_does_not_hash_a_later_unvalidated_path_read",
+        "test_product_acceptance_snapshots.AcceptanceSnapshotTests.test_03_fixture_hash_check_cannot_be_followed_by_unchecked_input_reread",
+        "test_product_acceptance_snapshots.AcceptanceSnapshotTests.test_04_oversized_file_is_rejected_before_unbounded_read_bytes",
+        "test_product_acceptance_snapshots.AcceptanceSnapshotTests.test_05_finite_number_overflow_is_rejected",
+        "test_product_acceptance_snapshots.AcceptanceSnapshotTests.test_06_excessive_json_nesting_is_rejected",
+        "test_product_acceptance_snapshots.AcceptanceSnapshotTests.test_07_escaped_lone_surrogates_are_rejected",
+        "test_product_acceptance_snapshots.AcceptanceSnapshotTests.test_08_nonregular_input_returns_a_fixed_contract_error"
+      ],
+      "failure_records": 6,
+      "error_records": 2,
+      "skipped": 0,
+      "successful": false,
+      "log_sha256": "987891b279f74e7a0ea4364688da7fe1f491d46da3de1ea5bd34dd1ef3d792c8"
+    },
+    "current": {
+      "tests": 36,
+      "passed": 36,
+      "failing_cases": [],
+      "failure_records": 0,
+      "error_records": 0,
+      "skipped": 0,
+      "successful": true,
+      "log_sha256": "1268328c38eb37bb5723926e409a9f369c7ec77b8dc0e685262736862f6f3d7c"
+    }
+  },
+  "environment": {
+    "python": "3.14.8 (main, Oct  1 2026, 02:38:33) [GCC 13.3.0]",
+    "platform": "linux"
+  },
+  "sources_sha256": {
+    "tools/product_acceptance.py": "342cd2b7da9d10909c1298e854cadfbb37db3db677906de6a137fd16f58ebec6",
+    "tools/acceptance_io.py": "6c162c998bb2e17602665331b42abb7c52f7419b40ab962a74ba7db40e6a045a",
+    "tests/test_product_acceptance.py": "96a2ed1b1750b32339c68e22849e9aa26153bb9de2aedd4d84ed34729abffd7f",
+    "tests/test_product_acceptance_snapshots.py": "cfbed44d34ead62603f4f3f0f2de7d169531b9a9efd17b5adc66d6734c8e18dc"
+  },
+  "patched_checker_git_blob": "3a3918a7e2c1b1331d0a405684481a8c6c0acf0a",
+  "baseline_checker_git_blob": "766a91bf50596377b5a72bcb301d6396a1b78b34",
+  "canonical_ledger_before_git_blob": "241f72295d8f07a05b498089962c47b3c97e104a",
+  "canonical_ledger_after_git_blob": "9b9cf41256e0bc41a651c1b570e6761b46eb1d13",
+  "ledger_delta": {
+    "tasks_changed": [
+      "AIK-083"
+    ],
+    "evidence_added": 1,
+    "events_added": 1,
+    "other_tasks_unchanged": true,
+    "acceptance_criteria_unchanged": true,
+    "dependencies_unchanged": true,
+    "schema_unchanged": true
+  },
+  "counts": {
+    "tasks": 90,
+    "acceptance_criteria": 311,
+    "task_dependencies": 365
+  },
+  "ready_tasks": 0,
+  "task_status": "blocked",
+  "installed_product_qualification": "NOT_RUN"
+}

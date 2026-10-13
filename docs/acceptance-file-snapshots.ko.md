@@ -6,7 +6,9 @@ AIK-083의 기존 제품 인수 계약과 출시 승인 조건은 유지한다. 
 
 기존 검사기는 입력 hash 확인 뒤 계산 과정에서 입력 파일을 다시 열었고, 산출물 JSON 검사 뒤 SHA-256을 만들기 위해 산출물을 다시 읽었다. 그 사이 파일이 바뀌면 검사한 내용과 영수증이 다른 바이트를 가리킬 수 있었다.
 
-`tools/acceptance_io.py`의 `read_snapshot`은 일반 파일을 크기 제한 내에서 한 번만 읽고 불변 bytes를 반환한다. 입력 파일의 Git blob hash 확인, 독립 계산, 산출물 파싱·검증과 SHA-256이 해당 bytes 사본을 사용한다. 최종 영수증에는 검증한 `artifact_bytes`도 포함한다. descriptor 및 경로의 identity·size·mtime·ctime을 전후 비교해 통상적인 수정·교체를 감지한다. 검사 종료 직전에도 입력과 산출물의 identity를 재확인한다.
+`tools/acceptance_io.py`의 `read_snapshot`은 일반 파일을 크기 제한 내에서 한 번만 읽고 불변 bytes를 반환한다. 입력 파일의 Git blob hash 확인, 독립 계산, 산출물 파싱·검증과 SHA-256이 해당 bytes 사본을 사용한다. 최종 영수증에는 검증한 `artifact_bytes`도 포함한다. descriptor 및 경로의 identity·size·mtime을 교차 비교하고, 각 조회 방식의 ctime을 포함한 전후 통계도 따로 비교한다. 검사 종료 직전에도 입력과 산출물의 경로 통계를 다시 확인한다.
+
+Windows의 복사된 합성 파일에서 `lstat`와 `fstat`의 `st_ctime_ns`가 다르게 관측됐다. 따라서 ctime을 두 API 사이에서 직접 일치시키지 않는다. 경로 조회는 최초 경로 조회값과, 파일 핸들 조회는 최초 핸들 조회값과 비교한다. 파일 identity·크기·mtime·일반 파일/reparse 검사와 각 방식의 전후 ctime 검사는 유지한다. 관측 근거와 실패 후 보정은 아래 검증 기록에 보존한다.
 
 이 방식은 파일 경합의 관찰 가능한 변경을 차단하고 영수증을 검사한 바이트에 결속한다. 동일 OS 사용자 공격자의 모든 교체·메타데이터 복원·다중 파일 동시 변경을 원자적으로 막는 OS 격리나 전체 디렉터리 transaction을 제공하지는 않는다. 검사 뒤 파일이 변경되는 상황까지 영구 불변이라고 보증하지 않는다.
 
