@@ -1059,3 +1059,28 @@ PR #15(commit `004ae1f`·`5953027`)는 상태를 바꾸지 않고 아래 태스�
 - steward 실행
 - 설치형 route·역할·도구 실측
 - Windows 실행
+
+## AIK-022
+
+- 구현: 설치형 Windows foundation 앱(Electron+frozen Python sidecar)에 네 번째 검사 카드 auth_vault를 추가했다. sidecar 명령 auth_vault_probe는 제품 모듈 aik_vault(Windows 사용자 DPAPI)·aik_connection·aik_auth_lifecycle·aik_runtime.paths.database_lock·aik_security를 실제로 써서 공개 합성 비밀로 10개 실패 경로를 실행하고 고정 코드만 반환한다: DPAPI 왕복·교체, 잠금 경합(VAULT_BUSY), 잘못된 참조(INVALID_REFERENCE), 잘린 blob(VAULT_CORRUPT), 외부 blob 모의(ACCESS_DENIED), 삭제된 참조(CREDENTIAL_NOT_FOUND), 인증 시계 만료 뒤 배치 거부, 자격 증명 삭제 뒤 배치 거부, 출력 redaction. 다른 사용자 프로필은 단일 사용자 세션에서 NOT_RUN_SINGLE_USER_SESSION으로 선언하고 통과로 주장하지 않는다. 출력에 합성 비밀이 있으면 FAIL(AUTH_VAULT_SECRET_LEAKED)이다. Windows handoff 키트(verify-installed-spike·run-validation·build_windows_handoff)는 auth_vault 카드를 필수로 요구하고 review_windows_client.py는 결과를 aik022_auth_vault로 판정한다.
+- 검증: 세션 Linux: spike 시험 test_auth_vault.py(fake vault로 10개 기대 코드 일치, 비밀 비노출, 내부 실패 FAIL, 비Windows NOT_RUN)와 handoff·review 시험, node protocol 시험 PASS. GitHub Actions(PR #17 head f731b1e, merge e025f41): windows-foundation installed-spike job 115434838577(run 38437391572)이 Windows Server runner에서 미서명 설치본을 빌드·설치하고 실제 GUI의 auth_vault 카드 PASS를 요구하는 verify-installed-spike.ps1을 통과했다(Installed foundation-spike validation: PASS, 증거 아티팩트 11832983859 zip sha256 66eeb5c5c628cd6915c7c3284952bffbe5ec5f44bf7a6f30760814121dfcecd3). 같은 job의 spike 단위 시험에서 실제 Windows DPAPI 경로 시험도 실행된다. 증거 아티팩트 본문은 egress proxy 차단으로 내려받지 못해 job 로그 판정으로만 확인했다.
+- 커밋: `PR #17 aik_spike.auth_vault`
+- 시험: `spikes/windows-foundation/tests/test_auth_vault.py` (5개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 미충족 | 실제 API/구독 인증 경로의 Windows 등록·호출·회전·해제·재연결과 같은 벤더 두 연결 분리는 실계정이 필요하며 실행하지 않았다(NOT_RUN). 합성 probe는 이 기준을 충족하지 않는다. |
+| 2 | 부분 | 잠금·손상된 참조·인증 만료·로그(출력) 제거·자격 증명 삭제를 합성 비밀로 실제 Windows Server DPAPI 설치본에서 검증했다. 다른 사용자 조건은 두 번째 Windows 계정이 없어 NOT_RUN이며 외부 blob은 모의로만 검증했다. Windows 11 표준 사용자 실기는 사용자 PC 실행 대기. |
+| 3 | 부분 | probe는 auth/vault 실패 경로만 판정하고 governed 실행 준비 여부를 판정하지 않는다(handoff review에서 별도 항목). 필수 경로 matrix별 live 판정·관측 시각 기록은 실계정 실행 전이라 NOT_RUN이다. |
+
+차단 사유:
+- 실계정 인증 경로(기준 1) 미실행: 사용자 key 입력 UI·실행 필요
+- 다른 Windows 사용자 프로필 조건 NOT_RUN(두 번째 계정 필요)
+- Windows 11 표준 사용자 실기 결과 대기(AIK-003 handoff와 같은 실행)
+
+실행하지 않은 검증(NOT_RUN):
+- 실계정 등록·호출·회전·해제·재연결
+- 같은 벤더 두 연결·외부 로그인 변경
+- 다른 Windows 사용자 프로필 DPAPI 거부
+- Windows 11 표준 사용자 실기
+- matrix revision별 live qualification
