@@ -241,8 +241,13 @@ def run(vm_repo: Path, work: Path) -> dict:
     def tick(**kwargs):
         result = app.run_once(project_id, **kwargs)
         action = str(_value(result, "action"))
-        step({"step": "run_once", "action": action, "attempt_id": _value(result, "attempt_id"),
-              "blocker_code": _value(result, "blocker_code"), "detail": str(_value(result, "detail") or "")[:300]})
+        entry = {"step": "run_once", "action": action, "attempt_id": _value(result, "attempt_id"),
+                 "blocker_code": _value(result, "blocker_code"), "detail": str(_value(result, "detail") or "")[:300]}
+        last = report["steps"][-1] if report["steps"] else None
+        if last is not None and {k: v for k, v in last.items() if k != "repeat"} == entry:
+            last["repeat"] = last.get("repeat", 1) + 1
+        else:
+            step(entry)
         return result, action
 
     result, action = tick(proposal=prepared.proposal)
@@ -299,22 +304,21 @@ def run(vm_repo: Path, work: Path) -> dict:
     if thread_id is not None:
         (workspace / "app.py").write_text(FIXED_APP, encoding="utf-8")
         inner.complete(thread_id, response="hosted diagnostic complete")
-        result, action = tick()
-        for _ in range(40):
-            if action.endswith("validated") or action.endswith("blocked"):
-                break
-            time.sleep(0.05)
-            result, action = tick()
         goal_step = None
         steps = getattr(prepared.proposal, "validation_steps", None) or ()
         if steps:
             goal_step = steps[0].model_copy(update={"validation_id": "validation_goal"})
-        if action.endswith("validated") and goal_step is not None:
-            for _ in range(6):
-                result, action = tick(goal_validation_step=goal_step)
-                if _value(result, "goal_verdict_id") is not None:
-                    break
+        # Same driving pattern as VM's own product-path E2E: every tick carries the
+        # Goal Test step, and the asynchronous RuntimeJobs get time between ticks.
+        deadline = time.monotonic() + 180
+        result, action = tick(goal_validation_step=goal_step)
+        while time.monotonic() < deadline:
+            if _value(result, "goal_verdict_id") is not None or action.endswith("blocked"):
+                break
+            time.sleep(0.25)
+            result, action = tick(goal_validation_step=goal_step)
         report["goal_verdict_id"] = _value(result, "goal_verdict_id")
+        report["goal_final_action"] = action
     report["assignment_calls"] = assignment_calls
     report["effect_records"] = [dict(row) for row in store.effect_records()]
     return report
