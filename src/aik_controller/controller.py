@@ -4,6 +4,10 @@ One tick: wake poll -> VM status -> pure decide() -> one VM command. The loop
 stops at a STOP decision, a VM final report, max ticks, an absolute deadline or
 too many ticks without VM-visible progress. Unclear effects are never resent;
 they are observed until VM shows their state. Guards are in memory only.
+
+run() holds the controller lock for its whole duration: pause()/cancel() from
+another thread wait until run() returns. Users pause or cancel via GUI -> VM;
+the loop stops on the next tick when VM reports paused/cancelled.
 """
 
 from __future__ import annotations
@@ -83,6 +87,8 @@ class Controller:
         self._lock = threading.RLock()
         self._sequence = 0
         self._unresolved: dict[str, str | None] = {}
+        # task_id -> (failure_id, plan_revision_id) of a replan whose effect is unclear.
+        self._unresolved_replans: dict[str, tuple] = {}
         self._replanned: set[str] = set()
         self._replans = 0
         self._model_reported = False
@@ -102,16 +108,20 @@ class Controller:
             return None
         return value
 
-    def _memory(self) -> Memory:
-        return Memory(frozenset(self._unresolved), frozenset(self._replanned), self._replans)
+    def _unresolved_ids(self) -> frozenset:
+        return frozenset(self._unresolved) | frozenset(self._unresolved_replans)
 
-    def _poll_wake(self) -> None:
+    def _memory(self) -> Memory:
+        return Memory(self._unresolved_ids(), frozenset(self._replanned), self._replans)
+
+    def _poll_wake(self, tick: int, trace: list) -> None:
         if self._wake is None:
             return
         try:
             self._wake.poll()
         except Exception:
             self.wake_failures += 1
+            trace.append(ActionRecord(tick, "wake", None, "WAKE_FAILED"))
 
     def _pause(self, deadline: datetime | None) -> None:
         interval = self.policy.poll_interval_seconds
@@ -147,7 +157,7 @@ class Controller:
             goal_verdict_id=None if view is None else view.goal_verdict_id,
             verdict_outcome=verdict_outcome, evidence_refs=tuple(evidence), deliverable_refs=tuple(deliverables),
             task_states=() if view is None else tuple((task.task_id, task.state) for task in view.tasks),
-            model_reported=self._model_reported, unresolved_task_ids=tuple(sorted(self._unresolved)),
+            model_reported=self._model_reported, unresolved_task_ids=tuple(sorted(self._unresolved_ids())),
             vm_code=None if vm_code is None else safe_code(vm_code), actions=tuple(trace),
         )
 
@@ -169,10 +179,12 @@ class Controller:
             return self._effect(Command.REVISE, request)
 
     def pause(self, reason: str):
+        """Blocks while run() is active; use the GUI -> VM path to pause a running loop."""
         with self._lock:
             return self._effect(Command.PAUSE, PauseRequest(self._next_id(), self.project_id, reason))
 
     def cancel(self, reason: str):
+        """Blocks while run() is active; use the GUI -> VM path to cancel a running loop."""
         with self._lock:
             return self._effect(Command.CANCEL, CancelRequest(self._next_id(), self.project_id, reason))
 
@@ -184,7 +196,7 @@ class Controller:
     @property
     def unresolved_task_ids(self) -> tuple:
         with self._lock:
-            return tuple(sorted(self._unresolved))
+            return tuple(sorted(self._unresolved_ids()))
 
     # --------------------------------------------------------------- loop
     def run(self, *, deadline: datetime | None = None) -> RunReport:
@@ -194,6 +206,8 @@ class Controller:
                 deadline = policy.deadline
             elif not isinstance(deadline, datetime) or deadline.utcoffset() is None:
                 raise InvalidControllerConfig("The run deadline must be a timezone-aware datetime.")
+            # max_replans bounds one run(); a failure already sent stays in _replanned.
+            self._replans = 0
             trace: list = []
             view: VmView | None = None
             last = _UNSET
@@ -207,7 +221,7 @@ class Controller:
                     if now >= deadline:
                         return self._report("deadline_exceeded", "DEADLINE_EXCEEDED", view, ticks, trace)
                 ticks = tick
-                self._poll_wake()
+                self._poll_wake(tick, trace)
                 view = self._status(tick, trace)
                 self._resolve(view)
                 decision = decide(view, self._memory(), policy)
@@ -227,7 +241,8 @@ class Controller:
                     no_progress += 1
                 last = fingerprint
                 if no_progress >= policy.max_no_progress:
-                    outcome = "reconciliation_required" if self._unresolved else "no_progress"
+                    unresolved = self._unresolved or self._unresolved_replans
+                    outcome = "reconciliation_required" if unresolved else "no_progress"
                     return self._report(outcome, "NO_PROGRESS_LIMIT", view, ticks, trace)
                 if result == _WAIT:
                     self._pause(deadline)
@@ -249,7 +264,7 @@ class Controller:
 
     def _resolve(self, view: VmView | None) -> None:
         """Clear an unclear effect only when VM shows a definite later state."""
-        if view is None:
+        if view is None or view.goal_state == "unknown":
             return
         tasks = {task.task_id: task for task in view.tasks}
         for task_id, attempt in list(self._unresolved.items()):
@@ -258,6 +273,14 @@ class Controller:
                 continue
             if task.attempt_id != attempt or task.state not in ("ready", "unknown"):
                 del self._unresolved[task_id]
+        for task_id, (failure_id, plan) in list(self._unresolved_replans.items()):
+            task = tasks.get(task_id)
+            if task is not None and task.state == "unknown":
+                continue
+            changed_plan = view.plan_revision_id is not None and view.plan_revision_id != plan
+            changed_task = task is not None and (task.state != "validation_failed" or task.failure_id != failure_id)
+            if changed_plan or changed_task:
+                del self._unresolved_replans[task_id]
 
     def _execute(self, decision: Decision, tick: int, view: VmView, trace: list):
         if decision.action is Action.OBSERVE:
@@ -265,7 +288,7 @@ class Controller:
         if decision.action is Action.RUN_ONCE:
             return self._run_task(decision.task, tick, trace)
         if decision.action is Action.REPLAN:
-            return self._replan(decision.task, tick, trace)
+            return self._replan(decision.task, tick, trace, view)
         if decision.action is Action.FINAL_REPORT:
             return self._final_report(view, tick, trace)
         raise InvalidControllerConfig("Unknown controller action.")
@@ -296,6 +319,9 @@ class Controller:
         if type(request) is not RunOnceRequest or request.request_id != request_id \
                 or request.binding.vm_project_id != self.project_id \
                 or request.binding.vm_task_id != task.task_id or request.binding.vm_attempt_id != task.attempt_id:
+            if type(request) is RunOnceRequest:
+                # Certainly not sent to VM: return its placement/lease reservation.
+                self._release(request)
             record("DELEGATION_MISMATCH")
             return _Stop("delegation_failed", "DELEGATION_MISMATCH")
         try:
@@ -335,34 +361,58 @@ class Controller:
             record("RUN_REQUESTED")
         return _CONTINUE
 
-    def _replan(self, task: TaskView, tick: int, trace: list):
+    def _mark_replan(self, task: TaskView, view: VmView | None, *, unresolved: bool) -> None:
+        self._replanned.add(task.failure_id)
+        self._replans += 1
+        if unresolved:
+            plan = None if view is None else view.plan_revision_id
+            self._unresolved_replans[task.task_id] = (task.failure_id, plan)
+
+    def _replan(self, task: TaskView, tick: int, trace: list, view: VmView | None = None):
         request_id = self._next_id()
         record = lambda result: trace.append(ActionRecord(tick, "replan", request_id, result, task.task_id))
         rationale = (f"Independent validation failed for VM task {task.task_id} "
                      f"(failure {task.failure_id}); requesting VM rework.")
         request = ReplanRequest(request_id, self.project_id, rationale)
-        # Mark before sending: an unclear replan is never resent for the same failure.
-        self._replanned.add(task.failure_id)
-        self._replans += 1
+        # Authority first: a definite denial leaves no mark, so a later run() can request it.
         try:
-            self._effect(Command.REPLAN, request, task_id=task.task_id)
+            self._authority.check(Command.REPLAN, project_id=self.project_id, request_id=request_id,
+                                  task_id=task.task_id)
         except EffectOutcomeUnknown as error:
+            # The intent may be recorded; never resend for this failure, observe first.
+            self._mark_replan(task, view, unresolved=True)
             record(error.code.value)
             return _CONTINUE
         except AuthorityError as error:
             record(error.code.value)
             return _Stop("escalation_required" if error.escalation else "authority_denied", error.code.value)
+        except Exception:
+            record("AUTHORITY_UNAVAILABLE")
+            return _Stop("authority_denied", "AUTHORITY_UNAVAILABLE")
+        # Mark before sending: an unclear replan is never resent for the same failure.
+        self._mark_replan(task, view, unresolved=False)
+        try:
+            self._bridge.replan(request)
         except VmBridgeError as error:
             code = _bridge_code(error)
             record(code)
             if error.outcome is EffectOutcome.UNKNOWN:
+                self._mark_replan_unresolved(task, view)
                 return _CONTINUE
+            # VM definitely did not apply it: undo the mark so it can be requested again.
+            self._replanned.discard(task.failure_id)
+            self._replans = max(0, self._replans - 1)
             return _Stop("vm_rejected", code, error.vm_code)
         except Exception:
+            self._mark_replan_unresolved(task, view)
             record("OUTCOME_UNKNOWN")
             return _CONTINUE
         record("REPLAN_REQUESTED")
         return _CONTINUE
+
+    def _mark_replan_unresolved(self, task: TaskView, view: VmView | None) -> None:
+        plan = None if view is None else view.plan_revision_id
+        self._unresolved_replans[task.task_id] = (task.failure_id, plan)
 
     def _final_report(self, view: VmView, tick: int, trace: list):
         request_id = self._next_id()

@@ -8,9 +8,11 @@ Linux success is development verification, not Windows support.
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 import unittest
 
 
@@ -27,7 +29,7 @@ from aik_controller import (  # noqa: E402
 from aik_provider.contracts import AuthKind  # noqa: E402
 from aik_runtime import Lease, Placement, Pool  # noqa: E402
 from aik_vm_bridge import (  # noqa: E402
-    AuthorizeRequest, Command, RunOnceRequest, TaskExecutionBinding, VmBridge,
+    AuthorizeRequest, Command, EffectOutcome, RunOnceRequest, TaskExecutionBinding, VmBridge, VmBridgeError,
 )
 
 
@@ -36,6 +38,7 @@ REVISION = "surface-rev-test"
 NOW = datetime(2030, 1, 1, tzinfo=timezone.utc)
 DIGEST = "sha256:" + "0" * 64
 AUTH_KIND = next(iter(AuthKind)).value
+DEFINITE = next(outcome for outcome in EffectOutcome if outcome is not EffectOutcome.UNKNOWN)
 SIGNATURES = {
     "prepare": "self, project_id, *, source_request, candidate_count=None",
     "revise": "self, project_id, *, source_request, candidate_count=None",
@@ -270,15 +273,38 @@ class FakeDelegation:
         self.released.append(request.request_id)
 
 
+class MismatchDelegation(FakeDelegation):
+    """Returns a reserved request bound to a different attempt than VM reported."""
+
+    def prepare_run(self, project_id, task, request_id):
+        self.calls.append((task.task_id, task.attempt_id, task.inputs))
+        return make_run_request(project_id, replace(task, attempt_id="attempt-other-1"), request_id)
+
+
+class FailingDelegation(FakeDelegation):
+    def prepare_run(self, project_id, task, request_id):
+        self.calls.append((task.task_id, task.attempt_id, task.inputs))
+        raise RuntimeError("synthetic delegation failure")
+
+
+class NoCapacityDelegation(FakeDelegation):
+    def prepare_run(self, project_id, task, request_id):
+        self.calls.append((task.task_id, task.attempt_id, task.inputs))
+        return None
+
+
 class FakeAuthority:
-    def __init__(self, deny=None, unknown_once=()):
+    def __init__(self, deny=None, unknown_once=(), fail=()):
         self.calls = []
         self.deny = dict(deny or {})
         self.unknown = set(unknown_once)
+        self.fail = set(fail)
 
     def check(self, command, *, project_id, request_id, task_id=None):
         command = Command(command)
         self.calls.append((command, task_id))
+        if command in self.fail:
+            raise RuntimeError("synthetic authority infrastructure failure")
         if command in self.deny:
             raise AuthorityDenied(self.deny[command], subject="tool_id")
         if command in self.unknown:
@@ -294,6 +320,15 @@ class FakeWake:
         self.polls += 1
 
 
+class FailingWake:
+    def __init__(self):
+        self.polls = 0
+
+    def poll(self):
+        self.polls += 1
+        raise RuntimeError("synthetic inbox wake failure")
+
+
 class StepClock:
     def __init__(self, start=NOW):
         self.now = start
@@ -304,14 +339,91 @@ class StepClock:
         return value
 
 
+class SyntheticBridgeError(VmBridgeError):
+    """A classified bridge failure with explicit outcome; never raw VM text."""
+
+    outcome = None
+    code = None
+    vm_code = None
+
+    def __init__(self, outcome, code="VM_REJECTED", vm_code=None):
+        Exception.__init__(self, "synthetic bridge failure")
+        object.__setattr__(self, "outcome", outcome)
+        object.__setattr__(self, "code", SimpleNamespace(value=code))
+        object.__setattr__(self, "vm_code", vm_code)
+
+
+class FaultyBridge:
+    """Delegates to a real VmBridge, raising queued faults for selected commands."""
+
+    def __init__(self, inner, faults):
+        self._inner = inner
+        self._faults = {name: list(errors) for name, errors in faults.items()}
+
+    def __getattr__(self, name):
+        method = getattr(self._inner, name)
+        queue = self._faults.get(name)
+        if queue is None:
+            return method
+
+        def wrapped(request):
+            if queue:
+                raise queue.pop(0)
+            return method(request)
+        return wrapped
+
+
+class StubBridge:
+    """Minimal bridge with a fixed VM status payload (no VmBridge involved)."""
+
+    def __init__(self, payload, replan_error):
+        self.payload = payload
+        self.replan_error = replan_error
+        self.calls = []
+
+    def _receipt(self, name):
+        self.calls.append(name)
+        return SimpleNamespace(payload=self.payload)
+
+    def prepare(self, request):
+        return self._receipt("prepare")
+
+    def revise(self, request):
+        return self._receipt("revise")
+
+    def observe(self, request):
+        return self._receipt("observe")
+
+    def pause(self, request):
+        return self._receipt("pause")
+
+    def cancel(self, request):
+        return self._receipt("cancel")
+
+    def final_report(self, request):
+        return self._receipt("final_report")
+
+    def status(self, request):
+        return self._receipt("status")
+
+    def replan(self, request):
+        self.calls.append("replan")
+        raise self.replan_error
+
+    def run_once(self, request):
+        self.calls.append("run_once")
+        return SimpleNamespace(job=None)
+
+
 class ControllerLoopTests(unittest.TestCase):
-    def build(self, vm, *, authority=None, clock=None, **policy):
+    def build(self, vm, *, authority=None, clock=None, faults=None, delegation=None, wake=None, **policy):
         self.bridge = VmBridge(vm, SURFACE, now=lambda: NOW)
-        self.delegation = FakeDelegation()
+        bridge = self.bridge if faults is None else FaultyBridge(self.bridge, faults)
+        self.delegation = delegation or FakeDelegation()
         self.authority = authority or FakeAuthority()
-        self.wake = FakeWake()
+        self.wake = wake or FakeWake()
         self.user_requests = 0
-        controller = Controller(self.bridge, project_id=PROJECT, delegation=self.delegation,
+        controller = Controller(bridge, project_id=PROJECT, delegation=self.delegation,
                                 authority=self.authority, wake=self.wake, policy=RunPolicy(**policy),
                                 clock=clock, sleep=lambda seconds: None, run_id="run-test")
         return controller
@@ -372,13 +484,14 @@ class ControllerLoopTests(unittest.TestCase):
         self.assertTrue(all(count == 1 for count in vm.run_counts.values()))
 
     def test_model_reported_without_vm_verdict_is_not_completion(self) -> None:
-        controller = self.started(FakeVm(stuck=True), max_ticks=6, max_no_progress=100)
+        vm = FakeVm(stuck=True)
+        controller = self.started(vm, max_ticks=6, max_no_progress=100)
         controller.note_model_reported()
         report = controller.run()
         self.assertEqual(report.outcome, "max_ticks")
         self.assertFalse(report.goal_complete)
         self.assertTrue(report.model_reported)
-        self.assertNotIn("final_report", [name for name, _ in controller._bridge._port.calls])
+        self.assertNotIn("final_report", vm.names())
 
     def test_final_report_without_evidence_is_unverified(self) -> None:
         controller = self.started(FakeVm(final_evidence=()))
@@ -484,6 +597,167 @@ class ControllerLoopTests(unittest.TestCase):
         with self.assertRaises(InvalidControllerConfig):
             Controller(object(), project_id=PROJECT, delegation=FakeDelegation(), authority=FakeAuthority())
 
+    # ---- F-1: replan denial / rejection must not consume the failure ----
+    def test_denied_replan_is_not_marked_and_is_sent_after_permission_is_fixed(self) -> None:
+        authority = FakeAuthority(deny={Command.REPLAN: AuthorityCode.LEASE_INACTIVE})
+        vm = FakeVm(failing_attempts={"attempt-task-c-1"})
+        controller = self.started(vm, authority=authority)
+        first = controller.run()
+        self.assertEqual(first.outcome, "authority_denied")
+        self.assertEqual(first.reason, "LEASE_INACTIVE")
+        self.assertNotIn("replan", vm.names())
+        authority.deny.clear()
+        second = controller.run()
+        self.assertEqual(second.outcome, "completed")
+        self.assertEqual(vm.names().count("replan"), 1)
+
+    def test_definite_vm_rejection_of_replan_permits_a_later_replan(self) -> None:
+        vm = FakeVm(failing_attempts={"attempt-task-c-1"})
+        controller = self.started(vm, faults={"replan": [SyntheticBridgeError(DEFINITE, vm_code="PLAN_LOCKED")]})
+        first = controller.run()
+        self.assertEqual(first.outcome, "vm_rejected")
+        self.assertEqual(first.vm_code, "PLAN_LOCKED")
+        self.assertEqual(first.unresolved_task_ids, ())
+        second = controller.run()
+        self.assertEqual(second.outcome, "completed")
+        self.assertEqual(vm.names().count("replan"), 1)
+
+    def test_authority_failure_on_replan_stops_as_unavailable(self) -> None:
+        vm = FakeVm(failing_attempts={"attempt-task-c-1"})
+        report = self.started(vm, authority=FakeAuthority(fail={Command.REPLAN})).run()
+        self.assertEqual(report.outcome, "authority_denied")
+        self.assertEqual(report.reason, "AUTHORITY_UNAVAILABLE")
+        self.assertNotIn("replan", vm.names())
+
+    # ---- F-3: unclear replan blocks other effects until VM shows its state ----
+    def test_unclear_replan_blocks_other_delegation_until_vm_shows_it(self) -> None:
+        payload = {"goal_state": "active", "plan_revision_id": "plan-1", "history_cursor": 1, "tasks": [
+            {"task_id": "task-x", "state": "validation_failed", "attempt_id": "attempt-x-1",
+             "failure_id": "failure-x-1", "replan_allowed": True},
+            {"task_id": "task-y", "state": "ready", "attempt_id": "attempt-y-1"},
+        ]}
+        bridge = StubBridge(payload, RuntimeError("synthetic transport loss"))
+        controller = Controller(bridge, project_id=PROJECT, delegation=FakeDelegation(), authority=FakeAuthority(),
+                                policy=RunPolicy(max_no_progress=3), sleep=lambda seconds: None, run_id="run-stub")
+        report = controller.run()
+        self.assertEqual(bridge.calls.count("replan"), 1)
+        self.assertNotIn("run_once", bridge.calls)
+        self.assertEqual(report.outcome, "reconciliation_required")
+        self.assertEqual(report.unresolved_task_ids, ("task-x",))
+
+        bridge.payload = {"goal_state": "active", "plan_revision_id": "plan-2", "history_cursor": 2, "tasks": [
+            {"task_id": "task-x", "state": "ready", "attempt_id": "attempt-x-2"},
+            {"task_id": "task-y", "state": "ready", "attempt_id": "attempt-y-1"},
+        ]}
+        controller.run()
+        self.assertEqual(bridge.calls.count("replan"), 1)
+        self.assertEqual(bridge.calls.count("run_once"), 1)
+
+    # ---- F-4 ----
+    def test_mismatched_delegation_request_is_released(self) -> None:
+        vm = FakeVm()
+        report = self.started(vm, delegation=MismatchDelegation()).run()
+        self.assertEqual(report.outcome, "delegation_failed")
+        self.assertEqual(report.reason, "DELEGATION_MISMATCH")
+        self.assertEqual(len(self.delegation.released), 1)
+        self.assertEqual(vm.run_counts, Counter())
+
+    # ---- F-6 ----
+    def test_replan_limit_is_per_run_and_a_new_run_continues(self) -> None:
+        vm = FakeVm(failing_attempts={"attempt-task-c-1", "attempt-task-c-2"})
+        controller = self.started(vm, max_replans=1)
+        first = controller.run()
+        self.assertEqual(first.outcome, "validation_failed")
+        self.assertEqual(first.reason, "REPLAN_LIMIT")
+        self.assertEqual(vm.names().count("replan"), 1)
+        second = controller.run()
+        self.assertEqual(second.outcome, "completed")
+        self.assertEqual(vm.names().count("replan"), 2)
+        replans = [details["rationale"] for name, details in vm.calls if name == "replan"]
+        self.assertIn("failure-attempt-task-c-1", replans[0])
+        self.assertIn("failure-attempt-task-c-2", replans[1])
+
+    # ---- F-8 ----
+    def test_wake_failure_is_recorded_in_the_report(self) -> None:
+        wake = FailingWake()
+        controller = self.started(FakeVm(), wake=wake)
+        report = controller.run()
+        self.assertEqual(report.outcome, "completed")
+        wake_records = [record for record in report.actions if record.action == "wake"]
+        self.assertEqual(len(wake_records), report.ticks)
+        self.assertTrue(all(record.result == "WAKE_FAILED" for record in wake_records))
+        self.assertEqual(controller.wake_failures, report.ticks)
+
+    # ---- F-9: refusal and failure branches ----
+    def test_definite_run_once_rejection_stops_with_vm_code_and_releases(self) -> None:
+        vm = FakeVm()
+        controller = self.started(vm, faults={"run_once": [SyntheticBridgeError(DEFINITE, vm_code="ATTEMPT_STALE")]})
+        report = controller.run()
+        self.assertEqual(report.outcome, "vm_rejected")
+        self.assertEqual(report.vm_code, "ATTEMPT_STALE")
+        self.assertEqual(report.handoff, "inspect_vm")
+        self.assertEqual(len(self.delegation.released), 1)
+        self.assertEqual(report.unresolved_task_ids, ())
+        self.assertEqual(vm.run_counts, Counter())
+
+    def test_delegation_failure_stops(self) -> None:
+        vm = FakeVm()
+        report = self.started(vm, delegation=FailingDelegation()).run()
+        self.assertEqual(report.outcome, "delegation_failed")
+        self.assertEqual(report.reason, "DELEGATION_FAILED")
+        self.assertEqual(report.handoff, "check_capacity")
+        self.assertEqual(vm.run_counts, Counter())
+
+    def test_no_capacity_waits_without_sending(self) -> None:
+        vm = FakeVm()
+        report = self.started(vm, delegation=NoCapacityDelegation(), max_no_progress=3).run()
+        self.assertEqual(report.outcome, "no_progress")
+        self.assertIn("NO_CAPACITY", [record.result for record in report.actions if record.action == "run_once"])
+        self.assertEqual(vm.run_counts, Counter())
+        self.assertEqual([c for c in self.authority.calls if c[0] is Command.RUN_ONCE], [])
+
+    def test_status_failure_observes_without_effects(self) -> None:
+        vm = FakeVm()
+        faults = {"status": [RuntimeError("synthetic status failure") for _ in range(3)]}
+        report = self.started(vm, faults=faults, max_no_progress=3).run()
+        self.assertEqual(report.outcome, "no_progress")
+        statuses = [record.result for record in report.actions if record.action == "status"]
+        self.assertEqual(statuses, ["STATUS_FAILED"] * 3)
+        self.assertEqual(vm.run_counts, Counter())
+
+    def test_final_report_failure_waits_then_reports(self) -> None:
+        controller = self.started(FakeVm(), faults={"final_report": [RuntimeError("synthetic report failure")]})
+        report = controller.run()
+        self.assertEqual(report.outcome, "completed")
+        finals = [record.result for record in report.actions if record.action == "final_report"]
+        self.assertEqual(finals, ["REPORT_FAILED", "VM_GOAL_VERDICT"])
+
+    def test_vm_paused_or_cancelled_stops_the_loop(self) -> None:
+        for state, handoff in (("paused", "resume"), ("cancelled", "review_result")):
+            with self.subTest(state=state):
+                vm = FakeVm()
+                controller = self.started(vm)
+                vm.goal_state = state
+                report = controller.run()
+                self.assertEqual(report.outcome, state)
+                self.assertEqual(report.handoff, handoff)
+                self.assertEqual(vm.run_counts, Counter())
+
+    def test_revise_pause_and_cancel_require_authority(self) -> None:
+        cases = (
+            (Command.REVISE, lambda c: c.revise_goal("Revise the synthetic goal.")),
+            (Command.PAUSE, lambda c: c.pause("USER_REQUESTED")),
+            (Command.CANCEL, lambda c: c.cancel("USER_REQUESTED")),
+        )
+        for command, call in cases:
+            with self.subTest(command=command.value):
+                vm = FakeVm()
+                controller = self.build(vm, authority=FakeAuthority(deny={command: AuthorityCode.LEASE_INACTIVE}))
+                with self.assertRaises(AuthorityDenied):
+                    call(controller)
+                self.assertNotIn(command.value, vm.names())
+                self.assertEqual(self.authority.calls, [(command, None)])
+
 
 class DecisionTests(unittest.TestCase):
     def test_pure_decisions_by_vm_state(self) -> None:
@@ -518,10 +792,26 @@ class DecisionTests(unittest.TestCase):
         self.assertEqual(interpret_final_report(good, "v2")[4], "GOAL_VERDICT_MISMATCH")
         self.assertEqual(interpret_final_report({"model_said": "done"}, "v1")[0], "report_unverified")
 
+    def test_invalid_deliverables_are_reported_unverified(self) -> None:
+        payload = {"goal_verdict": {"verdict_id": "v1", "outcome": "passed"}, "evidence": ["e1"],
+                   "deliverables": ["bad id/../x"]}
+        outcome, verdict, evidence, deliverables, reason = interpret_final_report(payload, "v1")
+        self.assertEqual(outcome, "report_unverified")
+        self.assertEqual(reason, "DELIVERABLES_INVALID")
+        self.assertIsNone(verdict)
+        self.assertEqual(deliverables, ())
+
+    def test_unrecognized_verdict_outcome_is_unverified(self) -> None:
+        payload = {"goal_verdict": {"verdict_id": "v1", "outcome": "maybe"}, "evidence": ["e1"]}
+        result = interpret_final_report(payload, "v1")
+        self.assertEqual(result[0], "report_unverified")
+        self.assertEqual(result[4], "GOAL_VERDICT_UNRECOGNIZED")
+
 
 class FakeGateway:
-    def __init__(self, policy):
+    def __init__(self, policy, result="authorized"):
         self._policy = policy
+        self.result = result
         self.calls = []
 
     def policy(self, workspace_id):
@@ -529,20 +819,25 @@ class FakeGateway:
 
     def request(self, session, call):
         self.calls.append((session, call))
-        return "authorized"
+        return self.result
 
 
 class GatewayAdapterTests(unittest.TestCase):
     def setUp(self) -> None:
-        policy = ToolPolicy("ws-1", (ToolDeclaration("vm.run_once", EffectKind.NON_IDEMPOTENT),
-                                     ToolDeclaration("vm.pause", EffectKind.IDEMPOTENT)),
-                            director_tools=("vm.run_once", "vm.pause"))
-        self.gateway = FakeGateway(policy)
+        self.policy = ToolPolicy("ws-1", (ToolDeclaration("vm.run_once", EffectKind.NON_IDEMPOTENT),
+                                          ToolDeclaration("vm.pause", EffectKind.IDEMPOTENT)),
+                                 director_tools=("vm.run_once", "vm.pause"))
+        self.gateway = FakeGateway(self.policy)
         self.session = object()
         self.adapter = GatewayCommandAuthority(
             self.gateway, self.session, workspace_id="ws-1", input_revision="plan-1", authorization_revision=1,
             tool_ids={Command.RUN_ONCE: "vm.run_once", Command.PAUSE: "vm.pause", Command.CANCEL: "vm.cancel"},
         )
+
+    def adapter_for(self, gateway, **kwargs):
+        return GatewayCommandAuthority(gateway, self.session, workspace_id=kwargs.pop("workspace_id", "ws-1"),
+                                       input_revision="plan-1", authorization_revision=1,
+                                       tool_ids={Command.RUN_ONCE: "vm.run_once"}, **kwargs)
 
     def test_command_maps_to_scoped_tool_call(self) -> None:
         self.adapter.check(Command.RUN_ONCE, project_id=PROJECT, request_id="run-test-000001", task_id="task-a")
@@ -565,6 +860,48 @@ class GatewayAdapterTests(unittest.TestCase):
         with self.assertRaises(InvalidControllerConfig):
             GatewayCommandAuthority(self.gateway, self.session, workspace_id="ws-1", input_revision="plan-1",
                                     authorization_revision=1, tool_ids={Command.AUTHORIZE: "vm.approve_plan"})
+
+    # ---- F-2: a non-authorizing gateway return value is a denial ----
+    def test_gateway_denial_return_values_are_not_permission(self) -> None:
+        results = (None, False, "denied", SimpleNamespace(allowed=False), SimpleNamespace(outcome="denied"),
+                   SimpleNamespace(denied=True))
+        for result in results:
+            with self.subTest(result=repr(result)):
+                adapter = self.adapter_for(FakeGateway(self.policy, result))
+                with self.assertRaises(AuthorityDenied) as raised:
+                    adapter.check(Command.RUN_ONCE, project_id=PROJECT, request_id="run-test-000010",
+                                  task_id="task-a")
+                self.assertEqual(raised.exception.code, AuthorityCode.INVALID_REQUEST)
+
+    def test_decision_check_pins_the_gateway_contract(self) -> None:
+        rejecting = self.adapter_for(FakeGateway(self.policy), decision_check=lambda decision: False)
+        with self.assertRaises(AuthorityDenied):
+            rejecting.check(Command.RUN_ONCE, project_id=PROJECT, request_id="run-test-000011", task_id="task-a")
+        accepting = self.adapter_for(FakeGateway(self.policy),
+                                     decision_check=lambda decision: decision == "authorized")
+        accepting.check(Command.RUN_ONCE, project_id=PROJECT, request_id="run-test-000012", task_id="task-a")
+        allowed = self.adapter_for(FakeGateway(self.policy, SimpleNamespace(allowed=True)))
+        allowed.check(Command.RUN_ONCE, project_id=PROJECT, request_id="run-test-000013", task_id="task-a")
+
+    # ---- F-9: policy unknown and read-only tools ----
+    def test_unknown_workspace_policy_is_denied(self) -> None:
+        gateway = FakeGateway(self.policy)
+        adapter = self.adapter_for(gateway, workspace_id="ws-other")
+        with self.assertRaises(AuthorityDenied) as raised:
+            adapter.check(Command.RUN_ONCE, project_id=PROJECT, request_id="run-test-000020", task_id="task-a")
+        self.assertEqual(raised.exception.code, AuthorityCode.POLICY_UNKNOWN)
+        self.assertEqual(gateway.calls, [])
+
+    def test_read_only_tool_has_no_effect_id(self) -> None:
+        policy = ToolPolicy("ws-1", (ToolDeclaration("vm.pause", EffectKind.READ_ONLY),),
+                            director_tools=("vm.pause",))
+        gateway = FakeGateway(policy)
+        adapter = GatewayCommandAuthority(gateway, self.session, workspace_id="ws-1", input_revision="plan-1",
+                                          authorization_revision=1, tool_ids={Command.PAUSE: "vm.pause"})
+        adapter.check(Command.PAUSE, project_id=PROJECT, request_id="run-test-000021")
+        _, call = gateway.calls[0]
+        self.assertIsNone(call.effect_id)
+        self.assertEqual(call.target, "vm://project-1")
 
 
 if __name__ == "__main__":

@@ -190,7 +190,11 @@ class Memory:
 
 @dataclass(frozen=True, slots=True)
 class RunPolicy:
-    """Bounds of one run(); reaching a bound returns control, it is not a Goal verdict."""
+    """Bounds of one run(); reaching a bound returns control, it is not a Goal verdict.
+
+    The replan count restarts with each run(); a failure already sent to VM is
+    never requested again by the same controller instance.
+    """
 
     max_ticks: int = 100
     max_no_progress: int = 10
@@ -253,21 +257,26 @@ class RunReport:
 def interpret_final_report(payload: object, expected_verdict_id: str | None) -> tuple:
     """(outcome, verdict_outcome, evidence, deliverables, reason) from a VM final report.
 
-    Only a matching GoalVerdict with a recognized outcome and nonempty evidence
-    is accepted; everything else is report_unverified (not completion).
+    Only a matching GoalVerdict with a recognized outcome, nonempty evidence and
+    well-formed deliverable references is accepted; everything else is
+    report_unverified (not completion).
     """
     if not isinstance(payload, Mapping):
         return "report_unverified", None, (), (), "REPORT_INVALID"
     evidence = refs(payload.get("evidence"))
-    deliverables = refs(payload.get("deliverables")) or ()
+    deliverables = refs(payload.get("deliverables"))
+    listed = deliverables or ()
     verdict: Any = payload.get("goal_verdict")
     if not isinstance(verdict, Mapping):
-        return "report_unverified", None, evidence or (), deliverables, "GOAL_VERDICT_MISSING"
+        return "report_unverified", None, evidence or (), listed, "GOAL_VERDICT_MISSING"
     if expected_verdict_id is None or verdict.get("verdict_id") != expected_verdict_id:
-        return "report_unverified", None, evidence or (), deliverables, "GOAL_VERDICT_MISMATCH"
+        return "report_unverified", None, evidence or (), listed, "GOAL_VERDICT_MISMATCH"
     outcome = verdict.get("outcome")
     if type(outcome) is not str or outcome not in VERDICT_OUTCOMES:
-        return "report_unverified", None, evidence or (), deliverables, "GOAL_VERDICT_UNRECOGNIZED"
+        return "report_unverified", None, evidence or (), listed, "GOAL_VERDICT_UNRECOGNIZED"
     if not evidence:
-        return "report_unverified", None, (), deliverables, "EVIDENCE_MISSING"
+        return "report_unverified", None, (), listed, "EVIDENCE_MISSING"
+    if deliverables is None:
+        # A malformed deliverable list must not silently become "no deliverables".
+        return "report_unverified", None, evidence, (), "DELIVERABLES_INVALID"
     return ("completed" if outcome == "passed" else "goal_failed"), outcome, evidence, deliverables, "VM_GOAL_VERDICT"
