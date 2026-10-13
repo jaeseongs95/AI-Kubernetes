@@ -380,6 +380,22 @@ class DispatchJournal:
         except Exception:
             raise DispatchError("INVALID_JOURNAL", subject="tool_events") from None
 
+    def open_tool_requests(self) -> tuple:
+        """Request IDs with at least one tool call whose result has not been ``returned``.
+
+        Read-only, in first-tool-event order. Used by recovery after a restart;
+        API path registrations have no dispatch event, so ``request_ids_in_state``
+        cannot find them.
+        """
+        with self._session() as connection:
+            rows = connection.execute(
+                'SELECT t."request_id" FROM "tool_events" AS t WHERE NOT EXISTS ('
+                'SELECT 1 FROM "tool_events" AS r WHERE r."request_id" = t."request_id" '
+                'AND r."tool_call_id" = t."tool_call_id" AND r."state" = \'returned\') '
+                'GROUP BY t."request_id" ORDER BY MIN(t."seq")',
+            ).fetchall()
+        return tuple(row[0] for row in rows)
+
     def request_ids_in_state(self, state: str) -> tuple:
         if state not in DISPATCH_STATES:
             raise DispatchError("INVALID_STATE", subject="state")

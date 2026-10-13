@@ -11,7 +11,8 @@
 | `RecoveryReconciler(runtime_store, lease_manager, observer, *, vm_port, job_port, effect_port, journal, clock=None)` | 저장된 lease·provider job·in-flight 효과를 VM 상태와 대조하고 결정을 기록 |
 | `vm_port.attempt_state(vm_attempt_id)` | `"active"`·`"terminal"`·`"unknown"`·`"absent"` 중 하나. 예외나 다른 값은 `unavailable`로 기록하고 fail-closed로 처리 |
 | `job_port.observe(request, receipt)` | `observer.poll(lease_id, job_port)`를 통해 호출. observer에 저장된 request/receipt(같은 connection·account)를 그대로 사용하며 다른 연결로 묵시 routing하지 않음 |
-| `effect_port.inflight()` / `mark_unknown(ref)` / `resend_result(ref)` | in-flight tool call 조회·VM unknown 절차 인계·같은 결과 재전송. 실제 환경에서는 `ExecutionBindingStore`/`AikEffectJournal` adapter가 필요 |
+| `effect_port.inflight()` / `mark_unknown(ref)` / `resend_result(ref)` | in-flight tool call 조회·VM unknown 절차 인계·같은 결과 재전송 |
+| `ToolEffectAdapter(dispatch_journal, *, resend, is_cancelled=None)` | API agent loop 경로의 실제 effect port. `aik_dispatch.DispatchJournal`의 tool event를 정본으로 읽는다(아래 절) |
 | `EffectRef` | `vm_attempt_id`, `tool_call_id`, `operation`, `has_receipt`, `model_result_returned`, `idempotency`(`read_only`/`idempotent`/`non_idempotent`), 선택 `cancelled`, `receipt_ref` |
 | `RecoveryJournal(path)` | 별도 SQLite append-only 결정 기록 |
 
@@ -42,6 +43,24 @@ live→unknown 전이는 `LeaseManager.mark_unknown(lease_id, fencing_token, exp
 | receipt 있음, VM 상태 unknown/조회 불가 | `await_vm` | 기록만 함 |
 | receipt와 결과 반환 완료 | `no_action_result_delivered` | 기록만 함 |
 
+## API 경로 effect port (`ToolEffectAdapter`)
+
+`ApiAgentLoop`은 tool call마다 `DispatchJournal`에 `intent` → `receipt`·`denied`·`effect_unknown` 중 하나 → `returned` 순서로 기록한다. adapter는 이 기록만 공개 메서드(`open_tool_requests`·`record`·`tool_events`·`tool_event`)로 읽고 쓴다.
+
+| 저널 상태 | `EffectRef` | reconciler 판단 |
+|---|---|---|
+| `intent`만 있음, 또는 `effect_unknown` | `has_receipt=False` | `handoff_vm_unknown`: `mark_unknown`이 `effect_unknown`(`RECOVERY_RECEIPT_MISSING`)을 한 번만 추가한다. 이미 있으면 아무것도 하지 않는다. |
+| `receipt` 또는 `denied`, `returned` 없음 | `has_receipt=True`, `model_result_returned=False` | VM attempt가 active면 `resend_result`, terminal·absent·취소면 `record_late_receipt` |
+| `returned` 있음 | 목록에 넣지 않음 | 없음 |
+
+- **`resend_result`:** 효과를 실행하지 않고 `returned`도 쓰지 않는다. 호출자의 `resend(request_id, tool_call_id)`에 넘기기만 한다. 실제 재전송과 `returned` 기록은 `ApiAgentLoop.resume`가 한다. `resume`은 저널의 결과를 replay하고, 결과 digest가 다르면 `REPLAY_MISMATCH`로 멈춘다.
+- **`denied`:** 효과가 없었다고 기록된 결과이므로 receipt처럼 다룬다.
+- **멱등성 분류:** `read_file`과 지원하지 않는 도구는 `read_only`, 그 밖의 도구는 `non_idempotent`로 분류한다. DevTools의 effect ID replay는 프로세스 메모리에만 있어 재시작 뒤에는 쓸 수 없다.
+- **스캔 뒤 상태 변화:** 스캔과 동작 사이에 receipt가 도착하면 `EFFECT_STATE_CHANGED`로 거절한다. reconciler는 이를 실패로 기록하고 다음 reconcile에서 다시 판단한다.
+- **여러 request의 같은 tool call:** 같은 Attempt의 같은 tool call ID를 두 request가 가지면 `AMBIGUOUS_EFFECT`로 스캔 전체를 거절한다(fail-closed).
+- **취소 여부:** `is_cancelled(vm_attempt_id)`를 주면 그 값을 `cancelled`로 쓴다. 주지 않으면 `False`이며, 취소된 Attempt는 VM 상태(terminal)로 판단한다.
+- **hosted runtime 경로:** 이 경로의 tool 효과(`AikEffectJournal`)는 다루지 않는다. 그 경로의 unknown 절차 권위는 VM에 있다.
+
 ## 결정 기록
 
 `RecoveryJournal`은 `aik_runtime.paths` 규칙을 따른다. 개발 원장·Git 내부·symlink·hardlink 경로를 거절한다. application ID는 `0x41494B59`(`AIKY`), schema version은 1이다. `UPDATE`/`DELETE`는 trigger가 거절한다. 다른 앱 SQLite 파일이나 SQLite가 아닌 파일은 수정하지 않고 `InvalidDatabase`로 거절한다.
@@ -66,13 +85,13 @@ live→unknown 전이는 `LeaseManager.mark_unknown(lease_id, fencing_token, exp
   - lease: 다음 실행에서 이미 종료된 lease는 조회 대상이 아니므로 `planned` 행만 남는다.
   - 효과: `mark_unknown`(멱등 가정) 또는 `resend_result`가 한 번 더 호출될 수 있다. 결과 재전송은 효과 재실행이 아니지만 중복 전달이 0회라고 보장하지 않는다.
 - 효과 상태 정본은 effect journal/VM에 있다. `EffectRef`는 adapter가 보고한 값이며 이 패키지가 검증할 수 없다.
-- 실제 `ExecutionBindingStore`/`AikEffectJournal`/VM 공개 조회 adapter는 이 태스크에서 만들지 않았다. 지금은 주입형 port 계약만 있다.
+- API 경로 effect port는 `ToolEffectAdapter`로 실제 `DispatchJournal`에 연결했다. hosted runtime 경로의 `ExecutionBindingStore`/`AikEffectJournal` adapter와 VM 공개 조회 adapter는 아직 없고 주입형 port 계약만 있다.
 - 취소된 provider job의 interrupt·cancel은 수행하지 않는다. 이 패키지는 cancel 판단을 기록만 한다.
 
 ## 검증
 
 ```powershell
-python -m unittest discover -s tests -p 'test_recovery.py' -v
+python -m unittest discover -s tests -p 'test_recovery*.py' -v
 ```
 
 시험은 임시 폴더의 실제 `RuntimeStore`·`BudgetStore`·`LeaseManager`·`WorkerObserver`와 fake VM/job/effect port, 주입 시계를 사용한다. 다음 경우를 확인한다.
@@ -86,11 +105,13 @@ python -m unittest discover -s tests -p 'test_recovery.py' -v
 - 취소 뒤 늦은 receipt·효과
 - append-only 기록과 외부 파일 거절
 - 재부팅 뒤 두 번째·세 번째 reconcile의 멱등성
+- `tests/test_recovery_adapter.py`: 실제 `DispatchJournal`의 crash 상태(intent만·receipt·denied·effect_unknown·returned)를 실제 `RecoveryReconciler`로 대조한다. `mark_unknown` 1회 기록, resend 인계만 하고 `returned`를 쓰지 않음, 스캔 뒤 상태 변화 거절, 모호한 tool call 거절, 두 번째 reconcile에서 재전송 반복 없음을 확인한다.
 
 **미검증(NOT_RUN):**
 
 - 실제 provider·VM/AGS 설치와 연결
-- 실제 effect journal adapter
+- hosted runtime 경로(`AikEffectJournal`) effect adapter
+- 실제 `ApiAgentLoop.resume`와 `resend` 인계의 결합(시험은 인계 호출만 확인)
 - Windows 11 실행(잠금·경로 동작 포함)
 - 실제 프로세스 강제 종료·전원 차단 상태의 복구
 
