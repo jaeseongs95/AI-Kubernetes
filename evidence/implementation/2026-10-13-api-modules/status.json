@@ -1013,5 +1013,157 @@
    "Windows 링크·권한 동작",
    "실제 worker 반환 흐름"
   ]
+ },
+ {
+  "task_id": "AIK-032",
+  "implemented": "src/aik_vm_bridge/governance.py에 VM이 이미 내린 governance gate 결과의 표시용 projection을 구현했다. run_once 결과의 blocker_code로만 상태·phase를 정하고(GATE_PENDING/BLOCKED/FAILED/CONTRACT_MISMATCH, 그 밖의 GOVERNANCE_*는 unrecognized로 fail-closed), detail은 비권위 진단 텍스트로 사유 코드·검사 ID·적합성 검사 ID만 파싱한다. final_report의 governance_plugin_tasks를 출처(local_derived·plugin_manifest_file 자기 보고 label)와 함께 순서대로 투영하고, status의 blocked Task ID를 사유 없이 돌려준다. AIK 판정·cache·재시도·gate 생략 fallback은 없다.",
+  "verified": "tests/test_vm_governance.py 20개가 합성 BridgeReceipt로 네 코드 매핑, 미지 GOVERNANCE_* fail-closed, 비governance·EXTERNAL_EFFECT_UNKNOWN·non-blocked는 투영 안 함, 응답 형식 오류, detail 파싱과 detail이 상태를 바꾸지 않음, final_report 투영·키 누락 CONTRACT_MISMATCH, status blocked 목록을 검사한다.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "not_verifiable_here",
+    "reason": "두 phase gate의 집행은 VM이 한다. AIK는 결과를 투영만 하며 실제 AGS 설치·VM run_once 결합 실행이 없다."
+   },
+   {
+    "ordinal": 2,
+    "status": "partial",
+    "reason": "VM이 보고한 차단 사유(blocker_code·detail)를 그대로 노출하고 생략 fallback을 만들지 않는다. contract mismatch의 phase·operation.no_effect·적합성 검사 목록은 VM 공개 읽기 API가 없어 노출하지 못한다(UNREACHABLE_FACTS)."
+   },
+   {
+    "ordinal": 3,
+    "status": "unit_scope_met",
+    "reason": "VM 공개 경로(run_once·final_report·status)만 읽고 AIK 판정·cache·Task 완료 권위를 만들지 않는다. VM History는 SQL로 읽지 않는다."
+   }
+  ],
+  "blockers": [
+   "AIK-081 A2 호환 AGS plugin 미확보",
+   "VM 공개 표면에 gate History 읽기 API가 없어 일부 사유(phase·no_effect·적합성 목록) 비공개",
+   "선행 AIK-031 hosted 경로의 실제 governed 실행 미검증"
+  ],
+  "not_run": [
+   "실제 설치형 AGS·A2 profile·적합성 실행",
+   "호환 plugin과 manifest/관측 불일치의 설치형 검증",
+   "실제 VM run_once/final_report 결합",
+   "Windows 실행"
+  ]
+ },
+ {
+  "task_id": "AIK-035",
+  "implemented": "src/aik_dispatch에 dispatch 골격을 구현했다. DispatchIdentity(request_id·contract digest·VM project/task/Attempt·lease·fencing·pool·route·ConnectionBinding·canonical cwd·input digest·경로, 관측된 권한·same-user는 관측이 있을 때만)와 digest, append-only DispatchJournal, NativeDispatcher(lease dispatch intent와 reserved 기록을 provider 호출보다 먼저 남기고 GuardedAdapter.start_job → 같은 연결 receipt 확인 → job id를 lease·observer에 결속한 sent_ack → 같은 adapter 관측으로 started; 예외·다른 연결 응답은 send_unknown·재전송 없음, guard의 known_failure는 rejected로 lease 반환, 같은 request 재호출은 provider 재호출 없음, 재시작 시 reserved는 send_unknown), ApiToolLoop(모델 호출·도구 호출 상한, 예산·취소 확인, 도구마다 intent→DevTools(AIK-029 gateway)→receipt→결과 반환 기록, EffectUnknown은 정지, resume은 intent만 있는 호출을 재실행하지 않고 receipt 뒤 미반환 결과만 DevTools 재생으로 재전송)를 둔다.",
+  "verified": "tests/test_dispatch.py 18개가 실제 RuntimeStore·BudgetStore·LeaseManager·WorkerObserver·DevTools(합성 workspace·fake authority)와 GuardedAdapter로 감싼 fake provider, fake model port로 상태 순서와 intent 선행, identity 불일치·중복·충돌, send_unknown·rejected·recover, 다른 연결 receipt 거절, API 루프의 상한·예산·취소·허용 밖 도구, intent만 남은 crash와 receipt 뒤 crash의 재생(파일 효과 1회), journal append-only를 검사한다.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "unit_scope_met",
+    "reason": "request_id·contract digest·Attempt·lease·fencing·연결·provider job id를 identity digest와 journal 이벤트로 결속하고 같은 request의 다른 identity는 CONFLICT로 거절한다."
+   },
+   {
+    "ordinal": 2,
+    "status": "unit_scope_met",
+    "reason": "reserved(예약·dispatch intent)·sent_ack(전송 ACK)·started(관측된 실행 시작)를 별도 이벤트로 남긴다."
+   },
+   {
+    "ordinal": 3,
+    "status": "partial",
+    "reason": "API 경로는 도구 요청→DevTools(AIK-029 gateway)→결과 반환→다음 모델 호출을 상한·예산·취소와 함께 수행한다. native 경로의 기존 VM runtime 재사용·실제 권한/trusted same-user 관측과 VM/AGS 공개 command 연결은 없다(관측 칸은 None)."
+   },
+   {
+    "ordinal": 4,
+    "status": "partial",
+    "reason": "identity에 route·connection·pool·lease·cwd·입력 digest를 고정하고 관측은 같은 GuardedAdapter(같은 연결)로만 한다. 재시작 뒤 같은 계정으로의 read/cancel은 관측기·복구 쪽 계약이며 실제 provider로 검증하지 않았다."
+   },
+   {
+    "ordinal": 5,
+    "status": "partial",
+    "reason": "tool_call별 intent·receipt·returned를 구분하고 같은 결과는 DevTools 재생으로 재전송하며 효과를 다시 실행하지 않는다. 결과 보존은 DevTools 인스턴스 메모리에 의존해 프로세스 재시작 뒤 재생은 미검증이고, 실제 API 모델 호출은 없다."
+   }
+  ],
+  "blockers": [
+   "선행 AIK-029·031·032·084·085의 실제 결합과 AIK-018 미완료",
+   "실제 provider adapter·API 모델 호출 코드 없음(fake port)",
+   "native 경로의 VM runtime·hosted runtime 결합과 권한/same-user 관측 없음"
+  ],
+  "not_run": [
+   "실제 provider job·API 모델 호출",
+   "VM run_once·AGS gate 결합",
+   "프로세스 재시작 뒤 DevTools 재생",
+   "Windows 실행"
+  ]
+ },
+ {
+  "task_id": "AIK-038",
+  "implemented": "src/aik_lifecycle에 scope(global·pool·project) pause/drain/resume gate와 lease 예약 앞단 GatedLeaseManager(예약 경합 시 즉시 반환), owned/borrowed worker 등록부, cancel(취소 요청 기록→지원 시 interrupt, 미지원 시 job 유지, lease는 draining만)·settle_cancel(관측 terminal에서 cancel_confirmed/late_success/terminal_failed 구분 후 반환)·teardown(미해결 도구 효과·필수 근거·provider 종료 확인 뒤 owned만 종료, borrowed는 반환, 그 뒤 임시 데이터 정리), ExecutionBindingStore/AikEffectJournal 효과 adapter, append-only lifecycle 원장을 구현했다.",
+  "verified": "tests/test_lifecycle.py 18개가 실제 RuntimeStore·BudgetStore·LeaseManager·WorkerObserver(합성)와 fake port로 pause 즉시 차단·resume, 예약 경합, project scope, fail-closed 조회, 취소 전 dispatch 없음, interrupt 응답은 종료 아님, 미지원 취소, interrupt 실패 unknown, 취소 직전 결과, 늦은 성공, owned/borrowed 처리, 미해결 효과·미보관 근거·공유 worker의 정리 보류를 검사한다.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "unit_scope_met",
+    "reason": "pause/drain 직후 GatedLeaseManager가 신규 예약을 막는다(경합 grant도 즉시 반환). 실행 중 job은 AdapterCapabilities.job_interrupt 공개 계약이 SUPPORTED일 때만 interrupt하고 아니면 그대로 둔다."
+   },
+   {
+    "ordinal": 2,
+    "status": "partial",
+    "reason": "취소 요청·interrupt 응답·취소 확인·늦은 성공·실패 종료를 서로 다른 이벤트로 남긴다. usage는 observer 정산을 그대로 두며 시험의 정산 대상은 합성 sink다. evidence 최종 회수는 teardown의 보관 확인으로만 다룬다."
+   },
+   {
+    "ordinal": 3,
+    "status": "unit_scope_met",
+    "reason": "owned worker만 worker_port.terminate를 부르고 borrowed는 terminate 없이 worker_returned만 기록한다. 같은 worker의 다른 lease가 남아 있으면 멈춘다."
+   },
+   {
+    "ordinal": 4,
+    "status": "partial",
+    "reason": "in-flight·unknown 효과와 receipt 대기 효과, 필수 근거 미보관 시 teardown_complete와 cleanup을 보류한다. 실제 worker 반환 흐름과 effect journal 결합은 fake adapter 시험뿐이다."
+   }
+  ],
+  "blockers": [
+   "선행 AIK-035 dispatch 미완료(골격만)",
+   "실제 provider adapter interrupt/observe와 worker 종료·정리 구현 없음",
+   "usage 정산의 실제 BudgetStore.settle 결합 미시험"
+  ],
+  "not_run": [
+   "실제 provider 취소·관측",
+   "실제 worker 종료·정리",
+   "VM/AGS 결합",
+   "Windows 실행"
+  ]
+ },
+ {
+  "task_id": "AIK-039",
+  "implemented": "src/aik_recovery에 재시작 뒤 한 번 호출하는 RecoveryReconciler와 append-only RecoveryJournal을 구현했다. holding lease마다 저장된 request/receipt로 같은 계정에서 먼저 관측해 terminal이면 반환, 실행 중이면 유지, 관측 실패면 unknown 유지·재발사 없음, dispatch 기록 없는 reserved는 VM attempt가 terminal/absent일 때만 반환, job ID 없는 dispatch 의도는 unknown으로 VM unknown 절차에 넘긴다. 도구 효과는 receipt 없으면 mark_unknown(재실행 없음, 비멱등은 확인 전 중단), receipt 뒤 결과 미반환이면 같은 결과 재전송, 취소 뒤 늦은 receipt는 기록만 한다. live→unknown 전이는 LeaseManager.mark_unknown(fencing·revision 검사)으로 한다.",
+  "verified": "tests/test_recovery.py 11개와 tests/test_lease.py의 mark_unknown 시험이 실제 RuntimeStore·BudgetStore·LeaseManager·WorkerObserver(합성)와 fake VM/job/effect port, 주입 시계로 dispatch 경계 crash, terminal 관측 반환, 실행 중 유지, 관측 실패 unknown 유지, receipt 전 crash, receipt 뒤 응답 전 crash, 취소 뒤 늦은 receipt, 재전송 실패 재시도, journal append-only, 두 번째 reconcile 멱등을 검사한다.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "partial",
+    "reason": "lease·placement·observer 기록을 VM attempt_state port 결과와 대조하고 provider 관측으로만 반환한다. VM port는 fake이며 실제 VM 공개 조회 adapter가 없다."
+   },
+   {
+    "ordinal": 2,
+    "status": "unit_scope_met",
+    "reason": "불명확한 lease·효과는 재실행하지 않고 unknown으로 두어 VM unknown 절차로 넘긴다. retry는 만들지 않는다."
+   },
+   {
+    "ordinal": 3,
+    "status": "unit_scope_met",
+    "reason": "모든 판단을 planned/applied/failed와 이유·관측 revision·원래 근거 ID로 append-only 기록하며 기존 기록을 덮지 않는다."
+   },
+   {
+    "ordinal": 4,
+    "status": "partial",
+    "reason": "tool_call의 receipt 유무와 결과 반환 여부로 재전송과 재실행을 구분하고 비멱등 불명은 중단한다. 실제 ExecutionBindingStore/AikEffectJournal adapter와 원래 route 재관측은 fake port 시험뿐이다. exactly-once를 주장하지 않는다."
+   }
+  ],
+  "blockers": [
+   "선행 AIK-035 dispatch 미완료(골격만)",
+   "VM attempt_state·effect port의 실제 adapter 없음",
+   "실제 provider 재관측 미실행"
+  ],
+  "not_run": [
+   "실제 provider 재관측",
+   "실제 VM 공개 조회·unknown 절차 결합",
+   "다중 프로세스 동시 reconcile",
+   "Windows 실행"
+  ]
  }
 ]
