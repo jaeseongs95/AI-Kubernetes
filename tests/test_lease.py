@@ -382,5 +382,28 @@ class LeaseManagerTests(unittest.TestCase):
             LeaseManager(self.store, self.budget, ttl_seconds=0)
 
 
+    def test_mark_unknown_holds_only_a_dispatched_live_lease(self) -> None:
+        self.seed()
+        lease = self.reserve().lease.value
+        with self.assertRaises(InvalidTransition) as raised:
+            self.manager.mark_unknown(lease.id, lease.fencing_token)
+        self.assertEqual(str(raised.exception), "NO_DISPATCH_RECORDED")
+        activated = self.manager.activate(lease.id, lease.fencing_token)
+        with self.assertRaises(InvalidTransition) as raised:
+            self.manager.mark_unknown(lease.id, lease.fencing_token, expected_revision=activated.revision - 1)
+        self.assertEqual(str(raised.exception), "LEASE_CHANGED")
+        with self.assertRaises(StaleLease):
+            self.manager.mark_unknown(lease.id, lease.fencing_token + 1)
+        marked = self.manager.mark_unknown(lease.id, lease.fencing_token, expected_revision=activated.revision)
+        self.assertEqual(marked.value.state, "unknown")
+        self.assertEqual(self.budget_state(lease.id), "reserved")
+        again = self.manager.mark_unknown(lease.id, lease.fencing_token)
+        self.assertEqual(again.revision, marked.revision)
+        released = self.manager.resolve_unknown(lease.id, lease.fencing_token, provider_terminal=True)
+        self.assertEqual(released.value.state, "released")
+        with self.assertRaises(InvalidTransition) as raised:
+            self.manager.mark_unknown(lease.id, lease.fencing_token)
+        self.assertEqual(str(raised.exception), "LEASE_NOT_LIVE")
+
 if __name__ == "__main__":
     unittest.main()

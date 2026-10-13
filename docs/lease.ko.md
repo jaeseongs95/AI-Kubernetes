@@ -29,7 +29,7 @@ lease ID는 `lease-<placement_id>-<token>` 형식이다. 이 형식이 식별자
 
 ## 상태 전이와 fencing
 
-`activate`·`renew`·`release`·`resolve_unknown`는 `(lease_id, fencing_token)`을 받는다. 다음 경우 `StaleLease`로 거절한다.
+`activate`·`renew`·`release`·`resolve_unknown`·`mark_unknown`은 `(lease_id, fencing_token)`을 받는다. 다음 경우 `StaleLease`로 거절한다.
 
 - 저장된 token과 다른 경우
 - 같은 placement에 더 큰 token의 lease가 있는 경우
@@ -46,6 +46,7 @@ lease ID는 `lease-<placement_id>-<token>` 형식이다. 이 형식이 식별자
 | `release(dispatched=True, provider_terminal=False)` | `draining`. 종료 관측 전에는 `released`로 가지 않는다 |
 | `expire_due()` | dispatch 없는 `reserved` → `expired` + 예산 release. dispatch가 기록된 lease → `unknown` |
 | `resolve_unknown(provider_terminal=...)` | 종료가 관측되면 `released`, 아니면 `unknown` 유지 |
+| `mark_unknown(expected_revision=None)` | dispatch가 기록된 live lease를 `unknown`으로 둔다(용량·예산 점유 유지, 반환 아님). dispatch 없는 reserved는 `NO_DISPATCH_RECORDED`, 읽은 뒤 바뀐 lease는 `LEASE_CHANGED`로 거절. 복구(AIK-039)가 provider 관측 실패·job ID 없는 dispatch 의도에 쓴다 |
 
 불변식: `provider_job_id`가 있으면 dispatch가 기록된 것이다. `dispatched=True`는 job ID가 기록된 lease에만 허용한다. 따라서 job ID가 없는 lease의 만료·release·복구만 예산 hold를 풀 수 있다. 이 모듈은 사용량을 0이나 추정치로 정산하지 않는다.
 
