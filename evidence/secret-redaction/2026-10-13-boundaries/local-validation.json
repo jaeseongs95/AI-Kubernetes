@@ -1,0 +1,15 @@
+{
+  "task_id": "AIK-017",
+  "base_commit": "c1608647e9ff3c759031efe56b6e62994499586c",
+  "recorded_at": "2026-10-13T03:44:56Z",
+  "environment": {"python": "3.13.5", "platform": "Linux"},
+  "baseline_source_git_blob": "eb2902c1ff7a85265c42d36dba45555f98cd2cbc",
+  "baseline_selected_tests": {"tests": 8, "passed": 0, "failed": 7, "errors": 1, "skipped": 0},
+  "current_tests": {"tests": 38, "passed": 38, "failed": 0, "errors": 0, "skipped": 0},
+  "sources_sha256": {
+    "src/aik_security/redaction.py": "46059d78c1e7d7a48f1e2fb6e2a87cdc6f779c778cacf6d5020465ce3f162699",
+    "tests/test_security_redaction.py": "530f1a4c87e6c35381345161f4e4bb1c7ca56b52bf7a92a0e5833951721a7046",
+    "tests/test_security_redaction_boundaries.py": "0e9918708d8264f071e68dbb9625c5904b4e6e2ac81b9404410b4faed27db631"
+  },
+  "installed_product_integration": "NOT_RUN"
+}
