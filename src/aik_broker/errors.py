@@ -29,6 +29,7 @@ MESSAGES = {
     "ARGV_CONTAINS_SECRET": "A command-line argument contained the credential.",
     "ENV_CONTAINS_SECRET": "The base environment already contained the credential.",
     "CHILD_TIMEOUT": "The child process exceeded its deadline and was terminated.",
+    "CHILD_CANCELLED": "The child process was terminated because its grant was revoked.",
     "CHILD_START_FAILED": "The child process could not be started.",
     "INTERNAL_ERROR": "The broker request failed.",
 }

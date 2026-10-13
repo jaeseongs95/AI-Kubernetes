@@ -20,6 +20,7 @@ import time
 import traceback
 from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,7 +28,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from aik_broker import (  # noqa: E402
     AdapterFailed, AdapterHandle, BrokerDenied, ChildResult, CredentialBroker, CredentialUnavailable,
-    InjectionError, RuntimeLeaseChecker, SecretLeakBlocked, run_injected,
+    InjectionError, RuntimeLeaseChecker, SecretLeakBlocked, grant_audit_ref, run_injected,
 )
 from aik_connection.models import Connection  # noqa: E402
 from aik_runtime import ExecutionProfile, Lease, Placement, Pool, RuntimeStore  # noqa: E402
@@ -57,6 +58,17 @@ import subprocess, sys
 from pathlib import Path
 grandchild = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
 Path(sys.argv[1]).write_text(str(grandchild.pid), encoding="utf-8")
+'''
+SLEEP_AFTER_MARKER = r'''
+import sys, time
+from pathlib import Path
+Path(sys.argv[1]).write_text("started", encoding="utf-8")
+time.sleep(30)
+'''
+REPORT_ENV_NAMES = r'''
+import os, sys
+for name in sys.argv[1:]:
+    print(name + "=" + ("present" if name in os.environ else "absent"))
 '''
 
 
@@ -171,6 +183,16 @@ class BrokerTestCase(unittest.TestCase):
             # beyond what an empty registry would redact.
             self.assertEqual(OutputRedactor([secret]).redact_text(text), OutputRedactor().redact_text(text))
 
+    def runtime_store_with_lease(self, lease: Lease) -> RuntimeStore:
+        store = RuntimeStore(self.root / "runtime" / "runtime.sqlite3")
+        with store.transaction() as tx:
+            tx.save(Pool("pool-1", "synthetic", "connection-1"), expected_revision=0)
+            tx.save(ExecutionProfile("profile-1", "pool-1", "worker", "synthetic-model"), expected_revision=0)
+            tx.save(Placement("placement-1", "pool-1", "profile-1", "vm-instance-1", "vm-project-1",
+                              "vm-task-1", "vm-attempt-1"), expected_revision=0)
+            tx.save(lease, expected_revision=0)
+        return store
+
 
 class GrantScopeTests(BrokerTestCase):
     def test_authorized_adapter_receives_secret_only_inside_callback(self) -> None:
@@ -217,6 +239,13 @@ class GrantScopeTests(BrokerTestCase):
         self.clock.now = 1010.0
         self.assert_code(BrokerDenied, "GRANT_EXPIRED", self.inject, grant)
         self.clock.now = 1005.0
+        self.assert_code(BrokerDenied, "GRANT_EXPIRED", self.inject, grant)
+
+    def test_sub_second_ttl_is_accepted_and_expires_on_time(self) -> None:
+        # F8: the documented lower bound is "greater than 0", matching the code.
+        grant = self.grant(ttl_seconds=0.5, max_uses=2)
+        self.assertEqual(grant.expires_at, grant.issued_at + 0.5)
+        self.clock.now = 1000.5
         self.assert_code(BrokerDenied, "GRANT_EXPIRED", self.inject, grant)
 
     def test_other_workspace_is_rejected_at_issue_and_at_injection(self) -> None:
@@ -343,6 +372,25 @@ class GrantScopeTests(BrokerTestCase):
                           connection_id="conn-a", consumer=lambda s: None)
         self.assertEqual(caught.exception.code, "LEASE_INACTIVE")
 
+    def test_runtime_lease_checker_rejects_non_active_states_and_naive_clock(self) -> None:
+        # F9: states other than "active" and a timezone-naive clock fail closed.
+        lease = Lease("lease-rt", "placement-1", "pool-1", "worker-1", 1, "2030-01-01T00:00:00Z", state="active")
+        store = self.runtime_store_with_lease(lease)
+        checker = RuntimeLeaseChecker(store, now=lambda: datetime(2029, 1, 1, tzinfo=timezone.utc))
+        self.assertTrue(checker("lease-rt", 1))
+        revision = 1
+        for state in ("reserved", "draining", "expired", "unknown", "failed"):
+            with self.subTest(state=state):
+                revision = store.save(replace(lease, state=state), expected_revision=revision).revision
+                self.assertFalse(checker("lease-rt", 1))
+        store.save(lease, expected_revision=revision)
+        self.assertTrue(checker("lease-rt", 1))
+        self.assertFalse(checker("lease-rt", True))
+        naive = RuntimeLeaseChecker(store, now=lambda: datetime(2029, 1, 1))
+        self.assertFalse(naive("lease-rt", 1))
+        broken = RuntimeLeaseChecker(store, now=lambda: "2029-01-01T00:00:00Z")
+        self.assertFalse(broken("lease-rt", 1))
+
 
 class LeakBoundaryTests(BrokerTestCase):
     def test_returning_the_secret_is_blocked(self) -> None:
@@ -353,6 +401,34 @@ class LeakBoundaryTests(BrokerTestCase):
                 grant = self.grant()
                 self.assert_code(SecretLeakBlocked, "SECRET_IN_OUTPUT", self.inject, grant, consumer=leaking)
 
+    def test_unknown_nested_subclassed_or_encoded_results_fail_closed(self) -> None:
+        # F1: anything outside the accepted result types is withheld.
+        class Text(str):
+            pass
+
+        cases = {
+            "set": lambda s: {s},
+            "frozenset": lambda s: frozenset([s]),
+            "deep_list": lambda s: [[[[[[s]]]]]],
+            "deep_without_secret": lambda s: [[[[[["safe"]]]]]],
+            "str_subclass": lambda s: Text(s),
+            "bytes_base64": lambda s: base64.b64encode(s.encode("utf-8")),
+            "bytearray_base64": lambda s: bytearray(base64.b64encode(s.encode("utf-8"))),
+            "namespace": lambda s: SimpleNamespace(token=s),
+            "unknown_without_secret": lambda s: object(),
+        }
+        for name, consumer in cases.items():
+            with self.subTest(case=name):
+                grant = self.grant()
+                self.assert_code(SecretLeakBlocked, "SECRET_IN_OUTPUT", self.inject, grant, consumer=consumer)
+
+    def test_accepted_result_types_without_secret_are_returned(self) -> None:
+        for value in (None, 7, 2.5, True, b"safe", {"ok": [1, "x", b"y", None, (2.5, False)]},
+                      ChildResult(0, "fine", "")):
+            with self.subTest(kind=type(value).__name__):
+                grant = self.grant()
+                self.assertEqual(self.inject(grant, consumer=lambda s, v=value: v), value)
+
     def test_adapter_exception_carrying_secret_is_replaced_without_chain(self) -> None:
         grant = self.grant()
 
@@ -362,6 +438,23 @@ class LeakBoundaryTests(BrokerTestCase):
         error = self.assert_code(AdapterFailed, "ADAPTER_FAILED", self.inject, grant, consumer=failing)
         self.assertIsNone(error.__cause__)
         self.assertIsNone(error.__context__)
+
+    def test_forged_broker_error_code_from_adapter_is_not_recorded(self) -> None:
+        # F4: a consumer that overwrites BrokerError.code must not reach audit.
+        grant = self.grant()
+
+        def forging(secret):
+            error = AdapterFailed()
+            error.code = secret
+            raise error
+
+        with self.assertLogs("aik_broker", level="INFO") as logs:
+            self.assert_code(AdapterFailed, "ADAPTER_FAILED", self.inject, grant, consumer=forging)
+        records = self.broker.audit_records()
+        self.assert_no_secret(repr(records))
+        self.assert_no_secret("\n".join(logs.output))
+        self.assert_no_secret(json.dumps(self.sink, ensure_ascii=False))
+        self.assertIn(("injection_failed", "ADAPTER_FAILED"), [(r.event, r.code) for r in records])
 
     def test_vault_failure_is_reported_without_secret(self) -> None:
         grant = self.grant()
@@ -390,9 +483,29 @@ class LeakBoundaryTests(BrokerTestCase):
         self.assertIn(("injection_failed", "SECRET_IN_OUTPUT"), events)
         self.assertIn(("resolve_denied", "GRANT_EXHAUSTED"), events)
         allowed = [record for record in records if record.event == "resolve_allowed"]
+        # The audit grant field is the non-reversible reference (F2), not the bearer grant_id.
         self.assertEqual({(r.grant_id, r.workspace_id, r.task_id, r.adapter_id, r.connection_id) for r in allowed},
-                         {(grant.grant_id, "ws-1", "task-1", "adapter-vendor", "conn-a")})
+                         {(grant_audit_ref(grant.grant_id), "ws-1", "task-1", "adapter-vendor", "conn-a")})
         self.assertTrue(all(entry["kind"] == "log" for entry in self.sink))
+
+    def test_audit_logs_and_sink_never_contain_the_bearer_grant_id(self) -> None:
+        # F2: grant_id works as a bearer capability and must not be logged.
+        with self.assertLogs("aik_broker", level="INFO") as logs:
+            grant = self.grant(max_uses=2)
+            self.inject(grant)
+            self.assertTrue(self.broker.revoke(grant.grant_id))
+            try:
+                self.inject(grant)
+            except BrokerDenied:
+                pass
+        token = grant.grant_id.split("-", 1)[1]
+        records = self.broker.audit_records()
+        combined = "\n".join(logs.output) + repr(records) + json.dumps(self.sink, ensure_ascii=False)
+        self.assertNotIn(grant.grant_id, combined)
+        self.assertNotIn(token, combined)
+        reference = grant_audit_ref(grant.grant_id)
+        self.assertRegex(reference, r"\Agref-[0-9a-f]{24}\Z")
+        self.assertEqual({r.grant_id for r in records if r.event in ("grant_issued", "grant_revoked")}, {reference})
 
     def test_failing_audit_sink_blocks_resolution(self) -> None:
         def broken_sink(_payload):
@@ -443,6 +556,21 @@ class ChildInjectionTests(BrokerTestCase):
         self.assertFalse(any(SECRET in value for value in os.environ.values()))
         self.scan_files_for_secret(self.work)
 
+    def test_default_environment_does_not_inherit_unrelated_parent_variables(self) -> None:
+        # F5: base_env=None passes only an OS allowlist, not other provider keys.
+        other, explicit = "AIK_SYNTHETIC_OTHER_API_KEY", "AIK_SYNTHETIC_EXPLICIT"
+        with mock.patch.dict(os.environ, {other: "synthetic-other-provider-value"}):
+            inherited = run_injected([sys.executable, "-c", REPORT_ENV_NAMES, other], SECRET,
+                                     cwd=self.work, timeout=30)
+            base = {key: value for key, value in os.environ.items() if key.upper() in ("PATH", "SYSTEMROOT")}
+            opted_in = run_injected([sys.executable, "-c", REPORT_ENV_NAMES, explicit, other], SECRET,
+                                    base_env={**base, explicit: "synthetic-explicit-value"},
+                                    cwd=self.work, timeout=30)
+        self.assertEqual(inherited.returncode, 0)
+        self.assertIn(f"{other}=absent", inherited.stdout)
+        self.assertIn(f"{explicit}=present", opted_in.stdout)
+        self.assertIn(f"{other}=absent", opted_in.stdout)
+
     def test_secret_in_argv_or_base_environment_is_rejected_before_start(self) -> None:
         marker = self.work / "started.marker"
         script = f"open({str(marker)!r}, 'w').close()"
@@ -454,6 +582,21 @@ class ChildInjectionTests(BrokerTestCase):
                          SECRET, base_env={"LEAKED": SECRET})
         self.assertFalse(marker.exists())
 
+    def test_short_secret_encodings_in_argv_are_rejected_before_start(self) -> None:
+        # F9: secrets below the 12-character redactor minimum still detect
+        # whole-secret base64/hex/URL encodings, not only the exact string.
+        short = "shortkey9"
+        marker = self.work / "short-started.marker"
+        script = f"open({str(marker)!r}, 'w').close()"
+        raw = short.encode("utf-8")
+        for name, value in (("base64", base64.b64encode(raw).decode("ascii")),
+                            ("hex", raw.hex()), ("hex_upper", raw.hex().upper())):
+            with self.subTest(encoding=name):
+                with self.assertRaises(InjectionError) as caught:
+                    run_injected([sys.executable, "-c", script, "--key=" + value], short)
+                self.assertEqual(caught.exception.code, "ARGV_CONTAINS_SECRET")
+        self.assertFalse(marker.exists())
+
     def test_broker_reports_child_failures_with_fixed_codes(self) -> None:
         grant = self.grant()
         error = self.assert_code(AdapterFailed, "ARGV_CONTAINS_SECRET", self.broker.run_with_credential,
@@ -463,6 +606,39 @@ class ChildInjectionTests(BrokerTestCase):
         self.assert_code(BrokerDenied, "INVALID_REQUEST", self.broker.run_with_credential,
                          self.adapter, grant.grant_id, workspace_id="ws-1", task_id="task-1",
                          connection_id="conn-a", argv=[], delivery="stdin")
+
+    def test_revoking_lease_terminates_running_child(self) -> None:
+        # F3: revocation stops an injected child that is still running.
+        marker = self.work / "child-started.marker"
+        grant = self.grant()
+        outcome = {}
+
+        def run():
+            try:
+                outcome["result"] = self.broker.run_with_credential(
+                    self.adapter, grant.grant_id, workspace_id="ws-1", task_id="task-1", connection_id="conn-a",
+                    argv=[sys.executable, "-c", SLEEP_AFTER_MARKER, str(marker)], cwd=self.work, timeout=30)
+            except BaseException as error:  # recorded for the assertion below
+                outcome["error"] = error
+
+        started = time.monotonic()
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+        deadline = time.monotonic() + 10
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertTrue(marker.exists(), "The child did not start.")
+        self.assertEqual(self.broker.revoke_lease("lease-1"), 1)
+        thread.join(15)
+        self.assertFalse(thread.is_alive(), "The running child was not terminated by revocation.")
+        self.assertLess(time.monotonic() - started, 25)
+        error = outcome.get("error")
+        self.assertIsInstance(error, AdapterFailed)
+        self.assertEqual(error.code, "CHILD_CANCELLED")
+        self.assert_no_secret("".join(traceback.format_exception(error)))
+        self.assertIn(("injection_failed", "CHILD_CANCELLED"),
+                      [(r.event, r.code) for r in self.broker.audit_records()])
+        self.scan_files_for_secret(self.work)
 
     @unittest.skipIf(os.name == "nt", "POSIX process-group cleanup; Windows cleanup is NOT_RUN.")
     def test_timeout_kills_child_and_its_process_group(self) -> None:

@@ -5,7 +5,8 @@ name) -> grant exists, not revoked, not expired -> adapter/workspace/task match
 -> connection in scope -> remaining use (consumed here) -> active lease ->
 connection still API/verified with the binding captured at issuance -> audit
 -> vault resolve -> adapter callback. Plaintext never enters audit, logs,
-exceptions or the return value.
+exceptions or the return value. A grant_id is a bearer capability, so audit
+records carry only a non-reversible reference to it.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import asdict, dataclass
 from datetime import datetime
+import hashlib
 import json
 import logging
 import math
@@ -27,7 +29,9 @@ from aik_runtime.models import MAX_INTEGER, identifier
 from aik_security.redaction import OutputRedactor
 from aik_vault import VaultBackend, is_credential_ref
 
-from .errors import AdapterFailed, BrokerDenied, BrokerError, CredentialUnavailable, SecretLeakBlocked
+from .errors import (
+    MESSAGES, AdapterFailed, BrokerDenied, BrokerError, CredentialUnavailable, SecretLeakBlocked,
+)
 from .injection import ChildResult, _SecretDetector, run_injected, validate_command
 
 
@@ -37,6 +41,7 @@ MAX_USES = 16
 MAX_GRANTS = 4096
 MAX_CONNECTIONS_PER_GRANT = 16
 AUDIT_CAPACITY = 4096
+_MAX_RESULT_DEPTH = 4
 
 
 def _valid_id(value: object) -> bool:
@@ -45,6 +50,13 @@ def _valid_id(value: object) -> bool:
     except InvalidRecord:
         return False
     return True
+
+
+def grant_audit_ref(grant_id: object) -> str | None:
+    """Non-reversible audit reference for a grant_id (the grant_id is a bearer capability)."""
+    if not _valid_id(grant_id):
+        return None
+    return "gref-" + hashlib.sha256(grant_id.encode("utf-8")).hexdigest()[:24]
 
 
 class AdapterHandle:
@@ -103,7 +115,10 @@ class _GrantState:
 
 @dataclass(frozen=True, slots=True)
 class AuditRecord:
-    """Audit entry. Fields are IDs and fixed codes; unsafe IDs become None."""
+    """Audit entry. Fields are IDs and fixed codes; unsafe IDs become None.
+
+    ``grant_id`` holds ``grant_audit_ref(grant_id)``, never the raw grant_id.
+    """
 
     sequence: int
     at: float
@@ -121,20 +136,30 @@ class AuditRecord:
 
 
 def _contains_secret(value, detector: _SecretDetector, secret: str, depth: int = 0) -> bool:
-    if depth > 4:
+    """Fail closed: unknown types, subclasses and excessive nesting count as leaks.
+
+    Accepted result types: None, bool, int, float, str, bytes, bytearray,
+    ChildResult, and list/tuple/dict of these up to four nesting levels.
+    """
+    if depth > _MAX_RESULT_DEPTH:
+        return True
+    kind = type(value)
+    if value is None or kind in (bool, int, float):
         return False
-    if type(value) is str:
+    if kind is str:
         return detector.present(value)
-    if type(value) in (bytes, bytearray):
-        return secret.encode("utf-8") in value
-    if type(value) is ChildResult:
+    if kind in (bytes, bytearray):
+        return secret.encode("utf-8") in value or detector.present(bytes(value).decode("utf-8", "replace"))
+    if kind is ChildResult:
+        if type(value.returncode) is not int or type(value.stdout) is not str or type(value.stderr) is not str:
+            return True
         return detector.present(value.stdout) or detector.present(value.stderr)
-    if type(value) in (list, tuple):
+    if kind in (list, tuple):
         return any(_contains_secret(item, detector, secret, depth + 1) for item in value)
-    if type(value) is dict:
+    if kind is dict:
         return any(_contains_secret(key, detector, secret, depth + 1) or
                    _contains_secret(item, detector, secret, depth + 1) for key, item in value.items())
-    return False
+    return True
 
 
 class RuntimeLeaseChecker:
@@ -188,6 +213,8 @@ class CredentialBroker:
         self._lock = threading.RLock()
         self._grants: dict[str, _GrantState] = {}
         self._handles: dict[str, AdapterHandle] = {}
+        # grant_id -> cancellation events of children started for that grant.
+        self._cancels: dict[str, set] = {}
         self._audit = deque(maxlen=AUDIT_CAPACITY)
         self._sequence = 0
         self._last_now = 0.0
@@ -214,9 +241,12 @@ class CredentialBroker:
     def _record(self, event: str, outcome: str, code: str | None = None, *, strict: bool = False,
                 grant_id=None, workspace_id=None, task_id=None, adapter_id=None, connection_id=None) -> None:
         safe = self._redactor.safe_id
+        if code is not None and (type(code) is not str or code not in MESSAGES):
+            # Only fixed codes may be recorded; a forged code could carry a secret.
+            code = "INTERNAL_ERROR"
         with self._lock:
             self._sequence += 1
-            record = AuditRecord(self._sequence, self._last_now, event, outcome, code, safe(grant_id),
+            record = AuditRecord(self._sequence, self._last_now, event, outcome, code, grant_audit_ref(grant_id),
                                  safe(workspace_id), safe(task_id), safe(adapter_id), safe(connection_id))
             self._audit.append(record)
         payload = record.to_dict()
@@ -266,8 +296,11 @@ class CredentialBroker:
 
     def _purge(self) -> None:
         now = self._last_now
+        # Keep grants with running children so a later revoke can still stop them.
         for grant_id in [key for key, state in self._grants.items()
-                         if state.revoked or now >= state.grant.expires_at or state.uses >= state.grant.max_uses]:
+                         if key not in self._cancels and (
+                             state.revoked or now >= state.grant.expires_at
+                             or state.uses >= state.grant.max_uses)]:
             del self._grants[grant_id]
 
     def _issue(self, workspace_id, task_id, adapter_id, connection_ids, lease_id, fencing_token,
@@ -379,7 +412,10 @@ class CredentialBroker:
 
     def issue_grant(self, *, workspace_id: str, task_id: str, adapter_id: str, connection_ids,
                     lease_id: str, fencing_token: int, ttl_seconds: float = 60.0, max_uses: int = 1) -> Grant:
-        """Bind adapter, workspace, task, lease and connections for a short TTL."""
+        """Bind adapter, workspace, task, lease and connections for a short TTL.
+
+        The returned grant_id is a bearer capability: treat it as secret.
+        """
         code, grant = self._issue(workspace_id, task_id, adapter_id, connection_ids, lease_id, fencing_token,
                                   ttl_seconds, max_uses)
         if code is not None:
@@ -394,8 +430,11 @@ class CredentialBroker:
                connection_id: str, consumer):
         """Call ``consumer(plaintext)`` once if authorized and return its result.
 
-        The result must not contain the plaintext. Consumer exceptions are
-        replaced by AdapterFailed without a cause or context chain.
+        The result must be None, bool, int, float, str, bytes, bytearray,
+        ChildResult or list/tuple/dict of these (four levels) and must not
+        contain the plaintext; anything else is withheld as SECRET_IN_OUTPUT.
+        Consumer exceptions are replaced by AdapterFailed without a cause or
+        context chain.
         """
         ids = {"grant_id": grant_id, "workspace_id": workspace_id, "task_id": task_id,
                "connection_id": connection_id,
@@ -422,7 +461,11 @@ class CredentialBroker:
         try:
             result = consumer(plaintext)
         except BrokerError as error:
-            failure = error.code
+            try:
+                candidate = error.code
+            except Exception:
+                candidate = None
+            failure = candidate if type(candidate) is str and candidate in MESSAGES else "ADAPTER_FAILED"
         except Exception:
             failure = "ADAPTER_FAILED"
         if failure is None and _contains_secret(result, _SecretDetector(plaintext), plaintext):
@@ -440,7 +483,11 @@ class CredentialBroker:
     def run_with_credential(self, handle: AdapterHandle, grant_id: str, *, workspace_id: str, task_id: str,
                             connection_id: str, argv, delivery: str = "stdin", env_name: str | None = None,
                             base_env=None, cwd=None, timeout: float = 30.0) -> ChildResult:
-        """Adapter injection into a child process via stdin or one env variable."""
+        """Adapter injection into a child process via stdin or one env variable.
+
+        Revoking the grant (directly or via revoke_task/revoke_lease) while the
+        child runs terminates it and raises AdapterFailed(CHILD_CANCELLED).
+        """
         try:
             validate_command(argv, delivery=delivery, env_name=env_name, base_env=base_env, timeout=timeout, cwd=cwd)
             valid = True
@@ -451,18 +498,39 @@ class CredentialBroker:
                          workspace_id=workspace_id, task_id=task_id, connection_id=connection_id)
             raise BrokerDenied("INVALID_REQUEST")
         command = tuple(argv)
-        return self.inject(handle, grant_id, workspace_id=workspace_id, task_id=task_id,
-                           connection_id=connection_id,
-                           consumer=lambda secret: run_injected(command, secret, delivery=delivery,
-                                                                env_name=env_name, base_env=base_env,
-                                                                cwd=cwd, timeout=timeout))
+        cancel = threading.Event()
+        key = grant_id if _valid_id(grant_id) else None
+        if key is not None:
+            # Registered before authorization: a revoke after this point either
+            # makes authorization fail or sets this event.
+            with self._lock:
+                self._cancels.setdefault(key, set()).add(cancel)
+        try:
+            return self.inject(handle, grant_id, workspace_id=workspace_id, task_id=task_id,
+                               connection_id=connection_id,
+                               consumer=lambda secret: run_injected(command, secret, delivery=delivery,
+                                                                    env_name=env_name, base_env=base_env,
+                                                                    cwd=cwd, timeout=timeout, cancel=cancel))
+        finally:
+            if key is not None:
+                with self._lock:
+                    events = self._cancels.get(key)
+                    if events is not None:
+                        events.discard(cancel)
+                        if not events:
+                            del self._cancels[key]
 
     def revoke(self, grant_id: str) -> bool:
+        """Reject later requests and terminate running children of this grant."""
         with self._lock:
-            state = self._grants.get(grant_id) if _valid_id(grant_id) else None
+            valid = _valid_id(grant_id)
+            state = self._grants.get(grant_id) if valid else None
             changed = state is not None and not state.revoked
             if changed:
                 state.revoked = True
+            events = tuple(self._cancels.get(grant_id, ())) if valid else ()
+        for event in events:
+            event.set()
         if changed:
             self._record("grant_revoked", "info", grant_id=grant_id)
         return changed
