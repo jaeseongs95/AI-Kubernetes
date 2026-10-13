@@ -10,12 +10,30 @@ identifies the Attempt, runtime intent and provider call.
 ``AikHostedRuntime`` is that injected runtime. Before any provider effect it:
 
 1. reads the trace scope at call time (the VM trace module is imported lazily,
-   only when a call happens, never when this module is imported);
+   only when a call happens, never when this module is imported). When the
+   trace module cannot be imported, or it has no callable
+   ``current_operation_trace_scope``, the call is refused with
+   ``SEAM_UNAVAILABLE`` (fail-closed);
 2. decides the AIK assignment (route/connection/lease);
 3. checks placement/lease/pool usability with ``binding.check_assignment``;
 4. records the binding durably in an AIK-owned SQLite journal
-   (``aik_runtime.binding_journal``);
-5. only then calls the inner runtime of the original connection.
+   (``aik_runtime.binding_journal``) together with a write-ahead in-flight row;
+5. only then calls the inner runtime of the original connection, and deletes
+   the in-flight row only after that call returned normally.
+
+A surviving in-flight row (inner failure, unreadable result, a process that
+died during the inner call, or a failed delete) blocks later effects of the
+same Attempt or thread until explicit reconciliation. The process-memory
+unknown sets are auxiliary only; the journal decides. ``interrupt`` is never
+blocked by unknown or in-flight state (it reduces cost); it still requires the
+stored route and the same placement/lease/fencing, and it is logged with
+``while_unresolved``.
+
+Scope assumption. A trace scope that is present but ``None`` is treated as a
+preparation call (Planning or Goal preparation without an Attempt). This
+relies on the VM design that every Task execution runtime call happens inside
+an operation trace scope, including calls made from supervisor threads. It
+has not been verified against an installed VM RuntimeJob.
 
 Existing threads are routed to the connection that created them; account
 rotation never moves an existing thread to another account. The owner-confirmed
@@ -99,7 +117,13 @@ def _path(value: object) -> Path | None:
 
 @dataclass(frozen=True, slots=True)
 class TraceRef:
-    """The VM operation trace scope fields this runtime reads (all optional)."""
+    """The VM operation trace scope fields this runtime reads (all optional).
+
+    A ``None`` scope (not a ``TraceRef``) means a preparation call. Treating it
+    so relies on the VM design that Task execution runtime calls always run
+    inside an operation trace scope; this is an assumption, not a verified
+    property of an installed VM.
+    """
 
     attempt_id: str | None = None
     intent_id: str | None = None
@@ -123,20 +147,34 @@ class TraceRef:
 
 def _trace_from(scope: object) -> TraceRef:
     values = {}
-    for name in TRACE_FIELDS:
-        values[name] = scope.get(name) if isinstance(scope, Mapping) else getattr(scope, name, None)
+    failed = False
+    try:
+        for name in TRACE_FIELDS:
+            values[name] = scope.get(name) if isinstance(scope, Mapping) else getattr(scope, name, None)
+    except Exception:
+        failed = True
+    if failed:
+        raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject="trace_scope") from None
     return TraceRef(**values)
 
 
 def read_operation_trace() -> TraceRef | None:
-    """The VM trace scope at call time; None when the module or the scope is absent."""
+    """The VM trace scope at call time.
+
+    Raises ``SEAM_UNAVAILABLE`` (subject ``trace_scope``) when the VM trace
+    module cannot be imported, has no callable ``current_operation_trace_scope``,
+    or that function fails. Returns None only when the function exists and
+    returns None (a preparation call or no scope).
+    """
+    failed = False
+    reader = None
     try:
         module = importlib.import_module(TRACE_MODULE)
         reader = getattr(module, "current_operation_trace_scope", None)
     except Exception:
-        return None
-    if not callable(reader):
-        return None
+        failed = True
+    if failed or not callable(reader):
+        raise VmBridgeError(BridgeCode.SEAM_UNAVAILABLE, subject="trace_scope") from None
     failed = False
     scope = None
     try:
@@ -152,7 +190,13 @@ def read_operation_trace() -> TraceRef | None:
 
 @dataclass(frozen=True, slots=True)
 class HostedAssignment:
-    """AIK-owned assignment for a hosted runtime call; grants no authorization."""
+    """AIK-owned assignment for a hosted runtime call; grants no authorization.
+
+    For Task execution the placement must belong to the Attempt of the trace
+    scope at call time (``Placement`` requires ``vm_attempt_id`` and
+    ``vm_task_id``). Its Task ID is stored with the Attempt binding and is
+    compared with VM only during owner confirmation.
+    """
 
     vm_instance_id: str
     vm_project_id: str
@@ -224,13 +268,17 @@ def _assignment_from_mapping(value: object) -> dict[str, Any]:
     return result
 
 
-def _assignment_record(value: object) -> tuple[dict, str, str]:
+def _assignment_record(value: object) -> tuple[dict, str, str, str | None]:
+    """(mapping, canonical text, digest, placement Task ID or None for a mapping)."""
+    task = None
     if type(value) is HostedAssignment:
-        mapping = _rebuild_assignment(value).to_mapping()
+        rebuilt = _rebuild_assignment(value)
+        mapping = rebuilt.to_mapping()
+        task = rebuilt.placement.vm_task_id
     else:
         mapping = _assignment_from_mapping(value)
     text = _canonical(mapping)
-    return mapping, text, _digest_text(text)
+    return mapping, text, _digest_text(text), task
 
 
 def _store_damaged(subject: str) -> VmBridgeError:
@@ -280,6 +328,8 @@ class StoredAttempt:
     assignment_digest: str
     intents: tuple
     unknown: bool
+    # AIK placement's Task ID at first binding; compared with VM only during owner confirmation.
+    placement_vm_task_id: str | None = None
 
     def first_intent(self) -> StoredIntent | None:
         """The first create_thread or start_turn intent recorded for the Attempt."""
@@ -292,7 +342,9 @@ class ExecutionBindingStore:
     Construction errors keep their ``aik_runtime`` classification (for example
     ``UnsafeStoragePath`` for a development ledger or Git path, or
     ``InvalidDatabase`` for a foreign file). Operation failures are
-    ``VmBridgeError`` values with fixed codes.
+    ``VmBridgeError`` values with fixed codes. Unknown and in-flight state in
+    the journal refuses every effect except ``interrupt`` with
+    ``RECONCILIATION_REQUIRED``.
     """
 
     def __init__(self, path: Path | str, *, timeout: float = 5.0, now: Callable[[], datetime] | None = None):
@@ -334,20 +386,23 @@ class ExecutionBindingStore:
         raise failure from None
 
     # -- writes --
-    def bind_effect(self, trace: TraceRef | None, assignment, operation: str, *, connection_id: str | None = None,
-                    thread_id: str | None = None, lease_usable: bool = True) -> None:
-        """Durably bind Attempt + intent (Task execution) and log the effect, in one transaction.
-
-        Without ``trace.attempt_id`` the call is a preparation call: no Attempt
-        binding is recorded, only the effect log entry.
-        """
+    def _record(self, trace: TraceRef | None, assignment, operation: str, *, connection_id: str | None,
+                thread_id: str | None, lease_usable: bool, placement_vm_task_id: str | None, inflight: bool,
+                unresolved_hint: bool):
         if trace is not None and type(trace) is not TraceRef:
             raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="trace")
         if type(operation) is not str or operation not in EFFECT_OPERATIONS:
             raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="operation")
         if type(lease_usable) is not bool:
             raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="lease_usable")
-        mapping, text, digest = _assignment_record(assignment)
+        if type(unresolved_hint) is not bool:
+            raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="unresolved_hint")
+        mapping, text, digest, task = _assignment_record(assignment)
+        if placement_vm_task_id is not None:
+            _require_id(placement_vm_task_id, "placement_vm_task_id")
+            if task is not None and task != placement_vm_task_id:
+                raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="placement_vm_task_id")
+            task = placement_vm_task_id
         connection = mapping["connection_id"] if connection_id is None else connection_id
         _require_id(connection, "connection_id")
         _require_id(thread_id, "thread_id", optional=True)
@@ -359,9 +414,49 @@ class ExecutionBindingStore:
                 "vm_attempt_id": trace.attempt_id, "vm_project_id": mapping["vm_project_id"],
                 "assignment_json": text, "assignment_digest": digest, "vm_intent_id": trace.intent_id,
                 "vm_call_id": trace.call_id, "trace_thread_id": trace.thread_id, "trace_turn_id": trace.turn_id,
+                "placement_vm_task_id": task,
             }
-        self._call(self._journal.record_effect, connection_id=connection, operation=operation,
-                   lease_usable=lease_usable, recorded_at=self._stamp(), thread_id=thread_id, attempt=attempt)
+        return self._call(self._journal.record_effect, connection_id=connection, operation=operation,
+                          lease_usable=lease_usable, recorded_at=self._stamp(), thread_id=thread_id,
+                          attempt=attempt, inflight=inflight, unresolved_hint=unresolved_hint)
+
+    def bind_effect(self, trace: TraceRef | None, assignment, operation: str, *, connection_id: str | None = None,
+                    thread_id: str | None = None, lease_usable: bool = True,
+                    placement_vm_task_id: str | None = None) -> None:
+        """Durably bind Attempt + intent (Task execution) and log the effect, in one transaction.
+
+        Without ``trace.attempt_id`` the call is a preparation call: no Attempt
+        binding is recorded, only the effect log entry. No in-flight row is
+        written (see ``begin_effect``). A ``HostedAssignment`` supplies the
+        placement Task ID; a mapping assignment may pass
+        ``placement_vm_task_id`` and must when the Attempt is new.
+        """
+        self._record(trace, assignment, operation, connection_id=connection_id, thread_id=thread_id,
+                     lease_usable=lease_usable, placement_vm_task_id=placement_vm_task_id, inflight=False,
+                     unresolved_hint=False)
+
+    def begin_effect(self, trace: TraceRef | None, assignment, operation: str, *, connection_id: str | None = None,
+                     thread_id: str | None = None, lease_usable: bool = True,
+                     placement_vm_task_id: str | None = None, unresolved_hint: bool = False) -> int:
+        """Like ``bind_effect`` plus a write-ahead in-flight row in the same transaction; returns its ID.
+
+        The row blocks later effects of the same Attempt/thread (except
+        interrupt) until ``finish_effect`` or explicit reconciliation.
+        ``unresolved_hint`` (interrupt only) records that the caller's process
+        memory still holds an unknown mark for the target.
+        """
+        value = self._record(trace, assignment, operation, connection_id=connection_id, thread_id=thread_id,
+                             lease_usable=lease_usable, placement_vm_task_id=placement_vm_task_id, inflight=True,
+                             unresolved_hint=unresolved_hint)
+        if type(value) is not int or value < 1:
+            raise _store_damaged("inflight_effects")
+        return value
+
+    def finish_effect(self, inflight_id: int) -> bool:
+        """Delete the in-flight row of an effect whose inner call returned normally."""
+        if type(inflight_id) is not int or inflight_id < 1:
+            raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="inflight_id")
+        return self._call(self._journal.finish_effect, inflight_id=inflight_id)
 
     def record_thread(self, *, connection_id: str, thread_id: str, kind: str, vm_attempt_id: str | None,
                       assignment) -> bool:
@@ -369,7 +464,7 @@ class ExecutionBindingStore:
         _require_id(connection_id, "connection_id")
         _require_id(thread_id, "thread_id")
         _require_id(vm_attempt_id, "vm_attempt_id", optional=True)
-        _, text, digest = _assignment_record(assignment)
+        _, text, digest, _ = _assignment_record(assignment)
         return self._call(self._journal.record_thread, connection_id=connection_id, thread_id=thread_id, kind=kind,
                           vm_attempt_id=vm_attempt_id, assignment_json=text, assignment_digest=digest,
                           recorded_at=self._stamp())
@@ -385,6 +480,8 @@ class ExecutionBindingStore:
         for name in HOSTED_ASSIGNMENT_FIELDS:
             if getattr(binding, name) != stored.assignment[name]:
                 raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject=name)
+        if stored.placement_vm_task_id != binding.vm_task_id:
+            raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="vm_task_id")
         first = stored.first_intent()
         if first is None or first.vm_intent_id != binding.vm_runtime_intent_id:
             raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="vm_runtime_intent_id")
@@ -405,12 +502,12 @@ class ExecutionBindingStore:
                    vm_attempt_id=attempt_id, thread_id=thread_id)
 
     def reconcile_attempt(self, attempt_id: str) -> bool:
-        """Explicitly clear an Attempt's unknown mark (the caller reconciled it through VM)."""
+        """Explicitly clear an Attempt's unknown mark and in-flight rows (reconciled through VM)."""
         _require_id(attempt_id, "vm_attempt_id")
         return self._call(self._journal.reconcile_attempt, vm_attempt_id=attempt_id)
 
     def reconcile_thread(self, thread_id: str) -> bool:
-        """Explicitly clear a thread's unknown mark (the caller reconciled it through VM)."""
+        """Explicitly clear a thread's unknown mark and in-flight rows (reconciled through VM)."""
         _require_id(thread_id, "thread_id")
         return self._call(self._journal.reconcile_thread, thread_id=thread_id)
 
@@ -441,7 +538,7 @@ class ExecutionBindingStore:
             raise _store_damaged("attempt_bindings")
         intents = tuple(StoredIntent(**item) for item in data["intents"])
         return StoredAttempt(attempt_id, data["vm_project_id"], assignment, data["assignment_digest"],
-                             intents, data["unknown"])
+                             intents, data["unknown"], data["placement_vm_task_id"])
 
     def read_execution_binding(self, attempt_id: str) -> dict | None:
         """``{"vm_attempt_id", "binding_digest"}`` of an owner-confirmed binding, or None."""
@@ -466,6 +563,10 @@ class ExecutionBindingStore:
     @property
     def unknown_threads(self) -> frozenset:
         return self._call(self._journal.unknown_targets)[1]
+
+    def inflight_effects(self) -> tuple:
+        """Surviving write-ahead in-flight rows: ``{"id", "vm_attempt_id", "thread_id", "operation"}``."""
+        return tuple(MappingProxyType(item) for item in self._call(self._journal.inflight))
 
     def effect_records(self) -> tuple:
         """Before-effect log entries (metadata only; no prompts or payloads)."""
@@ -508,6 +609,11 @@ class AikHostedRuntime:
     Method names and keyword signatures equal the VM port exactly. Return
     values are the inner runtime's objects, unchanged. Failures are
     ``VmBridgeError`` values without raw messages.
+
+    ``assignment_source(cwd, trace)`` must decide the placement from the
+    Attempt of the trace scope at call time (``Placement`` carries
+    ``vm_attempt_id`` and ``vm_task_id``). The Attempt is compared at once;
+    the Task ID is stored and compared with VM only during owner confirmation.
     """
 
     def __init__(self, runtime_for: Callable[[str], object], store: ExecutionBindingStore,
@@ -608,15 +714,25 @@ class AikHostedRuntime:
             raise VmBridgeError(BridgeCode.SEAM_UNAVAILABLE, subject=name)
         return function
 
-    def _blocked(self, attempt: str | None, thread: str | None) -> None:
+    def _memory_blocked(self, attempt: str | None, thread: str | None) -> str | None:
         with self._lock:
             if attempt is not None and attempt in self._memory_attempts:
-                raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _UNKNOWN, subject="vm_attempt_id")
+                return "vm_attempt_id"
             if thread is not None and thread in self._memory_threads:
-                raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _UNKNOWN, subject="thread_id")
+                return "thread_id"
+        return None
+
+    def _blocked(self, attempt: str | None, thread: str | None) -> None:
+        subject = self._memory_blocked(attempt, thread)
+        if subject is not None:
+            raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _UNKNOWN, subject=subject)
 
     def _unknown(self, attempt: str | None, thread: str | None) -> None:
-        """Mark unknown in memory, then durably (best effort: memory still blocks on failure)."""
+        """Mark unknown in memory, then durably (best effort).
+
+        The write-ahead in-flight row already blocks the target durably; a
+        failed durable mark therefore does not reopen it after restart.
+        """
         if attempt is None and thread is None:
             return
         with self._lock:
@@ -626,6 +742,13 @@ class AikHostedRuntime:
                 self._memory_threads.add(thread)
         try:
             self._store.mark_unknown(attempt_id=attempt, thread_id=thread)
+        except VmBridgeError:
+            pass
+
+    def _finish(self, inflight_id: int) -> None:
+        """Delete the in-flight row; a failed delete leaves it (later effects stay blocked)."""
+        try:
+            self._store.finish_effect(inflight_id)
         except VmBridgeError:
             pass
 
@@ -709,9 +832,16 @@ class AikHostedRuntime:
 
     def _prepare_existing(self, thread_id: str, operation: str, trace: TraceRef | None, cwd: Path | None, *,
                           interrupt: bool):
+        """Checks and durable before-effect record; returns (route, inner function, in-flight ID).
+
+        interrupt skips the unknown/in-flight block (memory and journal) but
+        never the route or placement/lease/fencing identity checks.
+        """
         self._shape(trace)
         route = self._route(thread_id, trace, effect=True)
-        self._blocked(route.vm_attempt_id, thread_id)
+        memory = self._memory_blocked(route.vm_attempt_id, thread_id)
+        if memory is not None and not interrupt:
+            raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _UNKNOWN, subject=memory)
         if route.kind == "task":
             stored = self._store.read_attempt(route.vm_attempt_id)
             if stored is None or stored.assignment_digest != route.assignment_digest:
@@ -719,9 +849,12 @@ class AikHostedRuntime:
         current = self._assignment(cwd, trace)
         usable = self._check_current(current, route.assignment, route.vm_attempt_id, interrupt=interrupt)
         function = self._method(self._runtime(route.connection_id), operation)
-        self._store.bind_effect(trace if route.kind == "task" else None, route.assignment, operation,
-                                connection_id=route.connection_id, thread_id=thread_id, lease_usable=usable)
-        return route, function
+        inflight = self._store.begin_effect(
+            trace if route.kind == "task" else None, route.assignment, operation,
+            connection_id=route.connection_id, thread_id=thread_id, lease_usable=usable,
+            unresolved_hint=interrupt and memory is not None,
+        )
+        return route, function, inflight
 
     # -- CodexRuntimePort --
     def verify_execution_policy(self, cwd):
@@ -750,8 +883,8 @@ class AikHostedRuntime:
             if stored is not None and stored.assignment_digest != assignment.assignment_digest():
                 raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="assignment")
         function = self._method(self._runtime(assignment.connection_id), "create_thread")
-        self._store.bind_effect(trace if attempt is not None else None, assignment, "create_thread",
-                                connection_id=assignment.connection_id)
+        inflight = self._store.begin_effect(trace if attempt is not None else None, assignment, "create_thread",
+                                            connection_id=assignment.connection_id)
         receipt = self._effect_call(function, attempt, None, "create_thread", cwd=cwd, title=title, model=model,
                                     developer_instructions=developer_instructions, ephemeral=ephemeral)
         thread_id = _receipt_thread_id(receipt)
@@ -774,13 +907,17 @@ class AikHostedRuntime:
         if collision:
             self._unknown(attempt, thread_id)
             raise VmBridgeError(BridgeCode.OUTCOME_UNKNOWN, _UNKNOWN, subject="thread_id_collision")
+        self._finish(inflight)
         return receipt
 
     def start_turn(self, *, thread_id, cwd, prompt, model, effort, output_schema=None):
         trace = self._trace()
-        route, function = self._prepare_existing(thread_id, "start_turn", trace, _path(cwd), interrupt=False)
-        return self._effect_call(function, route.vm_attempt_id, thread_id, "start_turn", thread_id=thread_id,
-                                 cwd=cwd, prompt=prompt, model=model, effort=effort, output_schema=output_schema)
+        route, function, inflight = self._prepare_existing(thread_id, "start_turn", trace, _path(cwd),
+                                                           interrupt=False)
+        result = self._effect_call(function, route.vm_attempt_id, thread_id, "start_turn", thread_id=thread_id,
+                                   cwd=cwd, prompt=prompt, model=model, effort=effort, output_schema=output_schema)
+        self._finish(inflight)
+        return result
 
     def read(self, *, thread_id):
         trace = self._trace()
@@ -790,14 +927,19 @@ class AikHostedRuntime:
 
     def resume(self, *, thread_id, cwd):
         trace = self._trace()
-        route, function = self._prepare_existing(thread_id, "resume", trace, _path(cwd), interrupt=False)
-        return self._effect_call(function, route.vm_attempt_id, thread_id, "resume", thread_id=thread_id, cwd=cwd)
+        route, function, inflight = self._prepare_existing(thread_id, "resume", trace, _path(cwd), interrupt=False)
+        result = self._effect_call(function, route.vm_attempt_id, thread_id, "resume", thread_id=thread_id,
+                                   cwd=cwd)
+        self._finish(inflight)
+        return result
 
     def interrupt(self, *, thread_id, turn_id, timeout_seconds=5.0):
         trace = self._trace()
-        route, function = self._prepare_existing(thread_id, "interrupt", trace, None, interrupt=True)
-        return self._effect_call(function, route.vm_attempt_id, thread_id, "interrupt", thread_id=thread_id,
-                                 turn_id=turn_id, timeout_seconds=timeout_seconds)
+        route, function, inflight = self._prepare_existing(thread_id, "interrupt", trace, None, interrupt=True)
+        result = self._effect_call(function, route.vm_attempt_id, thread_id, "interrupt", thread_id=thread_id,
+                                   turn_id=turn_id, timeout_seconds=timeout_seconds)
+        self._finish(inflight)
+        return result
 
     def read_stored(self, *, thread_id, turn_id=None, timeout_seconds=5.0):
         trace = self._trace()
@@ -825,7 +967,7 @@ class AikHostedRuntime:
 
     # -- reconciliation --
     def reconcile_attempt(self, vm_attempt_id: str) -> bool:
-        """Explicitly clear an Attempt's unknown mark after reconciling it through VM."""
+        """Explicitly clear an Attempt's unknown mark and in-flight rows after reconciling it through VM."""
         _require_id(vm_attempt_id, "vm_attempt_id")
         cleared = self._store.reconcile_attempt(vm_attempt_id)
         with self._lock:
@@ -834,7 +976,7 @@ class AikHostedRuntime:
         return cleared or present
 
     def reconcile_thread(self, thread_id: str) -> bool:
-        """Explicitly clear a thread's unknown mark after reconciling it through VM."""
+        """Explicitly clear a thread's unknown mark and in-flight rows after reconciling it through VM."""
         _require_id(thread_id, "thread_id")
         cleared = self._store.reconcile_thread(thread_id)
         with self._lock:

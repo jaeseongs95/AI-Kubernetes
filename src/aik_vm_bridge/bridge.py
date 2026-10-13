@@ -31,6 +31,7 @@ Two bound-execution paths exist:
 from __future__ import annotations
 
 import copy
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -564,6 +565,19 @@ class VmBridge:
             absent.insert(0, "handshake")
         if absent:
             raise VmBridgeError(BridgeCode.CAPABILITY_MISSING, subject=absent[0], details=tuple(absent))
+        hosted_runtime = getattr(port, "hosted_runtime", None) if binding_store is not None else None
+        if hosted_runtime is not None:
+            # Review R1-F5: owner confirmation must read the journal the
+            # runtime writes. A port without ``hosted_runtime`` cannot be
+            # checked; then the wiring is the caller's responsibility.
+            same = False
+            try:
+                same = (os.path.realpath(hosted_runtime.store.path)
+                        == os.path.realpath(binding_store.path))
+            except Exception:
+                same = False
+            if not same:
+                raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="binding_store")
         self._port = port
         self._commands = selected
         self._now = now or (lambda: datetime.now(timezone.utc))
@@ -641,6 +655,23 @@ class VmBridge:
                 self._unresolved.add(attempt)
             if project is not None:
                 self._unresolved_projects.add(project)
+
+    def _mark_hosted_unknown(self, attempt: str, project: str) -> None:
+        """Review R1-F4: record an unclear hosted Attempt durably in the AIK journal.
+
+        The hosted runtime refuses that Attempt's next provider effect until it
+        is reconciled, also after a restart. If the durable mark cannot be
+        written, the project guard is set instead (fail-closed).
+        """
+        self._mark_unknown(attempt, None)
+        recorded = False
+        try:
+            self._binding_store.mark_unknown(attempt_id=attempt, reason="bridge_outcome_unknown")
+            recorded = True
+        except Exception:
+            recorded = False
+        if not recorded:
+            self._mark_unknown(None, project)
 
     def _hosted(self, handshake: Handshake | None) -> bool:
         return (self._binding_store is not None and handshake is not None
@@ -921,7 +952,7 @@ class VmBridge:
             self._launch_generation[attempt] = self._launch_generation.get(attempt, 0) + 1
             self._launched_job[attempt] = job.job_id
         if job.phase is JobPhase.UNKNOWN:
-            self._mark_unknown(attempt, None)
+            self._mark_hosted_unknown(attempt, project)
         failure = None
         confirmation = None
         try:
@@ -930,7 +961,7 @@ class VmBridge:
             failure = VmBridgeError(error.code, _UNKNOWN, vm_code=error.vm_code, subject=error.subject,
                                     details=error.details)
         if failure is not None:
-            self._mark_unknown(attempt, None)
+            self._mark_hosted_unknown(attempt, project)
             raise failure from None
         return receipt, confirmation
 
@@ -972,6 +1003,9 @@ class VmBridge:
             raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="project_id")
         if owner.attempt_id != attempt_id:
             raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="attempt_id")
+        # Review R1-F6: the AIK placement's Task must be the VM owner's Task.
+        if stored.placement_vm_task_id is not None and stored.placement_vm_task_id != owner.task_id:
+            raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="vm_task_id")
 
         status = self._call("status", False, self._port.status, project_id)
         status_refs = _extract_refs(status, _KNOWN)

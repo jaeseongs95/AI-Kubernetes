@@ -21,6 +21,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -837,9 +838,14 @@ class HostedRuntimeTests(HostedFixture):
         self.expect(BridgeCode.INVALID_RESPONSE, lambda: self.create(runtime2), subject="trace_scope")
         self.assertEqual(self.inners, {})
 
-    def test_default_trace_reader_outside_vm_dispatch_reports_no_scope(self) -> None:
-        # Without the VM package, or outside a VM operation scope, there is no scope.
-        self.assertIsNone(read_operation_trace())
+    def test_default_trace_reader_fails_closed_without_the_vm_trace_seam(self) -> None:
+        # Review R1-F1: a missing VM trace module/function is SEAM_UNAVAILABLE, never
+        # "no scope" (that would run a Task call as an unbound preparation call).
+        with mock.patch.dict(sys.modules, {"flowmarshal.engine.operation_trace": None}):
+            with self.assertRaises(VmBridgeError) as raised:
+                read_operation_trace()
+        self.assertEqual((raised.exception.code, raised.exception.subject),
+                         (BridgeCode.SEAM_UNAVAILABLE, "trace_scope"))
         for name in ("hosted_runtime.py", "engine_port.py"):
             text = (ROOT / "src/aik_vm_bridge" / name).read_text(encoding="utf-8")
             with self.subTest(file=name):
@@ -1192,11 +1198,8 @@ class EnginePortHostedTests(HostedFixture):
         self.assertEqual(plain.handshake()["extensions"], [])
         self.assertFalse(hasattr(plain, "bind_execution"))
         self.assertFalse(plain.upstream_binding_methods_present)
-        reader = getattr(plain, "read_execution_binding", None)
-        if callable(reader):
-            with self.assertRaises(EnginePortError) as raised:
-                reader("attempt-1")
-            self.assertEqual(raised.exception.code, "ENGINE_METHOD_ABSENT")
+        # Review R1-F10: without a hosted runtime the attribute does not exist.
+        self.assertFalse(hasattr(plain, "read_execution_binding"))
 
     def test_case11_build_hosted_application_injects_the_runtime_into_the_factory(self) -> None:
         _, runtime = self.open()

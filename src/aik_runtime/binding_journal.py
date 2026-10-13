@@ -5,21 +5,32 @@ the development task ledger, or any VM/AGS ledger. It records only AIK-owned
 cross-references:
 
 * the AIK assignment (route/connection/lease) that a VM Attempt used before its
-  first provider effect,
+  first provider effect, together with the AIK placement's Task ID,
 * the VM runtime intents that were bound to that Attempt,
 * which provider thread belongs to which connection,
 * the owner-confirmed task execution binding,
 * a before-effect log of hosted runtime effects,
-* targets whose effect outcome is unknown.
+* targets whose effect outcome is unknown,
+* write-ahead in-flight effects (``inflight_effects``).
+
+An in-flight row is inserted in the same transaction as the before-effect log
+entry and is deleted only after the inner runtime returned normally. A row
+that survives (inner failure, unreadable result, process termination during
+the inner call, or a failed delete) blocks later effects of the same Attempt
+or thread until explicit reconciliation. ``interrupt`` is never blocked by
+unknown or in-flight state; it is logged with ``while_unresolved``.
 
 It never stores prompts, provider payloads, credentials or VM verdicts, and it
 does not decide Task/Attempt state. Paths follow
 ``paths.validate_database_path``: no development ledger, no Git repository,
 and no aliases. Every operation opens a fresh connection under the shared
 process lock and uses BEGIN IMMEDIATE, DELETE journal mode and FULL
-synchronization, like ``storage.RuntimeStore``. Unlike RuntimeStore, an
-existing file is validated in place. This AIK-owned journal relies on SQLite's
-own rollback-journal recovery and does not validate a private copy first.
+synchronization, like ``storage.RuntimeStore``. Before SQLite opens an
+existing file, its 100-byte header (SQLite magic and this journal's
+application ID) is checked, so a foreign file with a hot rollback journal is
+never modified. An empty file accompanied by a rollback journal is refused.
+This AIK-owned journal otherwise relies on SQLite's own rollback-journal
+recovery and does not validate a private copy first.
 """
 
 from __future__ import annotations
@@ -43,10 +54,11 @@ OPERATIONS = ("create_thread", "start_turn", "resume", "interrupt")
 THREAD_KINDS = ("task", "preparation")
 TEXT_LIMIT = 65536
 _DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
+_SQLITE_MAGIC = b"SQLite format 3\x00"
 _IMMUTABLE_TABLES = ("attempt_bindings", "intent_bindings", "thread_routes", "owner_confirmations", "effect_log")
 _ATTEMPT_KEYS = frozenset({
     "vm_attempt_id", "vm_project_id", "assignment_json", "assignment_digest", "vm_intent_id", "vm_call_id",
-    "trace_thread_id", "trace_turn_id",
+    "trace_thread_id", "trace_turn_id", "placement_vm_task_id",
 })
 
 
@@ -59,7 +71,7 @@ class JournalConflict(StorageError):
 
 
 class JournalBlocked(StorageError):
-    """The target has an unknown effect outcome; only explicit reconciliation clears it."""
+    """The target has an unknown or in-flight effect; only explicit reconciliation clears it."""
 
     def __init__(self, subject: str):
         super().__init__(f"Binding journal target requires reconciliation: {subject}.")
@@ -83,6 +95,10 @@ def _digest_column(name: str) -> str:
     return f"\"{name}\" TEXT NOT NULL CHECK (typeof(\"{name}\") = 'text' AND length(\"{name}\") = 71)"
 
 
+def _flag_column(name: str) -> str:
+    return f'"{name}" INTEGER NOT NULL CHECK ("{name}" IN (0, 1))'
+
+
 _OPERATION = ("\"operation\" TEXT NOT NULL CHECK (\"operation\" IN "
               "('create_thread', 'start_turn', 'resume', 'interrupt'))")
 _ATTEMPT_FK = ('FOREIGN KEY ("vm_attempt_id") REFERENCES "attempt_bindings" ("vm_attempt_id") '
@@ -91,7 +107,7 @@ _ATTEMPT_FK = ('FOREIGN KEY ("vm_attempt_id") REFERENCES "attempt_bindings" ("vm
 _TABLES = {
     "attempt_bindings": [
         _id_column("vm_attempt_id", key=True), _id_column("vm_project_id"), _text_column("assignment_json"),
-        _digest_column("assignment_digest"), _text_column("recorded_at"),
+        _digest_column("assignment_digest"), _id_column("placement_vm_task_id"), _text_column("recorded_at"),
     ],
     "intent_bindings": [
         _id_column("vm_intent_id", key=True), _id_column("vm_attempt_id"), _id_column("vm_call_id", optional=True),
@@ -116,12 +132,18 @@ _TABLES = {
     "effect_log": [
         '"sequence" INTEGER PRIMARY KEY', _id_column("connection_id"), _id_column("thread_id", optional=True),
         _id_column("vm_attempt_id", optional=True), _id_column("vm_intent_id", optional=True), _OPERATION,
-        '"lease_usable" INTEGER NOT NULL CHECK ("lease_usable" IN (0, 1))', _text_column("recorded_at"),
+        _flag_column("lease_usable"), _flag_column("while_unresolved"), _text_column("recorded_at"),
+    ],
+    "inflight_effects": [
+        '"id" INTEGER PRIMARY KEY AUTOINCREMENT', _id_column("vm_attempt_id", optional=True),
+        _id_column("thread_id", optional=True), _OPERATION, _text_column("recorded_at"),
     ],
 }
 _INDEXES = (
     'CREATE INDEX "thread_routes_thread" ON "thread_routes" ("thread_id")',
     'CREATE INDEX "intent_bindings_attempt" ON "intent_bindings" ("vm_attempt_id", "ordinal")',
+    'CREATE INDEX "inflight_effects_attempt" ON "inflight_effects" ("vm_attempt_id")',
+    'CREATE INDEX "inflight_effects_thread" ON "inflight_effects" ("thread_id")',
 )
 
 
@@ -155,6 +177,18 @@ def _failure(error: sqlite3.Error) -> StorageError:
     if getattr(error, "sqlite_errorcode", 0) & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
         return StorageBusy("SQLite could not acquire the binding journal lock.")
     return StorageError("The binding journal operation could not be completed.")
+
+
+def _header_state(path: Path) -> str:
+    """'empty' for a zero-byte file, 'journal' for this journal's header; anything else is foreign."""
+    with path.open("rb") as stream:
+        header = stream.read(100)
+    if not header:
+        return "empty"
+    if len(header) < 100 or header[:16] != _SQLITE_MAGIC \
+            or int.from_bytes(header[68:72], "big") != APPLICATION_ID:
+        raise InvalidDatabase("The binding journal path holds a foreign or damaged file.")
+    return "journal"
 
 
 def _input_id(value: object, field: str, *, optional: bool = False) -> None:
@@ -229,6 +263,19 @@ class BindingJournal:
         if not self.path.exists() and self._companion("-journal").exists():
             raise InvalidDatabase("An orphan rollback journal cannot initialize the binding journal.")
 
+    def _require_header(self) -> None:
+        """The existing file must carry this journal's header before SQLite may touch it."""
+        failed = False
+        state = None
+        try:
+            state = _header_state(self.path)
+        except OSError:
+            failed = True
+        if failed:
+            raise StorageError("The binding journal file could not be processed safely.") from None
+        if state != "journal":
+            raise InvalidDatabase("The binding journal file is not initialized.")
+
     def _connect(self, *, create: bool = False) -> sqlite3.Connection:
         connection = sqlite3.connect(
             self.path.as_uri() + ("?mode=rwc" if create else "?mode=rw"),
@@ -262,7 +309,14 @@ class BindingJournal:
     def _prepare(self) -> None:
         self._check_companions()
         try:
-            if not self.path.exists() or self.path.stat().st_size == 0:
+            state = "absent"
+            if self.path.exists():
+                # Inspect the header before SQLite may recover a hot journal,
+                # so a foreign file is never modified.
+                state = _header_state(self.path)
+                if state == "empty" and self._companion("-journal").exists():
+                    raise InvalidDatabase("An empty binding journal file with a rollback journal is not recoverable.")
+            if state != "journal":
                 with closing(self._connect(create=True)) as connection:
                     connection.execute("BEGIN IMMEDIATE")
                     try:
@@ -293,6 +347,7 @@ class BindingJournal:
             self._check_companions()
             if not self.path.exists():
                 raise InvalidDatabase("The binding journal file is absent.")
+            self._require_header()
             failure = None
             connection = None
             try:
@@ -319,20 +374,52 @@ class BindingJournal:
             if failure is not None:
                 raise failure from None
 
+    @staticmethod
+    def _blocking(connection: sqlite3.Connection, attempt_id: str | None, thread_id: str | None) -> str | None:
+        """The first durable reason that blocks a new effect on these targets, or None."""
+        if thread_id is not None and connection.execute(
+                'SELECT 1 FROM "unknown_threads" WHERE "thread_id" = ?', (thread_id,)).fetchone():
+            return "thread_id"
+        if attempt_id is not None and connection.execute(
+                'SELECT 1 FROM "unknown_attempts" WHERE "vm_attempt_id" = ?', (attempt_id,)).fetchone():
+            return "vm_attempt_id"
+        if thread_id is not None and connection.execute(
+                'SELECT 1 FROM "inflight_effects" WHERE "thread_id" = ? LIMIT 1', (thread_id,)).fetchone():
+            return "thread_in_flight"
+        if attempt_id is not None and connection.execute(
+                'SELECT 1 FROM "inflight_effects" WHERE "vm_attempt_id" = ? LIMIT 1', (attempt_id,)).fetchone():
+            return "attempt_in_flight"
+        return None
+
     # --------------------------------------------------------------- writes
     def record_effect(self, *, connection_id: str, operation: str, lease_usable: bool, recorded_at: str,
-                      thread_id: str | None = None, attempt=None) -> None:
+                      thread_id: str | None = None, attempt=None, inflight: bool = False,
+                      unresolved_hint: bool = False) -> int | None:
         """Atomically check guards, bind Attempt and intent (if any), and log the effect.
 
         ``attempt`` is a mapping with exactly ``vm_attempt_id``, ``vm_project_id``,
         ``assignment_json``, ``assignment_digest``, ``vm_intent_id``,
-        ``vm_call_id``, ``trace_thread_id`` and ``trace_turn_id``.
+        ``vm_call_id``, ``trace_thread_id``, ``trace_turn_id`` and
+        ``placement_vm_task_id`` (the latter may be None only when the Attempt
+        binding already exists).
+
+        Unknown and in-flight state of the Attempt or thread blocks every
+        operation except ``interrupt``. An interrupt proceeds and its log row
+        has ``while_unresolved`` set when such state (or ``unresolved_hint``
+        from the caller's process memory) exists. With ``inflight=True`` a
+        write-ahead in-flight row is inserted in the same transaction and its
+        ID is returned; otherwise None is returned.
         """
         _input_id(connection_id, "connection_id")
         if type(operation) is not str or operation not in OPERATIONS:
             raise InvalidRecord("Unknown hosted runtime operation.")
         if type(lease_usable) is not bool:
             raise InvalidRecord("lease_usable must be a boolean.")
+        if type(inflight) is not bool or type(unresolved_hint) is not bool:
+            raise InvalidRecord("inflight and unresolved_hint must be booleans.")
+        bypass = operation == "interrupt"
+        if unresolved_hint and not bypass:
+            raise InvalidRecord("Only interrupt may proceed while its target is unresolved.")
         _input_text(recorded_at, "recorded_at")
         _input_id(thread_id, "thread_id", optional=True)
         values = None
@@ -342,33 +429,35 @@ class BindingJournal:
             values = dict(attempt)
             for name in ("vm_attempt_id", "vm_project_id", "vm_intent_id"):
                 _input_id(values[name], name)
-            for name in ("vm_call_id", "trace_thread_id", "trace_turn_id"):
+            for name in ("vm_call_id", "trace_thread_id", "trace_turn_id", "placement_vm_task_id"):
                 _input_id(values[name], name, optional=True)
             _input_text(values["assignment_json"], "assignment_json")
             _input_digest(values["assignment_digest"], "assignment_digest")
         with self._transaction() as connection:
-            if thread_id is not None and connection.execute(
-                    'SELECT 1 FROM "unknown_threads" WHERE "thread_id" = ?', (thread_id,)).fetchone():
-                raise JournalBlocked("thread_id")
-            attempt_id = intent_id = None
+            attempt_id = None if values is None else values["vm_attempt_id"]
+            subject = self._blocking(connection, attempt_id, thread_id)
+            if subject is not None and not bypass:
+                raise JournalBlocked(subject)
+            while_unresolved = unresolved_hint or subject is not None
+            intent_id = None
             if values is not None:
-                attempt_id = values["vm_attempt_id"]
-                if connection.execute('SELECT 1 FROM "unknown_attempts" WHERE "vm_attempt_id" = ?',
-                                      (attempt_id,)).fetchone():
-                    raise JournalBlocked("vm_attempt_id")
                 row = connection.execute(
-                    'SELECT "vm_project_id", "assignment_digest" FROM "attempt_bindings" WHERE "vm_attempt_id" = ?',
-                    (attempt_id,),
+                    'SELECT "vm_project_id", "assignment_digest", "placement_vm_task_id" FROM "attempt_bindings" '
+                    'WHERE "vm_attempt_id" = ?', (attempt_id,),
                 ).fetchone()
                 if row is None:
+                    if values["placement_vm_task_id"] is None:
+                        raise InvalidRecord("A new Attempt binding requires the placement Task ID.")
                     connection.execute(
                         'INSERT INTO "attempt_bindings" ("vm_attempt_id", "vm_project_id", "assignment_json", '
-                        '"assignment_digest", "recorded_at") VALUES (?, ?, ?, ?, ?)',
+                        '"assignment_digest", "placement_vm_task_id", "recorded_at") VALUES (?, ?, ?, ?, ?, ?)',
                         (attempt_id, values["vm_project_id"], values["assignment_json"],
-                         values["assignment_digest"], recorded_at),
+                         values["assignment_digest"], values["placement_vm_task_id"], recorded_at),
                     )
-                elif tuple(row) != (values["vm_project_id"], values["assignment_digest"]):
+                elif tuple(row[:2]) != (values["vm_project_id"], values["assignment_digest"]):
                     raise JournalConflict("assignment")
+                elif values["placement_vm_task_id"] is not None and row[2] != values["placement_vm_task_id"]:
+                    raise JournalConflict("placement_vm_task_id")
                 intent_id = values["vm_intent_id"]
                 intent = (attempt_id, values["vm_call_id"], operation, values["trace_thread_id"],
                           values["trace_turn_id"])
@@ -388,9 +477,25 @@ class BindingJournal:
                     raise JournalConflict("vm_runtime_intent_id")
             connection.execute(
                 'INSERT INTO "effect_log" ("connection_id", "thread_id", "vm_attempt_id", "vm_intent_id", '
-                '"operation", "lease_usable", "recorded_at") VALUES (?, ?, ?, ?, ?, ?, ?)',
-                (connection_id, thread_id, attempt_id, intent_id, operation, int(lease_usable), recorded_at),
+                '"operation", "lease_usable", "while_unresolved", "recorded_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                (connection_id, thread_id, attempt_id, intent_id, operation, int(lease_usable),
+                 int(while_unresolved), recorded_at),
             )
+            if not inflight:
+                return None
+            cursor = connection.execute(
+                'INSERT INTO "inflight_effects" ("vm_attempt_id", "thread_id", "operation", "recorded_at") '
+                "VALUES (?, ?, ?, ?)", (attempt_id, thread_id, operation, recorded_at),
+            )
+            return cursor.lastrowid
+
+    def finish_effect(self, inflight_id: int) -> bool:
+        """Delete one in-flight row after the inner runtime returned normally."""
+        if type(inflight_id) is not int or inflight_id < 1:
+            raise InvalidRecord("Invalid in-flight effect ID.")
+        with self._transaction() as connection:
+            return connection.execute('DELETE FROM "inflight_effects" WHERE "id" = ?',
+                                      (inflight_id,)).rowcount > 0
 
     def record_thread(self, *, connection_id: str, thread_id: str, kind: str, vm_attempt_id: str | None,
                       assignment_json: str, assignment_digest: str, recorded_at: str) -> bool:
@@ -472,16 +577,24 @@ class BindingJournal:
                 )
 
     def reconcile_attempt(self, vm_attempt_id: str) -> bool:
+        """Clear the Attempt's unknown mark and every in-flight row of that Attempt."""
         _input_id(vm_attempt_id, "vm_attempt_id")
         with self._transaction() as connection:
-            return connection.execute('DELETE FROM "unknown_attempts" WHERE "vm_attempt_id" = ?',
-                                      (vm_attempt_id,)).rowcount > 0
+            unknown = connection.execute('DELETE FROM "unknown_attempts" WHERE "vm_attempt_id" = ?',
+                                         (vm_attempt_id,)).rowcount
+            inflight = connection.execute('DELETE FROM "inflight_effects" WHERE "vm_attempt_id" = ?',
+                                          (vm_attempt_id,)).rowcount
+            return unknown + inflight > 0
 
     def reconcile_thread(self, thread_id: str) -> bool:
+        """Clear the thread's unknown mark and every in-flight row of that thread."""
         _input_id(thread_id, "thread_id")
         with self._transaction() as connection:
-            return connection.execute('DELETE FROM "unknown_threads" WHERE "thread_id" = ?',
-                                      (thread_id,)).rowcount > 0
+            unknown = connection.execute('DELETE FROM "unknown_threads" WHERE "thread_id" = ?',
+                                         (thread_id,)).rowcount
+            inflight = connection.execute('DELETE FROM "inflight_effects" WHERE "thread_id" = ?',
+                                          (thread_id,)).rowcount
+            return unknown + inflight > 0
 
     # ---------------------------------------------------------------- reads
     def thread_routes(self, thread_id: str) -> tuple:
@@ -508,8 +621,8 @@ class BindingJournal:
         _input_id(vm_attempt_id, "vm_attempt_id")
         with self._transaction() as connection:
             row = connection.execute(
-                'SELECT "vm_project_id", "assignment_json", "assignment_digest" FROM "attempt_bindings" '
-                'WHERE "vm_attempt_id" = ?', (vm_attempt_id,),
+                'SELECT "vm_project_id", "assignment_json", "assignment_digest", "placement_vm_task_id" '
+                'FROM "attempt_bindings" WHERE "vm_attempt_id" = ?', (vm_attempt_id,),
             ).fetchone()
             if row is None:
                 return None
@@ -522,6 +635,7 @@ class BindingJournal:
         return {
             "vm_attempt_id": vm_attempt_id, "vm_project_id": _stored_id(row[0]),
             "assignment_json": _stored_text(row[1]), "assignment_digest": _stored_digest(row[2]),
+            "placement_vm_task_id": _stored_id(row[3]),
             "intents": tuple({
                 "vm_intent_id": _stored_id(item[0]), "vm_call_id": _stored_id(item[1], optional=True),
                 "operation": _stored_operation(item[2]), "thread_id": _stored_id(item[3], optional=True),
@@ -547,20 +661,35 @@ class BindingJournal:
             threads = [row[0] for row in connection.execute('SELECT "thread_id" FROM "unknown_threads"')]
         return (frozenset(_stored_id(item) for item in attempts), frozenset(_stored_id(item) for item in threads))
 
+    def inflight(self) -> tuple:
+        with self._transaction() as connection:
+            rows = connection.execute(
+                'SELECT "id", "vm_attempt_id", "thread_id", "operation" FROM "inflight_effects" ORDER BY "id"'
+            ).fetchall()
+        result = []
+        for row in rows:
+            if type(row[0]) is not int or row[0] < 1:
+                raise _damaged()
+            result.append({
+                "id": row[0], "vm_attempt_id": _stored_id(row[1], optional=True),
+                "thread_id": _stored_id(row[2], optional=True), "operation": _stored_operation(row[3]),
+            })
+        return tuple(result)
+
     def effect_log(self) -> tuple:
         with self._transaction() as connection:
             rows = connection.execute(
                 'SELECT "sequence", "connection_id", "thread_id", "vm_attempt_id", "vm_intent_id", "operation", '
-                '"lease_usable", "recorded_at" FROM "effect_log" ORDER BY "sequence"'
+                '"lease_usable", "while_unresolved", "recorded_at" FROM "effect_log" ORDER BY "sequence"'
             ).fetchall()
         result = []
         for row in rows:
-            if type(row[0]) is not int or row[6] not in (0, 1):
+            if type(row[0]) is not int or row[6] not in (0, 1) or row[7] not in (0, 1):
                 raise _damaged()
             result.append({
                 "sequence": row[0], "connection_id": _stored_id(row[1]),
                 "thread_id": _stored_id(row[2], optional=True), "vm_attempt_id": _stored_id(row[3], optional=True),
                 "vm_intent_id": _stored_id(row[4], optional=True), "operation": _stored_operation(row[5]),
-                "lease_usable": bool(row[6]), "recorded_at": _stored_text(row[7]),
+                "lease_usable": bool(row[6]), "while_unresolved": bool(row[7]), "recorded_at": _stored_text(row[8]),
             })
         return tuple(result)

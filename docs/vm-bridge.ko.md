@@ -168,20 +168,27 @@ AIK는 이 두 seam과 owner query(`attempt_detail`·`status`)만으로 효과 �
   - `bind_execution`은 제공하지 않는다.
   - 주입된 application이 실제로 이 runtime을 쓰는지는 VM 비공개 속성을 읽지 않으므로 증명할 수 없다. 이 helper로 함께 만드는 것이 호출자 책임이다.
 - `VmBridge(..., binding_store=store)`: `run_once_hosted(HostedRunOnceRequest)`와 `confirm_attempt(project_id, attempt_id)`를 제공한다.
+  - port가 `hosted_runtime`을 노출하면, 그 runtime의 store와 같은 journal 파일이어야 한다. 다르면 `INVALID_REQUEST`다(검토 R1-F5).
+  - 노출하지 않는 port는 호출자가 연결을 책임진다.
+- binding journal은 SQLite로 열기 전에 기존 파일의 헤더(magic·application ID)를 확인한다. 빈 파일에 rollback journal이 함께 있으면 거절한다. 다른 SQLite 파일을 열다가 수정하는 일을 막기 위해서다(검토 R1-F7).
 
 **provider 효과 전 순서** (`create_thread`·`start_turn`·`resume`·`interrupt`)
 
-1. 호출 시점에 trace scope를 읽는다. VM trace 모듈은 이때만 lazy import한다.
+1. 호출 시점에 trace scope를 읽는다. VM trace 모듈은 이때만 lazy import한다. 모듈이나 `current_operation_trace_scope`가 없으면 `SEAM_UNAVAILABLE`로 거절한다(fail-closed). 그렇게 하지 않으면 Task 호출이 binding 없는 준비 호출로 처리되기 때문이다(검토 R1-F1).
 2. assignment를 정하고, `binding.check_assignment`로 placement/lease/pool을 확인한다. 만료·비활성이면 `LEASE_NOT_USABLE`, fencing·ID가 다르면 `BINDING_MISMATCH`다.
-3. store에 durable하게 기록한다.
+3. store에 durable하게 기록한다. 같은 트랜잭션에서 in-flight 행도 남긴다(write-ahead, 검토 R1-F3).
 4. 그 다음에만 원래 connection의 inner runtime을 부른다.
+5. inner가 정상 반환하면 그 in-flight 행만 지운다. `create_thread`는 thread 경로 기록까지 성공한 뒤에 지운다.
+
+inner 호출 중 프로세스가 죽어도 재시작 뒤 in-flight 행이 남아 같은 Attempt·thread의 다음 효과를 막는다. 준비 `create_thread`는 Attempt도 thread도 없으므로 그 행이 아무것도 막지 않는다. 중단되면 고아 행으로 남는다.
 
 1~3단계에서 실패하면 inner를 부르지 않는다. 같은 Attempt에 다른 assignment가 오면 `BINDING_MISMATCH`이며 효과는 없다.
 
 **호출 종류별 처리**
 
 - **Task 실행 호출**(trace에 `attempt_id`가 있음): Attempt binding과 intent binding을 기록한다. `intent_id` 없이 `attempt_id`만 있으면 거절한다.
-- **준비 호출**(Planning·Goal 준비처럼 Attempt가 없음): `TaskExecutionBinding`을 만들지 않고 thread 경로(`preparation`)만 남긴다.
+- **준비 호출**(Planning·Goal 준비처럼 Attempt가 없음): `TaskExecutionBinding`을 만들지 않고 thread 경로(`preparation`)만 남긴다. scope가 `None`이면 준비 호출로 보는 것은 "Task 실행 호출은 항상 scope 안에서 일어난다"는 VM 설계에 기댄 가정이다.
+- **placement 결정:** `Placement`은 `vm_attempt_id`·`vm_task_id`가 필수다. 그래서 `assignment_source`는 호출 시점 trace의 Attempt로 placement를 정해야 한다. placement의 Task ID는 owner 확인 때 VM의 Task와 대조하며, 다르면 `BINDING_MISMATCH`다(검토 R1-F6).
 
 **원래 계정 정책**
 
@@ -192,7 +199,12 @@ AIK는 이 두 seam과 owner query(`attempt_detail`·`status`)만으로 효과 �
 
 **interrupt 정책**
 
-중단은 비용을 줄이는 안전한 방향이다. 그래서 lease가 만료된 상태에서도 원래 계정으로 중단하는 것을 허용하고, 그 사실(`lease_usable=false`)을 기록한다. 다만 placement/lease/fencing 자체가 다르면 거절한다.
+중단은 비용을 줄이는 안전한 방향이다. 그래서 다음 경우에도 원래 계정으로 중단하는 것을 허용한다.
+
+- lease가 만료됐다. 그 사실(`lease_usable=false`)을 기록한다.
+- 결과 불명(unknown)이나 in-flight 차단 상태다. 그 사실(`while_unresolved=true`)을 기록한다(검토 R1-F2).
+
+다만 경로나 placement/lease/fencing 자체가 다르면 거절한다.
 
 **결과 불명**
 
@@ -202,7 +214,9 @@ AIK는 이 두 seam과 owner query(`attempt_detail`·`status`)만으로 효과 �
 - 새 thread ID를 읽을 수 없다.
 - 경로 기록에 실패했다.
 
-unknown으로 표시된 대상의 다음 효과는 `RECONCILIATION_REQUIRED`로 막힌다. 호출자가 VM으로 대조한 뒤 `reconcile_attempt`/`reconcile_thread`로 명시적으로 풀어야 한다. 자동 재실행은 하지 않는다.
+unknown으로 표시된 대상이나 in-flight 행이 남은 대상의 다음 효과(interrupt 제외)는 `RECONCILIATION_REQUIRED`로 막힌다. 호출자가 VM으로 대조한 뒤 `reconcile_attempt`/`reconcile_thread`로 명시적으로 풀어야 한다. 이때 in-flight 행도 지워진다. 자동 재실행은 하지 않는다.
+
+bridge가 hosted 경로에서 Attempt 결과를 확정하지 못하면 그 Attempt를 journal에 durable하게 unknown으로 기록한다. hosted runtime이 그 기록을 읽고 다음 효과를 막는다. 기록에 실패하면 project guard를 대신 건다(검토 R1-F4).
 
 **owner 확인** (`confirm_attempt`)
 
