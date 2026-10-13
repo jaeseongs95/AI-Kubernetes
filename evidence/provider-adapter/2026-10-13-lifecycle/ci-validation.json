@@ -1,0 +1,71 @@
+{
+  "task_id": "AIK-011",
+  "source_commit": "e74f4917eba7d001cdaad1235fcebb34740612f3",
+  "base_commit": "1a43ae80d1ebbd817b977172fc2cf76d31bb17e0",
+  "recorded_at": "2026-10-13T05:55:42Z",
+  "github_run_id": "38353834586",
+  "tests": {
+    "baseline": {
+      "tests": 8,
+      "passed": 0,
+      "failing_cases": [
+        "test_provider_lifecycle.ProviderLifecycleTests.test_01_pending_login_reserves_single_active_host",
+        "test_provider_lifecycle.ProviderLifecycleTests.test_02_pending_login_prevents_dispatch_for_another_account",
+        "test_provider_lifecycle.ProviderLifecycleTests.test_03_pending_logout_does_not_release_still_authenticated_context",
+        "test_provider_lifecycle.ProviderLifecycleTests.test_04_typed_unknown_auth_failure_fences_both_mutation_paths",
+        "test_provider_lifecycle.ProviderLifecycleTests.test_05_isolation_does_not_allow_relogin_of_its_own_active_connection",
+        "test_provider_lifecycle.ProviderLifecycleTests.test_06_authorization_callback_cannot_reenter_dispatch",
+        "test_provider_lifecycle.ProviderLifecycleTests.test_07_interrupt_timeout_cannot_be_replayed_automatically",
+        "test_provider_lifecycle.ProviderLifecycleTests.test_08_account_is_rechecked_after_external_authorization"
+      ],
+      "failure_records": 9,
+      "error_records": 0,
+      "skipped": 0,
+      "successful": false,
+      "log_sha256": "a14a305872095ac7a4814dbbdc3774a575f9375e134e8d53565821ce2cba3418"
+    },
+    "current": {
+      "tests": 60,
+      "passed": 60,
+      "failing_cases": [],
+      "failure_records": 0,
+      "error_records": 0,
+      "skipped": 0,
+      "successful": true,
+      "log_sha256": "47a073c70ba5688b8d06a001d023b8b4d4e5742191fd63dda93b5e83b1343e9b"
+    }
+  },
+  "environment": {
+    "python": "3.14.8 (main, Oct  1 2026, 02:38:33) [GCC 13.3.0]",
+    "platform": "linux"
+  },
+  "sources_sha256": {
+    "src/aik_provider/controller.py": "68b0e58ef3feba524f53bfbeef3ffdc10b688a93b3df1c67ea73269bcc5f02af",
+    "src/aik_provider/contracts.py": "166aa18c3a6c2abc3dad426de906189f9df282335f92110518fb49f28038273f",
+    "src/aik_provider/__init__.py": "e23b30ed5465ce1f27e74c6ce261ebf32201aff97fbd4ab18043f6d45944952a",
+    "tests/test_provider_contract.py": "64f3c05e8da19a3338439a139112aa800a6344c951cd099eddaa9d3a938af13a",
+    "tests/test_provider_lifecycle.py": "1164600b77919c8a718d54217cb45d013542610caccfb75e453cf15c046b1527"
+  },
+  "baseline_controller_git_blob": "076bb08606e4ae800f40027a9e4d8bf04d1d99c1",
+  "canonical_ledger_before_git_blob": "97b9248ea0dafc1fba576552378a57a052820561",
+  "canonical_ledger_after_git_blob": "241f72295d8f07a05b498089962c47b3c97e104a",
+  "ledger_delta": {
+    "tasks_changed": [
+      "AIK-011"
+    ],
+    "evidence_added": 1,
+    "events_added": 1,
+    "other_tasks_unchanged": true,
+    "acceptance_criteria_unchanged": true,
+    "dependencies_unchanged": true,
+    "schema_unchanged": true
+  },
+  "counts": {
+    "tasks": 90,
+    "acceptance_criteria": 311,
+    "task_dependencies": 365
+  },
+  "ready_tasks": 0,
+  "task_status": "blocked",
+  "live_host_qualification": "NOT_RUN"
+}
