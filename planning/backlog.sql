@@ -365,7 +365,7 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-13T15:34:20Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-13T15:51:04Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -1215,6 +1215,7 @@ INSERT INTO "task_events" VALUES(285,'AIK-039','status_change','todo','blocked',
 INSERT INTO "task_events" VALUES(286,'AIK-041','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-041-MODULE-20261013). 완료 아님. 차단: 실제 provider·worker 프로세스로 복수 worker 동시 실행 미검증; planner와 reserve 사이 pause·경합 시 해당 Attempt는 VM이 새 Attempt를 줄 때까지 재배치 불가; 선행 AIK-003 Windows 실기 검증 미완료','2026-10-13T15:34:20Z');
 INSERT INTO "task_events" VALUES(287,'AIK-042','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-042-MODULE-20261013). 완료 아님. 차단: 실제 VM Goal Test·재작업 루프와의 결합 미검증; AIK-081 A2 호환 AGS plugin 미확보로 AGS 독립검토 실행 불가; 선행 AIK-031 hosted 경로의 실제 governed 실행 미검증','2026-10-13T15:34:20Z');
 INSERT INTO "task_events" VALUES(288,'AIK-043','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-043-MODULE-20261013). 완료 아님. 차단: 실제 VM History·AGS PEER 수집기 없음; VM history_cursor처럼 receipt 사이에 cursor가 비는 source는 영구 gap(stale)으로 남음; AIK-081 A2 호환 AGS plugin 미확보','2026-10-13T15:34:20Z');
+INSERT INTO "task_events" VALUES(289,'AIK-030','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-030-MODULE-20261013). 완료 아님. 차단: VM/AGS 고정 계약에 JEV 연동 경계 없음(편입 불가, upstream 요청 안 함); fallback 분류 후보의 벤더 품질 기준 판정·실행 경로 미연결; 선행 AIK-031·AIK-032의 실제 governed 실행 미검증','2026-10-13T15:51:04Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1285,6 +1286,7 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-039-MODULE-20261013','AIK-039','parti
 INSERT INTO "task_evidence" VALUES('EV-AIK-041-MODULE-20261013','AIK-041','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-041','부분 구현: commit 4f85cf0, tests/test_elastic.py 7개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분); 차단: 실제 provider·worker 프로세스로 복수 worker 동시 실행 미검증; planner와 reserve 사이 pause·경합 시 해당 Attempt는 VM이 새 Attempt를 줄 때까지 재배치 불가; 선행 AIK-003 Windows 실기 검증 미완료. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T15:34:20Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-042-MODULE-20261013','AIK-042','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-042','부분 구현: commit dd7899e/739deb9, tests/test_validation.py 9개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 4(부분); 차단: 실제 VM Goal Test·재작업 루프와의 결합 미검증; AIK-081 A2 호환 AGS plugin 미확보로 AGS 독립검토 실행 불가; 선행 AIK-031 hosted 경로의 실제 governed 실행 미검증. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T15:34:20Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-043-MODULE-20261013','AIK-043','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-043','부분 구현: commit dd7899e/739deb9, tests/test_readmodel.py 10개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 3(부분); 차단: 실제 VM History·AGS PEER 수집기 없음; VM history_cursor처럼 receipt 사이에 cursor가 비는 source는 영구 gap(stale)으로 남음; AIK-081 A2 호환 AGS plugin 미확보. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T15:34:20Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-030-MODULE-20261013','AIK-030','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-030','부분 구현: commit e228314, tests/test_jev.py 18개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 3(부분); 차단: VM/AGS 고정 계약에 JEV 연동 경계 없음(편입 불가, upstream 요청 안 함); fallback 분류 후보의 벤더 품질 기준 판정·실행 경로 미연결; 선행 AIK-031·AIK-032의 실제 governed 실행 미검증. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T15:51:04Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2114,7 +2116,7 @@ INSERT INTO "tasks" VALUES('AIK-040','예산·쿼터·동시성 admission과 정
 INSERT INTO "tasks" VALUES('AIK-081','Upstream A2 호환 AGS plugin 확보·적합성 통과','기준선 VM 문서의 실제 gate 미개방 원인을 별도 upstream 선행 작업으로 추적한다. AIK에서 gate를 우회하지 않는다.','호환 AGS 설치 artifact·A2 conformance receipt·해결 변경 참조','실제 설치 plugin의 check-plugin·A2 계약 적합성 검사와 PASS receipt 확인','E05','M2','P0','todo','integration','Upstream AGS/VM coordination',35,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-082','필수 runtime의 실제 관측 사전 probe·준비 조건','필수 adapter/native runtime의 최소 실제 진단 probe로 model/effort 관측·계정 binding·receipt와 AGS/VM 계약 가능성을 확인한다. 완성된 035 agent loop의 운영 적합성은 구현 후 086에서 판정한다.','고정 matrix의 실제 preflight probe report·관측 receipt·upstream 준비 조건','실제 필수 adapter/native 최소 진단 호출과 설정/관측/receipt 대조; fixture-only 또는 전체 governed agent loop의 선행 요구 금지','E05','M2','P0','blocked','integration','Upstream runtime coordination',36,'2026-10-12T05:36:30Z','2026-10-13T10:15:18Z');
 INSERT INTO "tasks" VALUES('AIK-032','AGS 실행 전·완료 전 gate bridge','설치형 AGS의 적합성과 실제 실행 관측을 VM의 필수 차단 조건으로 연결한다.','VM 기존 governance gate·conformance 결과/cache·receipt를 소비하는 bridge와 상태 projection','호환 plugin과 manifest/관측 불일치의 설치형 검증','E05','M2','P0','blocked','integration','AGS bridge',37,'2026-10-12T05:36:30Z','2026-10-13T15:13:34Z');
-INSERT INTO "tasks" VALUES('AIK-030','JEV RAW·metadata·AGENT 선택 계약 연결','사용자가 확정한 AGS/VM 내부 JEV 설계 원칙에 따라 실제 공개 입출력 계약·배포 상태를 확인하고 총괄/worker에 연결한다.','JEV bridge·RAW/REQ provenance·agent choice 기록','ON/OFF/실패·RAW 보존·최종 선택 차이 검증','E05','M2','P0','todo','integration','JEV integration',38,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
+INSERT INTO "tasks" VALUES('AIK-030','JEV RAW·metadata·AGENT 선택 계약 연결','사용자가 확정한 AGS/VM 내부 JEV 설계 원칙에 따라 실제 공개 입출력 계약·배포 상태를 확인하고 총괄/worker에 연결한다.','JEV bridge·RAW/REQ provenance·agent choice 기록','ON/OFF/실패·RAW 보존·최종 선택 차이 검증','E05','M2','P0','blocked','integration','JEV integration',38,'2026-10-12T05:36:30Z','2026-10-13T15:51:04Z');
 INSERT INTO "tasks" VALUES('AIK-033','VM ready Task의 자원 placement','VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제 자원 능력에 맞게 배치한다.','placement planner·eligibility filter·결정 근거','의존성·tool/model·capacity 조건별 배치 검증','E06','M2','P0','blocked','feature','Placement',39,'2026-10-12T05:36:30Z','2026-10-13T14:31:28Z');
 INSERT INTO "tasks" VALUES('AIK-034','worker lease·동시성 예약·fencing','기간과 작업 범위를 가진 사용권을 원자적으로 예약하고 중복 점유를 막는다.','lease manager·reservation transaction·fence counter','동시 예약·TTL 만료·stale owner·중단 경합 검증','E06','M2','P0','blocked','feature','Lease manager',40,'2026-10-12T05:36:30Z','2026-10-13T14:31:28Z');
 INSERT INTO "tasks" VALUES('AIK-035','native·API 에이전트 실행과 도구 반복 연결','VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다. 모델의 도구 요청은 인가된 gateway를 통해 처리하고 결과를 다음 호출에 전달한다.','native dispatch bridge·bounded API tool loop·provider job handle·receipt','실제 route/connection/Attempt/lease 결속·bounded 개발 도구 반복·도구 효과 전후 crash·결과 재전송·중복 dispatch 검증; provider protocol·인가/lease fixture와 실제 임시 파일/명령 효과로 구현 계약 검증, 전체 live governed qualification은 086','E06','M2','P0','blocked','integration','Runtime dispatch',41,'2026-10-12T05:36:30Z','2026-10-13T15:13:34Z');
@@ -2211,6 +2213,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',288);
+INSERT INTO "sqlite_sequence" VALUES('task_events',289);
 COMMIT;
 PRAGMA foreign_keys = ON;
