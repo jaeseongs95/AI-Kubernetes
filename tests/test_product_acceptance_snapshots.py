@@ -33,7 +33,9 @@ class AcceptanceSnapshotTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="aik083-snapshot-")
         self.addCleanup(temporary.cleanup)
-        self.workspace = Path(temporary.name) / "한글 공백 프로젝트"
+        # The oracle resolves workspace paths. Match that identity on Windows
+        # too, where TEMP may contain an 8.3 alias such as RUNNER~1.
+        self.workspace = Path(temporary.name).resolve() / "한글 공백 프로젝트"
         shutil.copytree(ROOT / "contracts/product-acceptance/fixture/project", self.workspace)
         self.artifact = self.workspace / "settlement.json"
         self.write_artifact(GOOD)
