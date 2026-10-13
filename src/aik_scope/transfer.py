@@ -1,14 +1,17 @@
-"""Settings export/import across workspaces, users and machines.
+"""Settings export/import across users and machines (same workspace IDs).
 
 Export: aik_config settings export + non-secret aik_connection fields +
 scopes + aik_profiles documents. No API key, host token, credential value,
-verification state, workspace binding or history is exported.
+verification state, workspace binding or history is exported. The settings
+section is checked against an exact key allowlist before it is included.
 
 Import: the whole document is validated first (the settings section by a
-rolled-back dry run of SettingsStore.import_settings), conflicts are checked,
-then records are written store by store. An API connection whose vault
-reference does not resolve on this user/machine is kept as a pending
+rolled-back dry run of SettingsStore.import_settings), profiles must use only
+connections allowed by their workspace scope in the document, conflicts are
+checked, then records are written store by store. An API connection whose
+vault reference does not resolve on this user/machine is kept as a pending
 "reconnection required" record together with the profiles that depend on it.
+Restoring under different workspace IDs is not supported.
 """
 
 from __future__ import annotations
@@ -22,7 +25,8 @@ from aik_runtime.errors import InvalidDatabase, InvalidRecord, RevisionConflict
 
 from .errors import InvalidScope, InvalidTransferDocument, TransferBlocked, TransferIncomplete
 from .models import (
-    FULL_STATE_RESTORE_TASK, ConnectionScope, ReconnectReport, TransferReport, check_scope_identifier,
+    FULL_STATE_RESTORE_TASK, ConnectionScope, ReconnectReport, RestoreReport, ScopeViolation, TransferReport,
+    check_scope_identifier,
 )
 from .store import ScopeStore
 
@@ -44,6 +48,17 @@ _CONNECTION_KEYS = tuple(field.name for field in fields(ConnectionSpec))
 _PENDING_CONNECTION_KEYS = tuple(name for name in _CONNECTION_KEYS if name != "credential_ref")
 _SCOPE_KEYS = frozenset({"workspace_id", "allowed_connection_ids", "shared_connection_ids"})
 _AGENT_KEYS = tuple(field.name for field in fields(AgentProfile))
+
+# Exact shape of aik_config's settings export. Unknown fields fail closed: a
+# future aik_config field must be reviewed here before it can be exported.
+_SETTINGS_TOP_KEYS = frozenset({"format", "format_version", "scope", "contains_secret_values", "excluded",
+                                "workspaces"})
+_SETTINGS_WORKSPACE_KEYS = frozenset({"id", "name", "requires_binding", "connections", "profiles", "limits",
+                                      "permissions"})
+_SETTINGS_CONNECTION_KEYS = frozenset({"id", "provider", "auth_mode", "requires_authentication"})
+_SETTINGS_PROFILE_KEYS = frozenset({"id", "role", "connection_id", "model", "effort"})
+_SETTINGS_LIMITS_KEYS = frozenset({"max_parallel_workers", "budget_limit", "budget_unit", "budget_period"})
+_SETTINGS_PERMISSIONS_KEYS = frozenset({"file_write", "shell_command", "network"})
 
 
 class _DryRun(Exception):
@@ -70,6 +85,45 @@ def _profile_connections(profile) -> tuple:
     return tuple(dict.fromkeys(choice.connection_id for choice in (profile.primary, *profile.fallbacks)))
 
 
+def _scalar(value: object) -> bool:
+    return value is None or type(value) in (str, int, bool)
+
+
+def _check_settings_export(document) -> None:
+    """Refuse a settings export with unknown fields or nested values (fail-closed)."""
+
+    def refuse() -> TransferBlocked:
+        return TransferBlocked("The settings export has unexpected fields or values; nothing was exported.")
+
+    def exact(value, keys) -> dict:
+        if type(value) is not dict or set(value) != keys:
+            raise refuse()
+        return value
+
+    def scalars(value, keys) -> None:
+        item = exact(value, keys)
+        if any(not _scalar(item[name]) for name in keys):
+            raise refuse()
+
+    top = exact(document, _SETTINGS_TOP_KEYS)
+    if top["contains_secret_values"] is not False or type(top["excluded"]) is not list \
+            or any(type(item) is not str for item in top["excluded"]) or type(top["workspaces"]) is not list \
+            or any(not _scalar(top[name]) for name in ("format", "format_version", "scope")):
+        raise refuse()
+    for entry in top["workspaces"]:
+        entry = exact(entry, _SETTINGS_WORKSPACE_KEYS)
+        if any(not _scalar(entry[name]) for name in ("id", "name", "requires_binding")):
+            raise refuse()
+        for name, keys in (("connections", _SETTINGS_CONNECTION_KEYS), ("profiles", _SETTINGS_PROFILE_KEYS)):
+            if type(entry[name]) is not list:
+                raise refuse()
+            for item in entry[name]:
+                scalars(item, keys)
+        for name, keys in (("limits", _SETTINGS_LIMITS_KEYS), ("permissions", _SETTINGS_PERMISSIONS_KEYS)):
+            if entry[name] is not None:
+                scalars(entry[name], keys)
+
+
 class SettingsTransfer:
     """Export/import settings without secrets; restores need reconnection and rebinding."""
 
@@ -91,6 +145,7 @@ class SettingsTransfer:
     def export(self, workspace_ids=None) -> dict:
         """Settings-only export. Execution profiles are included only with a profile store."""
         settings_document = self._settings.export_settings(workspace_ids)
+        _check_settings_export(settings_document)
         entries = settings_document["workspaces"]
         selected = {entry["id"] for entry in entries}
         if any(record.workspace_id in selected for record in self._scopes.pending_records()):
@@ -153,6 +208,28 @@ class SettingsTransfer:
             raise
         except (InvalidRecord, TypeError, KeyError, AttributeError):
             raise InvalidTransferDocument("The settings section of the transfer document is invalid.") from None
+
+    @staticmethod
+    def _scope_violations(scopes: tuple, agent_profiles: tuple, execution_profiles: tuple) -> tuple:
+        """Profiles whose (same-workspace) connections the document scope does not allow."""
+        allowed = {scope.workspace_id: set(scope.allowed_connection_ids) for scope in scopes}
+        found = []
+
+        def note(kind: str, record_id: str, workspace_id: str, connection_id: str) -> None:
+            if workspace_id not in allowed:
+                reason = "NO_SCOPE"
+            elif connection_id not in allowed[workspace_id]:
+                reason = "NOT_ALLOWED"
+            else:
+                return
+            found.append(ScopeViolation(kind, record_id, connection_id, reason))
+
+        for profile in agent_profiles:
+            note("agent_profile", profile.id, profile.workspace_id, profile.connection_id)
+        for profile in execution_profiles:
+            for connection_id in _profile_connections(profile):
+                note("execution_profile", profile.id, profile.workspace_id, connection_id)
+        return tuple(found)
 
     def _parse(self, document) -> _Plan:
         top = _exact(document, _TOP_KEYS, "document")
@@ -218,6 +295,12 @@ class SettingsTransfer:
             raise
         except (InvalidRecord, TypeError, ValueError, KeyError):
             raise InvalidTransferDocument("A transfer record violates its contract.") from None
+        violations = self._scope_violations(tuple(scopes), agent_profiles, tuple(execution_profiles))
+        if violations:
+            raise TransferBlocked(
+                "The transfer contains profiles that use connections outside their workspace scope.",
+                violations=violations,
+            )
         return _Plan(workspace_only, workspace_ids, specs, agent_profiles, tuple(execution_profiles), tuple(scopes))
 
     def _preflight(self, plan: _Plan) -> None:
@@ -291,6 +374,10 @@ class SettingsTransfer:
                 self._scopes.save(scope, expected_revision=0)
                 completed.append(f"scope:{scope.workspace_id}")
         except Exception as error:
+            if not completed:
+                # The atomic settings import itself failed (for example a race
+                # after preflight): nothing was written, so this is a refusal.
+                raise TransferBlocked("The settings transfer was refused before any write.") from error
             raise TransferIncomplete(stage, tuple(completed)) from error
         return TransferReport(
             workspace_ids=plan.workspace_ids,
@@ -310,6 +397,9 @@ class SettingsTransfer:
 
         The connection stays unverified: the official host adapter must still
         confirm it. The workspace root must still be bound through AIK-084.
+        Dependents whose ID is already used by a different record are left
+        pending and listed in ``conflict_record_ids``; retry with
+        ``restore_pending()`` after resolving the conflict.
         """
         check_scope_identifier(connection_id, "connection_id")
         found = self._scopes._pending("connection", connection_id)
@@ -325,20 +415,31 @@ class SettingsTransfer:
         elif any(getattr(existing.value, name) != getattr(spec, name) for name in _CONNECTION_KEYS):
             raise TransferBlocked("A different connection is already registered under the pending ID.")
         self._scopes._remove_pending("connection", connection_id)
-        restored = self._restore_dependents()
+        restored, conflicts = self._restore_dependents()
         remaining = tuple(record.record_id for record in self._scopes.pending_records()
                           if connection_id in record.requires)
-        return ReconnectReport(connection_id, restored, remaining)
+        return ReconnectReport(connection_id, restored, remaining, conflicts)
+
+    def restore_pending(self) -> RestoreReport:
+        """Retry restoring pending profiles whose connections are no longer pending."""
+        restored, conflicts = self._restore_dependents()
+        remaining = tuple(record.record_id for record in self._scopes.pending_records()
+                          if record.kind != "connection")
+        return RestoreReport(restored, conflicts, remaining)
 
     def discard_pending(self, connection_id: str) -> tuple:
-        """Abandon a pending connection and the profile records waiting for it."""
+        """Abandon a pending connection and the profile records waiting for it.
+
+        A connection that is not pending is refused (TransferBlocked) and
+        nothing is removed.
+        """
         check_scope_identifier(connection_id, "connection_id")
         return self._scopes._discard_connection(connection_id)
 
     def _restore_dependents(self) -> tuple:
         records = self._scopes._pending()
         waiting = {record.record_id for record, _ in records if record.kind == "connection"}
-        restored = []
+        restored, conflicts = [], []
         for record, data in records:
             if record.kind == "connection" or waiting.intersection(record.requires):
                 continue
@@ -349,7 +450,8 @@ class SettingsTransfer:
                     if current is None:
                         self._settings.save(profile, expected_revision=0)
                     elif current.value != profile:
-                        raise TransferBlocked("A different profile already uses a pending profile ID.")
+                        conflicts.append(record.record_id)
+                        continue
                 else:
                     if self._profiles is None:
                         continue
@@ -358,9 +460,10 @@ class SettingsTransfer:
                     if current is None:
                         self._profiles.save(profile, expected_revision=0)
                     elif current.value != profile:
-                        raise TransferBlocked("A different profile already uses a pending profile ID.")
+                        conflicts.append(record.record_id)
+                        continue
             except TypeError:
                 raise InvalidDatabase("A pending profile record violates its contract.") from None
             self._scopes._remove_pending(record.kind, record.record_id)
             restored.append(record.record_id)
-        return tuple(restored)
+        return tuple(restored), tuple(conflicts)

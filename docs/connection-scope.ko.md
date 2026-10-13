@@ -2,7 +2,7 @@
 
 상태: **구현(부분) — 실제 Windows·다른 Windows 사용자/기기 복원 NOT_RUN**. 이 문서는 `src/aik_scope/`의 동작과 한계를 설명한다. `planning/` 장부의 AIK-021 상태와 완료 판정은 바꾸지 않는다.
 
-`aik_scope`는 다음 기존 패키지를 import해서 재사용한다. 기존 패키지는 수정하지 않는다.
+`aik_scope`는 다음 기존 패키지를 import해서 재사용한다. 기존 패키지는 수정하지 않으며, 그 패키지들의 private 함수에도 의존하지 않는다(파일 동기화 helper는 `aik_scope` 안에 복제했다).
 
 - `aik_config.SettingsStore`: workspace·연결 참조·프로필·한도·권한, export/import
 - `aik_connection.ConnectionStore`: 연결 상세 등록과 vault 참조 확인
@@ -11,7 +11,7 @@
 
 표준 라이브러리만 사용한다.
 
-## 1. 연결 사용 범위 정책 (완료 기준 1)
+## 1. 연결 사용 범위 정책 (완료 기준 1 — 부분 충족)
 
 `ConnectionScope(workspace_id, allowed_connection_ids, shared_connection_ids)`는 workspace가 사용할 연결을 **명시적으로** 나열한다.
 
@@ -21,7 +21,7 @@
 - application ID: `0x41494B57`(`AIKW`)
 - revision으로 갱신을 확인한다. `0`은 새로 만들 때만 쓴다.
 
-`check(workspace_id, connection_id)`는 아래 순서로 판정한다. 하나라도 걸리면 `ConnectionNotInScope`를 발생시키며, `.reason`에 고정 코드가 들어간다(fail-closed).
+`check(workspace_id, connection_id)`는 아래 순서로 판정한다. 하나라도 걸리면 `ConnectionNotInScope`를 발생시키며, `.reason`에 고정 코드가 들어간다(fail-closed). 사용하는 workspace의 scope, 재연결 대기 여부, 소유 workspace의 scope는 하나의 scope DB transaction 안에서 읽는다.
 
 | 순서 | 조건 | reason |
 | --- | --- | --- |
@@ -38,10 +38,24 @@
 
 소유자는 settings `ConnectionProfile.workspace_id`로 정한다. 따라서 남의 연결을 자기 shared 목록에 넣어도 효과가 없다.
 
+**참조 저장 차단.**
+
+- `save_agent_profile(profile, expected_revision=0)`: guard가 연결을 허용할 때만 `AgentProfile`을 settings에 저장한다.
+- `save_execution_profile(profile_store, profile, expected_revision=0)`: primary·fallback의 모든 연결이 허용될 때만 실행 프로필을 저장한다.
+- 두 helper는 판정과 저장 동안 scope 잠금을 유지한다. 따라서 동시에 scope가 바뀌어 판정과 저장 사이에 끼어들 수 없다. 잠금 순서는 scope → profile → settings다.
+- 설정 import는 문서 안의 profile이 그 workspace scope 밖의 연결을 쓰면 아무것도 쓰지 않고 거절한다(§3).
+
 **보조 API.**
 
 - `require(workspace_id, connection_ids)`: broker grant 발급 전 등의 사전 검사에 쓴다.
 - `violations(workspace_id, profile_store)`: allowlist 밖의 연결을 가리키는 저장된 `AgentProfile`과 실행 프로필(primary·fallback 전부)을 보고한다.
+
+**부분 충족인 이유와 한계.**
+
+- `SettingsStore.save`나 `ProfileStore.save`를 직접 호출하면 이 guard를 거치지 않는다. 기존 패키지를 수정하지 않으므로 그 경로는 막지 못한다. 그런 저장은 `violations`로만 드러난다.
+- scope를 좁혀도 기존 프로필은 지워지지 않는다. `violations`로 확인해야 한다.
+- 현재 broker·orchestrator가 이 guard를 자동으로 호출하도록 연결되어 있지는 않다.
+- workspace를 지운 뒤 같은 ID로 다시 만들면 예전 scope가 그대로 적용된다. scope 파일은 settings 삭제에 연동해 지워지지 않는다.
 
 **guard가 하지 않는 일.** 이 guard는 사용 범위만 판정한다. 다음 검사는 각 소유 패키지가 실행 직전에 따로 수행해야 한다.
 
@@ -49,7 +63,7 @@
 - workspace 결속: AIK-084
 - credential 주입: `aik_broker`
 
-`aik_config`의 `AgentProfile`은 DB 제약상 같은 workspace의 연결만 가리킬 수 있다. 다른 workspace 연결의 공유 판정은 실행 경로(broker·orchestrator)가 이 guard를 호출할 때 적용된다. 현재 broker·orchestrator가 이 guard를 자동으로 호출하도록 연결되어 있지는 않다.
+`aik_config`의 `AgentProfile`은 DB 제약상 같은 workspace의 연결만 가리킬 수 있다. 다른 workspace 연결의 공유 판정은 실행 경로가 이 guard를 호출할 때 적용된다.
 
 ## 2. 설정 export (완료 기준 2)
 
@@ -62,6 +76,8 @@
 | `scopes` | workspace별 allowlist·shared 목록 |
 | `execution_profiles` | profile store를 준 경우에만 포함 |
 
+`settings` 구간은 포함하기 전에 정확한 키 allowlist로 검사한다. 최상위·workspace·연결·프로필·한도·권한의 키 집합이 정확히 일치해야 하며, 값은 문자열·정수·불리언·null만 허용한다. 모르는 필드나 중첩 값이 있으면 `TransferBlocked`로 거절하고 아무것도 내보내지 않는다. `aik_config`가 export 필드를 추가하면 이 allowlist를 검토해 갱신하기 전까지 export가 거절된다(fail-closed).
+
 다음 항목은 포함하지 않는다(`excluded` 목록에 명시).
 
 - API 키, 공식 호스트 토큰, 인증 세션
@@ -73,8 +89,11 @@
 
 export가 거절되는 경우(`TransferBlocked`):
 
+- settings export에 예상하지 않은 필드나 값이 있음
 - 재연결 대기 레코드가 남아 있음
 - settings 연결과 연결 상세가 서로 다름 (예: 상세 없는 settings 연결)
+
+export는 scope 위반 프로필을 검사하지 않는다. 그런 문서는 import 단계에서 거절된다.
 
 profile store 없이 export하면 실행 프로필은 빠진다. 이 경우 문서의 `execution_profiles`는 빈 목록이다.
 
@@ -85,18 +104,21 @@ profile store 없이 export하면 실행 프로필은 빠진다. 이 경우 문�
 1. 최상위 필드 집합과 형식·버전을 확인한다. `contains_secret_values=false`, `restores_goals_and_evidence=false`가 아니면 거절한다.
 2. settings 부분은 `SettingsStore.import_settings`를 transaction 안에서 실행한 뒤 rollback하는 dry-run으로 검증한다. 이 단계에서 정확한 필드·참조와 기존 ID 충돌을 확인한다.
 3. 연결 상세와 settings 연결의 일치를 확인한다. scope·실행 프로필의 workspace 소속과 연결 참조도 확인한다.
-4. 대상 저장소의 ID와 credential 참조가 충돌하지 않는지 확인한다.
+4. `AgentProfile`·실행 프로필이 쓰는 연결이 문서 안 그 workspace scope의 allowlist에 있는지 확인한다. scope가 없는 workspace의 프로필도 위반(`NO_SCOPE`)이다.
+5. 대상 저장소의 ID와 credential 참조가 충돌하지 않는지 확인한다. 연결 목록은 `ConnectionStore.list()`로 한 번에 모두 읽는다(페이지 제한 없음).
 
 검증에 실패하면 결과는 다음과 같다. 어느 경우든 아무것도 쓰지 않는다.
 
 - 알 수 없는 필드(예: `api_key`, `token`): `InvalidTransferDocument`. 오류 메시지에 입력 값을 넣지 않는다.
+- scope 밖의 연결을 쓰는 프로필: `TransferBlocked`. `.violations`에 `ScopeViolation(kind, record_id, connection_id, reason)` 목록이 들어간다.
 - 기존 ID·참조와 충돌: `RevisionConflict`
+- 사전 검증 뒤 경합 등으로 첫 settings import 자체가 실패한 경우: `TransferBlocked`. settings import는 원자적이므로 쓰기가 없다.
 
 복원은 다음 순서로 진행한다.
 
 1. **workspace**·한도·권한을 settings import로 만든다. 항상 **미결속**이다.
 2. **연결**을 `ConnectionStore.register`로 등록한다. 등록된 연결은 항상 미확인(`verified_at=None`)이고 settings `needs_authentication=True`다.
-3. API 연결의 vault 참조를 이 사용자·기기에서 해석할 수 없으면(`CredentialRefUnavailable`) 연결을 등록하지 않는다. 대신 비민감 필드만 `pending_restores`에 남긴다. 이 상태가 **재연결(재인증) 필요**다. 그 연결을 쓰는 `AgentProfile`·실행 프로필도 대기 레코드로 남는다.
+3. API 연결의 vault 참조를 이 사용자·기기에서 해석할 수 없으면(`CredentialRefUnavailable`) 연결을 등록하지 않는다. 대신 비민감 필드만 `pending_restores`에 남긴다. 이 상태가 **재연결(재인증) 필요**다. 그 연결을 쓰는 `AgentProfile`·실행 프로필도 대기 레코드로 남는다. 대상 `ConnectionStore`에 credential checker가 없으면 `register`가 모든 API 참조를 해석 불가로 거절하므로 역시 대기 상태가 된다.
 4. scope를 복원한다. 대기 중인 연결은 guard가 `RECONNECTION_REQUIRED`로 거부한다.
 
 `TransferReport`에는 다음이 들어간다.
@@ -115,8 +137,12 @@ profile store 없이 export하면 실행 프로필은 빠진다. 이 경우 문�
 
 - 새 참조로 연결을 등록하고, 대기 중이던 프로필을 복원한다.
 - 해석되지 않는 참조를 넘기면 `CredentialRefUnavailable`로 실패하며 대기 상태가 유지된다.
+- 대기 프로필과 같은 ID를 이미 다른 레코드가 쓰고 있으면 그 프로필은 복원하지 않고 대기 상태로 남긴다. 나머지 프로필은 계속 복원한다. 결과의 `conflict_record_ids`에 충돌 ID가, `pending_record_ids`에 남은 ID가 들어간다.
+- 충돌을 해소한 뒤 `restore_pending()`을 호출하면 남은 대기 프로필을 다시 복원한다. 결과는 `RestoreReport(restored_record_ids, conflict_record_ids, pending_record_ids)`다.
 - 재연결 후에도 연결은 **미확인**이다. 공식 호스트 어댑터의 `mark_verified`가 필요하다.
-- 포기하려면 `discard_pending(connection_id)`를 호출한다. 대기 연결과 그 연결에 의존하는 대기 프로필을 제거한다.
+- 포기하려면 `discard_pending(connection_id)`를 호출한다. 대기 연결과 그 연결에 의존하는 대기 프로필을 제거한다. 대기 중이 아닌 연결 ID를 넘기면 `TransferBlocked`로 거절하고 아무것도 제거하지 않는다.
+
+**같은 사용자 vault에서의 복원(해석).** 대상에서 참조가 해석되면(같은 사용자 vault를 쓰는 경우) 기존 `credential_ref`를 그대로 결속하고 `AUTHENTICATE`만 요구한다. 이 구현은 공식 호스트 어댑터의 재검증(`mark_verified`)을 "인증 참조 재연결"로 간주한다. 같은 vault를 쓰는 두 설치는 같은 비밀 위치를 참조하게 된다. 모든 API 참조를 강제로 재연결 대기로 두는 옵션은 제공하지 않는다.
 
 **재결속.** import한 workspace는 canonical root·VM project 결속이 없으므로 `resolve_execution_target()`이 `WorkspaceBindingRequired`로 실패한다. 재결속은 AIK-084가 수행한다.
 
@@ -127,9 +153,11 @@ profile store 없이 export하면 실행 프로필은 빠진다. 이 경우 문�
 
 ## 5. 원자성과 한계
 
+**다른 workspace ID로의 복원 미지원.** import는 문서의 workspace·연결·프로필 ID를 그대로 사용한다. ID 재매핑 인자는 없다. 같은 설치에서 다른 workspace ID로 복제하는 용도에는 쓸 수 없다. 같은 ID나 같은 `credential_ref`가 이미 있으면 쓰기 전에 `RevisionConflict`로 거절된다. 지원하는 경로는 같은 ID를 가진 다른 디렉터리(다른 사용자·기기 모사)로의 복원뿐이다.
+
 **여러 파일 사이의 원자성.** import는 settings·연결·프로필·scope 파일에 차례로 쓴다. 따라서 파일 전체를 하나의 transaction으로 묶지 못한다.
 
-- 사전 검증 뒤에도 I/O 실패가 나면 `TransferIncomplete(stage, completed)`를 발생시킨다.
+- 첫 쓰기 뒤에 I/O 실패가 나면 `TransferIncomplete(stage, completed)`를 발생시킨다.
 - 이때 남는 레코드는 미결속·미확인이며, 해당 workspace scope가 없으면 guard가 거부한다(fail-closed).
 - 자동 복구는 하지 않는다.
 
@@ -149,15 +177,18 @@ python -m unittest tests.test_scope -v
 
 - 범위 허용·거부, reason별 판정
 - 공유 규칙
-- 프로필 위반 보고
+- 프로필 위반 보고, guard를 거치는 프로필 저장 helper의 거절
 - scope 검증과 revision
 - export의 평문 키·토큰·검증 시각·결속 비포함
+- settings export에 예상 밖 필드·값이 섞이면 export 거절
 - 다른 사용자·기기 시뮬레이션: 별도 디렉터리와 빈 vault
   - 재연결 필요 상태, 미결속 workspace, 재연결 후 프로필 복원
 - 같은 사용자 복원
-- 잘못된 문서와 충돌의 무기록 거절
-- 부분 실패 보고
-- 대기 레코드 포기
+- 잘못된 문서, scope 밖 연결을 쓰는 프로필, 충돌의 무기록 거절
+- 첫 쓰기 전 실패의 `TransferBlocked` 구분, 부분 실패 보고
+- 대기 레코드 포기, 대기 중이 아닌 연결의 포기 거절
+- 재연결 중 ID 충돌 보고와 `restore_pending` 재시도
+- `aik_runtime` private helper 비의존
 
 | 항목 | 상태 |
 | --- | --- |
@@ -165,6 +196,7 @@ python -m unittest tests.test_scope -v
 | 실제 다른 Windows 사용자/기기에서 DPAPI vault 참조가 해석되지 않는 복원 | **NOT_RUN** (빈 fake vault로 모사) |
 | Windows 기본 경로·잠금 | **NOT_RUN** |
 | 실제 `aik_vault`·공식 호스트 어댑터·broker/orchestrator와 guard의 연결 | **NOT_RUN** / 범위 밖 |
+| 다른 workspace ID로의 복원 | 미지원 |
 | GUI 진입점(AIK-088), 전체 상태 복원(AIK-058), workspace 결속(AIK-084) | 범위 밖 |
 
 Linux 통과는 Windows 지원 증거가 아니다. 이 구현만으로 AIK-021 완료를 주장하지 않는다.

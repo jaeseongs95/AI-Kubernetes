@@ -2,12 +2,14 @@
 
 Path validation and the process lock are reused from aik_runtime.paths. The
 file has its own application ID (AIKW). Lock order is always scope DB, then
-settings DB. The file also keeps transfer records waiting for reconnection.
+profile DB, then settings DB. The file also keeps transfer records waiting for
+reconnection.
 """
 
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
+import errno
 from functools import lru_cache
 import json
 import math
@@ -19,14 +21,14 @@ import tempfile
 
 from aik_config import AgentProfile, ConnectionProfile, Revisioned, SettingsStore, Workspace
 from aik_config.errors import InvalidReference
+from aik_profiles import ProfileStore, rebuild_profile
 from aik_runtime.errors import (
     InvalidDatabase, InvalidRecord, RevisionConflict, StorageBusy, StorageError, UnsafeStoragePath,
 )
 from aik_runtime.models import MAX_INTEGER
 from aik_runtime.paths import database_lock, validate_database_path
-from aik_runtime.storage import _sync_directory, _sync_file
 
-from .errors import ConnectionNotInScope, InvalidScope
+from .errors import ConnectionNotInScope, InvalidScope, TransferBlocked
 from .models import (
     PENDING_KINDS, ConnectionScope, PendingRecord, ScopeDecision, ScopeViolation, check_scope_identifier,
 )
@@ -50,6 +52,28 @@ _STATEMENTS = (
     '    PRIMARY KEY ("kind", "record_id")\n'
     ')',
 )
+
+
+# Local copies: aik_runtime keeps these helpers private, so this package does
+# not depend on their names or behaviour staying stable.
+def _sync_file(path: Path) -> None:
+    with path.open("r+b") as stream:
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _sync_directory(path: Path) -> None:
+    if os.name == "nt":
+        return  # No portable directory fsync on Windows; rename durability is OS-owned.
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        try:
+            os.fsync(descriptor)
+        except OSError as error:
+            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
+                raise
+    finally:
+        os.close(descriptor)
 
 
 def _create_schema(connection: sqlite3.Connection) -> None:
@@ -315,19 +339,16 @@ class ScopeStore:
                 raise RevisionConflict("The scope revision has changed or the scope is absent.")
 
     # ---------------------------------------------------------------- guard
-    def check(self, workspace_id: str, connection_id: str) -> ScopeDecision:
-        """Return the allowed use or raise ConnectionNotInScope (fail-closed)."""
-        check_scope_identifier(workspace_id, "workspace_id")
-        check_scope_identifier(connection_id, "connection_id")
-        with self._transaction() as db:
-            scope = self._fetch(db, workspace_id)
-            pending = db.execute(
-                'SELECT 1 FROM "pending_restores" WHERE "kind" = \'connection\' AND "record_id" = ?',
-                (connection_id,)).fetchone()
+    def _check_in(self, db: sqlite3.Connection, workspace_id: str, connection_id: str) -> ScopeDecision:
+        """Decide inside one scope-DB transaction (the scope lock is held)."""
+        scope = self._fetch(db, workspace_id)
         if scope is None:
             raise ConnectionNotInScope("NO_SCOPE", workspace_id, connection_id)
         if connection_id not in scope.value.allowed_connection_ids:
             raise ConnectionNotInScope("NOT_ALLOWED", workspace_id, connection_id)
+        pending = db.execute(
+            'SELECT 1 FROM "pending_restores" WHERE "kind" = \'connection\' AND "record_id" = ?',
+            (connection_id,)).fetchone()
         if pending is not None:
             raise ConnectionNotInScope("RECONNECTION_REQUIRED", workspace_id, connection_id)
         entry = self.settings.get(ConnectionProfile, connection_id)
@@ -336,11 +357,17 @@ class ScopeStore:
         owner = entry.value.workspace_id
         if owner == workspace_id:
             return ScopeDecision(workspace_id, connection_id, owner, False)
-        with self._transaction() as db:
-            owner_scope = self._fetch(db, owner)
+        owner_scope = self._fetch(db, owner)
         if owner_scope is None or connection_id not in owner_scope.value.shared_connection_ids:
             raise ConnectionNotInScope("NOT_SHARED", workspace_id, connection_id)
         return ScopeDecision(workspace_id, connection_id, owner, True)
+
+    def check(self, workspace_id: str, connection_id: str) -> ScopeDecision:
+        """Return the allowed use or raise ConnectionNotInScope (fail-closed)."""
+        check_scope_identifier(workspace_id, "workspace_id")
+        check_scope_identifier(connection_id, "connection_id")
+        with self._transaction() as db:
+            return self._check_in(db, workspace_id, connection_id)
 
     def is_allowed(self, workspace_id: str, connection_id: str) -> bool:
         try:
@@ -354,6 +381,33 @@ class ScopeStore:
         if type(connection_ids) not in (tuple, list) or not connection_ids:
             raise InvalidScope("Connection IDs must be a non-empty tuple or list.")
         return tuple(self.check(workspace_id, connection_id) for connection_id in connection_ids)
+
+    # ------------------------------------------------- guarded profile saves
+    def save_agent_profile(self, profile, expected_revision: int = 0) -> Revisioned:
+        """Save an aik_config AgentProfile only if the guard allows its connection.
+
+        The scope lock is held across the check and the settings write, so a
+        concurrent scope change cannot interleave. Direct SettingsStore.save
+        calls are not intercepted by this package.
+        """
+        if type(profile) is not AgentProfile:
+            raise InvalidScope("Only aik_config AgentProfile records can be saved here.")
+        profile = AgentProfile(profile.id, profile.workspace_id, profile.role, profile.connection_id,
+                               profile.model, profile.effort)
+        with self._transaction() as db:
+            self._check_in(db, profile.workspace_id, profile.connection_id)
+            return self.settings.save(profile, expected_revision)
+
+    def save_execution_profile(self, profile_store, profile, expected_revision: int = 0) -> Revisioned:
+        """Save an execution profile only if every primary/fallback connection is allowed."""
+        if not isinstance(profile_store, ProfileStore) or profile_store.settings.path != self.settings.path:
+            raise InvalidScope("A profile store sharing this settings database is required.")
+        profile = rebuild_profile(profile)
+        with self._transaction() as db:
+            for connection_id in dict.fromkeys(
+                    choice.connection_id for choice in (profile.primary, *profile.fallbacks)):
+                self._check_in(db, profile.workspace_id, connection_id)
+            return profile_store.save(profile, expected_revision)
 
     def _reason(self, workspace_id: str, connection_id: str) -> str | None:
         try:
@@ -433,8 +487,12 @@ class ScopeStore:
             db.execute('DELETE FROM "pending_restores" WHERE "kind" = ? AND "record_id" = ?', (kind, record_id))
 
     def _discard_connection(self, connection_id: str) -> tuple:
+        """Remove a pending connection and its dependents; refuse a non-pending ID."""
         removed = []
         with self._transaction() as db:
+            if db.execute('SELECT 1 FROM "pending_restores" WHERE "kind" = \'connection\' AND "record_id" = ?',
+                          (connection_id,)).fetchone() is None:
+                raise TransferBlocked("No reconnection is pending for the connection.")
             rows = db.execute('SELECT "kind", "record_id", "workspace_id", "document" FROM "pending_restores"'
                               ).fetchall()
             for row in rows:

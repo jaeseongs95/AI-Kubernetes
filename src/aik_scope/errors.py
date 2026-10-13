@@ -26,7 +26,15 @@ class InvalidTransferDocument(InvalidSettingsDocument, ScopeError):
 
 
 class TransferBlocked(ScopeError):
-    """The export or import was refused before any write (fail-closed)."""
+    """The export or import was refused before any write (fail-closed).
+
+    ``violations`` lists ScopeViolation records when the refusal is caused by
+    profiles that use connections outside their workspace scope.
+    """
+
+    def __init__(self, *args, violations=()):
+        super().__init__(*args)
+        self.violations = tuple(violations)
 
 
 class TransferIncomplete(ScopeError):

@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from aik_config import (  # noqa: E402
     AgentProfile, ConnectionProfile, InvalidReference, RevisionConflict, SettingsStore, StorageError,
-    UnsafeStoragePath, Workspace, WorkspaceBindingRequired, WorkspaceLimits, InvalidDatabase,
+    UnsafeStoragePath, Workspace, WorkspaceBinding, WorkspaceBindingRequired, WorkspaceLimits, InvalidDatabase,
 )
 from aik_connection import AuthContext, ConnectionSpec, ConnectionStore, CredentialRefUnavailable  # noqa: E402
 from aik_profiles import DirectorProfile, ExecutionChoice, ProfileStore  # noqa: E402
@@ -54,9 +54,19 @@ class FakeVault:
             raise CredentialRefUnavailable("The synthetic vault has no credential for the reference.")
 
 
+class SyntheticBindingAuthority:
+    """Stands in for the AIK-084 binding authority: it reports the synthetic root of ws-a."""
+
+    def binding_for(self, workspace_id):
+        if workspace_id == "ws-a":
+            return WorkspaceBinding("ws-a", "/synthetic/root-a", "vm-project-a")
+        return None
+
+
 class Machine:
     def __init__(self, root: Path, *, vault: FakeVault | None = None, with_profiles: bool = True):
-        self.settings = SettingsStore(root / "config" / "settings.sqlite3")
+        self.settings = SettingsStore(root / "config" / "settings.sqlite3",
+                                      binding_authority=SyntheticBindingAuthority())
         self.vault = FakeVault() if vault is None else vault
         self.connections = ConnectionStore(self.settings, credential_checker=self.vault)
         self.profiles = ProfileStore(root / "config" / "profiles.sqlite3", settings=self.settings) \
@@ -113,6 +123,12 @@ class ScopeTests(unittest.TestCase):
         machine.scopes.save(ConnectionScope("ws-a", ("conn-api", "conn-sub", "conn-local"), ("conn-sub",)))
         machine.scopes.save(ConnectionScope("ws-b", ("conn-b", "conn-sub")))
 
+    def assert_nothing_written(self, machine: Machine) -> None:
+        self.assertEqual(machine.settings.list(Workspace), ())
+        self.assertEqual(machine.connections.list(), ())
+        self.assertEqual(machine.scopes.list(), ())
+        self.assertEqual(machine.scopes.pending_records(), ())
+
     # ------------------------------------------------------------- scope guard
     def test_explicit_scope_allows_listed_and_blocks_unlisted_connections(self) -> None:
         scopes = self.src.scopes
@@ -158,6 +174,30 @@ class ScopeTests(unittest.TestCase):
             ("execution_profile", "exec-director-a", "conn-local", "NOT_ALLOWED"),
         })
 
+    def test_f1_guarded_profile_saves_refuse_unlisted_connections(self) -> None:
+        scopes = self.src.scopes
+        scopes.save(ConnectionScope("ws-a", ("conn-api",)), expected_revision=1)
+        with self.assertRaises(ConnectionNotInScope) as denied:
+            scopes.save_agent_profile(AgentProfile("worker-guarded", "ws-a", "worker", "conn-sub", "synthetic-small"))
+        self.assertEqual(denied.exception.reason, "NOT_ALLOWED")
+        self.assertIsNone(self.src.settings.get(AgentProfile, "worker-guarded"))
+        allowed = scopes.save_agent_profile(
+            AgentProfile("worker-guarded-ok", "ws-a", "worker", "conn-api", "synthetic-small"))
+        self.assertEqual(allowed.revision, 1)
+        self.assertIsNotNone(self.src.settings.get(AgentProfile, "worker-guarded-ok"))
+
+        denied_profile = DirectorProfile(
+            "exec-guarded-denied", "ws-a", ExecutionChoice("conn-api", "synthetic-model"), max_calls=1,
+            fallbacks=(ExecutionChoice("conn-local", "local-model"),))
+        with self.assertRaises(ConnectionNotInScope) as denied:
+            scopes.save_execution_profile(self.src.profiles, denied_profile)
+        self.assertEqual((denied.exception.reason, denied.exception.connection_id), ("NOT_ALLOWED", "conn-local"))
+        self.assertIsNone(self.src.profiles.get("exec-guarded-denied"))
+        allowed_profile = DirectorProfile(
+            "exec-guarded-ok", "ws-a", ExecutionChoice("conn-api", "synthetic-model"), max_calls=1)
+        self.assertEqual(scopes.save_execution_profile(self.src.profiles, allowed_profile).revision, 1)
+        self.assertEqual(self.src.profiles.get("exec-guarded-ok").value, allowed_profile)
+
     def test_scope_records_are_validated_revisioned_and_persistent(self) -> None:
         for arguments in ((["conn-api"],), (("conn-api", "conn-api"),), (("../x",),)):
             with self.subTest(arguments=repr(arguments)):
@@ -175,6 +215,12 @@ class ScopeTests(unittest.TestCase):
             ScopeStore(self.src.settings, path=self.src.settings.path)
         with self.assertRaises(InvalidDatabase):
             ScopeStore(self.src.settings, path=self.src.connections.path)
+
+    def test_f10_scope_store_does_not_reuse_runtime_private_sync_helpers(self) -> None:
+        from aik_runtime import storage as runtime_storage
+        from aik_scope import store as scope_store
+        self.assertIsNot(scope_store._sync_file, runtime_storage._sync_file)
+        self.assertIsNot(scope_store._sync_directory, runtime_storage._sync_directory)
 
     # ----------------------------------------------------------------- export
     def test_export_contains_no_secret_token_verification_or_binding(self) -> None:
@@ -194,6 +240,27 @@ class ScopeTests(unittest.TestCase):
             else:
                 self.assertIsNone(item["credential_ref"])
         self.assertNotIn(API_SECRET.encode(), self.src.scopes.path.read_bytes())
+
+    def test_f7_export_refuses_unexpected_settings_fields(self) -> None:
+        genuine = self.src.settings.export_settings()
+        mutations = {
+            "connection token field": lambda d: d["workspaces"][0]["connections"][0]
+            .__setitem__("token", HOST_TOKEN),
+            "top-level token field": lambda d: d.__setitem__("token", HOST_TOKEN),
+            "nested value under an allowed key": lambda d: d["workspaces"][0]
+            .__setitem__("name", {"token": HOST_TOKEN}),
+            "limits extra field": lambda d: d["workspaces"][0]["limits"].__setitem__("api_key", HOST_TOKEN),
+            "secret flag": lambda d: d.__setitem__("contains_secret_values", True),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(mutation=name):
+                candidate = copy.deepcopy(genuine)
+                mutate(candidate)
+                with mock.patch.object(self.src.settings, "export_settings", return_value=candidate):
+                    with self.assertRaises(TransferBlocked) as blocked:
+                        self.src.transfer.export()
+                self.assertNotIn(HOST_TOKEN, str(blocked.exception))
+        self.assertEqual(self.src.transfer.export()["settings"], genuine)
 
     def test_export_is_blocked_for_settings_connections_without_details(self) -> None:
         self.src.settings.save(ConnectionProfile("conn-raw", "ws-a", "vendor"))
@@ -292,10 +359,37 @@ class ScopeTests(unittest.TestCase):
                     dst.transfer.import_document(candidate)
                 self.assertNotIn(API_SECRET, str(rejected.exception))
                 self.assertNotIn(HOST_TOKEN, str(rejected.exception))
-                self.assertEqual(dst.settings.list(Workspace), ())
-                self.assertEqual(dst.connections.list(), ())
-                self.assertEqual(dst.scopes.list(), ())
-                self.assertEqual(dst.scopes.pending_records(), ())
+                self.assert_nothing_written(dst)
+
+    def test_f1_import_refuses_profiles_outside_the_document_scope(self) -> None:
+        document = self.src.transfer.export()
+        dst = Machine(self.root / "scope-checking-machine")
+
+        narrowed = copy.deepcopy(document)
+        for item in narrowed["scopes"]:
+            if item["workspace_id"] == "ws-a":
+                item["allowed_connection_ids"] = ["conn-api", "conn-local"]
+                item["shared_connection_ids"] = []
+        with self.assertRaises(TransferBlocked) as blocked:
+            dst.transfer.import_document(narrowed)
+        found = {(item.kind, item.record_id, item.connection_id, item.reason)
+                 for item in blocked.exception.violations}
+        self.assertEqual(found, {("agent_profile", "worker-a", "conn-sub", "NOT_ALLOWED")})
+        self.assert_nothing_written(dst)
+
+        unscoped = copy.deepcopy(document)
+        unscoped["scopes"] = [item for item in unscoped["scopes"] if item["workspace_id"] != "ws-a"]
+        with self.assertRaises(TransferBlocked) as blocked:
+            dst.transfer.import_document(unscoped)
+        found = {(item.kind, item.record_id, item.connection_id, item.reason)
+                 for item in blocked.exception.violations}
+        self.assertEqual(found, {
+            ("agent_profile", "director-a", "conn-api", "NO_SCOPE"),
+            ("agent_profile", "worker-a", "conn-sub", "NO_SCOPE"),
+            ("execution_profile", "exec-director-a", "conn-api", "NO_SCOPE"),
+            ("execution_profile", "exec-director-a", "conn-local", "NO_SCOPE"),
+        })
+        self.assert_nothing_written(dst)
 
     def test_conflicting_or_unsupported_destinations_are_refused_before_writes(self) -> None:
         document = self.src.transfer.export()
@@ -307,6 +401,16 @@ class ScopeTests(unittest.TestCase):
         with self.assertRaises(TransferBlocked):
             no_profiles.transfer.import_document(document)
         self.assertEqual(no_profiles.settings.list(Workspace), ())
+
+    def test_f5_failure_before_any_write_is_reported_as_blocked(self) -> None:
+        document = self.src.transfer.export()
+        dst = Machine(self.root / "racing-machine")
+        with mock.patch.object(dst.settings, "import_settings",
+                               side_effect=RevisionConflict("synthetic concurrent creation")):
+            with self.assertRaises(TransferBlocked) as blocked:
+                dst.transfer.import_document(document)
+        self.assertNotIsInstance(blocked.exception, TransferIncomplete)
+        self.assert_nothing_written(dst)
 
     def test_partial_import_failure_is_reported_as_incomplete(self) -> None:
         document = self.src.transfer.export()
@@ -330,6 +434,38 @@ class ScopeTests(unittest.TestCase):
             dst.scopes.check("ws-a", "conn-api")
         self.assertEqual(denied.exception.reason, "UNKNOWN_CONNECTION")
         dst.transfer.export()
+
+    def test_f3_discarding_a_connection_that_is_not_pending_is_refused(self) -> None:
+        dst = Machine(self.root / "discard-guard-machine")
+        dst.transfer.import_document(self.src.transfer.export())
+        with self.assertRaises(TransferBlocked):
+            dst.transfer.discard_pending("conn-local")
+        self.assertEqual(len(dst.transfer.pending_records()), 3)
+        result = dst.transfer.reconnect("conn-api", dst.vault.put(REENTERED_SECRET))
+        self.assertEqual(set(result.restored_record_ids), {"director-a", "exec-director-a"})
+        self.assertEqual(dst.profiles.get("exec-director-a").value, self.exec_profile)
+
+    def test_f4_reconnect_conflict_is_reported_and_restore_can_be_retried(self) -> None:
+        dst = Machine(self.root / "conflict-machine")
+        dst.transfer.import_document(self.src.transfer.export())
+        dst.settings.save(AgentProfile("director-a", "ws-a", "director", "conn-sub", "synthetic-model"))
+
+        result = dst.transfer.reconnect("conn-api", dst.vault.put(REENTERED_SECRET))
+        self.assertEqual(result.restored_record_ids, ("exec-director-a",))
+        self.assertEqual(result.conflict_record_ids, ("director-a",))
+        self.assertEqual(result.pending_record_ids, ("director-a",))
+        self.assertIsNotNone(dst.connections.get("conn-api"))
+        self.assertEqual(dst.profiles.get("exec-director-a").value, self.exec_profile)
+
+        current = dst.settings.get(AgentProfile, "director-a")
+        dst.settings.delete(AgentProfile, "director-a", current.revision)
+        retried = dst.transfer.restore_pending()
+        self.assertEqual(retried.restored_record_ids, ("director-a",))
+        self.assertEqual(retried.conflict_record_ids, ())
+        self.assertEqual(retried.pending_record_ids, ())
+        self.assertEqual(dst.transfer.pending_records(), ())
+        self.assertEqual(dst.settings.get(AgentProfile, "director-a").value,
+                         AgentProfile("director-a", "ws-a", "director", "conn-api", "synthetic-model"))
 
 
 if __name__ == "__main__":

@@ -101,15 +101,27 @@ class PendingRecord:
 
 @dataclass(frozen=True, slots=True)
 class ReconnectReport:
+    """``conflict_record_ids`` stay pending because another record uses their ID."""
+
     connection_id: str
     restored_record_ids: tuple
     pending_record_ids: tuple
+    conflict_record_ids: tuple = ()
 
     @property
     def requires_authentication(self) -> bool:
         # A reconnected connection is registered unverified; the official host
         # adapter must still confirm it (aik_connection.mark_verified).
         return True
+
+
+@dataclass(frozen=True, slots=True)
+class RestoreReport:
+    """Result of retrying pending profile restoration (SettingsTransfer.restore_pending)."""
+
+    restored_record_ids: tuple
+    conflict_record_ids: tuple
+    pending_record_ids: tuple
 
 
 @dataclass(frozen=True, slots=True)
