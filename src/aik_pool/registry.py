@@ -7,11 +7,15 @@ GuardedAdapter, and never starts, interrupts, signs in or signs out of a job.
 
 Principles:
 - An adapter implementation alone is not an advertisement that a route is
-  executable now.
+  executable now. executable_now is a probe-based technical availability
+  flag, not an execution authorization; a rejected governance verdict always
+  clears it. Automatic placement uses placement_eligible only.
 - Values that are missing, cannot be verified or have passed the TTL are
   shown as unknown or stale. They are never turned into 0 or unlimited capacity.
 - The qualified level requires live evidence approved by an injected external
   verifier. With no verifier, or with any non-live record, it is rejected.
+- A governance approval belongs to the binding and matrix it was given under.
+  A new binding revision or matrix revision revokes it; a rejection is kept.
 """
 from __future__ import annotations
 
@@ -197,10 +201,16 @@ class _Route:
         self.last_verified: datetime | None = None
         self.qualification: QualificationEvidence | None = None
 
+    def revoke_approval(self) -> None:
+        """An approval is tied to its binding and matrix; a rejection is kept (fail-closed)."""
+        if self.governance is Governance.APPROVED:
+            self.governance = Governance.UNKNOWN
+
     def reset(self) -> None:
         self.observation = None
         self.last_verified = None
         self.qualification = None
+        self.revoke_approval()
 
 
 def _runtime_support(caps) -> str:
@@ -227,7 +237,8 @@ class ResourcePoolRegistry:
 
     All operations run under one lock. A probe calls the read-only adapter
     operations while it holds that lock, so a slow provider delays other
-    callers of this registry.
+    callers of this registry. Mutating operations read the clock before they
+    change any state, so a clock failure leaves the registry unchanged.
     """
 
     def __init__(self, *, matrix_revision: int, ttl_seconds: float = 300.0, clock=None,
@@ -289,12 +300,16 @@ class ResourcePoolRegistry:
                     raise PoolRegistryError("POOL_CONFLICT")
                 if route.binding.connection_id == binding.connection_id and route.binding != binding:
                     raise PoolRegistryError("CONNECTION_REVISION_CONFLICT")
+            now = self._now()
             route = _Route(pool, binding, adapter, guard, model, tools)
             self._routes[key] = route
-            return self._status(route, self._now())
+            return self._status(route, now)
 
     def update_binding(self, binding: ConnectionBinding) -> tuple[RouteStatus, ...]:
-        """A new connection revision (e.g. after re-login) discards every observation."""
+        """A new connection revision (e.g. after re-login) discards every observation.
+
+        It also revokes a governance approval; a rejection is kept.
+        """
         if type(binding) is not ConnectionBinding:
             raise PoolRegistryError("INVALID_CONNECTION_BINDING")
         with self._lock:
@@ -307,11 +322,12 @@ class ResourcePoolRegistry:
                 raise PoolRegistryError("BINDING_IDENTITY_CHANGED")
             if binding.revision <= old.revision:
                 raise PoolRegistryError("STALE_BINDING_REVISION")
-            for route in affected:
-                route.binding = binding
-                route.guard = _guard(route.adapter)
-                route.reset()
+            guards = [_guard(route.adapter) for route in affected]
             now = self._now()
+            for route, guard in zip(affected, guards):
+                route.binding = binding
+                route.guard = guard
+                route.reset()
             return tuple(self._status(route, now) for route in affected)
 
     def update_pool(self, pool: Pool) -> tuple[RouteStatus, ...]:
@@ -325,9 +341,9 @@ class ResourcePoolRegistry:
             old = affected[0].pool
             if (old.provider, old.connection_id) != (pool.provider, pool.connection_id):
                 raise PoolRegistryError("POOL_IDENTITY_CHANGED")
+            now = self._now()
             for route in affected:
                 route.pool = pool
-            now = self._now()
             return tuple(self._status(route, now) for route in affected)
 
     def set_governance(self, pool_id: str, model: str, verdict: Governance) -> RouteStatus:
@@ -335,8 +351,9 @@ class ResourcePoolRegistry:
             raise PoolRegistryError("INVALID_GOVERNANCE")
         with self._lock:
             route = self._route(pool_id, model)
+            now = self._now()
             route.governance = verdict
-            return self._status(route, self._now())
+            return self._status(route, now)
 
     def set_matrix_revision(self, revision: int) -> None:
         _check_revision(revision, "matrix_revision")
@@ -347,6 +364,7 @@ class ResourcePoolRegistry:
                 self._matrix_revision = revision
                 for route in self._routes.values():
                     route.qualification = None
+                    route.revoke_approval()
 
     # ----- probes ------------------------------------------------------
     def _route(self, pool_id: str, model: str) -> _Route:
@@ -390,11 +408,14 @@ class ResourcePoolRegistry:
             pass
         capacity = self._probe_capacity(route)
         route.observation = _Observation(now, implementation, runtime, account, isolation, capacity)
-        if caps_ok and auth_ok:
+        if caps_ok and auth_ok and account == "bound" and runtime == "supported":
+            # Only a confirmed bound account on a supported runtime counts as
+            # verification; a successful call that reports logout does not.
             route.last_verified = now
-        if account != "bound":
-            # Logout, account change or an unverifiable account: qualification
-            # for this route must be performed again.
+        if account != "bound" or runtime != "supported" or implementation != "implemented":
+            # Logout, account change, unverifiable account, lost runtime
+            # support or a changed implementation claim: qualification for
+            # this route must be performed again.
             route.qualification = None
 
     def probe(self, pool_id: str, model: str) -> RouteStatus:
@@ -479,8 +500,9 @@ class ResourcePoolRegistry:
             implementation = account = runtime = isolation = capacity_state = "unknown"
             capacity = None
         elif freshness is Freshness.STALE:
-            implementation = observation.implementation
-            account = runtime = isolation = capacity_state = "stale"
+            # Every observed value, including the implementation claim, is
+            # past its TTL; the level therefore becomes unknown.
+            implementation = account = runtime = isolation = capacity_state = "stale"
             capacity = None
         else:
             implementation = observation.implementation
@@ -503,7 +525,8 @@ class ResourcePoolRegistry:
         else:
             level = QualificationLevel.UNKNOWN
 
-        executable = (level in _RUNNABLE_LEVELS and route.pool.enabled
+        executable = (level in _RUNNABLE_LEVELS and route.governance is not Governance.REJECTED
+                      and route.pool.enabled
                       and capacity_state == "known" and capacity is not None and capacity > 0)
         record = route.qualification if self._qualification_valid(route) else None
         binding = route.binding
