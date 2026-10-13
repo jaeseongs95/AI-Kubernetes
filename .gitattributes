@@ -6,6 +6,10 @@
 .github/workflows/runtime-storage.yml text eol=lf
 # Keep the fixed AIK-083 acceptance/matrix fixture bytes identical on Windows.
 contracts/upstream/support-matrix.json text eol=lf
+# The AIK-008 diagnostic binds byte-exact upstream snapshots across OSes.
+contracts/upstream/baseline.json text eol=lf
+contracts/upstream/installed-inspection.json text eol=lf
+contracts/upstream/integration-contract.json text eol=lf
 contracts/product-acceptance/** text eol=lf
 .github/workflows/product-acceptance.yml text eol=lf
 # Archived execution evidence is bound by raw-byte hashes. Never normalize it.

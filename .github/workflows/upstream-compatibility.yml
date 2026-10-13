@@ -1,0 +1,54 @@
+# AIK-008 historical evidence is never a provider or product qualification.
+name: Upstream compatibility diagnosis
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/aik_compat/**'
+      - 'tools/diagnose_upstream.py'
+      - 'tests/test_upstream_diagnostic.py'
+      - 'contracts/upstream/**'
+      - '.github/workflows/upstream-compatibility.yml'
+      - '.gitattributes'
+  pull_request:
+    paths:
+      - 'src/aik_compat/**'
+      - 'tools/diagnose_upstream.py'
+      - 'tests/test_upstream_diagnostic.py'
+      - 'contracts/upstream/**'
+      - '.github/workflows/upstream-compatibility.yml'
+      - '.gitattributes'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnostic:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - name: Checkout pinned source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Python pinned runtime
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Run diagnostic and adversarial historical evidence regression
+        run: python -m unittest discover -s tests -p test_upstream_diagnostic.py -v
+      - name: Validate reference report remains blocked without actual live probes
+        run: python tools/diagnose_upstream.py --allow-blocked
