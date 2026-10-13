@@ -663,6 +663,53 @@
 - 다중 프로세스 경합
 - 실제 provider job 수명
 
+## AIK-036
+
+- 구현: src/aik_observer에 lease 단위 provider job 관측기(별도 append-only SQLite), event cursor·중복·같은 sequence 충돌·gap 재조회, provider 관측/요청/model_reported 값 분리, usage normalizer(UNKNOWN과 confirmed 0 구분), terminal 관측 뒤 budget 정산을 구현했다.
+- 검증: tests/test_observer.py 14개가 합성 이벤트·fake JobPort/EventSource·주입 시계로 재접속, 중복, 충돌, gap 복원/미복원, 부분 출력만으로 미완료, usage 미제공 vs 0, 관측/요청 분리, 정산 1회와 late를 검사한다.
+- 커밋: `74adac1`
+- 시험: `tests/test_observer.py` (14개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | 요청 model/effort는 client_requested로, provider_observed state 이벤트 값만 observed로(출처 sequence 포함), model_reported 값은 진단 칸에 따로 저장한다. job 상태는 provider receipt로만 기록한다. |
+| 2 | 단위 범위 충족 | 저장된 연속 cursor부터 읽고 같은 digest 중복은 무시, 같은 sequence 다른 digest는 충돌로 멈춘다. gap은 기록 후 한 번 재조회로 메우고 못 메우면 gap_unresolved로 남긴다. |
+| 3 | 단위 범위 충족 | usage 키가 없으면 UNKNOWN, 명시 0은 confirmed(0)이다. 완료는 provider JobState terminal 관측일 때만이며 output_delta·HTTP 성공만으로는 완료하지 않는다. |
+
+차단 사유:
+- 선행 AIK-035·082 미완료
+- 실제 provider stream·receipt adapter(OpenAI·Anthropic·native host) 연결 없음
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 provider 스트림·재접속
+- Windows 실행
+- 다중 프로세스 접근
+
+## AIK-037
+
+- 구현: src/aik_evidence에 검증 읽기 기반 산출물 수집, append-only identity·SHA-256·Attempt·lease·접근 범위 기록, write-once content-addressed 관리 보관소, callback dedup·충돌 기록, 보관소 재확인(intact/missing/tampered), 비밀 제거 파생본 별도 identity·provenance, 덮어쓰지 않는 내보내기와 digest 재확인을 구현했다.
+- 검증: tests/test_evidence.py 10개가 한글·공백 경로의 합성 파일로 수집·재시작, dedup, 충돌 무덮어쓰기, 다른 workspace·탈출·링크 거절, 변조·삭제 감지, 파생본 분리, 비UTF-8 거절, 내보내기 재확인·덮어쓰기 거절, append-only·외부 DB 거절을 검사한다.
+- 커밋: `74adac1`
+- 시험: `tests/test_evidence.py` (10개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | artifact identity, sha256, size, 생성 vm_attempt_id·lease_id·callback_id, workspace·상대 경로·access_scope를 append-only로 저장한다. |
+| 2 | 단위 범위 충족 | 같은 callback·같은 결과는 기존 기록을 돌려주고, digest나 메타데이터가 다르면 CALLBACK_CONFLICT를 기록하고 기존 기록을 덮지 않는다. |
+| 3 | 부분 | 근거 접근·무결성 재확인과 권위 digest 보존, 비밀 제거 파생본의 별도 identity·digest·변환 provenance는 구현했다. 원본 보관이 정책상 불가할 때 처음부터 비밀 없는 근거를 생산하는 경로는 없다. |
+| 4 | 부분 | 관리 보관소 인계, 새 파일 내보내기, 재시작 뒤 bytes/digest 확인은 구현했다. GUI 열기·저장 연결과 후속 Task 입력 binding(AIK-084·VM 공개 참조)은 연결하지 않았다. |
+
+차단 사유:
+- 선행 AIK-017·036·084 미완료
+- GUI 열기·저장 연결 없음
+- 보관 범위·기간 정책 미정
+- 후속 Task 입력 binding 미연결
+
+실행하지 않은 검증(NOT_RUN):
+- GUI 열기·저장
+- Windows 링크·권한 동작
+- 실제 worker 반환 흐름
+
 ## AIK-040
 
 - 구현: src/aik_budget에 locked 트랜잭션 admission guard를 구현했다. 호출 수·deadline·동시성·비용 hold·token stop·429·quota, basis 구분 append-only 정산, quota 상태 조회를 포함한다.

@@ -365,7 +365,7 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-13T14:31:28Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-13T14:36:19Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -1206,6 +1206,8 @@ INSERT INTO "task_events" VALUES(276,'AIK-082','status_change','todo','blocked',
 INSERT INTO "task_events" VALUES(277,'AIK-028','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-028-MODULE-20261013). 완료 아님. 차단: 실제 runner·provider 미연결; 진행 중 호출·대기 요청 메모리 전용; 선행 AIK-020/023/027 미완료','2026-10-13T12:39:44Z');
 INSERT INTO "task_events" VALUES(278,'AIK-033','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-033-MODULE-20261013). 완료 아님. 차단: 선행 AIK-019·020·023·031·032·040 미완료; AGS 역할 계약의 host·전문역량·데이터 범위 입력 부재; 실제 qualified route 없음(AIK-086 미실행); A2 gate 미연결(AIK-032)','2026-10-13T14:31:28Z');
 INSERT INTO "task_events" VALUES(279,'AIK-034','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-034-MODULE-20261013). 완료 아님. 차단: 선행 AIK-005·033·040 미완료; 실제 provider job 시작·관측 연결 없음(dispatch 의도 순서는 호출자 책임); 다중 프로세스·Windows 잠금 경합 미검증','2026-10-13T14:31:28Z');
+INSERT INTO "task_events" VALUES(280,'AIK-036','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-036-MODULE-20261013). 완료 아님. 차단: 선행 AIK-035·082 미완료; 실제 provider stream·receipt adapter(OpenAI·Anthropic·native host) 연결 없음','2026-10-13T14:36:19Z');
+INSERT INTO "task_events" VALUES(281,'AIK-037','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-037-MODULE-20261013). 완료 아님. 차단: 선행 AIK-017·036·084 미완료; GUI 열기·저장 연결 없음; 보관 범위·기간 정책 미정; 후속 Task 입력 binding 미연결','2026-10-13T14:36:19Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1267,6 +1269,8 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-031-WINE2E-20261013','AIK-031','parti
 INSERT INTO "task_evidence" VALUES('EV-AIK-033-MODULE-20261013','AIK-033','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-033','부분 구현: commit 8f4b942, tests/test_placement.py 15개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 4(부분); 차단: 선행 AIK-019·020·023·031·032·040 미완료; AGS 역할 계약의 host·전문역량·데이터 범위 입력 부재; 실제 qualified route 없음(AIK-086 미실행); A2 gate 미연결(AIK-032). 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T14:31:27Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-034-MODULE-20261013','AIK-034','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-034','부분 구현: commit 8f4b942, tests/test_lease.py 16개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분); 차단: 선행 AIK-005·033·040 미완료; 실제 provider job 시작·관측 연결 없음(dispatch 의도 순서는 호출자 책임); 다중 프로세스·Windows 잠금 경합 미검증. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T14:31:27Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-031-WINGOAL-20261013','AIK-031','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031','Windows hosted E2E 진단 Goal 판정 도달(CI run #26, commit dc77b6d, windows-2022): 같은 VM 32bb0f9 소스·FakeCodexRuntime·진단용 허용 gate 경로에서 Task 완료 뒤 독립 Goal Test가 실행돼 evidence-backed GoalVerdict satisfied를 기록. run #25의 Goal Test binding 581회 반복은 VM이 Goal Test cwd를 resolve()로 정규화하는데 runner 임시 경로가 8.3 짧은 이름이라 매 tick 공급한 step이 저장 binding과 달랐기 때문(work_path_resolved_differs=true 관측). AIK 진단만 고쳤고 VM은 수정하지 않음(관측으로 기록). 설치형 wheel·AGS·실모델·Windows 11 NOT_RUN, 통합 완료 아님.','2026-10-13T14:31:28Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-036-MODULE-20261013','AIK-036','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-036','부분 구현: commit 74adac1, tests/test_observer.py 14개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 없음(단위 범위); 차단: 선행 AIK-035·082 미완료; 실제 provider stream·receipt adapter(OpenAI·Anthropic·native host) 연결 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T14:36:19Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-037-MODULE-20261013','AIK-037','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-037','부분 구현: commit 74adac1, tests/test_evidence.py 10개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 3(부분), 4(부분); 차단: 선행 AIK-017·036·084 미완료; GUI 열기·저장 연결 없음; 보관 범위·기간 정책 미정; 후속 Task 입력 binding 미연결. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T14:36:19Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2100,8 +2104,8 @@ INSERT INTO "tasks" VALUES('AIK-030','JEV RAW·metadata·AGENT 선택 계약 연
 INSERT INTO "tasks" VALUES('AIK-033','VM ready Task의 자원 placement','VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제 자원 능력에 맞게 배치한다.','placement planner·eligibility filter·결정 근거','의존성·tool/model·capacity 조건별 배치 검증','E06','M2','P0','blocked','feature','Placement',39,'2026-10-12T05:36:30Z','2026-10-13T14:31:28Z');
 INSERT INTO "tasks" VALUES('AIK-034','worker lease·동시성 예약·fencing','기간과 작업 범위를 가진 사용권을 원자적으로 예약하고 중복 점유를 막는다.','lease manager·reservation transaction·fence counter','동시 예약·TTL 만료·stale owner·중단 경합 검증','E06','M2','P0','blocked','feature','Lease manager',40,'2026-10-12T05:36:30Z','2026-10-13T14:31:28Z');
 INSERT INTO "tasks" VALUES('AIK-035','native·API 에이전트 실행과 도구 반복 연결','VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다. 모델의 도구 요청은 인가된 gateway를 통해 처리하고 결과를 다음 호출에 전달한다.','native dispatch bridge·bounded API tool loop·provider job handle·receipt','실제 route/connection/Attempt/lease 결속·bounded 개발 도구 반복·도구 효과 전후 crash·결과 재전송·중복 dispatch 검증; provider protocol·인가/lease fixture와 실제 임시 파일/명령 효과로 구현 계약 검증, 전체 live governed qualification은 086','E06','M2','P0','todo','integration','Runtime dispatch',41,'2026-10-12T05:36:30Z','2026-10-12T06:49:10Z');
-INSERT INTO "tasks" VALUES('AIK-036','worker 실행 관측·스트림·usage 회수','실제 job 상태, 결과, 모델/effort와 사용량을 adapter를 통해 관측한다.','observer·event cursor·usage normalizer','스트림 단절·재접속·부분 결과·usage 누락 검증','E06','M2','P0','todo','feature','Runtime observer',42,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
-INSERT INTO "tasks" VALUES('AIK-037','결과·artifact·evidence 수집과 digest 검증','worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AGS 판정 근거에 연결한다.','evidence relay·artifact manifest·checksum 검증','유실·변조·중복 callback·다른 workspace 경로 검증','E07','M2','P0','todo','feature','Evidence relay',43,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
+INSERT INTO "tasks" VALUES('AIK-036','worker 실행 관측·스트림·usage 회수','실제 job 상태, 결과, 모델/effort와 사용량을 adapter를 통해 관측한다.','observer·event cursor·usage normalizer','스트림 단절·재접속·부분 결과·usage 누락 검증','E06','M2','P0','blocked','feature','Runtime observer',42,'2026-10-12T05:36:30Z','2026-10-13T14:36:19Z');
+INSERT INTO "tasks" VALUES('AIK-037','결과·artifact·evidence 수집과 digest 검증','worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AGS 판정 근거에 연결한다.','evidence relay·artifact manifest·checksum 검증','유실·변조·중복 callback·다른 workspace 경로 검증','E07','M2','P0','blocked','feature','Evidence relay',43,'2026-10-12T05:36:30Z','2026-10-13T14:36:19Z');
 INSERT INTO "tasks" VALUES('AIK-038','일시정지·취소·drain·자원 반환','신규 배치를 멈추는 동작과 실제 provider job 취소·종료를 구분해 처리한다.','cancel/drain/release controller','취소 직전 결과·지원 안 되는 취소·borrowed host 검증','E06','M2','P0','todo','feature','Worker lifecycle',44,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-039','재시작·unknown 결과·재시도 reconciliation','앱·sidecar·네트워크 장애 후 provider identity를 먼저 조회하여 중복 실행을 방지한다.','recovery reconciler·unknown resolution·retry bridge','dispatch 경계 crash·timeout·늦은 callback·재부팅 검증','E06','M2','P0','todo','feature','Recovery',45,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-041','단일 클러스터 탄력 병렬화와 idle 정리','ready 작업과 검증된 용량에 맞춰 worker 수를 늘리고 유휴 사용권을 반환한다.','local elasticity controller·backpressure','순차/제한 병렬·capacity 고갈·idle lease 검증','E06','M2','P0','todo','feature','Elasticity',47,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
@@ -2193,6 +2197,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',279);
+INSERT INTO "sqlite_sequence" VALUES('task_events',281);
 COMMIT;
 PRAGMA foreign_keys = ON;
