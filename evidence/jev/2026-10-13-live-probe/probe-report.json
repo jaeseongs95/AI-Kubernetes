@@ -1,0 +1,54 @@
+{
+ "tool": "tools/probe_jev.py",
+ "observed_contract_version": "0.2.0",
+ "base_url": "https://api.typesafe.ai",
+ "started_at": "2026-10-13T15:48:22+00:00",
+ "authorization": "egress_gateway_injected",
+ "qualification": "NOT_RUN",
+ "models": [
+  {
+   "name": "jev-latest",
+   "release_date": "2026-09-10T18:38:01.391457+00:00"
+  },
+  {
+   "name": "jev-preview",
+   "release_date": "2026-09-10T18:39:06.057655+00:00"
+  }
+ ],
+ "raw_sha256": "38c35d49bc0be780f564e509bb9df93233fbdd0fb936bae481b51c168d3cab25",
+ "raw_bytes": 83,
+ "req_sha256": "064732d2d2568146068ddd850306eeb408c703c9c10a1f6cffcb65684856679b",
+ "classification": {
+  "status": "classified",
+  "source": "jev",
+  "requested_model": "jev-latest",
+  "observed_model": "jev-1.13.0",
+  "recommended_skill": "write-tests",
+  "confidence": 1.0,
+  "probabilities": [
+   [
+    "refactor",
+    0.0
+   ],
+   [
+    "write-docs",
+    0.0
+   ],
+   [
+    "write-tests",
+    1.0
+   ]
+  ],
+  "usage_input_tokens": 606,
+  "usage_output_tokens": 43,
+  "failure_code": null
+ },
+ "agent_selection": {
+  "selected_skill_id": "refactor",
+  "provenance": "model_reported",
+  "matches_recommendation": false,
+  "outside_candidates": false,
+  "records": 1
+ },
+ "finished_at": "2026-10-13T15:48:23+00:00"
+}
