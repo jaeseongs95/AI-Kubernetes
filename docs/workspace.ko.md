@@ -53,7 +53,7 @@ Task 실행의 cwd는 `select`나 `current_execution()`의 반환값이 아니�
 `create_workspace`는 존재하는 안전한 부모 아래에 새 빈 폴더를 만든다. `open_workspace`는 기존 폴더를 결속하며 내용은 바꾸지 않는다. 두 경우 모두 다음 순서로 진행한다.
 
 1. canonical root를 정규화한다. `create_workspace`는 폴더를 만들기 **전에** 부모가 Git 내부가 아닌지, 새 경로가 개발 원장·AIK 소스 저장소와 겹치지 않는지, host가 지원되는지 확인한다. 실패하면 디렉터리를 만들지 않는다.
-2. host 지원과 접근 가능 여부, root identity(st_dev/st_ino)가 기록 가능한 범위이고 inode가 0이 아닌지 확인한다. 아니면 `root_unsafe`로 거절한다.
+2. host 지원과 접근 가능 여부, root identity(st_dev/st_ino)가 기록 가능한 범위(0~2^128-1, NTFS·ReFS file ID 포함)이고 inode가 0이 아닌지 확인한다. 아니면 `root_unsafe`로 거절한다.
 3. VM project 생성 전에 project ID를 제외한 workspace 기록 전체를 검증한다.
 4. 중복·중첩을 검사한다.
 5. VM project를 생성한다.
@@ -220,7 +220,7 @@ python -m unittest tests.test_workspace -v
 
 **미검증(NOT_RUN):**
 
-- Windows 실행: 드라이브 판정, reparse point, 대소문자 정규화, 8.3 short name의 실제 `resolve` 결과, `st_ino` 범위(NTFS/ReFS file ID), ACL 권한 상실, `%LOCALAPPDATA%` 경로
+- Windows 실행: 드라이브 판정, reparse point, 대소문자 정규화, 8.3 short name의 실제 `resolve` 결과, `st_ino` 범위(NTFS/ReFS file ID; 상한을 SQLite 정수 범위에서 2^128-1로 넓힌 뒤 Windows CI `aik-modules.yml`에서 재검증 필요), ACL 권한 상실, `%LOCALAPPDATA%` 경로
 - 실제 VM 설치물의 `status` 응답 형식(`project_root`·`project_id` 포함 여부)과 not-found 코드
 - VM project 생성 seam
 - 실제 GUI·native 실행기의 cwd 적용과 `confirm_inputs_after_effect` 연결

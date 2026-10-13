@@ -400,7 +400,7 @@ class WorkspaceTests(unittest.TestCase):
         manager, _ = self.build()
         folder = self.base / "범위 초과"
         folder.mkdir()
-        with mock.patch("aik_workspace.roots.root_identity", return_value=(1, 2**64)):
+        with mock.patch("aik_workspace.roots.root_identity", return_value=(1, 2**128)):
             with self.assertRaises(WorkspaceUnavailable) as failure:
                 manager.open_workspace("ws-a", "범위", folder)
         self.assertEqual(failure.exception.status, WorkspaceStatus.ROOT_UNSAFE)
@@ -421,6 +421,20 @@ class WorkspaceTests(unittest.TestCase):
             self.assertEqual(failure.exception.status, WorkspaceStatus.ROOT_UNSAFE)
             self.assertEqual(self.vm.created, created)
         self.assertEqual(manager.status("ws-a"), WorkspaceStatus.READY)
+
+    def test_windows_scale_file_id_beyond_sqlite_range_is_accepted_and_restored(self) -> None:
+        # NTFS/ReFS file IDs exceed 2**63-1; such roots must stay usable after a restart.
+        manager, _ = self.build()
+        big = (0xFFFF_FFFF, 2**64 + 12345)
+        with mock.patch("aik_workspace.roots.root_identity", return_value=big):
+            record = manager.create_workspace("ws-a", "윈도우 ID", self.base / "윈도우 ID")
+            self.assertEqual((record.root_device, record.root_inode), big)
+            restarted, _ = self.build()
+            self.assertEqual(restarted.status("ws-a"), WorkspaceStatus.READY)
+        with mock.patch("aik_workspace.roots.root_identity", return_value=(big[0], 2**128)):
+            with self.assertRaises(WorkspaceUnavailable) as failure:
+                manager.open_workspace("ws-b", "범위 초과", self.base)
+            self.assertEqual(failure.exception.status, WorkspaceStatus.ROOT_UNSAFE)
 
     def test_settings_failure_rolls_back_registry_and_new_folder(self) -> None:
         manager, settings = self.build()

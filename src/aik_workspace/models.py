@@ -21,10 +21,14 @@ MANIFEST_VERSION = 1
 INPUT_MODE_SHARED_ROOT = "shared_root"
 ROOT_REF_PREFIX = "aik-workspace://ws/"
 WORKSPACE_STATES = ("active", "archived")
+# Windows file IDs (st_ino) are 64-bit on NTFS and up to 128-bit on ReFS, and
+# routinely exceed the SQLite integer range. The registry is JSON, so root
+# identity fields are bounded by this wider limit instead of MAX_INTEGER.
+ROOT_ID_MAX = 2**128 - 1
 
 
-def _integer(value: object, field: str, minimum: int) -> None:
-    if type(value) is not int or not minimum <= value <= MAX_INTEGER:
+def _integer(value: object, field: str, minimum: int, maximum: int = MAX_INTEGER) -> None:
+    if type(value) is not int or not minimum <= value <= maximum:
         raise InvalidRecord(f"Invalid integer field: {field}.")
 
 
@@ -62,8 +66,8 @@ class WorkspaceRecord:
     def __post_init__(self) -> None:
         # Reuse the settings contract for ID, display name, root syntax and VM project ID.
         Workspace(self.id, self.name, self.canonical_root, self.vm_project_id)
-        _integer(self.root_device, "root_device", 0)
-        _integer(self.root_inode, "root_inode", 0)
+        _integer(self.root_device, "root_device", 0, ROOT_ID_MAX)
+        _integer(self.root_inode, "root_inode", 0, ROOT_ID_MAX)
         if type(self.state) is not str or self.state not in WORKSPACE_STATES:
             raise InvalidRecord("Unknown workspace lifecycle state.")
         _integer(self.revision, "revision", 1)

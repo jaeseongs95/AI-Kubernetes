@@ -23,7 +23,7 @@ from .errors import (
 from .inputs import normalize_input_path, read_verified, sha256_digest
 from .models import (
     INPUT_MODE_SHARED_ROOT, ROOT_REF_PREFIX, ExecutionContext, InputEntry, InputManifest, InputRecord,
-    InputState, WorkspaceRecord,
+    ROOT_ID_MAX, InputState, WorkspaceRecord,
 )
 from .registry import RegistryState, WorkspaceRegistry
 from .vm_projects import ProjectInfo
@@ -43,7 +43,7 @@ def _verifiable_identity(identity: object) -> bool:
     """A root identity must fit the record and have a nonzero inode (fail-closed)."""
     return (type(identity) is tuple and len(identity) == 2
             and all(type(value) is int for value in identity)
-            and 0 <= identity[0] <= MAX_INTEGER and 1 <= identity[1] <= MAX_INTEGER)
+            and 0 <= identity[0] <= ROOT_ID_MAX and 1 <= identity[1] <= ROOT_ID_MAX)
 
 
 def _identity_matches(record: WorkspaceRecord, identity: tuple[int, int]) -> bool:

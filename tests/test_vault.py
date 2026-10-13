@@ -483,7 +483,8 @@ class VaultTests(unittest.TestCase):
             for path in [settings, log_path, bundle_json, *self.root.joinpath("runtime").iterdir(),
                          *self.vault.directory.iterdir()]:
                 if path.is_file():
-                    archive.write(path, path.relative_to(self.root).as_posix())
+                    # resolve(): on Windows the temp root may be an 8.3 short name (RUNNER~1).
+                    archive.write(path, path.resolve().relative_to(self.root.resolve()).as_posix())
 
         # Text artifacts: a secret-registered redactor must change nothing that
         # an empty-registry redactor leaves untouched.
