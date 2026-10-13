@@ -118,10 +118,12 @@ _USAGE_FIELDS = ("api_cost_cents", "input_tokens", "output_tokens", "quota_used"
 
 @dataclass(frozen=True, slots=True)
 class Usage:
-    """Reported usage of one call. Every field defaults to unknown, never to zero.
+    """Reported total usage of one call. Every field defaults to unknown, never to zero.
 
-    quota_used is the provider-reported subscription quota consumption in
-    quota_unit. It is never derived from tokens, prices or account usage rates.
+    A later report for the same call states its total again; it is not an
+    increment. quota_used is the provider-reported subscription quota
+    consumption in quota_unit. It is never derived from tokens, prices or
+    account usage rates.
     """
 
     api_cost_cents: Amount = UNKNOWN
@@ -162,6 +164,8 @@ class BudgetPolicy:
 
     max_calls and deadline are deterministic hard stops. token_stop is an
     opt-in, best-effort stop based only on observed (reported) token counts.
+    A scope_id of "pool:<pool_id>" or "profile:<profile_id>" is a resource
+    policy that admission applies automatically.
     """
 
     scope_id: str
@@ -258,9 +262,16 @@ class AdmissionDecision:
 class CostTotals:
     """API cost in integer minor units, separated by basis.
 
-    reserved_cents are holds of active reservations. unknown_held_cents keep
-    the reservation estimate of settled calls whose actual cost was not
-    reported; the estimate is not presented as the actual cost.
+    Each dispatched call contributes one effective cost: its latest confirmed
+    report, otherwise its latest estimated report.
+    - reserved_cents: holds of active reservations.
+    - unknown_held_cents: holds of settled calls for which no cost has been
+      reported in any record. This is the reservation estimate; it is not
+      presented as the actual cost. A later known report replaces the hold.
+    - unknown_records: calls without any reported cost.
+    - unknown_unheld_records: the calls among them that have no hold, so their
+      cost is not reflected in any total.
+    - unheld_active_records: active reservations admitted without an estimate.
     """
 
     confirmed_cents: int
@@ -268,6 +279,8 @@ class CostTotals:
     reserved_cents: int
     unknown_held_cents: int
     unknown_records: int
+    unknown_unheld_records: int = 0
+    unheld_active_records: int = 0
 
     @property
     def committed_cents(self) -> int:

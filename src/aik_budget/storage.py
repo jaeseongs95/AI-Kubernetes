@@ -11,7 +11,14 @@ following records:
 Path rules and the cooperating process lock are reused from aik_runtime.paths.
 Each admission reads its counters and inserts its reservation inside one
 locked IMMEDIATE transaction. Contending callers therefore cannot both take
-the last slot. No provider is called and no credential is read.
+the last concurrency slot or the last API cost budget. Remaining subscription
+quota is guarded conservatively: every reservation counts as at least one
+unit. No provider is called and no credential is read.
+
+Each usage report states the total usage of its call. For each field, the
+latest confirmed report wins. When no confirmed report exists, the latest
+estimated report is used. When neither exists, the call's cost is unknown.
+An unknown cost is never counted as zero.
 """
 
 from __future__ import annotations
@@ -97,6 +104,9 @@ _STATEMENTS = (
 
 # A profile budget unit is enforced only when its quantity is measurable here.
 _PROFILE_BUDGET_UNITS = {"usd_cents": "max_api_cost_cents", "tokens": "token_stop"}
+# Stored resource policies with these prefixes apply to every matching call.
+_RESOURCE_SCOPE_COLUMNS = (("pool:", "pool_id"), ("profile:", "profile_id"))
+_QUOTA_KEYS = {"unit", "remaining", "limit", "resets_at"}
 
 
 def default_budget_path() -> Path:
@@ -229,7 +239,8 @@ def _profile_limits(profile) -> tuple[_Limits, list]:
 
 class _Tally:
     __slots__ = ("calls", "active", "cost", "cost_reserved", "cost_unknown_held", "cost_unknown_records",
-                 "tokens_observed", "token_unknown_records", "quota", "quota_unreported")
+                 "cost_unknown_unheld", "cost_unheld_active", "tokens_observed", "token_unknown_records",
+                 "quota", "quota_unreported")
 
     def __init__(self) -> None:
         self.calls = 0
@@ -238,6 +249,8 @@ class _Tally:
         self.cost_reserved = 0
         self.cost_unknown_held = 0
         self.cost_unknown_records = 0
+        self.cost_unknown_unheld = 0
+        self.cost_unheld_active = 0
         self.tokens_observed = 0
         self.token_unknown_records = 0
         self.quota: dict[str, list[int]] = {}
@@ -248,6 +261,15 @@ class _Tally:
         return self.cost["confirmed"] + self.cost["estimated"] + self.cost_reserved + self.cost_unknown_held
 
 
+def _latest_known(items) -> tuple | None:
+    """Pick the effective report: latest confirmed, otherwise latest estimated, otherwise None."""
+    chosen = {}
+    for amount, extra in items:
+        if amount.known:
+            chosen[amount.basis] = (amount, extra)
+    return chosen.get("confirmed", chosen.get("estimated"))
+
+
 def _tally(connection: sqlite3.Connection, rows: list) -> _Tally:
     tally = _Tally()
     try:
@@ -255,39 +277,53 @@ def _tally(connection: sqlite3.Connection, rows: list) -> _Tally:
             hold = _load(document)["api_cost_estimate_cents"]
             if hold is not None and (type(hold) is not int or hold < 0):
                 raise ValueError
+            if state not in ("reserved", "settled", "released"):
+                raise ValueError
             tally.calls += 1
-            if state == "reserved":
-                tally.active += 1
-                tally.cost_reserved += hold or 0
             records = connection.execute(
                 "SELECT kind, document FROM usage_records WHERE reservation_id = ? ORDER BY seq",
                 (reservation_id,),
             ).fetchall()
-            for kind, record in records:
-                if kind == "release":
-                    continue
-                usage = usage_from_dict(_load(record)["usage"])
-                cost = usage.api_cost_cents
-                if cost.known:
-                    tally.cost[cost.basis] += cost.value
-                elif kind == "settlement" and hold is not None:
+            reports = [usage_from_dict(_load(record)["usage"]) for kind, record in records if kind != "release"]
+            if state == "reserved":
+                if records:
+                    raise ValueError  # Settlement and release always end the reservation.
+                tally.active += 1
+                if hold is None:
+                    tally.cost_unheld_active += 1
+                else:
+                    tally.cost_reserved += hold
+                continue
+            if not reports:
+                if state == "settled":
+                    raise ValueError
+                continue  # Released before dispatch and never reported.
+            # Each report states the call's total, so the latest one replaces
+            # earlier ones instead of being added (retransmission, late bills).
+            cost = _latest_known((usage.api_cost_cents, None) for usage in reports)
+            if cost is not None:
+                tally.cost[cost[0].basis] += cost[0].value
+            else:
+                tally.cost_unknown_records += 1
+                if state == "settled" and hold is not None:
                     # The actual cost is unknown: keep the hold, never assume zero.
                     tally.cost_unknown_held += hold
-                    tally.cost_unknown_records += 1
                 else:
-                    tally.cost_unknown_records += 1
-                token_unknown = False
-                for amount in (usage.input_tokens, usage.output_tokens):
-                    if amount.known:
-                        tally.tokens_observed += amount.value
-                    else:
-                        token_unknown = True
-                tally.token_unknown_records += int(token_unknown)
-                if usage.quota_used.known:
-                    entry = tally.quota.setdefault(usage.quota_unit, [0, 0])
-                    entry[0 if usage.quota_used.basis == "confirmed" else 1] += usage.quota_used.value
+                    tally.cost_unknown_unheld += 1
+            token_unknown = False
+            for name in ("input_tokens", "output_tokens"):
+                token = _latest_known((getattr(usage, name), None) for usage in reports)
+                if token is None:
+                    token_unknown = True
                 else:
-                    tally.quota_unreported += 1
+                    tally.tokens_observed += token[0].value
+            tally.token_unknown_records += int(token_unknown)
+            quota = _latest_known((usage.quota_used, usage.quota_unit) for usage in reports)
+            if quota is None:
+                tally.quota_unreported += 1
+            else:
+                entry = tally.quota.setdefault(quota[1], [0, 0])
+                entry[0 if quota[0].basis == "confirmed" else 1] += quota[0].value
     except (KeyError, TypeError, ValueError):
         raise InvalidDatabase("A stored reservation or usage record violates its contract.") from None
     return tally
@@ -306,6 +342,11 @@ def _limit_verdicts(limits: _Limits, tally: _Tally, now: datetime, request: Admi
         out.append(("wait", "CONCURRENCY_LIMIT", None))
     limit = limits.max_api_cost_cents
     if limit is not None:
+        if tally.cost_unknown_unheld:
+            # A dispatched call with no reported cost and no hold is not zero.
+            out.append(("reject", "API_COST_UNKNOWN", None))
+        if tally.cost_unheld_active:
+            out.append(("wait", "API_COST_UNHELD_ACTIVE", None))
         committed = tally.committed
         settled = committed - tally.cost_reserved
         if settled >= limit:
@@ -548,7 +589,7 @@ class BudgetStore:
             if retry_at is None:
                 return True, None
             return now < parse_timestamp(retry_at, "retry_at"), retry_at
-        except (KeyError, ValueError):
+        except (KeyError, TypeError, ValueError):
             raise InvalidDatabase("A stored rate limit observation is malformed.") from None
 
     def _latest_quota(self, connection, pool_id: str, now: datetime) -> dict[str, QuotaObservation]:
@@ -560,14 +601,36 @@ class BudgetStore:
         try:
             for observed_at, document in rows:
                 item = _load(document)
+                # Revalidate stored documents: a damaged value must not read as quota remaining.
+                if set(item) != _QUOTA_KEYS:
+                    raise ValueError
+                check_id(item["unit"], "quota_unit")
+                check_count(item["remaining"], "remaining", minimum=0)
+                check_count(item["limit"], "limit", minimum=0)
+                if item["resets_at"] is not None:
+                    normalize_timestamp(item["resets_at"], "resets_at")
                 age = now - parse_timestamp(observed_at, "observed_at")
                 # A clock that moves backwards is not proof of freshness.
                 freshness = "fresh" if timedelta(0) <= age <= self._quota_ttl else "stale"
                 latest[item["unit"]] = QuotaObservation(item["unit"], item["remaining"], item["limit"],
                                                         item["resets_at"], observed_at, freshness)
-        except (KeyError, ValueError):
+        except (KeyError, TypeError, ValueError):
             raise InvalidDatabase("A stored quota observation is malformed.") from None
         return latest
+
+    @staticmethod
+    def _quota_pending(connection, pool_id: str, observed_at: datetime) -> int:
+        """Calls that may not be reflected in an observation: active or created since it."""
+        rows = connection.execute("SELECT state, created_at FROM reservations WHERE pool_id = ?",
+                                  (pool_id,)).fetchall()
+        count = 0
+        try:
+            for state, created_at in rows:
+                if state == "reserved" or parse_timestamp(created_at, "created_at") >= observed_at:
+                    count += 1
+        except ValueError:
+            raise InvalidDatabase("A stored reservation violates its contract.") from None
+        return count
 
     # ------------------------------------------------------------- admission
     def _route_verdicts(self, route: RouteStatus, active: int, now: datetime) -> list:
@@ -613,8 +676,12 @@ class BudgetStore:
                     out.append(("wait", "QUOTA_OBSERVATION_STALE", None))
                 elif observation.remaining is None:
                     out.append(("wait", "QUOTA_REMAINING_UNKNOWN", None))
-                elif observation.remaining == 0:
+                elif observation.remaining <= 0:
                     out.append(("wait", "QUOTA_EXHAUSTED", observation.resets_at))
+                elif self._quota_pending(connection, pool_id, parse_timestamp(
+                        observation.observed_at, "observed_at")) >= observation.remaining:
+                    # Each call is counted as at least one unit; a new observation is required.
+                    out.append(("wait", "QUOTA_REMAINING_UNCONFIRMED", None))
         return out
 
     @staticmethod
@@ -628,6 +695,25 @@ class BudgetStore:
             "SELECT r.id, r.state, r.document FROM reservations r "
             "JOIN reservation_scopes s ON s.reservation_id = r.id WHERE s.scope_id = ?", (scope_id,),
         ).fetchall()
+
+    @classmethod
+    def _rows_for_scope(cls, connection, scope_id: str) -> list:
+        """Resource scopes count every reservation on that pool/profile, plus explicitly tagged ones."""
+        for prefix, column in _RESOURCE_SCOPE_COLUMNS:
+            if scope_id.startswith(prefix):
+                return connection.execute(
+                    f"SELECT id, state, document FROM reservations WHERE {column} = ? OR id IN "
+                    "(SELECT reservation_id FROM reservation_scopes WHERE scope_id = ?)",
+                    (scope_id[len(prefix):], scope_id),
+                ).fetchall()
+        return cls._scope_rows(connection, scope_id)
+
+    def _applied_scopes(self, connection, request: AdmissionRequest, profile) -> tuple[str, ...]:
+        implicit = tuple(
+            scope_id for scope_id in ("pool:" + request.pool_id, "profile:" + profile.id)
+            if scope_id not in request.scopes and self._fetch_policy(connection, scope_id) is not None
+        )
+        return (*request.scopes, *implicit)
 
     def admit(self, request: AdmissionRequest, profile, route: RouteStatus) -> AdmissionDecision:
         """Check every limit and, only when nothing blocks, append one reservation."""
@@ -653,12 +739,12 @@ class BudgetStore:
             verdicts += _label(problems, profile_label)
             verdicts += _label(_limit_verdicts(limits, _tally(connection, self._profile_rows(connection, profile.id)),
                                                now, request), profile_label)
-            for scope_id in request.scopes:
+            for scope_id in self._applied_scopes(connection, request, profile):
                 stored = self._fetch_policy(connection, scope_id)
                 if stored is None:
                     verdicts.append(("reject", f"SCOPE_POLICY_MISSING@{scope_id}", None))
                     continue
-                tally = _tally(connection, self._scope_rows(connection, scope_id))
+                tally = _tally(connection, self._rows_for_scope(connection, scope_id))
                 verdicts += _label(_limit_verdicts(_policy_limits(stored.policy), tally, now, request), scope_id)
 
             if any(severity == "reject" for severity, _, _ in verdicts):
@@ -703,7 +789,12 @@ class BudgetStore:
 
     # ------------------------------------------------------------ settlement
     def settle(self, reservation_id: str, usage: Usage) -> SettlementRecord:
-        """First report settles an active reservation; any later report is a 'late' record."""
+        """Report the call's total usage.
+
+        The first report settles an active reservation; later reports are
+        appended as 'late'. Per field, the latest confirmed report supersedes
+        earlier ones, so a resend or a corrected bill is not added twice.
+        """
         check_id(reservation_id, "reservation_id")
         usage = rebuild(usage, Usage)
         with self._transaction() as connection:
@@ -775,11 +866,23 @@ class BudgetStore:
         except (KeyError, TypeError, ValueError):
             raise InvalidDatabase("A stored reservation violates its contract.") from None
 
-    def decisions(self, limit: int = 100) -> tuple[dict, ...]:
+    def decisions(self, limit: int = 100, after_seq: int | None = None, *,
+                  newest_first: bool = False) -> tuple[dict, ...]:
+        """Decisions in seq order after after_seq, or the newest first; each dict carries its seq."""
         check_count(limit, "limit", maximum=1000, optional=False)
+        check_count(after_seq, "after_seq", minimum=0)
+        if type(newest_first) is not bool:
+            raise BudgetError("INVALID_NEWEST_FIRST")
+        if newest_first and after_seq is not None:
+            raise BudgetError("INVALID_DECISION_QUERY")
         with self._transaction() as connection:
-            rows = connection.execute("SELECT document FROM decisions ORDER BY seq LIMIT ?", (limit,)).fetchall()
-        return tuple(_load(document) for (document,) in rows)
+            if newest_first:
+                rows = connection.execute("SELECT seq, document FROM decisions ORDER BY seq DESC LIMIT ?",
+                                          (limit,)).fetchall()
+            else:
+                rows = connection.execute("SELECT seq, document FROM decisions WHERE seq > ? ORDER BY seq LIMIT ?",
+                                          (0 if after_seq is None else after_seq, limit)).fetchall()
+        return tuple({**_load(document), "seq": seq} for seq, document in rows)
 
     # ---------------------------------------------------------------- status
     @staticmethod
@@ -799,7 +902,8 @@ class BudgetStore:
             calls=tally.calls,
             active=tally.active,
             api_cost=CostTotals(tally.cost["confirmed"], tally.cost["estimated"], tally.cost_reserved,
-                                tally.cost_unknown_held, tally.cost_unknown_records),
+                                tally.cost_unknown_held, tally.cost_unknown_records,
+                                tally.cost_unknown_unheld, tally.cost_unheld_active),
             tokens=TokenTotals(tally.tokens_observed, tally.token_unknown_records),
             quota_used=tuple(QuotaUsage(unit, values[0], values[1]) for unit, values in sorted(tally.quota.items())),
             quota_unreported_records=tally.quota_unreported,
@@ -813,7 +917,7 @@ class BudgetStore:
         with self._transaction() as connection:
             now = self._now()
             stored = self._fetch_policy(connection, scope_id)
-            tally = _tally(connection, self._scope_rows(connection, scope_id))
+            tally = _tally(connection, self._rows_for_scope(connection, scope_id))
         return self._status(scope_id, None if stored is None else _policy_limits(stored.policy), tally, now)
 
     def profile_status(self, profile) -> ScopeStatus:
