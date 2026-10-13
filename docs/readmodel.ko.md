@@ -55,7 +55,7 @@ dispatch·lifecycle·evidence 이벤트는 호출자가 `SourceEvent`를 직접 
 
 ## 한계와 검증 상태
 
-- 실제 VM History·AGS PEER 이벤트 수집기는 없다. 실제 VM·AGS·provider 소스 연결은 **NOT_RUN**이다. 실제 `BridgeReceipt` 필드 이름과의 일치도 검증하지 않았다.
+- 실제 VM History·AGS PEER 이벤트 수집기는 없다. 실제 VM·AGS·provider 소스 연결은 **NOT_RUN**이다. 어댑터 시험은 합성 ID를 담은 실제 `BridgeReceipt`·`VmRefs`·`JobObservation` 객체를 쓰지만, 실제 VM이 반환한 receipt와의 결합은 검증하지 않았다.
 - gap 판정은 source cursor가 1부터 빈틈없이 이어진다고 가정한다. VM history_cursor처럼 receipt 사이에 cursor가 비는 source는 영구 gap(`stale`)으로 표시된다. 이는 숨기지 않는 fail-closed 동작이지만, 그 source의 이후 이벤트가 projection에 반영되지 않는다.
 - GUI와 연결되지 않았다. Windows 동작은 **미검증(NOT_RUN)**이며, Linux 단위시험 통과는 개발 검증일 뿐이다.
 - 장부 상태와 완료 판정은 변경하지 않는다.

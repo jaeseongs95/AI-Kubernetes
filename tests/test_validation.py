@@ -1,10 +1,10 @@
 """AIK-042 validation bridge with synthetic data only.
 
 DevTools runs real child processes on a temporary workspace through a fake
-authority (same fake as the AIK-085 tests). VM receipts are duck-typed
-synthetic objects and the governance projection is patched with a real
-GovernanceGateView. No provider, credential, network, VM or AGS installation
-is used. Passing on Linux is development verification, not Windows support.
+authority (same fake as the AIK-085 tests). VM responses are real
+aik_vm_bridge BridgeReceipt objects carrying synthetic payloads, read through
+the real governance projection; one test patches the projection only to make
+it fail. No provider, credential, network, VM or AGS installation is used. Passing on Linux is development verification, not Windows support.
 """
 from __future__ import annotations
 

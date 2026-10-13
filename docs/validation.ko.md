@@ -48,7 +48,7 @@ VM이 Task·Attempt·재시도·검증·GoalVerdict의 권위이고 AGS gate는 
 python -m unittest tests/test_validation.py -v
 ```
 
-시험은 임시 디렉터리, 합성 데이터, 주입 시계만 쓴다. DevTools는 실제 자식 프로세스로 실행하지만 authority는 fake다. VM 응답은 합성 객체이고 governance 투영은 실제 `GovernanceGateView`를 반환하도록 대체했다.
+시험은 임시 디렉터리, 합성 데이터, 주입 시계만 쓴다. DevTools는 실제 자식 프로세스로 실행하지만 authority는 fake다. VM 응답은 합성 payload를 담은 실제 `BridgeReceipt` 객체이고, governance 투영은 실제 `project_run_once`를 거친다. 투영 실패 경로 한 시험만 투영 함수를 실패하도록 바꾼다.
 
 **NOT_RUN (미검증):**
 
