@@ -44,7 +44,13 @@ def sha256_digest(data: bytes) -> str:
 
 
 def read_verified(root: Path, relative: str, max_bytes: int) -> tuple[InputCondition, bytes | None]:
-    """Read one regular file below ``root`` without following links or aliases."""
+    """Read one regular file below ``root`` without following links or aliases.
+
+    The resolved path, relative to the resolved root, must equal the requested
+    components exactly. A case variant or a Windows 8.3 short name (for example
+    an alias of ``.git``) therefore reads as ``unsafe`` instead of creating a
+    second binding key for the same file.
+    """
     parts = relative.split("/")
     target = root.joinpath(*parts)
     current = root
@@ -76,7 +82,13 @@ def read_verified(root: Path, relative: str, max_bytes: int) -> tuple[InputCondi
             data = stream.read(max_bytes + 1)
         if len(data) > max_bytes:
             return InputCondition.UNSAFE, None
-        if not target.resolve(strict=True).is_relative_to(root.resolve(strict=True)):
+        resolved = target.resolve(strict=True)
+        base = root.resolve(strict=True)
+        try:
+            observed = resolved.relative_to(base).parts
+        except ValueError:
+            return InputCondition.UNSAFE, None
+        if observed != tuple(parts):
             return InputCondition.UNSAFE, None
     except OSError:
         return InputCondition.UNSAFE, None

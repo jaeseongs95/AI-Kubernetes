@@ -31,15 +31,25 @@ from .vm_projects import ProjectInfo
 
 DEFAULT_MAX_INPUT_BYTES = 64 * 1024 * 1024
 _S = WorkspaceStatus
+# Placeholder used only to validate a complete record before any VM effect.
+_PROVISIONAL_PROJECT_ID = "aik-provisional-project"
 
 
 def _same_root(first: str, second: str) -> bool:
     return os.path.normcase(first) == os.path.normcase(second)
 
 
+def _verifiable_identity(identity: object) -> bool:
+    """A root identity must fit the record and have a nonzero inode (fail-closed)."""
+    return (type(identity) is tuple and len(identity) == 2
+            and all(type(value) is int for value in identity)
+            and 0 <= identity[0] <= MAX_INTEGER and 1 <= identity[1] <= MAX_INTEGER)
+
+
 def _identity_matches(record: WorkspaceRecord, identity: tuple[int, int]) -> bool:
+    # Without an inode a replaced folder cannot be distinguished: never trust it.
     if record.root_inode == 0 or identity[1] == 0:
-        return record.root_device == identity[0]
+        return False
     return (record.root_device, record.root_inode) == identity
 
 
@@ -173,15 +183,17 @@ class WorkspaceManager:
         return tuple(record for _, record in sorted(self._registry.read().workspaces.items()))
 
     # ------------------------------------------------------------ status
+    def _host_supported(self, path: Path) -> bool:
+        try:
+            return bool(self._host_check(path))
+        except Exception:
+            return False
+
     def _status(self, record: WorkspaceRecord) -> WorkspaceStatus:
         if record.archived:
             return _S.ARCHIVED
         root = Path(record.canonical_root)
-        try:
-            supported = bool(self._host_check(root))
-        except Exception:
-            supported = False
-        if not supported:
+        if not self._host_supported(root):
             return _S.UNSUPPORTED_HOST
         try:
             os.lstat(root)
@@ -215,7 +227,10 @@ class WorkspaceManager:
             return _S.VM_PROJECT_UNKNOWN
         if info is None:
             return _S.VM_PROJECT_MISSING
-        if info.root is not None and not _same_root(info.root, record.canonical_root):
+        if info.root is None:
+            # An unreported ProjectMap root cannot confirm the project-root binding.
+            return _S.VM_PROJECT_UNKNOWN
+        if not _same_root(info.root, record.canonical_root):
             return _S.VM_PROJECT_MISMATCH
         return _S.READY
 
@@ -242,23 +257,24 @@ class WorkspaceManager:
     # ------------------------------------------------------------ lifecycle
     def _prepare_root(self, root_path) -> tuple[Path, tuple[int, int]]:
         canonical = roots.canonical_root(root_path)
-        try:
-            supported = bool(self._host_check(canonical))
-        except Exception:
-            supported = False
-        if not supported:
+        if not self._host_supported(canonical):
             raise WorkspaceUnavailable(_S.UNSUPPORTED_HOST)
         try:
             roots.probe_access(canonical)
             identity = roots.root_identity(canonical)
         except OSError:
             raise WorkspaceUnavailable(_S.ACCESS_DENIED) from None
+        if not _verifiable_identity(identity):
+            # Out-of-range IDs cannot be recorded; inode 0 cannot detect replacement.
+            raise WorkspaceUnavailable(_S.ROOT_UNSAFE)
         return canonical, identity
 
     def _register(self, workspace_id: str, name: str, root_path) -> WorkspaceRecord:
         Workspace(workspace_id, name)
         canonical, identity = self._prepare_root(root_path)
         root = str(canonical)
+        # Validate every record field before the VM effect; only the project ID is provisional.
+        WorkspaceRecord(workspace_id, name, root, identity[0], identity[1], _PROVISIONAL_PROJECT_ID)
         state = self._registry.read()
         if workspace_id in state.workspaces:
             raise RevisionConflict("The workspace is already registered.")
@@ -287,6 +303,20 @@ class WorkspaceManager:
         """Bind an existing folder; its contents are not modified."""
         return self._register(workspace_id, name, root_path)
 
+    def _check_new_root_location(self, parent: Path, target: Path) -> None:
+        """Reject Git internals, ledgers and unsupported hosts before any directory is created."""
+        try:
+            if roots.is_git_internal(parent):
+                raise InvalidWorkspaceRoot("Git metadata directories are not workspace roots.")
+            if roots.ledger_conflict(target):
+                raise InvalidWorkspaceRoot("Development ledgers and the AIK source repository are not workspace roots.")
+        except WorkspaceError:
+            raise
+        except OSError:
+            raise RootUnavailable("The workspace folder cannot be inspected.") from None
+        if not self._host_supported(parent):
+            raise WorkspaceUnavailable(_S.UNSUPPORTED_HOST)
+
     def create_workspace(self, workspace_id: str, name: str, root_path) -> WorkspaceRecord:
         """Create a new empty folder under an existing safe parent and bind it."""
         Workspace(workspace_id, name)
@@ -296,6 +326,7 @@ class WorkspaceManager:
         target = parent / requested.name
         if os.path.lexists(target):
             raise InvalidWorkspaceRoot("The new workspace folder already exists; open it instead.")
+        self._check_new_root_location(parent, target)
         state = self._registry.read()
         if workspace_id in state.workspaces:
             raise RevisionConflict("The workspace is already registered.")
@@ -394,7 +425,11 @@ class WorkspaceManager:
         return self.current_execution()
 
     def current_execution(self) -> ExecutionContext:
-        """The execution root derived only from the current selection (fail-closed)."""
+        """The execution root derived only from the current selection (fail-closed).
+
+        Task launches must not use this; they use the context returned by
+        ``verify_task_binding`` so a later selection change cannot redirect them.
+        """
         settings = self._require_settings()
         target = settings.resolve_execution_target()
         context = self.execution_context(target.workspace_id)
@@ -413,6 +448,15 @@ class WorkspaceManager:
                                             or DIGEST_PATTERN.fullmatch(expected_digest) is None):
             raise InvalidRecord("An expected digest must be a sha256 digest.")
 
+    @staticmethod
+    def _check_producer(producer_task_id, expected_digest) -> None:
+        if producer_task_id is None:
+            return
+        identifier(producer_task_id, "producer_task_id")
+        if expected_digest is None:
+            # A predecessor artifact is only bound to the bytes its producer declared.
+            raise InvalidRecord("A predecessor artifact requires the producer's declared digest.")
+
     def _read_current(self, context: ExecutionContext, relative: str, expected_digest) -> tuple[str, int]:
         condition, data = self._read(context, relative)
         if condition is not InputCondition.CURRENT:
@@ -424,12 +468,11 @@ class WorkspaceManager:
 
     def bind_input(self, workspace_id: str, path: str, *, producer_task_id: str | None = None,
                    expected_digest: str | None = None) -> InputRecord:
-        """Record an input / predecessor artifact by digest. Producers pass their declared digest."""
+        """Record an input / predecessor artifact by digest. Producers must pass their declared digest."""
         context = self.execution_context(workspace_id)
         relative = normalize_input_path(path)
-        if producer_task_id is not None:
-            identifier(producer_task_id, "producer_task_id")
         self._check_expected_digest(expected_digest)
+        self._check_producer(producer_task_id, expected_digest)
         digest, size = self._read_current(context, relative, expected_digest)
         record = InputRecord(workspace_id, relative, digest, size, 1, producer_task_id)
 
@@ -451,9 +494,8 @@ class WorkspaceManager:
         context = self.execution_context(workspace_id)
         relative = normalize_input_path(path)
         _positive_revision(expected_revision)
-        if producer_task_id is not None:
-            identifier(producer_task_id, "producer_task_id")
         self._check_expected_digest(expected_digest)
+        self._check_producer(producer_task_id, expected_digest)
         digest, size = self._read_current(context, relative, expected_digest)
 
         def mutate(state: RegistryState) -> InputRecord:
@@ -541,14 +583,45 @@ class WorkspaceManager:
             raise InputTampered("The input bytes differ from the bound digest.")
         return data
 
-    def verify_task_binding(self, binding: TaskExecutionBinding, manifest: InputManifest) -> None:
-        """Pre-effect check of a VM task binding against the current inputs and root."""
+    def verify_task_binding(self, binding: TaskExecutionBinding, manifest: InputManifest) -> ExecutionContext:
+        """Pre-effect check of a VM task binding against the current inputs and root.
+
+        Returns the verified ``ExecutionContext`` of the manifest's workspace.
+        The task launch must use this context (its ``cwd``), not
+        ``current_execution()``, so a later selection switch cannot redirect it.
+        """
         if type(binding) is not TaskExecutionBinding:
             raise InputBindingMismatch("A task execution binding is required.")
-        self._context_for_manifest(manifest)
+        context = self._context_for_manifest(manifest)
         if (binding.input_manifest_digest != manifest.digest() or binding.vm_project_id != manifest.vm_project_id
                 or binding.workspace_root_ref != manifest.workspace_root_ref):
             raise InputBindingMismatch("The task binding does not reference this input manifest.")
         current = self.prepare_inputs(manifest.workspace_id, [entry.path for entry in manifest.entries])
         if current.digest() != manifest.digest():
             raise InputNotCurrent("The task inputs changed after preparation.")
+        return context
+
+    def confirm_inputs_after_effect(self, manifest: InputManifest) -> None:
+        """Post-effect re-check for consumers that read the shared root directly.
+
+        ``shared_root`` does not freeze files: a native consumer reading through
+        ``cwd`` may observe bytes changed after ``verify_task_binding``. Callers
+        must classify the effect's input as unknown/failed when this raises.
+        A change that was reverted before this check is not detectable.
+        """
+        context = self._context_for_manifest(manifest)
+        records = self._registry.read().inputs
+        failures = []
+        for entry in manifest.entries:
+            record = records.get((manifest.workspace_id, entry.path))
+            if record is None or (record.revision, record.digest) != (entry.revision, entry.digest):
+                failures.append((entry.path, InputCondition.STALE.value))
+                continue
+            condition, data = self._read(context, entry.path)
+            if condition is InputCondition.CURRENT and sha256_digest(data) != entry.digest:
+                condition = InputCondition.STALE
+            if condition is not InputCondition.CURRENT:
+                failures.append((entry.path, condition.value))
+        if failures:
+            raise InputNotCurrent("Inputs changed around the effect; treat the consumed input as unknown.",
+                                  tuple(failures))

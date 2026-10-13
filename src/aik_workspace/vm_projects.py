@@ -3,6 +3,8 @@
 The declared EngineApplication surface has ``status(project_id)`` but no
 project creation command. Lookup therefore goes through ``VmBridge.status``;
 creation requires an explicitly injected seam and otherwise fails closed.
+A status response must report the ProjectMap root (``project_root``) and, if
+it names a project, the requested one; otherwise the state is unconfirmed.
 """
 
 from __future__ import annotations
@@ -24,7 +26,11 @@ NOT_FOUND_CODES = frozenset({"PROJECT_NOT_FOUND", "NOT_FOUND", "UNKNOWN_PROJECT"
 
 @dataclass(frozen=True, slots=True)
 class ProjectInfo:
-    """The VM-owned project as observed; ``root`` is the VM ProjectMap root, if reported."""
+    """The VM-owned project as observed; ``root`` is the VM ProjectMap root.
+
+    ``root=None`` means the root was not reported. The manager treats that as
+    an unconfirmed binding (``vm_project_unknown``), never as executable.
+    """
 
     project_id: str
     root: str | None = None
@@ -61,7 +67,16 @@ class BridgeProjectPort:
             if error.code == BridgeCode.VM_REJECTED and error.vm_code in NOT_FOUND_CODES:
                 return None
             raise VmProjectUnavailable("The VM project state could not be confirmed.") from None
-        root = receipt.payload.get("project_root")
+        try:
+            payload = receipt.payload
+            reported_id = payload.get("project_id")
+            root = payload.get("project_root")
+        except (AttributeError, TypeError):
+            raise VmProjectUnavailable("The VM project response is malformed.") from None
+        if reported_id is not None and reported_id != project_id:
+            raise VmProjectUnavailable("The VM project response refers to another project.")
+        if root is None:
+            raise VmProjectUnavailable("The VM project response did not report its root.")
         try:
             return ProjectInfo(project_id, root)
         except InvalidRecord:

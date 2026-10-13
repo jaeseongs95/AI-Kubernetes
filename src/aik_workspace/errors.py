@@ -1,4 +1,9 @@
-"""Workspace errors carry classifications and fixed status names, never paths or secrets."""
+"""Workspace errors carry classifications and fixed status names, never secrets.
+
+Exception messages are fixed text without filesystem paths. The only exception
+is ``InputNotCurrent.details``: it lists ``(workspace-relative input path,
+condition)`` pairs. Absolute roots are not included there either.
+"""
 
 from __future__ import annotations
 
@@ -88,7 +93,11 @@ class InvalidInputPath(InputError, ValueError):
 
 
 class InputNotCurrent(InputError):
-    """An input is stale, missing, unsafe or unbound; ``details`` lists (path, condition)."""
+    """An input is stale, missing, unsafe or unbound.
+
+    ``details`` lists ``(workspace-relative path, condition)`` pairs; the
+    message itself contains no path.
+    """
 
     def __init__(self, message: str, details=()):
         self.details = tuple(details)

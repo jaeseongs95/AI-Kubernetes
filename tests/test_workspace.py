@@ -22,12 +22,13 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from aik_config import SettingsStore, Workspace, WorkspaceBindingError  # noqa: E402
 from aik_provider.contracts import AuthKind  # noqa: E402
-from aik_runtime.errors import InvalidDatabase  # noqa: E402
+from aik_runtime.errors import InvalidDatabase, InvalidRecord, RevisionConflict  # noqa: E402
 from aik_vm_bridge import PINNED_SURFACE_REVISION, Command, TaskExecutionBinding, VmBridge  # noqa: E402
 from aik_workspace import (  # noqa: E402
     BridgeProjectPort, InputBindingMismatch, InputCondition, InputError, InputNotCurrent,
     InputTampered, InvalidInputPath, InvalidWorkspaceRoot, RootConflict, VmProjectUnavailable,
-    WorkspaceManager, WorkspaceRegistry, WorkspaceStatus, WorkspaceUnavailable, canonical_root,
+    WorkspaceManager, WorkspaceRecord, WorkspaceRegistry, WorkspaceStatus, WorkspaceUnavailable,
+    canonical_root,
 )
 
 
@@ -36,6 +37,11 @@ SURFACE = {
     "revision": PINNED_SURFACE_REVISION,
     "classes": [{"name": "EngineApplication", "methods": [{"name": "status", "signature": "self, project_id: str"}]}],
 }
+CONSUMER = (
+    "import hashlib, sys\n"
+    "data = open(sys.argv[1], 'rb').read()\n"
+    "print('sha256:' + hashlib.sha256(data).hexdigest())\n"
+)
 
 
 class FakeVmError(Exception):
@@ -51,6 +57,8 @@ class FakeVmApplication:
         self.projects: dict[str, str] = {}
         self.created = 0
         self.fail = False
+        self.omit_root = False
+        self.reported_project_id = None
 
     def handshake(self):
         return {"surface_revision": PINNED_SURFACE_REVISION, "engine_schema_revision": 4,
@@ -61,7 +69,10 @@ class FakeVmApplication:
             raise RuntimeError("synthetic transport failure")
         if project_id not in self.projects:
             raise FakeVmError("PROJECT_NOT_FOUND")
-        return {"project_id": project_id, "project_root": self.projects[project_id]}
+        payload = {"project_id": self.reported_project_id or project_id}
+        if not self.omit_root:
+            payload["project_root"] = self.projects[project_id]
+        return payload
 
     def create_project(self, workspace_id, canonical_root, name):
         self.created += 1
@@ -74,8 +85,8 @@ def sha(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
-def task_binding(manifest) -> TaskExecutionBinding:
-    return TaskExecutionBinding(
+def task_binding(manifest, **overrides) -> TaskExecutionBinding:
+    values = dict(
         vm_instance_id="vm-instance-1", vm_project_id=manifest.vm_project_id, vm_goal_revision_id="goal-rev-1",
         vm_plan_revision_id="plan-rev-1", vm_task_id="vm-task-consumer", vm_attempt_id="vm-attempt-1",
         vm_execution_spec_digest="sha256:" + "0" * 64, vm_runtime_intent_id="intent-1",
@@ -86,6 +97,8 @@ def task_binding(manifest) -> TaskExecutionBinding:
         support_matrix_digest="sha256:" + "1" * 64, input_manifest_digest=manifest.digest(),
         workspace_root_ref=manifest.workspace_root_ref,
     )
+    values.update(overrides)
+    return TaskExecutionBinding(**values)
 
 
 class WorkspaceTests(unittest.TestCase):
@@ -105,6 +118,14 @@ class WorkspaceTests(unittest.TestCase):
         settings = SettingsStore(self.state / "settings.sqlite3", binding_authority=manager)
         manager.connect_settings(settings)
         return manager, settings
+
+    @staticmethod
+    def run_in(context, args):
+        environment = dict(os.environ, PYTHONIOENCODING="utf-8")
+        result = subprocess.run([sys.executable, "-c", *args], **context.subprocess_kwargs(),
+                                capture_output=True, text=True, encoding="utf-8", env=environment,
+                                timeout=30, check=True)
+        return result.stdout.strip()
 
     # ---------------------------------------------------------------- lifecycle
     def test_create_new_hangul_space_folder_binds_root_project_settings_and_real_cwd(self) -> None:
@@ -293,6 +314,29 @@ class WorkspaceTests(unittest.TestCase):
             manager.rebind_project("ws-a", record.revision)
         self.assertEqual(self.vm.created, created)
 
+    def test_vm_status_without_project_root_or_with_other_project_id_is_unknown(self) -> None:
+        # F1: an unreported ProjectMap root must not be treated as a confirmed binding.
+        manager, _ = self.build()
+        old = self.base / "루트 미보고"
+        record = manager.create_workspace("ws-a", "미보고", old)
+        self.vm.omit_root = True
+        self.assertEqual(manager.status("ws-a"), WorkspaceStatus.VM_PROJECT_UNKNOWN)
+        self.assertIsNone(manager.binding_for("ws-a"))
+        new = self.base / "루트 미보고 이동"
+        old.rename(new)
+        moved = manager.rebind_root("ws-a", new, record.revision)
+        self.assertEqual(manager.status("ws-a"), WorkspaceStatus.VM_PROJECT_UNKNOWN)
+        created = self.vm.created
+        with self.assertRaises(WorkspaceUnavailable) as failure:
+            manager.rebind_project("ws-a", moved.revision)
+        self.assertEqual(failure.exception.action, "retry_vm_query")
+        self.assertEqual(self.vm.created, created)
+
+        self.vm.omit_root = False
+        self.vm.reported_project_id = "vm-project-other"
+        self.assertEqual(manager.status("ws-a"), WorkspaceStatus.VM_PROJECT_UNKNOWN)
+        self.assertIsNone(manager.binding_for("ws-a"))
+
     def test_unsupported_host_cwd_binding_is_not_executable(self) -> None:
         flag = {"ok": False}
         manager, _ = self.build(host_check=lambda root: flag["ok"])
@@ -310,6 +354,109 @@ class WorkspaceTests(unittest.TestCase):
         with self.assertRaises(WorkspaceUnavailable) as failure:
             manager.execution_context("ws-a")
         self.assertEqual(failure.exception.action, "not_executable")
+
+    def test_create_workspace_rejects_git_ledger_and_unsupported_parents_before_mkdir(self) -> None:
+        # F5: nothing may be created inside Git internals, ledgers or on an unsupported host.
+        flag = {"ok": True}
+        manager, _ = self.build(host_check=lambda root: flag["ok"])
+        bare = self.tmp / "bare.repo"
+        (bare / "objects").mkdir(parents=True)
+        (bare / "refs").mkdir()
+        (bare / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+        ledger = self.tmp / "개발 저장소"
+        (ledger / "planning").mkdir(parents=True)
+        (ledger / "planning" / "backlog.sqlite3").write_bytes(b"synthetic ledger")
+        (ledger / "sub").mkdir()
+        targets = [bare / "objects" / "새 폴더", ledger / "sub" / "새 폴더"]
+        unsupported = self.base / "미지원 호스트"
+        with mock.patch("aik_workspace.manager.os.mkdir", wraps=os.mkdir) as spy:
+            for target in targets:
+                with self.subTest(target=str(target)):
+                    with self.assertRaises(InvalidWorkspaceRoot):
+                        manager.create_workspace("ws-x", "거절", target)
+                    self.assertFalse(target.exists())
+            flag["ok"] = False
+            with self.assertRaises(WorkspaceUnavailable) as failure:
+                manager.create_workspace("ws-x", "거절", unsupported)
+            self.assertEqual(failure.exception.status, WorkspaceStatus.UNSUPPORTED_HOST)
+            created_paths = [Path(call.args[0]) for call in spy.call_args_list if call.args]
+        for target in (*targets, unsupported):
+            self.assertNotIn(target, created_paths)
+        self.assertFalse(unsupported.exists())
+        self.assertEqual((manager.list_workspaces(), self.vm.created), ((), 0))
+
+    def test_create_workspace_on_existing_folder_is_rejected_without_effects(self) -> None:
+        manager, _ = self.build()
+        existing = self.base / "이미 있음"
+        existing.mkdir()
+        (existing / "keep.txt").write_bytes(b"synthetic keep")
+        with self.assertRaises(InvalidWorkspaceRoot):
+            manager.create_workspace("ws-a", "기존", existing)
+        self.assertEqual((existing / "keep.txt").read_bytes(), b"synthetic keep")
+        self.assertEqual((manager.list_workspaces(), self.vm.created), ((), 0))
+
+    def test_out_of_range_root_identity_is_rejected_before_vm_project_creation(self) -> None:
+        # F6: an identity the record cannot hold must fail before any VM effect.
+        manager, _ = self.build()
+        folder = self.base / "범위 초과"
+        folder.mkdir()
+        with mock.patch("aik_workspace.roots.root_identity", return_value=(1, 2**64)):
+            with self.assertRaises(WorkspaceUnavailable) as failure:
+                manager.open_workspace("ws-a", "범위", folder)
+        self.assertEqual(failure.exception.status, WorkspaceStatus.ROOT_UNSAFE)
+        self.assertEqual((manager.list_workspaces(), self.vm.created), ((), 0))
+
+    def test_zero_inode_identity_is_not_trusted(self) -> None:
+        # F7: without an inode a replacement is undetectable; fail closed.
+        manager, _ = self.build()
+        record = manager.create_workspace("ws-a", "inode", self.base / "inode 확인")
+        with mock.patch("aik_workspace.roots.root_identity", return_value=(record.root_device, 0)):
+            self.assertEqual(manager.status("ws-a"), WorkspaceStatus.ROOT_REPLACED)
+            self.assertIsNone(manager.binding_for("ws-a"))
+            folder = self.base / "inode 0"
+            folder.mkdir()
+            created = self.vm.created
+            with self.assertRaises(WorkspaceUnavailable) as failure:
+                manager.open_workspace("ws-z", "inode 0", folder)
+            self.assertEqual(failure.exception.status, WorkspaceStatus.ROOT_UNSAFE)
+            self.assertEqual(self.vm.created, created)
+        self.assertEqual(manager.status("ws-a"), WorkspaceStatus.READY)
+
+    def test_settings_failure_rolls_back_registry_and_new_folder(self) -> None:
+        manager, settings = self.build()
+        target = self.base / "설정 실패"
+        with mock.patch.object(SettingsStore, "transaction", side_effect=RuntimeError("synthetic settings failure")):
+            with self.assertRaises(RuntimeError):
+                manager.create_workspace("ws-a", "설정", target)
+        self.assertEqual(manager.list_workspaces(), ())
+        self.assertFalse(target.exists())
+        self.assertIsNone(settings.get(Workspace, "ws-a"))
+        self.assertEqual(self.vm.created, 1)  # Documented limit: the VM project is left behind.
+
+    def test_concurrent_registration_loses_without_overwriting_and_leaves_orphan_vm_project(self) -> None:
+        # F10/F12: a competing registration between VM creation and insert wins; nothing is overwritten.
+        rival_root = self.base / "경쟁 폴더"
+        rival_root.mkdir()
+        rival_info = os.stat(rival_root)
+        original_create = self.vm.create_project
+
+        def racing_create(workspace_id, canonical_root, name):
+            project_id = original_create(workspace_id, canonical_root, name)
+            rival = WorkspaceRecord(workspace_id, "경쟁", str(rival_root.resolve()), rival_info.st_dev,
+                                    rival_info.st_ino, "vm-project-rival")
+            WorkspaceRegistry(self.state / "workspaces.json").update(
+                lambda state: state.workspaces.__setitem__(workspace_id, rival))
+            return project_id
+
+        self.vm.create_project = racing_create
+        manager, _ = self.build()
+        target = self.base / "동시 등록"
+        target.mkdir()
+        with self.assertRaises(RevisionConflict):
+            manager.open_workspace("ws-a", "동시", target)
+        self.assertEqual(manager.get("ws-a").vm_project_id, "vm-project-rival")
+        self.assertEqual(self.vm.created, 1)
+        self.assertIn("vm-project-1", self.vm.projects)  # Orphan VM project (documented limit).
 
     def test_archive_hides_binding_and_restore_rechecks_conflicts(self) -> None:
         manager, _ = self.build()
@@ -359,6 +506,23 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(consumed, produced)
         self.assertEqual(manifest.entries[0].producer_task_id, "vm-task-producer")
 
+    def test_producer_artifact_requires_declared_digest(self) -> None:
+        # F2: a predecessor artifact cannot be bound to whatever bytes are on disk now.
+        manager, _ = self.build()
+        record = manager.create_workspace("ws-a", "선행", self.base / "선행 산출물")
+        out = Path(record.canonical_root) / "out.json"
+        out.write_bytes(b"synthetic possibly altered artifact")
+        with self.assertRaises(InvalidRecord):
+            manager.bind_input("ws-a", "out.json", producer_task_id="vm-task-producer")
+        self.assertEqual(manager.input_states("ws-a"), ())
+        manager.bind_input("ws-a", "out.json")  # A plain user input needs no producer digest.
+        out.write_bytes(b"synthetic changed artifact")
+        with self.assertRaises(InvalidRecord):
+            manager.accept_input_change("ws-a", "out.json", 1, producer_task_id="vm-task-producer")
+        state = manager.input_states("ws-a")[0]
+        self.assertEqual((state.condition, state.recorded_digest),
+                         (InputCondition.STALE, sha(b"synthetic possibly altered artifact")))
+
     def test_wrong_declared_digest_is_not_recorded(self) -> None:
         manager, _ = self.build()
         record = manager.create_workspace("ws-a", "변조", self.base / "변조 프로젝트")
@@ -403,6 +567,53 @@ class WorkspaceTests(unittest.TestCase):
             manager.prepare_inputs("ws-a", ["입력/설정 값.txt", "unbound.txt"])
         effect.assert_not_called()
 
+    def test_post_effect_check_detects_bytes_changed_after_verification_in_real_subprocess(self) -> None:
+        # F3: a native consumer reads through cwd; changes after verification must surface afterwards.
+        manager, _ = self.build()
+        record = manager.create_workspace("ws-a", "사후", self.base / "사후 검사")
+        root = Path(record.canonical_root)
+        (root / "입력").mkdir()
+        target = root / "입력" / "요구사항.txt"
+        target.write_bytes(b"requirement v1")
+        manager.bind_input("ws-a", "입력/요구사항.txt")
+        manifest = manager.prepare_inputs("ws-a")
+        context = manager.verify_task_binding(task_binding(manifest), manifest)
+        bound_digest = manifest.entries[0].digest
+        self.assertEqual(self.run_in(context, [CONSUMER, "입력/요구사항.txt"]), bound_digest)
+        manager.confirm_inputs_after_effect(manifest)
+
+        target.write_bytes(b"requirement v2 (changed after verification)")
+        self.assertNotEqual(self.run_in(context, [CONSUMER, "입력/요구사항.txt"]), bound_digest)
+        with self.assertRaises(InputNotCurrent) as failure:
+            manager.confirm_inputs_after_effect(manifest)
+        self.assertEqual(failure.exception.details, (("입력/요구사항.txt", "stale"),))
+
+    def test_verified_task_binding_returns_its_own_context_across_workspace_switch(self) -> None:
+        # F4: the launch cwd comes from the verified manifest, not from the later selection.
+        manager, _ = self.build()
+        a = manager.create_workspace("ws-a", "A", self.base / "작업 A")
+        b = manager.create_workspace("ws-b", "B", self.base / "작업 B")
+        (Path(a.canonical_root) / "spec.md").write_bytes(b"synthetic spec")
+        manager.bind_input("ws-a", "spec.md")
+        manager.select("ws-a")
+        manifest = manager.prepare_inputs("ws-a")
+        context = manager.verify_task_binding(task_binding(manifest), manifest)
+        manager.select("ws-b")
+        self.assertEqual(manager.current_execution().canonical_root, b.canonical_root)
+        self.assertEqual((context.workspace_id, context.canonical_root, context.vm_project_id),
+                         ("ws-a", a.canonical_root, a.vm_project_id))
+        self.assertTrue(os.path.samefile(self.run_in(context, ["import os; print(os.getcwd())"]),
+                                         a.canonical_root))
+
+    def test_task_binding_with_other_vm_project_id_is_rejected(self) -> None:
+        manager, _ = self.build()
+        record = manager.create_workspace("ws-a", "VM", self.base / "VM 불일치")
+        (Path(record.canonical_root) / "spec.md").write_bytes(b"synthetic spec")
+        manager.bind_input("ws-a", "spec.md")
+        manifest = manager.prepare_inputs("ws-a")
+        with self.assertRaises(InputBindingMismatch):
+            manager.verify_task_binding(task_binding(manifest, vm_project_id="vm-project-other"), manifest)
+
     def test_accepted_change_bumps_revision_and_invalidates_older_manifest(self) -> None:
         manager, _ = self.build()
         record = manager.create_workspace("ws-a", "수정", self.base / "수정 프로젝트")
@@ -418,6 +629,30 @@ class WorkspaceTests(unittest.TestCase):
         with self.assertRaises(InputNotCurrent):
             manager.read_input(first, "spec.md")
         self.assertEqual(manager.read_input(second, "spec.md"), b"v2")
+
+    def test_resolved_input_alias_case_or_short_name_is_unsafe(self) -> None:
+        # F8: simulate Windows resolve() expanding a case variant / 8.3 name to another component.
+        manager, _ = self.build()
+        record = manager.create_workspace("ws-a", "별칭", self.base / "별칭 입력")
+        root = Path(record.canonical_root)
+        (root / "spec.md").write_bytes(b"synthetic spec")
+        (root / "GIT~1").mkdir()
+        (root / "GIT~1" / "config").write_bytes(b"synthetic git config")
+        aliases = {root / "spec.md": root / "Spec.md", root / "GIT~1" / "config": root / ".git" / "config"}
+        real_resolve = Path.resolve
+
+        def resolve_alias(path, strict=False):
+            alias = aliases.get(path)
+            return alias if alias is not None else real_resolve(path, strict=strict)
+
+        with mock.patch.object(Path, "resolve", new=resolve_alias):
+            for path in ("spec.md", "GIT~1/config"):
+                with self.subTest(path=path):
+                    with self.assertRaises(InputNotCurrent) as failure:
+                        manager.bind_input("ws-a", path)
+                    self.assertEqual(failure.exception.details[0][1], "unsafe")
+        self.assertEqual(manager.input_states("ws-a"), ())
+        self.assertEqual(manager.bind_input("ws-a", "spec.md").digest, sha(b"synthetic spec"))
 
     def test_escaping_linked_and_cross_workspace_inputs_are_rejected(self) -> None:
         manager, _ = self.build()
