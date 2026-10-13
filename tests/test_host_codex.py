@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import subprocess
 import sys
 import tempfile
 import threading
@@ -43,7 +44,8 @@ MASKED_KEY = "sk-SYNTH************MASK"
 ACCOUNT_A = "acct-synthetic-a"
 ACCOUNT_B = "acct-synthetic-b"
 HOST = ("openai", "codex-host")
-POSIX_ONLY = "The Windows process-tree path (taskkill /T /F) is NOT_RUN in this suite."
+POSIX_ONLY = "The Windows process-tree path (Job Object / taskkill) is NOT_RUN in this suite."
+POSIX_WAITID_ONLY = "Requires POSIX waitid(WNOWAIT); the Windows path is NOT_RUN in this suite."
 
 # A local synthetic child (not the host). It starts a sleeping grandchild,
 # records the grandchild PID, then floods output, sleeps, or exits at once.
@@ -824,6 +826,120 @@ class HostCodexTests(unittest.TestCase):
         self.assertIsNotNone(handle.poll())
         self.assertTrue(wait_gone(grandchild), "A descendant survived the login cancellation.")
         self.assertIs(handle.termination_confirmed, True)
+
+    # -- second review regressions (R2: process supervision and runner contract) --
+    # Local synthetic processes or fake process objects only; none is the host.
+
+    @unittest.skipUnless(os.name == "posix" and hasattr(os, "waitid"), POSIX_WAITID_ONLY)
+    def test_r2_f1_group_is_reobserved_before_the_leader_is_reaped(self) -> None:
+        from aik_host_codex import _process
+
+        process = subprocess.Popen([sys.executable, "-c", "pass"], stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   **_process.popen_options())
+
+        def cleanup():
+            if process.returncode is None:
+                process.wait(timeout=5)
+
+        self.addCleanup(cleanup)
+        deadline = time.monotonic() + 10
+        while not _process.exited(process):
+            self.assertLess(time.monotonic(), deadline, "The synthetic leader did not exit.")
+            time.sleep(0.02)
+        self.assertIsNone(process.returncode)
+        leader_unreaped: list = []
+        real_confirm = _process._confirm_gone
+
+        def recording(pgid):
+            try:
+                leader_unreaped.append(os.waitid(os.P_PID, process.pid,
+                                                 os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None)
+            except ChildProcessError:
+                leader_unreaped.append(False)
+            return real_confirm(pgid)
+
+        with mock.patch.object(_process, "_confirm_gone", side_effect=recording):
+            self.assertTrue(_process.terminate_tree(process))
+        self.assertEqual(leader_unreaped, [True], "The leader was reaped before its group was re-observed.")
+        self.assertIsNotNone(process.returncode)
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r2_f1_already_reaped_leader_is_unconfirmed_without_signalling_its_group(self) -> None:
+        from aik_host_codex import _process
+
+        class ReapedLeader:
+            pid = 999999999  # never signalled: the helpers below are mocked
+            returncode = 0
+
+            def poll(self):
+                return 0
+
+            def wait(self, timeout=None):
+                return 0
+
+            def send_signal(self, sig):
+                raise AssertionError("A reaped leader must not be signalled.")
+
+        with mock.patch.object(_process, "_signal_group") as signal_group, \
+                mock.patch.object(_process, "_confirm_gone") as confirm:
+            self.assertFalse(_process.terminate_tree(ReapedLeader()))
+        signal_group.assert_not_called()
+        confirm.assert_not_called()
+
+    def test_r2_f2_windows_tree_is_confirmed_only_by_job_observation(self) -> None:
+        from aik_host_codex import _process
+
+        class ExitedChild:
+            pid = 4242
+            returncode = 0
+
+            def poll(self):
+                return 0
+
+            def wait(self, timeout=None):
+                return 0
+
+            def kill(self):
+                pass
+
+        with mock.patch.object(_process, "_WINDOWS", True), \
+                mock.patch.object(_process, "_taskkill", return_value=True):
+            self.assertFalse(_process.terminate_tree(ExitedChild()),
+                             "A Windows tree without job observation was reported as confirmed.")
+            tracked = ExitedChild()
+            tracked._aik_job = 7
+            with mock.patch.object(_process, "_job_active", side_effect=[2, 0]), \
+                    mock.patch.object(_process, "_job_terminate") as terminate:
+                self.assertTrue(_process.terminate_tree(tracked))
+            terminate.assert_called_once_with(7)
+            with mock.patch.object(_process, "GRACE_SECONDS", 0.05), \
+                    mock.patch.object(_process, "_job_active", return_value=None), \
+                    mock.patch.object(_process, "_job_terminate"):
+                self.assertFalse(_process.terminate_tree(tracked))
+
+    def test_r2_f2_spawned_process_is_tracked_for_tree_observation(self) -> None:
+        from aik_host_codex import _process
+
+        child = mock.Mock(returncode=0)
+        with mock.patch.object(runner_module.subprocess, "Popen", return_value=child), \
+                mock.patch.object(_process, "track_tree") as track:
+            SubprocessRunner().spawn((sys.executable, "-c", "pass"), env=self.local_process_env())
+        track.assert_called_once_with(child)
+
+    def test_r2_f7_runner_timeout_does_not_claim_termination_for_its_subclass(self) -> None:
+        doc = RunnerTimeout.__doc__
+        self.assertIn("ProcessTreeUnconfirmed", doc)
+        self.assertNotIn("the process tree was terminated.", doc)
+        self.assertTrue(issubclass(runner_module.ProcessTreeUnconfirmed, RunnerTimeout))
+
+    def test_r2_f8_runner_documents_the_cleanup_grace_beyond_the_timeout(self) -> None:
+        self.assertIn("GRACE_SECONDS", runner_module.__doc__)
+
+    def test_r2_f9_module_documents_spawn_as_the_unbounded_exception(self) -> None:
+        doc = runner_module.__doc__
+        self.assertIn("``spawn``", doc)
+        self.assertIn("no deadline", doc)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 Tests inject a synthetic runner. ``SubprocessRunner`` is the standard library
 live runner; its use with a real Codex host is NOT_RUN.
 
-Every invocation has three limits:
+Every ``run`` invocation has three limits:
 - an absolute timeout
 - an output byte limit, enforced while the command runs
 - an environment allowlist
@@ -11,6 +11,16 @@ Every invocation has three limits:
 Timeout, output overflow and cancellation terminate the command's whole
 process tree. The captured output is returned only to the bridge parser and
 is never kept.
+
+Cleanup grace: after the deadline, terminating and re-observing the tree may
+add up to about ``4 * _process.GRACE_SECONDS`` (20 seconds) of wall-clock
+time. ``MAX_TIMEOUT`` bounds the command, not the whole call.
+
+``spawn`` (interactive login) is the exception: it checks the environment
+allowlist but has no deadline and no output capture of its own. The caller
+must call the handle's ``terminate()``; a discarded handle leaves the process
+running. ``terminate()`` does nothing when the direct child already exited,
+so helpers it left behind are not terminated.
 """
 
 from __future__ import annotations
@@ -59,7 +69,13 @@ class HostNotFound(RunnerError):
 
 
 class RunnerTimeout(RunnerError):
-    """The absolute deadline passed; the process tree was terminated."""
+    """The absolute deadline passed.
+
+    Raised as this exact class, the process tree was terminated and confirmed
+    gone. The subclass ``ProcessTreeUnconfirmed`` (also raised after a normal
+    exit) means that termination could not be confirmed, so ``except
+    RunnerTimeout`` must not assume that the tree has ended.
+    """
 
     code = "HOST_TIMEOUT"
 
@@ -250,6 +266,7 @@ class SubprocessRunner:
             problem = RunnerError
         if problem is not None:
             raise problem()
+        _process.track_tree(process)
         return _ProcessHandle(process)
 
 

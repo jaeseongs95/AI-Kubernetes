@@ -10,16 +10,28 @@ Absolute timeout
   expires.
 - ``launch`` does the same if the direct child is still running at the
   deadline.
+- Cleanup grace: terminating and re-observing the tree may add up to about
+  ``4 * _process.GRACE_SECONDS`` (20 seconds) of wall-clock time after the
+  deadline. The timeout bounds the command, not this cleanup.
 
 Output limit
 - The limit is enforced while the command runs.
 - When the limit is exceeded, the process tree is terminated.
 
 Explicit environment
-- The environment is built from an allowlist.
+- ``build_environment`` builds the environment from an allowlist.
 - Any variable that looks like a credential is dropped, including
   ``ANTHROPIC_API_KEY`` and every ``*TOKEN*`` variable. This keeps the
   subscription path from silently falling back to an API key.
+- ``SubprocessRunner`` applies the same deny rules again at the execution
+  boundary. A ``CommandSpec`` whose environment contains an ``ANTHROPIC_*``
+  or credential-like name, a name with ``=`` or NUL, or a value with NUL is
+  rejected with ``ENVIRONMENT_NOT_ALLOWLISTED`` before anything starts.
+
+Executable resolution
+- Only through the ``PATH`` in ``CommandSpec.env``; never the parent's PATH,
+  ``os.defpath`` or the current directory. A bare name must resolve inside an
+  absolute ``PATH`` entry; an explicit name must be absolute.
 
 Prompt bytes travel on stdin, never in argv.
 """
@@ -61,8 +73,9 @@ class RunnerTimeout(Exception):
 class RunnerTerminationUnknown(RunnerTimeout):
     """Termination of the command's process tree could not be confirmed.
 
-    This is a subclass of ``RunnerTimeout``, so callers treat it as an
-    unknown outcome. It is never a success.
+    Also raised when the command's output could not be collected completely
+    (a pipe read failed). This is a subclass of ``RunnerTimeout``, so callers
+    treat it as an unknown outcome. It is never a success.
     """
 
     def __init__(self) -> None:
@@ -74,6 +87,12 @@ class RunnerNotStarted(Exception):
 
     def __init__(self) -> None:
         super().__init__("RUNNER_NOT_STARTED")
+
+
+def _denied_variable(name: str, value: str) -> bool:
+    upper = name.upper()
+    return (not name or "=" in name or "\0" in name or "\0" in value or upper.startswith("ANTHROPIC_")
+            or any(part in upper for part in _DENIED_PARTS))
 
 
 def build_environment(source, allowlist=ENV_ALLOWLIST) -> tuple[tuple[str, str], ...]:
@@ -182,33 +201,56 @@ class SubprocessRunner:
       Nothing is spooled to disk.
     - Terminates the command's process tree when it times out or exceeds the
       output limit.
-    - After a normal exit, kills members left in the POSIX process group.
-    - Re-observes the tree. If its termination cannot be confirmed,
-      ``RunnerTerminationUnknown`` is raised instead of returning a result.
+    - After a normal exit, kills members left in the POSIX process group or
+      the Windows Job Object.
+    - Re-observes the tree. If its termination cannot be confirmed (including
+      every Windows case where the job could not be observed), or the output
+      could not be collected completely, ``RunnerTerminationUnknown`` is
+      raised instead of returning a result.
 
     ``launch``
-    - Arms a daemon timer.
-    - When ``spec.timeout`` expires, the timer terminates the tree if the
-      direct child is still running.
+    - Arms a daemon timer. When ``spec.timeout`` expires, the timer terminates
+      the tree if the direct child is still running.
+    - An unconfirmed deadline termination increments ``launch_unconfirmed``.
+    - The timer is a daemon thread: if this process exits before the
+      deadline, no termination happens.
 
-    The Windows paths (``taskkill /T /F``) are NOT_RUN.
+    The Windows paths (Job Object, ``taskkill /T /F`` fallback) are NOT_RUN.
     """
 
     source = "live"
 
     def __init__(self) -> None:
         self._launched: list = []
+        self._lock = threading.Lock()
+        self.launch_unconfirmed = 0
 
     def __repr__(self) -> str:
         return "SubprocessRunner()"
 
     @staticmethod
     def _resolve(spec: CommandSpec) -> tuple[list[str], dict[str, str]]:
+        for name, value in spec.env:
+            if _denied_variable(name, value):
+                raise ValueError("ENVIRONMENT_NOT_ALLOWLISTED")
         env = dict(spec.env)
-        search = next((value for name, value in env.items() if name.upper() == "PATH"), os.defpath)
+        search = next((value for name, value in env.items() if name.upper() == "PATH"), None)
+        if not search:
+            raise RunnerNotStarted()
+        explicit = bool(os.path.dirname(spec.argv[0]))
+        if explicit and not os.path.isabs(spec.argv[0]):
+            raise RunnerNotStarted()
         executable = shutil.which(spec.argv[0], path=search)
         if executable is None:
             raise RunnerNotStarted()
+        if not explicit:
+            # Windows shutil.which may try the current directory first.
+            allowed = {
+                os.path.normcase(os.path.normpath(entry))
+                for entry in search.split(os.pathsep) if entry and os.path.isabs(entry)
+            }
+            if os.path.normcase(os.path.dirname(os.path.abspath(executable))) not in allowed:
+                raise RunnerNotStarted()
         return [executable, *spec.argv[1:]], env
 
     def run(self, spec: CommandSpec) -> CommandResult:
@@ -230,15 +272,30 @@ class SubprocessRunner:
             raise RunnerTerminationUnknown()
         if outcome.state == _process.TIMEOUT:
             raise RunnerTimeout()
+        if outcome.state != _process.OVERFLOW and not outcome.complete:
+            # A read failure is not an output-limit truncation.
+            raise RunnerTerminationUnknown()
         stdout, stderr = outcome.streams
-        truncated = outcome.state == _process.OVERFLOW or not outcome.complete
-        return CommandResult(outcome.exit_code, stdout, stderr, truncated)
+        return CommandResult(outcome.exit_code, stdout, stderr, outcome.state == _process.OVERFLOW)
+
+    def _launch_deadline(self, process) -> None:
+        if not _terminate_after_deadline(process):
+            with self._lock:
+                self.launch_unconfirmed += 1
+
+    @staticmethod
+    def _still_tracked(process) -> bool:
+        if os.name == "nt":
+            return process.poll() is None  # the Popen handle keeps the PID valid
+        # Never reap here: the deadline timer may still signal the PGID.
+        return _process._peek_exit(process) is not True
 
     def launch(self, spec: CommandSpec) -> None:
         """Start the official interactive login without capturing its I/O.
 
         When ``spec.timeout`` expires and the direct child is still running,
-        its process tree is terminated.
+        its process tree is terminated. An unconfirmed termination increments
+        ``launch_unconfirmed``.
         """
         if type(spec) is not CommandSpec:
             raise TypeError("CommandSpec required")
@@ -249,10 +306,12 @@ class SubprocessRunner:
                                        **_process.popen_options(flags))
         except (OSError, subprocess.SubprocessError):
             raise RunnerNotStarted() from None
-        timer = threading.Timer(spec.timeout, _terminate_after_deadline, (process,))
+        _process.track_tree(process)
+        timer = threading.Timer(spec.timeout, self._launch_deadline, (process,))
         timer.daemon = True
         timer.start()
-        self._launched = [p for p in self._launched if p.poll() is None][-15:] + [process]
+        with self._lock:
+            self._launched = [p for p in self._launched if self._still_tracked(p)][-15:] + [process]
 
 
 __all__ = [

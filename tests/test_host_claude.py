@@ -45,7 +45,8 @@ ACCOUNT_A = "acct-synthetic-a"
 ACCOUNT_B = "acct-synthetic-b"
 PROMPT = "synthetic prompt body that must travel only on stdin"
 VERSION_OK = CommandResult(0, b"2.1.0 (Claude Code)\n")
-POSIX_ONLY = "The Windows process-tree path (taskkill /T /F) is NOT_RUN in this suite."
+POSIX_ONLY = "The Windows process-tree path (Job Object / taskkill) is NOT_RUN in this suite."
+POSIX_WAITID_ONLY = "Requires POSIX waitid(WNOWAIT); the Windows path is NOT_RUN in this suite."
 
 # A local synthetic child (not the host). It starts a sleeping grandchild,
 # records the grandchild PID, then floods output, sleeps, or exits at once.
@@ -924,6 +925,224 @@ class ClaudeHostBridgeTests(unittest.TestCase):
         self.assertEqual(result.stdout, b"200000")
         self.assertEqual(result.stderr, b"e" * 100)
         self.assertFalse(result.truncated)
+
+    # -- second review regressions (R2: process supervision and runner boundary) --
+    # Local synthetic processes or fake process objects only; none is the host.
+
+    @unittest.skipUnless(os.name == "posix" and hasattr(os, "waitid"), POSIX_WAITID_ONLY)
+    def test_r2_f1_group_is_reobserved_before_the_leader_is_reaped(self) -> None:
+        from aik_host_claude import _process
+
+        process = subprocess.Popen([sys.executable, "-c", "pass"], stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   **_process.popen_options())
+
+        def cleanup():
+            if process.returncode is None:
+                process.wait(timeout=5)
+
+        self.addCleanup(cleanup)
+        deadline = time.monotonic() + 10
+        while not _process.exited(process):
+            self.assertLess(time.monotonic(), deadline, "The synthetic leader did not exit.")
+            time.sleep(0.02)
+        self.assertIsNone(process.returncode)
+        leader_unreaped: list = []
+        real_confirm = _process._confirm_gone
+
+        def recording(pgid):
+            try:
+                leader_unreaped.append(os.waitid(os.P_PID, process.pid,
+                                                 os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None)
+            except ChildProcessError:
+                leader_unreaped.append(False)
+            return real_confirm(pgid)
+
+        with mock.patch.object(_process, "_confirm_gone", side_effect=recording):
+            self.assertTrue(_process.terminate_tree(process))
+        self.assertEqual(leader_unreaped, [True], "The leader was reaped before its group was re-observed.")
+        self.assertIsNotNone(process.returncode)
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r2_f1_already_reaped_leader_is_unconfirmed_without_signalling_its_group(self) -> None:
+        from aik_host_claude import _process
+
+        class ReapedLeader:
+            pid = 999999999  # never signalled: the helpers below are mocked
+            returncode = 0
+
+            def poll(self):
+                return 0
+
+            def wait(self, timeout=None):
+                return 0
+
+            def send_signal(self, sig):
+                raise AssertionError("A reaped leader must not be signalled.")
+
+        with mock.patch.object(_process, "_signal_group") as signal_group, \
+                mock.patch.object(_process, "_confirm_gone") as confirm:
+            self.assertFalse(_process.terminate_tree(ReapedLeader()))
+        signal_group.assert_not_called()
+        confirm.assert_not_called()
+
+    @unittest.skipUnless(os.name == "posix" and hasattr(os, "waitid"), POSIX_WAITID_ONLY)
+    def test_r2_f1_launch_bookkeeping_never_reaps_a_launched_process(self) -> None:
+        from aik_host_claude import _process
+
+        runner = SubprocessRunner()
+        env = build_environment(os.environ)
+        runner.launch(CommandSpec((sys.executable, "-c", "pass"), 20.0, 16, env))
+        first = runner._launched[-1]
+
+        def cleanup(process):
+            if process.returncode is None:
+                process.wait(timeout=5)
+
+        self.addCleanup(cleanup, first)
+        deadline = time.monotonic() + 10
+        while not _process.exited(first):
+            self.assertLess(time.monotonic(), deadline, "The synthetic launched process did not exit.")
+            time.sleep(0.02)
+        runner.launch(CommandSpec((sys.executable, "-c", "pass"), 20.0, 16, env))
+        self.addCleanup(cleanup, runner._launched[-1])
+        self.assertIsNone(first.returncode, "launch() reaped a process whose deadline timer may still signal it.")
+
+    def test_r2_f2_windows_tree_is_confirmed_only_by_job_observation(self) -> None:
+        from aik_host_claude import _process
+
+        class ExitedChild:
+            pid = 4242
+            returncode = 0
+
+            def poll(self):
+                return 0
+
+            def wait(self, timeout=None):
+                return 0
+
+            def kill(self):
+                pass
+
+        with mock.patch.object(_process, "_WINDOWS", True), \
+                mock.patch.object(_process, "_taskkill", return_value=True):
+            self.assertFalse(_process.terminate_tree(ExitedChild()),
+                             "A Windows tree without job observation was reported as confirmed.")
+            tracked = ExitedChild()
+            tracked._aik_job = 7
+            with mock.patch.object(_process, "_job_active", side_effect=[2, 0]), \
+                    mock.patch.object(_process, "_job_terminate") as terminate:
+                self.assertTrue(_process.terminate_tree(tracked))
+            terminate.assert_called_once_with(7)
+            with mock.patch.object(_process, "GRACE_SECONDS", 0.05), \
+                    mock.patch.object(_process, "_job_active", return_value=None), \
+                    mock.patch.object(_process, "_job_terminate"):
+                self.assertFalse(_process.terminate_tree(tracked))
+
+    def test_r2_f2_launched_process_is_tracked_for_tree_observation(self) -> None:
+        from aik_host_claude import _process
+        import aik_host_claude.runner as runner_module
+
+        spec = CommandSpec((sys.executable, "-c", "pass"), 0.5, 16, build_environment(os.environ))
+        child = mock.Mock(returncode=0)
+        with mock.patch.object(runner_module.subprocess, "Popen", return_value=child), \
+                mock.patch.object(_process, "track_tree") as track:
+            SubprocessRunner().launch(spec)
+        track.assert_called_once_with(child)
+
+    def test_r2_f3_live_runner_rejects_credential_environment_at_the_boundary(self) -> None:
+        import aik_host_claude.runner as runner_module
+
+        path_entry = ("PATH", os.path.dirname(sys.executable))
+        denied = (("ANTHROPIC_API_KEY", SECRET_MARKER), ("anthropic_base_url", SECRET_MARKER),
+                  ("CLAUDE_CODE_OAUTH_TOKEN", SECRET_MARKER), ("SYNTHETIC_SECRET", SECRET_MARKER),
+                  ("BAD=NAME", SECRET_MARKER), ("LANG", "C\0" + SECRET_MARKER))
+        with mock.patch.object(runner_module.subprocess, "Popen",
+                               side_effect=AssertionError("must not spawn")) as popen:
+            for name, value in denied:
+                with self.subTest(name=name):
+                    spec = CommandSpec((sys.executable, "-c", "pass"), 5.0, 16, (path_entry, (name, value)))
+                    with self.assertRaises(ValueError) as caught:
+                        SubprocessRunner().run(spec)
+                    self.assertEqual(str(caught.exception), "ENVIRONMENT_NOT_ALLOWLISTED")
+                    self.assertNotIn(SECRET_MARKER, str(caught.exception))
+                    with self.assertRaises(ValueError):
+                        SubprocessRunner().launch(spec)
+            popen.assert_not_called()
+
+    def test_r2_f4_live_runner_resolves_only_through_absolute_path_entries(self) -> None:
+        import aik_host_claude.runner as runner_module
+
+        with tempfile.TemporaryDirectory(prefix="aik-host-claude-resolve-") as temporary:
+            root = Path(temporary)
+            inside = root / "synthetic-bin"
+            outside = str(root / "elsewhere" / "claude")
+            specs = (
+                CommandSpec(("claude", "--version"), 1.0, 16, (("HOME", str(root)),)),
+                CommandSpec(("claude", "--version"), 1.0, 16, (("PATH", str(inside)),)),
+                CommandSpec(("relative/claude", "--version"), 1.0, 16, (("PATH", str(inside)),)),
+            )
+            with mock.patch.object(runner_module.shutil, "which", return_value=outside), \
+                    mock.patch.object(runner_module.subprocess, "Popen",
+                                      side_effect=AssertionError("must not spawn")) as popen:
+                for number, spec in enumerate(specs):
+                    with self.subTest(case=number):
+                        with self.assertRaises(RunnerNotStarted):
+                            SubprocessRunner().run(spec)
+                        with self.assertRaises(RunnerNotStarted):
+                            SubprocessRunner().launch(spec)
+                popen.assert_not_called()
+            with mock.patch.object(runner_module.shutil, "which", return_value=str(inside / "claude")), \
+                    mock.patch.object(runner_module.subprocess, "Popen", side_effect=OSError()) as popen:
+                with self.assertRaises(RunnerNotStarted):
+                    SubprocessRunner().run(CommandSpec(("claude", "--version"), 1.0, 16,
+                                                       (("PATH", str(inside)),)))
+                popen.assert_called_once()
+
+    def test_r2_f5_unconfirmed_launch_deadline_is_recorded(self) -> None:
+        import aik_host_claude.runner as runner_module
+
+        runner = SubprocessRunner()
+        self.assertEqual(getattr(runner, "launch_unconfirmed", None), 0)
+        spec = CommandSpec((sys.executable, "-c", "import time; time.sleep(30)"), 0.2, 16,
+                           build_environment(os.environ))
+        with mock.patch.object(runner_module, "_terminate_after_deadline", return_value=False):
+            runner.launch(spec)
+            process = runner._launched[-1]
+
+            def cleanup():
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=5)
+
+            self.addCleanup(cleanup)
+            deadline = time.monotonic() + 10
+            while getattr(runner, "launch_unconfirmed", None) != 1:
+                if time.monotonic() >= deadline:
+                    self.fail("An unconfirmed launch deadline termination was not recorded.")
+                time.sleep(0.02)
+
+    def test_r2_f6_incomplete_output_collection_is_unknown_not_truncated(self) -> None:
+        from aik_host_claude import _process
+        import aik_host_claude.runner as runner_module
+
+        spec = CommandSpec((sys.executable, "-c", "pass"), 5.0, 16, build_environment(os.environ))
+        incomplete = _process.Supervised(_process.EXITED, 0, (b"partial", b""), False, True)
+        overflowed = _process.Supervised(_process.OVERFLOW, -9, (b"x" * 16, b""), False, True)
+        with mock.patch.object(runner_module.subprocess, "Popen", return_value=mock.Mock()), \
+                mock.patch.object(_process, "supervise", return_value=incomplete):
+            with self.assertRaises(runner_module.RunnerTerminationUnknown):
+                SubprocessRunner().run(spec)
+        with mock.patch.object(runner_module.subprocess, "Popen", return_value=mock.Mock()), \
+                mock.patch.object(_process, "supervise", return_value=overflowed):
+            result = SubprocessRunner().run(spec)
+        self.assertTrue(result.truncated)
+        self.assertEqual(result.stdout, b"x" * 16)
+
+    def test_r2_f8_runner_documents_the_cleanup_grace_beyond_the_timeout(self) -> None:
+        import aik_host_claude.runner as runner_module
+
+        self.assertIn("GRACE_SECONDS", runner_module.__doc__)
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ fixture 통과는 실제 로그인 성공이 아니다. fixture 결과를 실측
 | 파일 | 역할 |
 |---|---|
 | `runner.py` | 아래 항목을 제공한다. 표준 라이브러리 `SubprocessRunner`의 실사용은 **NOT_RUN**이다.<br>- 주입형 `HostRunner`(`source`, `run`, `spawn`)<br>- `RunResult`<br>- 고정 코드 예외(`ProcessTreeUnconfirmed` 포함)<br>- 환경변수 allowlist<br>- `SubprocessRunner` |
-| `_process.py` | 패키지 내부 helper. 실행 중 출력 상한, 프로세스 트리 종료, 종료 재관측을 담당한다 |
+| `_process.py` | 패키지 내부 helper. 실행 중 출력 상한, 프로세스 트리 종료(POSIX process group / Windows Job Object), 종료 재관측을 담당한다 |
 | `protocol.py` | 미검증 CLI 가정을 모은 `CodexCliProtocol`. `LoginState`, `LoginMethod`, `ParsedStatus`를 정의한다. 다른 protocol 객체로 교체할 수 있다 |
 | `bridge.py` | `CodexHostBridge`(ProviderAdapter 구현), `HostCapability`(connection capability), `HostHandle`, `GUI_COMMANDS` |
 
@@ -40,12 +40,12 @@ fixture 통과는 실제 로그인 성공이 아니다. fixture 결과를 실측
 어떤 경로도 unsupported만 반환하는 stub이 아니다.
 
 로그인 프로세스에는 절대 기한(기본 600초, 최대 3600초)이 있다. 기한은 **지연(lazy) 집행**된다.
-- 별도 타이머가 없다.
+- 별도 타이머가 없다. `SubprocessRunner.spawn` 자체에는 기한이 없다(아래 §7).
 - 기한이 지난 뒤 처음으로 로그인 상태를 확인하는 bridge 호출이 프로세스를 종료하고 상태를 다시 관측한다. 해당 호출은 `probe`, `connect`/`reconnect`, `auth_status`, `start_login`/`begin_sign_in`, `sign_out`이다.
 - `probe`는 호스트 버전 확인 결과와 무관하게 기한을 집행한다.
 - bridge 호출이 없으면 기한이 지나도 로그인 프로세스는 남아 있다.
 
-`SubprocessRunner`가 반환하는 handle의 `terminate()`는 직접 자식이 실행 중이면 프로세스 트리 전체를 종료한다. POSIX는 group에 `SIGTERM`을 보내고 최대 5초 뒤 `SIGKILL`을 보낸다. Windows는 `taskkill /T /F`를 사용하며 **NOT_RUN**이다. 종료 확인 결과는 handle의 `termination_confirmed`에 남는다.
+`SubprocessRunner`가 반환하는 handle의 `terminate()`는 직접 자식이 실행 중이면 프로세스 트리 전체를 종료한다. POSIX는 group에 `SIGTERM`을 보내고 최대 5초 뒤 `SIGKILL`을 보낸다. Windows는 spawn 직후 할당한 전용 Job Object를 `TerminateJobObject`로 종료하며 **NOT_RUN**이다(Job 할당 실패 시 `taskkill /T /F` fallback, 결과는 항상 미확인). 종료 확인 결과는 handle의 `termination_confirmed`에 남는다.
 
 `describe()`의 capability는 다음과 같다.
 
@@ -145,15 +145,17 @@ ProviderAdapter 경로(`connect`/`reconnect`, `auth_status`, `begin_sign_in`, `s
 
 | 항목 | 값 |
 |---|---|
-| 명령 timeout | 기본 15초, 최대 120초, 절대 기한. 지나면 프로세스 트리 전체를 종료하고 `host_timeout` |
+| 명령 timeout (`run`) | 기본 15초, 최대 120초, 절대 기한. 지나면 프로세스 트리 전체를 종료하고 `host_timeout`<br>정리 유예: timeout 뒤 트리 종료·재관측·pipe 정리에 최대 약 `4 × GRACE_SECONDS`(20초)가 더 걸릴 수 있다. 예: `MAX_TIMEOUT=120`이면 벽시계로 약 140초까지 걸릴 수 있다 |
 | 출력 상한 | 기본 64 KiB, 최대 1 MiB. 실행 중 pipe에서 상한까지만 메모리에 기록하며 임시 파일은 쓰지 않는다. 초과하면 즉시 프로세스 트리를 종료하고 `host_output_limit` |
-| 프로세스 트리 | POSIX: `start_new_session=True`로 시작한 process group에 `SIGKILL`<br>Windows: `CREATE_NEW_PROCESS_GROUP`과 `%SYSTEMROOT%\System32\taskkill.exe /T /F` (**NOT_RUN**)<br>정상 종료 뒤 같은 group에 남은 자손도 종료한다(POSIX) |
-| 종료 재관측 | 종료 후 group 생존 여부를 다시 확인한다(Linux `/proc`, zombie 제외. 그 밖의 POSIX는 `killpg(pgid, 0)`)<br>확인하지 못하거나 pipe가 닫히지 않으면 `ProcessTreeUnconfirmed`(code `HOST_TERMINATION_UNKNOWN`, `RunnerTimeout` 하위)로 끝나며 결과를 반환하지 않는다 |
+| 프로세스 트리 | POSIX: `start_new_session=True`로 시작한 process group에 `SIGKILL`<br>Windows: `CREATE_NEW_PROCESS_GROUP`으로 시작한 뒤 전용 Job Object에 할당하고 `TerminateJobObject`. 할당 실패 시 `%SYSTEMROOT%\System32\taskkill.exe /T /F` (**NOT_RUN**)<br>정상 종료 뒤 같은 group·Job에 남은 자손도 종료한다 |
+| 종료 재관측 | POSIX: 직접 자식(group leader)은 group 재관측이 끝난 **뒤에** 회수한다. 회수 전 zombie가 PID·PGID 재사용을 막는다. 종료는 `waitid(WNOWAIT)`로 회수 없이 관측한다. group은 Linux `/proc`(zombie 제외)으로 확인한다. 그 밖의 POSIX의 `killpg(pgid, 0)`은 회수 전 leader도 세므로 미확인이 된다. leader가 이미 회수된 경우(`waitid` 미지원 등)에는 신호·재관측 없이 미확인<br>Windows: Job의 `ActiveProcesses`가 0일 때만 확인. Job 없이 `taskkill`만 쓴 경우는 항상 미확인<br>확인하지 못하거나 pipe가 닫히지 않으면 `ProcessTreeUnconfirmed`(code `HOST_TERMINATION_UNKNOWN`)로 끝나며 결과를 반환하지 않는다 |
 | stdin | 닫음 |
 | stderr | stdout에 병합 (상태 문구가 stderr로 나올 수 있다는 가정) |
-| 로그인 프로세스 출력 | 전부 버림 |
+| 로그인 프로세스(`spawn`) | 출력은 전부 버림. **자체 기한이 없다**(allowlist만 검사). 호출자가 handle의 `terminate()`를 불러야 하며, handle을 버리면 프로세스가 계속 남는다. bridge는 §3의 지연 기한으로 이를 호출한다 |
 | 실행 방식 | `shell=False`. 실행 파일은 전달한 환경의 `PATH`로만 `shutil.which` 해석 |
 | Windows | `CREATE_NO_WINDOW` |
+
+`ProcessTreeUnconfirmed`는 공개 계층 호환을 위해 `RunnerTimeout`의 하위 클래스로 유지한다. 따라서 `except RunnerTimeout`으로 받은 예외가 트리 종료 확정을 뜻하지는 않는다. 종료 확정은 정확히 `RunnerTimeout` 클래스로 발생한 경우뿐이며, `ProcessTreeUnconfirmed`는 timeout 없이 정상 종료한 뒤의 미확인에도 발생한다. `RunnerTimeout` docstring도 이 의미로 정정했다.
 
 `SubprocessRunner`의 실행 파일 해석 규칙은 다음과 같다.
 
@@ -221,7 +223,7 @@ bridge는 Codex 실행을 직접 구현하지 않는다. 주입한 `vm_runtime` 
 | 출력 위치 | stdout/stderr 중 어디인지 미확인 (병합해서 읽음) |
 | 단일 계정 | 하나의 설정 위치(`CODEX_HOME`)에 활성 로그인 하나 |
 | Windows | npm 설치본이 `codex.cmd`일 때 `CreateProcess` 경유 실행 |
-| 자손 프로세스 | 버전·상태·logout 명령이 종료 뒤에도 유지되어야 하는 자손을 같은 process group에 남기지 않음(남기면 runner가 종료함) |
+| 자손 프로세스 | 버전·상태·logout 명령이 종료 뒤에도 유지되어야 하는 자손을 같은 process group·Job Object에 남기지 않음(남기면 runner가 종료함) |
 
 위 가정이 실제와 다르면 fixture는 통과해도 실제 호스트에서 실패할 수 있다. 이때 결과는 `host_unsupported`·`unknown`·`account_unknown`이며 fail-closed로 동작한다. 검증된 형식이 확인되면 `protocol=`로 교체한다.
 
@@ -235,11 +237,12 @@ python -m unittest discover -s tests -p 'test_host_codex.py' -v
 |---|---|
 | 합성 runner·합성 VM runtime fixture | 개발용 단위 시험. 이 문서 작성 시점에 실행 결과 기록 없음 |
 | `SubprocessRunner` 한계(timeout·출력 상한·종료 코드) | 로컬 `sys.executable -c` 합성 프로세스로 시험을 추가함. 실행 결과 기록 없음. 실제 Codex와 무관 |
-| `SubprocessRunner` 프로세스 트리(POSIX 전용 시험) | 로컬 Python 자식·손자 프로세스로 시험을 추가함. 실행 결과 기록 없음<br>대상: 출력 상한 초과·timeout·정상 종료 뒤 손자 종료, timeout 지연 없음, spawn handle 종료, 종료 미확인의 `ProcessTreeUnconfirmed` 분류 |
+| `SubprocessRunner` 프로세스 트리(POSIX 전용 시험) | 로컬 Python 자식·손자 프로세스로 시험을 추가함. 실행 결과 기록 없음<br>대상: 출력 상한 초과·timeout·정상 종료 뒤 손자 종료, timeout 지연 없음, spawn handle 종료, 종료 미확인의 `ProcessTreeUnconfirmed` 분류, leader 회수 전 group 재관측, 이미 회수된 leader의 group 신호 생략 |
+| Windows 분기 판정(공통 시험) | 가짜 process 객체와 mock으로 Job 관측 없이는 미확인, `ActiveProcesses` 0 관측 시에만 확인됨을 시험함. spawn이 트리 추적을 호출함을 시험함. 실제 Windows Job Object는 만들지 않음. 실행 결과 기록 없음 |
 | 실제 Codex CLI 왕복(`SubprocessRunner`) | **NOT_RUN** |
 | 실제 구독 로그인·만료·계정 전환 | **NOT_RUN** (AIK-022) |
 | 사전 probe / governed 적합성 / 제품 실행 | **NOT_RUN** (AIK-082 / AIK-086 / AIK-044) |
-| Windows 실행 | **NOT_RUN**. 대상: `codex.cmd`, `CREATE_NO_WINDOW`/`CREATE_NEW_PROCESS_GROUP`, `taskkill /T /F`, PATH/cwd/`PATHEXT` 해석 |
+| Windows 실행 | **NOT_RUN**. 대상: `codex.cmd`, `CREATE_NO_WINDOW`/`CREATE_NEW_PROCESS_GROUP`, Job Object 할당·종료·재관측, `taskkill /T /F` fallback, PATH/cwd/`PATHEXT` 해석 |
 
 fixture가 다루는 범위는 다음과 같다.
 
@@ -275,10 +278,11 @@ Linux 통과는 개발 검증이며 Windows 지원 증거가 아니다.
 - `interrupt_job`은 현재 계정 인증을 요구한다. 작업 실행 중 호스트 로그아웃·계정 전환·버전 변경이 일어나면 이 bridge로는 그 작업을 중단할 수 없다. 이런 경우의 중단은 VM runtime/supervisor 쪽 경로가 필요하다.
 - 로그인 기한은 bridge 호출 시점에만 집행된다(§3). 호출이 없으면 기한이 지난 로그인 프로세스가 남는다. ProviderAdapter 경로가 버전 미지원으로 거절되기 전에 끝난 로그인은 재검증되지 않는다.
 - `SubprocessRunner`의 한계:
-  - 프로세스 트리 종료 범위는 POSIX의 같은 process group, Windows의 `taskkill /T` 트리다. `setsid`·새 session·별도 job으로 빠져나간 자손, Windows에서 부모가 이미 종료된 자손은 종료하지 않는다.
-  - Windows에서 정상 종료 뒤 남은 자손은 pipe를 붙잡지 않는 한 추적하지 않는다. timeout 직전에 직접 자식이 종료된 경합에서도 자손이 남을 수 있다(NOT_RUN).
-  - 트리 종료를 확인하지 못하면 `ProcessTreeUnconfirmed`로 끝난다. 아직 끝나지 않은 읽기 thread와 pipe는 정리하지 않고 남긴다.
-  - 로그인 프로세스 handle의 `terminate()`는 직접 자식이 이미 종료됐으면 아무것도 종료하지 않는다(브라우저 등 남은 프로세스 보존).
-  - 기한을 넘겨 종료된 로그인 프로세스의 브라우저 측 세션은 정리하지 않는다.
+  - 프로세스 트리 종료 범위는 POSIX의 같은 process group, Windows의 전용 Job Object 안의 프로세스다. `setsid`·새 session으로 빠져나간 자손과 Job에서 breakaway한 프로세스는 종료하지 않는다.
+  - Windows에서 `Popen` 반환 직후 Job에 할당하기 전에 자식이 만든 프로세스는 Job에 속하지 않아 종료·관측 대상이 아니다. 이 경합 창은 NOT_RUN이다.
+  - Windows에서 Job 할당에 실패하면 `taskkill /T /F`로 종료를 시도하지만 결과는 항상 미확인(`ProcessTreeUnconfirmed`)이다. Job의 `ActiveProcesses`가 0일 때만 종료 확인으로 본다(NOT_RUN).
+  - 트리 종료를 확인하지 못하면 `ProcessTreeUnconfirmed`로 끝난다. 아직 끝나지 않은 읽기·stdin thread와 pipe는 정리하지 않고 남긴다. 반복되면 호출마다 thread와 최대 상한만큼의 메모리가 남을 수 있다.
+  - `waitid`가 없거나 `/proc`이 없는 POSIX 플랫폼에서는 트리 종료를 확인하지 못해 미확인으로 끝난다. 이 플랫폼들은 지원 대상이 아니다.
+  - 로그인 프로세스 handle의 `terminate()`는 직접 자식이 이미 종료됐으면 아무것도 종료하지 않는다(브라우저 등 남은 프로세스 보존). 기한을 넘겨 종료된 로그인 프로세스의 브라우저 측 세션은 정리하지 않는다.
   - Windows의 `PATHEXT`는 부모 프로세스 환경에서 읽힌다(§7, NOT_RUN).
 - streaming 실행, 장시간 작업 재연결, 다중 profile 동시 사용은 구현하지 않았다.
