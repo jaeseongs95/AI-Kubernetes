@@ -382,6 +382,11 @@ class DevToolsTests(unittest.TestCase):
         with self.assertRaises(InvalidDevToolPolicy) as context:
             VerificationCommand("shell", ("/bin/sh", "-c", "true"))
         self.assertEqual(context.exception.code, DevToolCode.UNSUPPORTED_CAPABILITY)
+        # Relative or drive-less shell names are still shells, not just invalid paths.
+        for shell in (("sh", "-c", "true"), ("cmd.exe", "/c", "echo"), ("C:\\Windows\\System32\\cmd.exe",)):
+            with self.subTest(shell=shell), self.assertRaises(InvalidDevToolPolicy) as raised:
+                VerificationCommand("shell", shell)
+            self.assertEqual(raised.exception.code, DevToolCode.UNSUPPORTED_CAPABILITY)
         for argv in (("python3", "-c", "pass"), [PYTHON, "-c", "pass"], ("C:\\x\\run.bat",)):
             with self.subTest(argv=argv), self.assertRaises(InvalidDevToolPolicy):
                 VerificationCommand("bad", argv)

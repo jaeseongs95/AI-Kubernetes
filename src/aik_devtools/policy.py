@@ -126,13 +126,15 @@ class VerificationCommand:
             if type(argument) is not str or len(argument) > MAX_ARGUMENT_CHARS or "\x00" in argument:
                 raise InvalidDevToolPolicy(subject="argv")
         executable = self.argv[0]
-        if not executable or not os.path.isabs(executable):
-            # No PATH lookup: the executable identity is fixed by the policy.
-            raise InvalidDevToolPolicy(subject="argv")
+        # Classify shells/scripts first, on every OS: "/bin/sh" is not an
+        # absolute path on Windows, but it is still an unsupported capability.
         name = ntpath.basename(executable).casefold()
         stem, extension = os.path.splitext(name)
         if name in SHELL_EXECUTABLES or stem in SHELL_EXECUTABLES or extension in _SCRIPT_EXTENSIONS:
             raise InvalidDevToolPolicy(D.UNSUPPORTED_CAPABILITY, subject="argv")
+        if not executable or not os.path.isabs(executable):
+            # No PATH lookup: the executable identity is fixed by the policy.
+            raise InvalidDevToolPolicy(subject="argv")
         timeout = self.timeout_seconds
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not math.isfinite(timeout) \
                 or not 0 < timeout <= MAX_TIMEOUT_SECONDS:
