@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-13T14:31:28Z`
+- 수정일 (UTC): `2026-10-13T14:36:19Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 54개 · 진행 중 0개 · 진행 차단 34개 · 완료 2개 · 취소 0개
+- 상태: 미착수 52개 · 진행 중 0개 · 진행 차단 36개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -34,7 +34,7 @@ python tools/backlog.py report
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 0 | 0 | 7 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 1 | 0 | 13 | 0 | 0 | 0 |
-| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 13 | 0 | 14 | 0 | 0 | 0 |
+| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 11 | 0 | 16 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
 | M4 · Windows 첫 배포 검증 | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
@@ -1451,13 +1451,13 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Runtime observer |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E06 · 배치·worker 수명 |
 | 실행 순서 | 42 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T14:36:19Z` |
 
 실제 job 상태, 결과, 모델/effort와 사용량을 adapter를 통해 관측한다.
 
@@ -1476,7 +1476,7 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-036-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-036` · 부분 구현: commit 74adac1, tests/test_observer.py 14개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 없음(단위 범위); 차단: 선행 AIK-035·082 미완료; 실제 provider stream·receipt adapter(OpenAI·Anthropic·native host) 연결 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T14:36:19Z`
 
 ### AIK-037
 
@@ -1484,13 +1484,13 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Evidence relay |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E07 · 관측·감사·비용 |
 | 실행 순서 | 43 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T14:36:19Z` |
 
 worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AGS 판정 근거에 연결한다.
 
@@ -1510,7 +1510,7 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-037-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-037` · 부분 구현: commit 74adac1, tests/test_evidence.py 10개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 3(부분), 4(부분); 차단: 선행 AIK-017·036·084 미완료; GUI 열기·저장 연결 없음; 보관 범위·기간 정책 미정; 후속 Task 입력 binding 미연결. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T14:36:19Z`
 
 ### AIK-038
 
@@ -3740,7 +3740,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-13T14:31:28Z |
+| `updated_at` | 2026-10-13T14:36:19Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

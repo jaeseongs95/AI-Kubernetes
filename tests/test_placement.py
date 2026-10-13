@@ -7,6 +7,7 @@ development verification; Windows behaviour is NOT_RUN.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
@@ -322,7 +323,8 @@ class PlacementTests(unittest.TestCase):
         rest = self.journal.decisions(after_seq=records[-1]["seq"])
         self.assertEqual([record["decision_id"] for record in records + rest],
                          [decision.decision_id for decision in decisions])
-        with sqlite3.connect(self.journal_path) as connection:
+        # closing(): a sqlite3 context manager only commits; Windows cannot delete an open file.
+        with closing(sqlite3.connect(self.journal_path)) as connection:
             with self.assertRaises(sqlite3.DatabaseError):
                 connection.execute("UPDATE decisions SET status = 'placed'")
             with self.assertRaises(sqlite3.DatabaseError):
