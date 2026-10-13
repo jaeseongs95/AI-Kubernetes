@@ -98,6 +98,8 @@ def run_tests():
 
 
 def main():
+    if not __debug__:
+        raise RuntimeError("Run without optimization so evidence assertions remain active")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prepare", action="store_true")
     args = parser.parse_args()
@@ -140,11 +142,14 @@ def main():
         conn.execute("INSERT INTO task_evidence(id,task_id,kind,reference,summary,recorded_at) VALUES(?,?,?,?,?,?)",
                      (EVIDENCE, TASK, "partial_implementation_validation", REF, summary, timestamp))
         conn.execute("INSERT INTO task_events(task_id,event_type,old_status,new_status,note,occurred_at) VALUES(?,?,?,?,?,?)",
-                     (TASK, "implementation_validation", "todo", "blocked", summary, timestamp))
+                     (TASK, "status_change", "todo", "blocked", summary, timestamp))
         after = snapshot(conn)
         validate_delta(conn, before, after, timestamp)
         assert schema_before == [tuple(r) for r in conn.execute("SELECT type,name,sql FROM sqlite_master ORDER BY type,name")]
         final = inspect_ledger(conn)
+        sys.path.insert(0, str(ROOT / "tools"))
+        from backlog import require_valid
+        require_valid(conn)  # validate audit continuity before committing the transaction
     conn.close()
     for subcommand in ("validate", "export", "report"):
         subprocess.run([sys.executable, str(ROOT / "tools/backlog.py"), subcommand], cwd=ROOT, check=True)
