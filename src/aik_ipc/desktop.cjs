@@ -1,9 +1,9 @@
 "use strict";
 
-// AIK-004: a renderer-facing, read-only IPC boundary. All decisions about
-// the caller and active workspace come from the trusted Electron main process.
-// Do not expose dispatch() or a generic invoke() method in a renderer preload.
+// AIK-004: read-only renderer IPC. Native main owns caller/workspace binding.
+// Do not expose this router or a generic invoke method through the preload.
 const {performance} = require("node:perf_hooks");
+const {types} = require("node:util");
 
 const CHANNEL = "aik:desktop:v1";
 const VERSION = 1;
@@ -22,6 +22,7 @@ const MESSAGES = Object.freeze({
   UNSUPPORTED_COMMAND: "The IPC command is not available to the renderer.",
   DUPLICATE_REQUEST: "The request identifier was already used.",
   BACKEND_UNAVAILABLE: "The backend cannot provide the requested state.",
+  BACKEND_TIMEOUT: "The backend did not respond within the request deadline.",
   INVALID_RESPONSE: "The backend returned an invalid response.",
   ROUTER_BUSY: "The IPC router has reached its bounded concurrency limit."
 });
@@ -32,48 +33,63 @@ function ownData(object, key) {
 }
 
 function exactPlain(value, fields) {
-  if (value === null || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype) return false;
+  // Reject Proxy *before* any operation that could invoke its traps.
+  if (value === null || typeof value !== "object" || types.isProxy(value) ||
+      Object.getPrototypeOf(value) !== Object.prototype) return false;
   const keys = Reflect.ownKeys(value);
   return keys.length === fields.length && keys.every((key) => typeof key === "string" &&
     fields.includes(key) && Object.hasOwn(Object.getOwnPropertyDescriptor(value, key), "value"));
 }
 
+function readRequest(value) {
+  if (!exactPlain(value, REQUEST_FIELDS)) return {code: "INVALID_REQUEST"};
+  const version = ownData(value, "protocol_version");
+  if (!Number.isSafeInteger(version) || version !== VERSION) return {code: "INCOMPATIBLE_PROTOCOL"};
+  const id = ownData(value, "request_id");
+  if (typeof id !== "string" || !UUID_V4.test(id)) return {code: "INVALID_REQUEST"};
+  const workspace = ownData(value, "workspace_id");
+  if (typeof workspace !== "string" || !WORKSPACE.test(workspace)) return {code: "INVALID_REQUEST"};
+  const command = ownData(value, "command");
+  if (typeof command !== "string" || !COMMANDS.has(command)) return {code: "UNSUPPORTED_COMMAND"};
+  if (!exactPlain(ownData(value, "payload"), [])) return {code: "INVALID_REQUEST"};
+  // All accepted values are bounded ASCII primitives. Allow 160 extra bytes
+  // for envelope punctuation/keys, without invoking a caller's toJSON hook.
+  if (id.length + workspace.length + command.length + 160 > MAX_FRAME_BYTES) return {code: "INVALID_REQUEST"};
+  return {request: Object.freeze({protocol_version: VERSION, request_id: id,
+    workspace_id: workspace, command, payload: Object.freeze({})})};
+}
+
 function requestCode(value) {
-  try {
-    if (!exactPlain(value, REQUEST_FIELDS)) return "INVALID_REQUEST";
-    const version = ownData(value, "protocol_version");
-    if (!Number.isSafeInteger(version) || version !== VERSION) return "INCOMPATIBLE_PROTOCOL";
-    const id = ownData(value, "request_id");
-    if (typeof id !== "string" || !UUID_V4.test(id)) return "INVALID_REQUEST";
-    const workspace = ownData(value, "workspace_id");
-    if (typeof workspace !== "string" || !WORKSPACE.test(workspace)) return "INVALID_REQUEST";
-    const command = ownData(value, "command");
-    if (typeof command !== "string" || !COMMANDS.has(command)) return "UNSUPPORTED_COMMAND";
-    if (!exactPlain(ownData(value, "payload"), [])) return "INVALID_REQUEST";
-    if (Buffer.byteLength(JSON.stringify(value), "utf8") > MAX_FRAME_BYTES) return "INVALID_REQUEST";
-    return null;
-  } catch {
-    return "INVALID_REQUEST";
-  }
+  try { return readRequest(value).code ?? null; }
+  catch { return "INVALID_REQUEST"; }
 }
 
 function safeRequestId(request) {
   try {
-    if (!request || typeof request !== "object") return null;
+    if (!request || typeof request !== "object" || types.isProxy(request)) return null;
     const id = ownData(request, "request_id");
     return typeof id === "string" && UUID_V4.test(id) ? id : null;
   } catch { return null; }
 }
 
 function failed(request, code) {
-  const error = {code, message: MESSAGES[code] || MESSAGES.BACKEND_UNAVAILABLE};
-  if (code === "INCOMPATIBLE_PROTOCOL") error.supported_versions = [VERSION];
-  return {protocol_version: VERSION, request_id: safeRequestId(request), ok: false, error};
+  const selected = typeof code === "string" && Object.hasOwn(MESSAGES, code) ? code : "BACKEND_UNAVAILABLE";
+  const error = {code: selected, message: MESSAGES[selected]};
+  if (selected === "INCOMPATIBLE_PROTOCOL") error.supported_versions = Object.freeze([VERSION]);
+  return Object.freeze({protocol_version: VERSION, request_id: safeRequestId(request),
+    ok: false, error: Object.freeze(error)});
+}
+
+function statusSnapshot(value) {
+  if (!exactPlain(value, ["state", "director_state"])) return null;
+  const state = ownData(value, "state"), director = ownData(value, "director_state");
+  if (!STATES.has(state) || !DIRECTOR_STATES.has(director)) return null;
+  return Object.freeze({state, director_state: director});
 }
 
 function validStatus(value) {
-  return exactPlain(value, ["state", "director_state"]) &&
-    STATES.has(ownData(value, "state")) && DIRECTOR_STATES.has(ownData(value, "director_state"));
+  try { return statusSnapshot(value) !== null; }
+  catch { return false; }
 }
 
 function trustedSender(event, webContents, appUrl) {
@@ -85,68 +101,122 @@ function trustedSender(event, webContents, appUrl) {
 }
 
 class DesktopRouter {
-  constructor({readStatus = null, maxInflight = 8, replayLimit = 4096, replayWindowMs = 600000, clock = () => performance.now()} = {}) {
+  constructor({readStatus = null, maxInflight = 8, replayLimit = 4096, replayWindowMs = 600000,
+    requestTimeoutMs = 5000, clock = () => performance.now()} = {}) {
     if (readStatus !== null && typeof readStatus !== "function") throw new TypeError("readStatus must be a function");
     if (!Number.isInteger(maxInflight) || maxInflight < 1 || maxInflight > 64) throw new RangeError("maxInflight");
-    if (!Number.isInteger(replayLimit) || replayLimit < maxInflight) throw new RangeError("replayLimit");
-    if (!Number.isSafeInteger(replayWindowMs) || replayWindowMs < 1000 || typeof clock !== "function") throw new RangeError("replayWindowMs");
+    if (!Number.isInteger(replayLimit) || replayLimit < maxInflight || replayLimit > 65536) throw new RangeError("replayLimit");
+    if (!Number.isSafeInteger(replayWindowMs) || replayWindowMs < 1000 || replayWindowMs > 86400000 ||
+        typeof clock !== "function") throw new RangeError("replayWindowMs");
+    if (!Number.isInteger(requestTimeoutMs) || requestTimeoutMs < 1 || requestTimeoutMs > 60000) throw new RangeError("requestTimeoutMs");
     this.readStatus = readStatus;
     this.maxInflight = maxInflight;
     this.replayLimit = replayLimit;
     this.replayWindowMs = replayWindowMs;
+    this.requestTimeoutMs = requestTimeoutMs;
     this.clock = clock;
+    this.lastNow = 0;
     this.seen = new Map();
     this.inflight = 0;
   }
 
-  async dispatch(event, request, {getWindow, getWorkspaceId, appUrl = "aik://app/index.html"}) {
-    // These callbacks must be owned by Electron main, NEVER by an IPC payload.
-    let webContents;
-    try { webContents = getWindow()?.webContents; } catch { return failed(request, "BACKEND_UNAVAILABLE"); }
-    if (!trustedSender(event, webContents, appUrl)) return failed(request, "UNTRUSTED_SENDER");
-    const bad = requestCode(request);
-    if (bad) return failed(request, bad);
-    const command = request.command;
-    let workspaceId;
-    try { workspaceId = getWorkspaceId(); } catch { return failed(request, "BACKEND_UNAVAILABLE"); }
-    if (command === "protocol.handshake") {
-      if (request.workspace_id !== "unbound") return failed(request, "UNKNOWN_WORKSPACE");
-    } else if (typeof workspaceId !== "string" || !WORKSPACE.test(workspaceId) ||
-               request.workspace_id !== workspaceId || workspaceId === "unbound") {
-      return failed(request, "UNKNOWN_WORKSPACE");
-    }
-    const now = this.clock();
-    for (const [id, expires] of this.seen) {
-      if (expires <= now) this.seen.delete(id);
-      else break; // insertion order and fixed replay window
-    }
-    if (this.seen.has(request.request_id)) return failed(request, "DUPLICATE_REQUEST");
-    if (this.inflight >= this.maxInflight || this.seen.size >= this.replayLimit) {
-      return failed(request, "ROUTER_BUSY"); // fail closed rather than silently evict replay evidence
-    }
-    this.seen.set(request.request_id, now + this.replayWindowMs);
-    this.inflight += 1;
+  now() {
+    const value = this.clock();
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 ||
+        value > Number.MAX_SAFE_INTEGER - this.replayWindowMs) throw new Error("BACKEND_UNAVAILABLE");
+    this.lastNow = Math.max(this.lastNow, value); // rollback must not shorten a replay fence
+    return this.lastNow;
+  }
+
+  complete(entry) {
+    entry.pending = false;
+    try { entry.expires = this.now() + this.replayWindowMs; }
+    catch { entry.expires = Infinity; } // unknown time cannot justify deleting a fence
+  }
+
+  async readBounded(request, workspaceId, entry) {
+    this.inflight++;
+    const controller = new AbortController();
+    let timedOut = false, finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      this.inflight--; this.complete(entry);
+    };
+    const success = value => {
+      try {
+        if (timedOut) return {code: "BACKEND_TIMEOUT"}; // do not read a late result's properties
+        const result = statusSnapshot(value);
+        return result ? {result} : {code: "INVALID_RESPONSE"};
+      } catch { return {code: "INVALID_RESPONSE"}; }
+      finally { finish(); }
+    };
+    const failure = () => { finish(); return {code: "BACKEND_UNAVAILABLE"}; };
+    let returned;
     try {
-      let result;
-      if (command === "protocol.handshake") {
-        result = {ipc_version: VERSION, boundary: "RENDERER_READ_ONLY", backend_state: "NOT_QUALIFIED"};
+      returned = this.readStatus(workspaceId, Object.freeze({
+        signal: controller.signal, requestId: request.request_id
+      }));
+    } catch { return failure(); }
+    // Only native Promises or a plain status DTO are supported. Arbitrary
+    // thenables/Proxies cannot run code through Promise assimilation.
+    if (!types.isPromise(returned)) return success(returned);
+    let operation;
+    try { operation = Promise.prototype.then.call(returned, success, failure); }
+    catch { return failure(); }
+    let timer;
+    const timeout = new Promise(resolve => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        resolve({code: "BACKEND_TIMEOUT"});
+        controller.abort(); // cooperative cancellation; not evidence of completion
+      }, this.requestTimeoutMs);
+    });
+    try { return await Promise.race([operation, timeout]); }
+    finally { clearTimeout(timer); }
+    // The operation's settlement handlers retain/release the physical slot.
+    // A timeout alone never releases capacity for another stalled operation.
+  }
+
+  async dispatch(event, supplied, {getWindow, getWorkspaceId, appUrl = "aik://app/index.html"} = {}) {
+    let request = supplied;
+    try {
+      const contents = getWindow()?.webContents;
+      if (!trustedSender(event, contents, appUrl)) return failed(request, "UNTRUSTED_SENDER");
+      const decoded = readRequest(supplied);
+      if (decoded.code) return failed(request, decoded.code);
+      request = decoded.request; // use only owned, frozen primitives after validation
+      const caller = Object.freeze({sender: contents, senderFrame: contents.mainFrame});
+      const handshake = request.command === "protocol.handshake";
+      const workspaceId = getWorkspaceId();
+      if (handshake ? request.workspace_id !== "unbound" :
+          typeof workspaceId !== "string" || !WORKSPACE.test(workspaceId) ||
+          request.workspace_id !== workspaceId || workspaceId === "unbound") return failed(request, "UNKNOWN_WORKSPACE");
+      const now = this.now();
+      for (const [id, entry] of this.seen) {
+        if (!entry.pending && entry.expires <= now) this.seen.delete(id);
+      }
+      const key = request.request_id.toLowerCase();
+      if (this.seen.has(key)) return failed(request, "DUPLICATE_REQUEST");
+      if ((!handshake && this.inflight >= this.maxInflight) || this.seen.size >= this.replayLimit) return failed(request, "ROUTER_BUSY");
+      const entry = {pending: true, expires: Infinity};
+      this.seen.set(key, entry);
+      let outcome;
+      if (handshake) {
+        outcome = {result: Object.freeze({ipc_version: VERSION, boundary: "RENDERER_READ_ONLY", backend_state: "NOT_QUALIFIED"})};
+        this.complete(entry);
+      } else if (this.readStatus === null) {
+        this.complete(entry);
+        outcome = {code: "BACKEND_UNAVAILABLE"};
       } else {
-        if (this.readStatus === null) return failed(request, "BACKEND_UNAVAILABLE");
-        result = await this.readStatus(workspaceId);
-        if (!validStatus(result)) return failed(request, "INVALID_RESPONSE");
+        outcome = await this.readBounded(request, workspaceId, entry);
       }
-      // An asynchronous status lookup must not return stale workspace data.
-      if (!trustedSender(event, getWindow()?.webContents, appUrl)) return failed(request, "UNTRUSTED_SENDER");
-      if (command !== "protocol.handshake" && getWorkspaceId() !== workspaceId) {
-        return failed(request, "UNKNOWN_WORKSPACE");
-      }
-      return {protocol_version: VERSION, request_id: request.request_id, workspace_id: request.workspace_id,
-        command, ok: true, result};
-    } catch {
-      return failed(request, "BACKEND_UNAVAILABLE"); // never serialize exception or secret-bearing stack
-    } finally {
-      this.inflight -= 1;
-    }
+      if (!trustedSender(caller, getWindow()?.webContents, appUrl)) return failed(request, "UNTRUSTED_SENDER");
+      if (!handshake && getWorkspaceId() !== workspaceId) return failed(request, "UNKNOWN_WORKSPACE");
+      if (outcome.code) return failed(request, outcome.code);
+      return Object.freeze({protocol_version: VERSION, request_id: request.request_id,
+        workspace_id: request.workspace_id, command: request.command, ok: true, result: outcome.result});
+    } catch { return failed(request, "BACKEND_UNAVAILABLE"); }
   }
 }
 
