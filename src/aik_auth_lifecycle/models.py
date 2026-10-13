@@ -81,7 +81,18 @@ class AuthSnapshot:
 
     @property
     def placeable(self) -> bool:
+        """Authentication side only: the connection auth is valid and not deleted.
+
+        This ignores registry probes, verification and qualification. A True
+        value does not mean a route is placeable; use
+        AuthLifecycle.placement_candidates() for actual placement.
+        """
         return self.state is AuthState.VALID and not self.deleted
+
+    @property
+    def auth_valid(self) -> bool:
+        """Clearer alias of placeable: authentication is valid now (no qualification implied)."""
+        return self.placeable
 
 
 @dataclass(frozen=True, slots=True)

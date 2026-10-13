@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -231,6 +232,81 @@ class AuthLifecycleTests(unittest.TestCase):
             life.revalidate(binding.connection_id, snap.revision)
         self.assertEqual(raised.exception.code, "NO_REVALIDATION_SOURCE")
 
+    def test_probe_exception_withdraws_previous_validation(self):
+        # F6: a failed probe must not keep the earlier valid state.
+        adapter = FakeAdapter()
+        binding = session_binding()
+        registry = self.make_registry(binding, adapter)
+        life = AuthLifecycle(clock=self.clock, registry=registry)
+        life.register(binding)
+        cid = binding.connection_id
+        snap = life.revalidate(cid, 1)
+        self.assertIs(snap.state, AuthState.VALID)
+        failure = RuntimeError("synthetic probe failure " + SECRET_MARKER)
+        with mock.patch.object(ResourcePoolRegistry, "probe", side_effect=failure):
+            snap = life.revalidate(cid, snap.revision)
+        self.assertIs(snap.state, AuthState.UNKNOWN)
+        self.assertEqual((life.events()[-1].kind, life.events()[-1].reason),
+                         (AuthEventKind.REVALIDATION_FAILED, "probe_failed"))
+        with self.assertRaises(AuthenticationRequired):
+            life.begin_run(cid, "run-after-probe-failure")
+        self.assertNotIn(SECRET_MARKER, repr(life.events()))
+        self.assertEqual(adapter.effects, [])
+
+    def test_forged_observation_is_rejected_with_fixed_code(self):
+        # F8: observations are rebuilt like bindings; a forged state gives a fixed code.
+        life = AuthLifecycle(clock=self.clock)
+        binding = session_binding()
+        life.register(binding)
+        forged = authenticated(binding)
+        object.__setattr__(forged, "state", "authenticated")
+        with self.assertRaises(AuthLifecycleError) as raised:
+            life.revalidate(binding.connection_id, 1, observation=forged)
+        self.assertEqual(raised.exception.code, "INVALID_OBSERVATION")
+        snap = life.snapshot(binding.connection_id)
+        self.assertEqual((snap.state, snap.revision), (AuthState.UNKNOWN, 1))
+
+    def test_auth_valid_alias_does_not_imply_qualified_placement(self):
+        # F10: the snapshot only describes authentication, not qualification.
+        adapter = FakeAdapter()
+        binding = session_binding()
+        registry = self.make_registry(binding, adapter)
+        life = AuthLifecycle(clock=self.clock, registry=registry)
+        life.register(binding)
+        snap = life.revalidate(binding.connection_id, 1)
+        self.assertTrue(snap.auth_valid)
+        self.assertEqual(snap.auth_valid, snap.placeable)
+        self.assertEqual(life.placement_candidates(), ())
+
+    def test_reported_expiry_blocks_new_runs_and_reauthentication_restores(self):
+        life = AuthLifecycle(clock=self.clock)
+        binding = self.valid_session(life)
+        cid = binding.connection_id
+        life.begin_run(cid, "run-before-expiry")
+        snap = life.mark_expired(cid, 2)
+        self.assertIs(snap.state, AuthState.EXPIRED)
+        event = life.events()[-1]
+        self.assertEqual((event.kind, event.reason), (AuthEventKind.EXPIRED, "reported"))
+        self.assertTrue(event.reauth_required)
+        with self.assertRaises(AuthenticationRequired):
+            life.begin_run(cid, "run-after-expiry")
+        # A reported expiry does not settle running work.
+        self.assertIs(life.run("run-before-expiry").status, RunStatus.ACTIVE)
+        with self.assertRaises(RevisionConflict):
+            life.mark_expired(cid, 2)
+        renewed = session_binding(revision=2)
+        snap = life.reauthenticate(cid, renewed, snap.revision)
+        self.assertIs(snap.state, AuthState.UNKNOWN)
+        record = life.run("run-before-expiry")
+        self.assertEqual((record.status, record.reclaim_reason), (RunStatus.RECLAIM_REQUIRED, "reauthenticated"))
+        snap = life.revalidate(cid, snap.revision, observation=authenticated(renewed))
+        self.assertIs(snap.state, AuthState.VALID)
+        self.assertEqual(life.begin_run(cid, "run-renewed").binding.revision, 2)
+        logout = life.force_logout(cid, snap.revision)
+        with self.assertRaises(AuthLifecycleError) as raised:
+            life.mark_expired(cid, logout.revision)
+        self.assertEqual(raised.exception.code, "REAUTH_REQUIRED")
+
     # ----------------------------------------------------------------- 기준 2
     def test_rotation_new_runs_use_new_reference_and_old_runs_require_reclaim(self):
         vault, checker = self.make_vault()
@@ -275,6 +351,100 @@ class AuthLifecycleTests(unittest.TestCase):
         self.assertEqual((closed.status, closed.outcome), (RunStatus.CLOSED, "succeeded"))
         self.assertIs(life.run("run-new").status, RunStatus.ACTIVE)
 
+    def test_refs_in_use_keeps_old_reference_until_reclaim_closes(self):
+        # F3: callers can see which old reference is still needed for reclaim.
+        vault, checker = self.make_vault()
+        ref1 = vault.put("synthetic-api-key-version-1")
+        life = AuthLifecycle(clock=self.clock, credential_checker=checker)
+        b1 = api_binding(ref1)
+        life.register(b1)
+        self.assertEqual(life.refs_in_use(), (ref1,))
+        life.revalidate("conn-api", 1, observation=authenticated(b1))
+        life.begin_run("conn-api", "run-old")
+        life.begin_rotation("conn-api", 2)
+        ref2 = vault.put("synthetic-api-key-version-2")
+        b2 = api_binding(ref2, revision=2)
+        snap = life.complete_rotation("conn-api", b2, 3)
+        self.assertEqual(set(life.refs_in_use()), {ref1, ref2})
+        pending = life.runs(status=RunStatus.RECLAIM_REQUIRED)
+        self.assertEqual([(r.run_id, r.credential_ref) for r in pending], [("run-old", ref1)])
+        life.record_observation(receipt("run-old", b1, JobState.CANCELLED))
+        self.assertEqual(life.refs_in_use(), (ref2,))
+        life.delete_connection("conn-api", snap.revision)
+        self.assertEqual(life.refs_in_use(), ())
+
+    def test_job_receipt_is_bound_to_first_observed_job(self):
+        # F4: a receipt of another job with the same binding cannot close the run.
+        life = AuthLifecycle(clock=self.clock)
+        binding = self.valid_session(life)
+        cid = binding.connection_id
+        life.begin_run(cid, "run-r1")
+        running = life.record_observation(receipt("run-r1", binding, JobState.RUNNING))
+        self.assertIs(running.status, RunStatus.ACTIVE)
+        foreign = JobReceipt("run-r1", "job-other", cid, binding.revision, binding.account_fingerprint,
+                             JobState.SUCCEEDED)
+        with self.assertRaises(AuthLifecycleError) as raised:
+            life.record_observation(foreign)
+        self.assertEqual(raised.exception.code, "RECEIPT_MISMATCH")
+        record = life.run("run-r1")
+        self.assertEqual((record.status, record.outcome), (RunStatus.ACTIVE, None))
+        closed = life.record_observation(receipt("run-r1", binding, JobState.SUCCEEDED))
+        self.assertEqual((closed.status, closed.outcome), (RunStatus.CLOSED, "succeeded"))
+
+    def test_clock_failure_during_terminal_observation_leaves_run_open(self):
+        # F5: the clock is read before the run is closed.
+        failing = {"on": False}
+
+        def flaky_clock():
+            if failing["on"]:
+                raise OSError("synthetic clock failure")
+            return self.clock()
+
+        life = AuthLifecycle(clock=flaky_clock)
+        binding = self.valid_session(life)
+        life.begin_run(binding.connection_id, "run-clock")
+        failing["on"] = True
+        with self.assertRaises(AuthLifecycleError) as raised:
+            life.record_observation(receipt("run-clock", binding, JobState.FAILED))
+        self.assertEqual(raised.exception.code, "CLOCK_UNAVAILABLE")
+        failing["on"] = False
+        record = life.run("run-clock")
+        self.assertEqual((record.status, record.outcome), (RunStatus.ACTIVE, None))
+        self.assertNotIn(AuthEventKind.RUN_CLOSED, [e.kind for e in life.events()])
+        closed = life.record_observation(receipt("run-clock", binding, JobState.FAILED))
+        self.assertEqual((closed.status, closed.outcome), (RunStatus.CLOSED, "failed"))
+        self.assertEqual(life.events()[-1].kind, AuthEventKind.RUN_CLOSED)
+
+    def test_rotation_survives_clock_expiry_and_lock_until_completed(self):
+        vault, checker = self.make_vault()
+        ref1 = vault.put("synthetic-api-key-version-1")
+        signal = ManualLockSignal()
+        life = AuthLifecycle(clock=self.clock, credential_checker=checker, vault_lock_source=signal,
+                             policy=LockPolicy(vault_lock_blocks=True))
+        b1 = api_binding(ref1)
+        life.register(b1, expires_at=self.clock.now + timedelta(seconds=60))
+        life.revalidate("conn-api", 1, observation=authenticated(b1))
+        snap = life.begin_rotation("conn-api", 2)
+        self.clock.advance(120)
+        snap = life.snapshot("conn-api")
+        self.assertIs(snap.state, AuthState.ROTATING)
+        signal.lock()
+        snap = life.snapshot("conn-api")
+        self.assertEqual((snap.state, snap.lock_reasons), (AuthState.LOCKED, ("vault",)))
+        ref2 = vault.put("synthetic-api-key-version-2")
+        b2 = api_binding(ref2, revision=2)
+        with self.assertRaises(AuthLifecycleError) as raised:
+            life.complete_rotation("conn-api", b2, snap.revision)
+        self.assertEqual(raised.exception.code, "LOCKED")
+        signal.unlock()
+        snap = life.snapshot("conn-api")
+        self.assertIs(snap.state, AuthState.ROTATING)
+        snap = life.complete_rotation("conn-api", b2, snap.revision,
+                                      expires_at=self.clock.now + timedelta(hours=1))
+        self.assertEqual((snap.state, snap.credential_version), (AuthState.UNKNOWN, 2))
+        snap = life.revalidate("conn-api", snap.revision, observation=authenticated(b2))
+        self.assertIs(snap.state, AuthState.VALID)
+
     def test_concurrent_rotation_is_serialized_by_revision(self):
         life = AuthLifecycle(clock=self.clock)
         binding = self.valid_session(life)
@@ -294,6 +464,7 @@ class AuthLifecycleTests(unittest.TestCase):
             thread.start()
         for thread in threads:
             thread.join(timeout=10)
+            self.assertFalse(thread.is_alive())
         self.assertEqual(sorted(outcomes), ["conflict", "ok"])
         snap = life.snapshot(binding.connection_id)
         self.assertEqual((snap.state, snap.revision), (AuthState.ROTATING, 3))
@@ -322,6 +493,7 @@ class AuthLifecycleTests(unittest.TestCase):
             thread.start()
         for thread in threads:
             thread.join(timeout=10)
+            self.assertFalse(thread.is_alive())
         self.assertEqual(sorted(outcomes), ["conflict", "ok"])
         snap = life.snapshot(cid)
         if not snap.deleted:
@@ -341,6 +513,14 @@ class AuthLifecycleTests(unittest.TestCase):
         with self.assertRaises(AuthLifecycleError) as raised:
             life.register(binding)
         self.assertEqual(raised.exception.code, "DUPLICATE_CONNECTION")
+
+    def test_reauthenticate_on_deleted_connection_with_current_revision_is_unknown(self):
+        life = AuthLifecycle(clock=self.clock)
+        binding = self.valid_session(life)
+        snap = life.delete_connection(binding.connection_id, 2)
+        with self.assertRaises(UnknownConnection):
+            life.reauthenticate(binding.connection_id, session_binding(revision=2), snap.revision)
+        self.assertTrue(life.snapshot(binding.connection_id).deleted)
 
     # ----------------------------------------------------------------- 기준 3
     def test_vault_lock_policy_blocks_api_connections_and_requires_revalidation(self):
@@ -377,6 +557,59 @@ class AuthLifecycleTests(unittest.TestCase):
         kinds = [e.kind for e in life.events() if e.connection_id == "conn-api"]
         self.assertIn(AuthEventKind.LOCKED, kinds)
         self.assertIn(AuthEventKind.UNLOCKED, kinds)
+
+    def test_lock_and_unlock_between_polls_invalidates_validation_and_reclaims(self):
+        # F1: a lock that starts and ends between two polls must not be missed.
+        vault, checker = self.make_vault()
+        ref = vault.put("synthetic-api-key")
+        signal = ManualLockSignal()
+        life = AuthLifecycle(clock=self.clock, credential_checker=checker, vault_lock_source=signal,
+                             policy=LockPolicy(vault_lock_blocks=True, reclaim_running_on_lock=True))
+        api = api_binding(ref)
+        life.register(api)
+        life.revalidate("conn-api", 1, observation=authenticated(api))
+        session = self.valid_session(life)
+        life.begin_run("conn-api", "run-a")
+
+        signal.lock()
+        signal.unlock()
+        self.assertEqual(signal.generation, 1)
+        snap = life.snapshot("conn-api")
+        self.assertEqual((snap.state, snap.lock_reasons), (AuthState.UNKNOWN, ()))
+        with self.assertRaises(AuthenticationRequired):
+            life.begin_run("conn-api", "run-b")
+        record = life.run("run-a")
+        self.assertEqual((record.status, record.reclaim_reason, record.outcome),
+                         (RunStatus.RECLAIM_REQUIRED, "lock:vault", None))
+        locked = [e for e in life.events() if e.kind is AuthEventKind.LOCKED and e.connection_id == "conn-api"]
+        self.assertEqual([e.reason for e in locked], ["lock_missed:vault"])
+        # The vault lock does not apply to host-session connections.
+        self.assertIs(life.snapshot(session.connection_id).state, AuthState.VALID)
+        # The pulse is consumed once; a later poll without a new lock changes nothing.
+        self.assertEqual(life.snapshot("conn-api").revision, snap.revision)
+        snap = life.revalidate("conn-api", snap.revision, observation=authenticated(api))
+        self.assertIs(snap.state, AuthState.VALID)
+
+    def test_default_lock_policy_keeps_running_work_active(self):
+        vault, checker = self.make_vault()
+        ref = vault.put("synthetic-api-key")
+        signal = ManualLockSignal()
+        life = AuthLifecycle(clock=self.clock, credential_checker=checker, vault_lock_source=signal,
+                             policy=LockPolicy(vault_lock_blocks=True))
+        api = api_binding(ref)
+        life.register(api)
+        life.revalidate("conn-api", 1, observation=authenticated(api))
+        life.begin_run("conn-api", "run-a")
+        signal.lock()
+        self.assertIs(life.snapshot("conn-api").state, AuthState.LOCKED)
+        record = life.run("run-a")
+        self.assertEqual((record.status, record.reclaim_reason), (RunStatus.ACTIVE, None))
+        signal.unlock()
+        signal.lock()
+        signal.unlock()
+        self.assertIs(life.snapshot("conn-api").state, AuthState.UNKNOWN)
+        self.assertIs(life.run("run-a").status, RunStatus.ACTIVE)
+        self.assertNotIn(AuthEventKind.RECLAIM_REQUIRED, [e.kind for e in life.events()])
 
     def test_session_lock_signal_failures_are_fail_closed_and_policy_can_reclaim(self):
         class Signal:
@@ -450,6 +683,28 @@ class AuthLifecycleTests(unittest.TestCase):
         self.assertNotIn(closed.outcome, ("succeeded", "refunded"))
         with self.assertRaises(AuthLifecycleError):
             life.record_observation(receipt("run-in-flight", binding, JobState.SUCCEEDED))
+
+    def test_forced_logout_recovers_only_after_reauthentication_and_revalidation(self):
+        life = AuthLifecycle(clock=self.clock)
+        binding = self.valid_session(life)
+        cid = binding.connection_id
+        snap = life.force_logout(cid, 2)
+        with self.assertRaises(AuthLifecycleError) as raised:
+            life.begin_rotation(cid, snap.revision)
+        self.assertEqual(raised.exception.code, "REAUTH_REQUIRED")
+        renewed = session_binding(revision=2)
+        snap = life.reauthenticate(cid, renewed, snap.revision)
+        self.assertIs(snap.state, AuthState.UNKNOWN)
+        self.assertFalse(snap.auth_valid)
+        with self.assertRaises(AuthenticationRequired):
+            life.begin_run(cid, "run-before-revalidation")
+        snap = life.revalidate(cid, snap.revision, observation=authenticated(binding))
+        self.assertIs(snap.state, AuthState.UNKNOWN)
+        self.assertEqual(life.events()[-1].reason, "stale_observation")
+        snap = life.revalidate(cid, snap.revision, observation=authenticated(renewed))
+        self.assertIs(snap.state, AuthState.VALID)
+        ticket = life.begin_run(cid, "run-after-relogin")
+        self.assertEqual((ticket.binding.revision, ticket.credential_version), (2, 1))
 
     # ----------------------------------------------------------------- 기타
     def test_vault_reference_checks_are_fail_closed(self):

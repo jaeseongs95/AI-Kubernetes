@@ -47,6 +47,7 @@ _PROBE_STATES = {
     "unauthenticated": AuthState.EXPIRED,
     "locked": AuthState.LOCKED,
 }
+_UNREADABLE = object()
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -85,6 +86,19 @@ def _rebuild_binding(value: object) -> ConnectionBinding:
         raise AuthLifecycleError("INVALID_BINDING") from None
 
 
+def _rebuild_observation(value: object) -> AuthObservation:
+    # Like bindings, observations are reconstructed so a forged field fails with a fixed code.
+    if type(value) is not AuthObservation:
+        raise AuthLifecycleError("INVALID_OBSERVATION")
+    try:
+        rebuilt = AuthObservation(**{f.name: getattr(value, f.name) for f in fields(AuthObservation)})
+    except (TypeError, ValueError, AttributeError):
+        raise AuthLifecycleError("INVALID_OBSERVATION") from None
+    if type(rebuilt.state) is not ProviderAuthState:
+        raise AuthLifecycleError("INVALID_OBSERVATION")
+    return rebuilt
+
+
 class _Record:
     __slots__ = ("connection_id", "binding", "base", "revision", "credential_version",
                  "expires_at", "locks", "deleted")
@@ -108,7 +122,7 @@ class _Record:
 
 
 class _Run:
-    __slots__ = ("run_id", "binding", "credential_version", "status", "outcome", "reason")
+    __slots__ = ("run_id", "binding", "credential_version", "status", "outcome", "reason", "job_id")
 
     def __init__(self, run_id: str, binding: ConnectionBinding, credential_version: int):
         self.run_id = run_id
@@ -117,6 +131,7 @@ class _Run:
         self.status = RunStatus.ACTIVE
         self.outcome: str | None = None
         self.reason: str | None = None
+        self.job_id: str | None = None  # Bound by the first accepted receipt.
 
     def record(self) -> RunRecord:
         return RunRecord(self.run_id, self.binding.connection_id, self.binding.revision,
@@ -158,6 +173,10 @@ class AuthLifecycle:
         self._runs: dict[str, _Run] = {}
         self._events: deque = deque(maxlen=max_events)
         self._listener_failures = 0
+        self._generations: dict[str, int | None] = {}
+        for kind, source in (("vault", vault_lock_source), ("session", session_lock_source)):
+            generation = self._read_generation(source)
+            self._generations[kind] = generation if type(generation) is int else None
         self._lock = RLock()
 
     # ------------------------------------------------------------ plumbing
@@ -212,20 +231,55 @@ class AuthLifecycle:
             return True  # An unreadable signal is treated as locked (fail-closed).
         return value if type(value) is bool else True
 
+    @staticmethod
+    def _read_generation(source):
+        """None when the source declares no generation; _UNREADABLE when it is broken."""
+        if source is None:
+            return None
+        try:
+            value = getattr(source, "generation")
+        except AttributeError:
+            return None
+        except Exception:
+            return _UNREADABLE
+        return value if type(value) is int else _UNREADABLE
+
+    def _observe(self, kind: str, source) -> tuple:
+        """Return (locked now, a lock happened since the previous poll)."""
+        locked = self._signal(source)
+        generation = self._read_generation(source)
+        if generation is _UNREADABLE:
+            return True, False  # A broken lock history is treated as locked (fail-closed).
+        if generation is None:
+            return locked, False
+        previous = self._generations.get(kind)
+        self._generations[kind] = generation
+        return locked, previous is not None and generation != previous
+
     def _poll(self, pending: list) -> datetime:
         now = self._now()
-        vault = self._policy.vault_lock_blocks and self._signal(self._vault_source)
-        session = self._policy.session_lock_blocks and self._signal(self._session_source)
+        vault, vault_pulse = (self._observe("vault", self._vault_source)
+                              if self._policy.vault_lock_blocks else (False, False))
+        session, session_pulse = (self._observe("session", self._session_source)
+                                  if self._policy.session_lock_blocks else (False, False))
         for cid in sorted(self._records):
             rec = self._records[cid]
             if rec.deleted:
                 continue
             wanted = set()
-            if vault and rec.binding.auth_kind is AuthKind.API_KEY:
-                wanted.add(LOCK_VAULT)
+            pulsed = set()
+            if rec.binding.auth_kind is AuthKind.API_KEY:
+                if vault:
+                    wanted.add(LOCK_VAULT)
+                if vault_pulse:
+                    pulsed.add(LOCK_VAULT)
             if session:
                 wanted.add(LOCK_SESSION)
+            if session_pulse:
+                pulsed.add(LOCK_SESSION)
             wanted = frozenset(wanted)
+            # A lock set and released between two polls is not visible in the level.
+            missed = frozenset(pulsed) - wanted - rec.locks
             if wanted != rec.locks:
                 newly = wanted - rec.locks
                 rec.locks = wanted
@@ -238,6 +292,14 @@ class AuthLifecycle:
                     self._emit(pending, AuthEventKind.UNLOCKED, rec, now, "unlocked")
                 if newly and self._policy.reclaim_running_on_lock:
                     self._reclaim(pending, rec, now, "lock:" + ",".join(sorted(newly)))
+            if missed:
+                label = ",".join(sorted(missed))
+                if rec.base is AuthState.VALID:
+                    rec.base = AuthState.UNKNOWN
+                self._bump(rec)
+                self._emit(pending, AuthEventKind.LOCKED, rec, now, "lock_missed:" + label)
+                if self._policy.reclaim_running_on_lock:
+                    self._reclaim(pending, rec, now, "lock:" + label)
             if rec.expires_at is not None and now >= rec.expires_at and \
                     rec.base in (AuthState.VALID, AuthState.UNKNOWN):
                 rec.base = AuthState.EXPIRED
@@ -344,8 +406,7 @@ class AuthLifecycle:
                 raise AuthLifecycleError("REAUTH_REQUIRED")
             routes = ()
             if observation is not None:
-                if type(observation) is not AuthObservation:
-                    raise AuthLifecycleError("INVALID_OBSERVATION")
+                observation = _rebuild_observation(observation)
             else:
                 routes = self._routes(rec.connection_id)
                 if not routes:
@@ -376,12 +437,17 @@ class AuthLifecycle:
         if observation.state is ProviderAuthState.AUTHENTICATED and \
                 observation.account_fingerprint != binding.account_fingerprint:
             return AuthState.UNKNOWN, "account_changed"
-        return _PROVIDER_STATES[observation.state], "observation:" + observation.state.value
+        return _PROVIDER_STATES.get(observation.state, AuthState.UNKNOWN), "observation:" + observation.state.value
 
     def _from_probe(self, binding: ConnectionBinding, routes: tuple) -> tuple:
         results = []
         for status in routes:
-            probed = self._registry.probe(status.pool_id, status.model)
+            try:
+                probed = self._registry.probe(status.pool_id, status.model)
+            except Exception:
+                # A failed revalidation withdraws the earlier validation; no provider text is kept.
+                results.append((AuthState.UNKNOWN, "probe_failed"))
+                continue
             if probed.connection_revision != binding.revision:
                 results.append((AuthState.UNKNOWN, "stale_binding"))
             else:
@@ -522,7 +588,11 @@ class AuthLifecycle:
             return RunTicket(run_id, connection_id, rec.binding, rec.credential_version)
 
     def record_observation(self, receipt: JobReceipt) -> RunRecord:
-        """Apply an actual job observation made with the run's original binding."""
+        """Apply an actual job observation made with the run's original binding and job.
+
+        The first accepted receipt binds the run to its job_id; a receipt for a
+        different job is rejected as RECEIPT_MISMATCH.
+        """
         if type(receipt) is not JobReceipt:
             raise AuthLifecycleError("INVALID_RECEIPT")
         with self._operation() as pending:
@@ -533,15 +603,22 @@ class AuthLifecycle:
             if (receipt.connection_id, receipt.revision, receipt.account_fingerprint) != (
                     binding.connection_id, binding.revision, binding.account_fingerprint):
                 raise AuthLifecycleError("RECEIPT_MISMATCH")
+            if run.job_id is not None and receipt.provider_job_id != run.job_id:
+                raise AuthLifecycleError("RECEIPT_MISMATCH")
             if run.status is RunStatus.CLOSED:
                 if run.outcome != receipt.state.value:
                     raise AuthLifecycleError("RUN_ALREADY_CLOSED")
                 return run.record()
-            if receipt.state in TERMINAL:
+            terminal = receipt.state in TERMINAL
+            # Read the clock before any mutation so a clock failure leaves the run unchanged.
+            now = self._now() if terminal else None
+            if run.job_id is None:
+                run.job_id = receipt.provider_job_id
+            if terminal:
                 run.status = RunStatus.CLOSED
                 run.outcome = receipt.state.value
                 rec = self._records[binding.connection_id]
-                self._emit(pending, AuthEventKind.RUN_CLOSED, rec, self._now(), run.outcome, (run.run_id,))
+                self._emit(pending, AuthEventKind.RUN_CLOSED, rec, now, run.outcome, (run.run_id,))
             return run.record()
 
     def run(self, run_id: str) -> RunRecord:
@@ -558,6 +635,19 @@ class AuthLifecycle:
                 if (connection_id is None or run.binding.connection_id == connection_id)
                 and (status is None or run.status is status)
             )
+
+    def refs_in_use(self) -> tuple:
+        """Credential reference locators that must not be deleted yet.
+
+        Includes the current binding of every non-deleted connection and the
+        original binding of every run that is not closed (active or awaiting
+        reclaim). This is advice for the caller; it does not block vault deletion.
+        """
+        with self._lock:
+            refs = {rec.binding.credential_ref for rec in self._records.values() if not rec.deleted}
+            refs.update(run.binding.credential_ref for run in self._runs.values()
+                        if run.status is not RunStatus.CLOSED)
+            return tuple(sorted(refs))
 
     # ------------------------------------------------------------ queries
     def poll(self) -> tuple:
@@ -591,6 +681,8 @@ class AuthLifecycle:
 
         require_qualified=True uses operational_inventory (qualified routes only);
         False uses executable_now for diagnostics and development checks.
+        The auth exclusion holds only for callers of this method (or begin_run);
+        reading the registry directly bypasses it.
         """
         if self._registry is None:
             raise AuthLifecycleError("NO_REGISTRY")

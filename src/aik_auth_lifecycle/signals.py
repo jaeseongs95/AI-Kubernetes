@@ -1,4 +1,9 @@
-"""Injectable lock signal sources. A source is a callable returning True when locked."""
+"""Injectable lock signal sources. A source is a callable returning True when locked.
+
+A source may also expose an integer ``generation`` attribute that increases on
+every lock. AuthLifecycle compares it between polls, so a lock that was set and
+released between two polls still invalidates earlier validation.
+"""
 
 from __future__ import annotations
 
@@ -15,15 +20,22 @@ class ManualLockSignal:
         if type(locked) is not bool:
             raise AuthLifecycleError("INVALID_LOCK_SIGNAL")
         self._locked = locked
+        self._generation = 1 if locked else 0
         self._guard = Lock()
 
     def lock(self) -> None:
         with self._guard:
             self._locked = True
+            self._generation += 1  # Monotonic: records that a lock happened, even if released later.
 
     def unlock(self) -> None:
         with self._guard:
             self._locked = False
+
+    @property
+    def generation(self) -> int:
+        with self._guard:
+            return self._generation
 
     def __call__(self) -> bool:
         with self._guard:
@@ -35,6 +47,8 @@ def windows_session_locked() -> bool:
 
     NOT_RUN: this has not been executed on Windows. Outside Windows it raises,
     and AuthLifecycle treats a raising source as locked (fail-closed).
+    This source has no ``generation``: a session lock that starts and ends
+    between two polls is not observed.
     """
     if os.name != "nt":
         raise AuthLifecycleError("SESSION_SIGNAL_UNAVAILABLE")
