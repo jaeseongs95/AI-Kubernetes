@@ -8,6 +8,7 @@
 - 독립 CI는 `.github/workflows/aik-modules.yml`(Ubuntu·Windows, Python 3.14.8)로 연결했다. 그 실행 결과는 이 기록에 포함하지 않으며, CI 통과도 제품 qualification이 아니다.
 - 구현 초안과 독립 검토·수정은 Claude API(Opus) 호출로 만들었다. 적용·시험·판정·commit은 세션 총괄이 수행했다. 각 태스크는 독립 검토 finding을 반영한 수정 commit을 포함한다(일부는 검토 진행 중).
 - VM 인터페이스 중 일부(실행 binding extension, 효과 intent/receipt port)는 현재 upstream에 없는 **가정 확장**이다. 실제 설치형 upstream에 연결하기 전에는 통합 완료로 처리하지 않는다.
+- 실제 연결 근거: VM 어댑터의 고정 revision 소스 적합성 시험([vm-bridge 문서](../../../docs/vm-bridge.ko.md)), Anthropic Messages API 최소 진단([기록](../../provider-adapter/2026-10-13-anthropic-live-probe/README.ko.md)), Windows CI(`aik-modules.yml`)가 찾은 Windows 결함 수정(file ID 범위, shell 분류 순서).
 - 각 태스크의 완료 기준 판정은 API가 장부 명세와 구현 문서를 대조해 만든 초안이다. 세션 총괄이 현재 코드와 대조해 일부를 정정했다. `단위 범위 충족`은 합성 시험 범위에서의 판단이며 완료 판정이 아니다.
 
 ## AIK-006
@@ -158,7 +159,7 @@
 
 - 구현: AnthropicAdapter를 구현했다. 키 등록·인증 확인·Messages 호출·교체·해제, model·usage·cache·도구 변환, 잘림 비승격, 공통 오류 매핑, qualification NOT_RUN 분리를 포함한다.
 - 검증: 합성 fake transport와 fake vault로 인증·호출·usage/cache·도구 loop·잘림·401/429/404/timeout·교체·해제 fixture 시험을 작성했다. 문서에는 실행 결과 기록이 없다.
-- 커밋: `42c5a12`, `00ed825`
+- 커밋: `42c5a12`, `00ed825`, `8d9cf5c`
 - 시험: `tests/test_adapter_anthropic.py` (42개)
 
 | 완료 기준 | 판정 | 근거 |
@@ -177,6 +178,58 @@
 - 실제 키 인증(AIK-022)
 - runtime·도구 실행과 제품 통합(AIK-082/086/044)
 - Windows 실행(DPAPI vault 포함)
+
+## AIK-014
+
+- 구현: src/aik_host_codex에 인증 시작·상태·재연결·해제·취소 경로, host handle, 분리된 HostCapability, 계정 binding revision 대조, VM runtime 위임을 구현했다.
+- 검증: tests/test_host_codex.py의 합성 runner·합성 VM runtime fixture와 로컬 Python 합성 프로세스 시험 범위의 개발 검증이다. 문서에는 실행 결과 기록이 없다. runner 출력 상한·프로세스 트리 종료·재관측은 독립 검토 2회 반영 후 Linux 단위 시험 통과, Windows Job Object 분기는 windows-2022 CI 외 NOT_RUN.
+- 커밋: `861db1f`, `592a418`, `74b22f2`, `67fe942`
+- 시험: `tests/test_host_codex.py` (38개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | 5개 GUI command의 코드 경로가 stub 없이 구현됐고 성공/실패는 합성 fixture로만 다룬다. fixture 결과를 실제 로그인 성공으로 기록하지 않는다. |
+| 2 | 단위 범위 충족 | host-session handle만 사용하고 토큰·세션 파일을 읽지 않는다. OPENAI_API_KEY는 제외한다. absent/unsupported/expired를 별도 필드·코드로 보고한다. |
+| 3 | 부분 | stale·재연결과 qualification NOT_RUN 분리는 구현됐다. 다만 fingerprint는 가명화 값이고, binding 상태는 메모리 전용이라 재시작 후 펜싱이 불완전하다. |
+
+차단 사유:
+- 선행 AIK-008·AIK-011의 완료 근거가 이 문서에 없음
+- CLI 명령·상태 문구·계정 식별자 출력 가정을 공식 근거로 확인하지 못함(식별자가 없으면 binding 생성 불가)
+- 영속 binding·reconciliation은 AIK-031/033/035/038 범위
+- ProcessTreeUnconfirmed의 bridge native_code 매핑 미확인
+- 실제 인증·사전 probe·governed 근거(AIK-022/082/086) 부재
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 Codex CLI 왕복(SubprocessRunner)
+- 실제 구독 로그인·만료·계정 전환(AIK-022)
+- 사전 probe(AIK-082)·governed qualification(AIK-086)·제품 실행(AIK-044)
+- Windows 실행(codex.cmd, CREATE_NO_WINDOW, taskkill /T /F, PATH/cwd/PATHEXT 해석)
+
+## AIK-015
+
+- 구현: src/aik_host_claude에 인증 시작·상태·실행 요청·해제·재연결 경로, 무작위 host handle, catalog/실측 분리 capability, 선택 계정 binding 검증을 구현했다.
+- 검증: tests/test_host_claude.py의 합성 fake runner fixture와 로컬 Python 자식 프로세스 시험 범위의 개발 검증이다. 문서에는 실행 결과 기록이 없다. runner 출력 상한·프로세스 트리 종료·재관측은 독립 검토 2회 반영 후 Linux 단위 시험 통과, Windows Job Object 분기는 windows-2022 CI 외 NOT_RUN.
+- 커밋: `78bf3b2`, `f956ccf`, `74b22f2`, `67fe942`
+- 시험: `tests/test_host_claude.py` (51개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | 5개 코드 경로가 CommandSpec을 만들고 출력을 해석하며 stub이 아니다. 성공/실패는 합성 fixture로만 다루고 실제 실행 성공으로 기록하지 않는다. |
+| 2 | 단위 범위 충족 | 토큰·설정 파일을 읽지 않고 handle과 fingerprint만 보관한다. host absent/unsupported/expired를 별도 host_state·reason으로 구분한다. |
+| 3 | 부분 | configured/observed 모델 분리와 reconnect_required는 구현됐다. 그러나 선택 계정 생략 시에도 실행이 가능하고, 격리 single_active는 실측이 아닌 가정이다. |
+
+차단 사유:
+- 선행 AIK-008·AIK-011의 완료 근거가 이 문서에 없음
+- claude auth status JSON·실행 출력·종료 코드 가정 미확인
+- handle·revision·receipt가 메모리 전용이며 재시작 대조는 AIK-031/033/035/038 범위
+- RunnerTerminationUnknown의 bridge 처리 전제 미확인
+- 실제 근거(AIK-022/082/086) 부재
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 Claude Code 구독 인증(AIK-022)
+- 사전 probe·runtime 실행·제품 통합(AIK-082/086/044)
+- SubprocessRunner의 Claude Code 대상 실행
+- Windows 동작(.cmd, CREATE_NEW_PROCESS_GROUP 등, taskkill /T /F, launch 기한 종료)
 
 ## AIK-016
 
@@ -368,6 +421,112 @@
 - 실제 AGS/VM 이벤트 연결과 상류 재시도 계약 확인
 - 대규모 큐 처리량·전원 차단
 
+## AIK-026
+
+- 구현: src/aik_controller에 VM 공개 명령으로 Goal을 위임·회수·보고하는 bounded loop, 순수 decide 결정 표, RunPolicy, GatewayCommandAuthority adapter를 구현했다.
+- 검증: tests/test_controller.py에서 fake EngineApplication 위의 실제 VmBridge와 fake 위임·authority·wake·시계로 합성 상태 전이를 검사했다. 문서에는 실행 결과 기록이 없다.
+- 커밋: `7ec1c93`, `6de6faa`
+- 시험: `tests/test_controller.py` (42개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | Goal/Plan/Task는 VM prepare/revise/replan으로만 변경하고 DAG·ready 판정은 VM이 소유한다. status payload 계약은 가정이다. |
+| 2 | 단위 범위 충족 | authority 검사 뒤 VM ready 작업만 run_once로 요청한다. blocked/unknown/validation_failed에 따라 정지·관측·replan을 결정하며 fake로 검증했다. |
+| 3 | 단위 범위 충족 | model_reported는 기록만 한다. goal_complete는 passed GoalVerdict와 비어 있지 않은 evidence가 있을 때만 성립하도록 강제한다. |
+| 4 | 단위 범위 충족 | A/B→C 입력 전달, 실패 후 replan·새 attempt, Goal Test, final_report 인계를 fake VM fixture로 검사했다. 실제 E2E는 AIK-044/059 gate다. |
+
+차단 사유:
+- 선행 AIK-025는 부분 구현이고 AIK-029·AIK-031의 완료 근거가 문서에 없음
+- 실제 VM status는 aik_vm_bridge.engine_port 정규화로 고정 revision(32bb0f9) 소스와 대조했으나 final_report·전체 Goal 흐름은 실제 VM에서 미검증
+- 실제 AuthorityGateway ExecutionDecision 반환 계약 미확인
+- 미해결 effect 기억이 메모리 전용이라 재시작 내구성 없음
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 모델·VM 설치물·AGS·provider E2E(AIK-044/059 합성 목표 gate)
+- 실제 AuthorityGateway 세션 결합
+- Windows 실행
+
+## AIK-027
+
+- 구현: src/aik_continuity에 append-only SQLite 지시·정정·설정 revision·VM 참조 checkpoint, handoff, VM status만 호출하는 Resumer를 구현했다. AGS 원장 참조는 미구현이다.
+- 검증: tests/test_continuity.py에서 OS 임시 폴더 합성 DB와 fake VM read port, subprocess 재기동 모사로 검사했다. 문서에는 실행 결과 기록이 없다.
+- 커밋: `f56057c`, `0cbd5e1`
+- 시험: `tests/test_continuity.py` (22개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | 원문을 seq 순서로 보존한다. replace/supplement/withdraw 범위와 대상 규칙을 저장 시 검사하며, 재열기 후 보존을 합성 DB로 검사했다. |
+| 2 | 부분 | 미완료 task·evidence는 VM status 재조회로 회수한다. 그러나 AGS 원장 참조는 미구현이고, 허용 범위는 인가 revision 비교만 한다. |
+| 3 | 단위 범위 충족 | Resumer는 효과 명령 경로가 없다. 기존 Goal/attempt ID와 checkpoint revision으로 continue하고, 불일치 시 사용자 확인으로 정지한다. |
+
+차단 사유:
+- AGS 원장 참조·회수 경로 미구현
+- 선행 AIK-025·AIK-026이 부분 구현 상태
+- VM status 대조는 engine_port 경유로만 확인, continuity 재개 경로의 실제 VM 실행 미검증
+- Controller·Director와의 checkpoint 저장 자동 연결 미구현
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 VM 설치물 status payload 대조
+- Windows 11 실행(msvcrt 잠금, %LOCALAPPDATA% 경로)
+- 실제 총괄 모델의 문맥 축약
+- 강제 종료 후 hot journal 복구
+
+## AIK-029
+
+- 구현: aik_authority에 정책·프로필·VM 인가·위임·broker 범위의 교집합으로 허용하는 scoped tool gateway와 authorization mapper, effect identity·digest·효과 종류 규칙, 가정된 VM 효과 port 연결을 구현했다.
+- 검증: fake 시계·lease checker·VM effect port와 합성 ID로 거부 경로, 동일 인가 재사용, 범위 확대, stale revision, 효과 종류 규칙을 단위시험 대상으로 작성했다. 문서에는 실행 결과 기록이 없다.
+- 커밋: `92a73be`, `61f6ef5`
+- 시험: `tests/test_authority.py` (31개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | delegate가 총괄 범위를 새 승인 없이 전달하고, 동일 인가를 재사용하는 경로를 fake 단위시험 대상으로 문서화했다. |
+| 2 | 부분 | 도구·대상·효과·입력 revision 이탈은 SCOPE_ESCALATION·STALE_INPUT_REVISION으로 거절한다. VM 공개 계약 코드 대응은 가정이며 설치형 VM과 대조하지 않았다. |
+| 3 | 부분 | handle만 전달하고 worker 위임 금지와 예약 도구 거절을 구현했다. 이름 필터는 best-effort이며, 같은 프로세스 안 handle 보유자와 OS 격리는 처리하지 않는다. |
+| 4 | 부분 | digest를 Attempt·인가 revision·lease에 결속하고 효과 종류 3종을 구분한다. VM 효과 권위 port는 upstream에 없는 가정된 extension이다. |
+
+차단 사유:
+- VM 효과 권위 extension(record_intent/receipt/read_effect)이 upstream 공개 표면에 없음
+- VM authorize 결과의 scope 형식 파싱 미구현
+- 선행 AIK-004(blocked)·AIK-031(todo) 미완료
+- 요청 시점 grant 재검사 미구현, 상태가 프로세스 메모리에만 있음
+- AIK-004 IPC·Electron main·제품 GUI 미연결
+
+실행하지 않은 검증(NOT_RUN):
+- 설치형 VM 인가·효과 권위 연동
+- VM 공개 계약 코드 대응 대조
+- Windows 실행
+- 실제 provider·broker 연동
+- 재시작 내구성 검증
+
+## AIK-031
+
+- 구현: aik_vm_bridge에 typed request/receipt, surface preflight, 버전 handshake, 오류 매핑, TaskExecutionBinding, 실제 EngineApplication 어댑터를 구현했다. durable binding이 없으면 run_once를 SEAM_UNAVAILABLE로 차단한다.
+- 검증: fake VM port 단위시험을 작성했다. 32bb0f9 소스를 import할 수 있을 때만 임시 원장과 합성 프로젝트로 공개 façade 적합성 시험을 수행하며, 불가하면 skip(NOT_RUN)된다. 실제 upstream 적합성 시험이 고정 revision 소스(PYTHONPATH)에서 PASS; 설치형 wheel·Windows 실행은 CI secret(VM_UPSTREAM_TOKEN) 부재로 NOT_RUN.
+- 커밋: `7136475`, `341e9f9`, `db4e7ec`, `81e98c0`
+- 시험: `tests/test_vm_bridge.py` (55개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | 변경은 port의 공개 command로만 하고, bridge 소스에 SQL·DB 연결이 없음을 테스트로 확인한다고 문서화했다. |
+| 2 | 부분 | VmRefs에 ID·revision·digest·history_cursor를 보존한다. request ID는 VM에 전달하지 않으며, authorize는 source와 plan revision만 전달한다. |
+| 3 | 부분 | vm_code로 원래 코드를 보존하고 불명확한 경우는 unknown으로 둔다. STALE_EXECUTION_INPUT 등의 known_failure 분류는 실제 오류 목록과 대조하지 않은 가정이다. |
+| 4 | 미충족 | 실제 EngineApplication에 bind_execution/read_execution_binding이 없어 bound run_once·관측·취소·inventory가 fail-closed로 차단된다. |
+
+차단 사유:
+- upstream durable binding extension 부재(AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED)
+- 실제 AttemptDetail에 goal_revision_id가 없어 owner query 정보 부족
+- AGS manifest 부재(AGS_HOST_INTEGRATION_MANIFEST_MISSING)
+- status는 engine_port 정규화로 구현·대조, final_report·run_once 실제 Goal 경로 미검증
+- 선행 AIK-004 blocked 상태
+
+실행하지 않은 검증(NOT_RUN):
+- 설치형 VM wheel 호출
+- Windows 실행
+- provider 연동
+- durable binding extension 검증
+- surface/schema revision 선언값의 설치물 확인
+
 ## AIK-040
 
 - 구현: src/aik_budget에 locked 트랜잭션 admission guard를 구현했다. 호출 수·deadline·동시성·비용 hold·token stop·429·quota, basis 구분 append-only 정산, quota 상태 조회를 포함한다.
@@ -390,3 +549,58 @@
 - Windows 기본 경로·msvcrt 잠금·두 프로세스 경합
 - 실제 provider·실계정 사용량·청구 검증
 - 대규모 처리량
+
+## AIK-084
+
+- 구현: aik_workspace에 생성·열기·선택·보관·복원·재결속 수명주기, canonical root 규칙, VM project port, 영속 registry, shared_root 입력 digest 결속과 verify_task_binding을 구현했다.
+- 검증: 임시 디렉터리와 fake VM port로 단위시험 대상을 작성했다. 한글·공백 경로, 실제 subprocess cwd, 재시작 복원, 이동·삭제·교체, 권한 상실, stale·변조·누락 입력의 효과 전 차단을 포함한다. 실제 VM status의 project root·not-found 분류를 고정 revision 소스 적합성 시험으로 확인. Windows CI에서 file ID 범위 결함을 발견·수정했고 이후 Windows CI에서 workspace 시험 통과.
+- 커밋: `cbef3ce`, `ad223a5`, `554dc94`
+- 시험: `tests/test_workspace.py` (32개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | workspace ID·canonical root·VM project를 결속하고 검증 문맥의 cwd를 subprocess에 적용했다. VM 생성 seam은 주입 가정이고 GUI·native cwd는 미연결이다. |
+| 2 | 부분 | shared_root manifest digest를 TaskExecutionBinding에 결속하고 효과 전 차단을 구현했다. projection 미구현으로 검증 이후의 변경은 막지 못한다. |
+| 3 | 부분 | 한글·공백·symlink·root 탈출·다른 workspace 참조를 Linux에서 시험 대상으로 삼았다. Windows의 reparse·대소문자·8.3 처리는 미검증이다. |
+| 4 | 부분 | 재시작 복원과 이동·삭제·권한 상실별 재선택·재결속 action을 제공한다. 진행 중 Goal의 VM revision·인가 연결은 미구현이다. |
+
+차단 사유:
+- VM project 생성 공개 command·seam 부재
+- 진행 중 Goal의 VM revision·인가 연결 미구현
+- 선행 AIK-005(AIK-083 대기로 미승격)·AIK-031(todo) 미완료
+- 실패 시 생성된 VM project가 고아로 남음, GUI·native 미연결
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 실행(드라이브 판정·reparse·8.3·st_ino·ACL·LOCALAPPDATA)
+- 실제 VM 설치물 status 응답 형식 확인
+- VM project 생성 seam
+- GUI·native 실행기 cwd 적용과 confirm_inputs_after_effect 연결
+- 대규모 입력
+
+## AIK-085
+
+- 구현: aik_devtools에 고정 4개 도구(read/create/update/run_verification)를 구현했다. 효과 분류, gateway intent·receipt 연결, CAS 쓰기, 한도가 있는 검증 명령, oracle digest 고정을 포함한다.
+- 검증: fake gateway, 실제 임시 파일, python -c 자식 프로세스로 단위시험 대상을 작성했다. 범위 거부, 재전송 비재실행, 예외 주입 중단, timeout·출력 잘림, oracle 변조 탐지를 포함하며 문서에는 실행 결과 기록이 없다. Windows CI에서 shell 분류 순서 결함을 발견·수정.
+- 커밋: `f899a3e`, `1626974`, `42b7443`
+- 시험: `tests/test_devtools.py` (28개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | 고정 도구·인자·cwd·timeout·출력 한도와 미지원 능력 목록을 구현했다. 실제 개발 worker(native/API)와는 연결하지 않았다. |
+| 2 | 부분 | 인가·intent·receipt를 gateway에 위임한다. fake는 lease·만료를 검사하지 않고, DevTools는 request_digest·lease를 대조하지 않는다. |
+| 3 | 부분 | 재전송 비재실행과 중단 후 관측·unknown 처리를 구현했다. 중단은 실제 kill이 아닌 예외 주입으로 재현했고, native와 API의 보장 범위 구분은 문서화했다. |
+| 4 | 부분 | 문서가 직접 부분 충족이라고 밝힌다. 열거된 oracle의 변조 탐지만 보장하며, 열거되지 않은 판정 관여 파일과 native 직접 수정은 막지 못한다. |
+
+차단 사유:
+- 실제 AuthorityGateway·VM 효과 권위 extension과 결합하지 않음
+- 선행 AIK-029·AIK-031·AIK-084 미완료(todo)
+- 전체 live governed 경로는 AIK-086 범위
+- 실제 개발 worker(native/API) 연결 부재
+- 긴 검증 명령 중 lease 재확인 없음
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 gateway·VM 효과 권위 연동
+- Windows 실행(프로세스 종료·os.link·권한 비트·reparse·링크 수)
+- 실제 worker native/API 연결
+- 실제 프로세스 kill 기반 crash 재현
+- AIK-086 live governed 경로
