@@ -2,7 +2,8 @@
 
 Verification commands are defined only here, by the trusted backend. A worker
 selects a ``command_id``; it never supplies argv, cwd, environment, timeout or
-output limits, and it cannot edit pinned oracle files through these tools.
+output limits, and it cannot edit pinned oracle files or command-protected
+paths through these tools.
 """
 
 from __future__ import annotations
@@ -76,6 +77,7 @@ MAX_ARGUMENT_CHARS = 32768
 MAX_OUTPUT_BYTES = 16 * 1024 * 1024
 MAX_TIMEOUT_SECONDS = 3600.0
 MAX_FILE_BYTES = 64 * 1024 * 1024
+MAX_PROTECTED_PATHS = 256
 
 
 def tool_declarations() -> tuple:
@@ -101,13 +103,20 @@ def _policy_path(value: object, field: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class VerificationCommand:
-    """One fixed verification command; cwd is always the workspace root."""
+    """One fixed verification command; cwd is always the workspace root.
+
+    ``protected_paths`` lists workspace paths or directory prefixes that take
+    part in the verdict (test runner configuration such as ``conftest.py``,
+    test support directories, scripts named in argv). Worker tools cannot
+    create or update them. Unlike ``oracle_files`` their content is not pinned.
+    """
 
     command_id: str
     argv: tuple
     timeout_seconds: float = 60.0
     max_output_bytes: int = 65536
     oracle_files: tuple = ()
+    protected_paths: tuple = ()
 
     def __post_init__(self) -> None:
         _policy_id(self.command_id, "command_id")
@@ -143,6 +152,14 @@ class VerificationCommand:
             if path.casefold() in seen:
                 raise InvalidDevToolPolicy(subject="oracle_files")
             seen.add(path.casefold())
+        if type(self.protected_paths) is not tuple or len(self.protected_paths) > MAX_PROTECTED_PATHS:
+            raise InvalidDevToolPolicy(subject="protected_paths")
+        folded = set()
+        for path in self.protected_paths:
+            _policy_path(path, "protected_paths")
+            if path.casefold() in folded:
+                raise InvalidDevToolPolicy(subject="protected_paths")
+            folded.add(path.casefold())
 
     def definition_digest(self) -> str:
         payload = {
@@ -150,6 +167,9 @@ class VerificationCommand:
             "timeout_seconds": float(self.timeout_seconds), "max_output_bytes": self.max_output_bytes,
             "oracle_files": [list(entry) for entry in self.oracle_files],
         }
+        if self.protected_paths:
+            # Only present when used, so digests of existing definitions stay stable.
+            payload["protected_paths"] = list(self.protected_paths)
         text = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
         return "sha256:" + hashlib.sha256(text.encode("ascii")).hexdigest()
 
@@ -187,7 +207,8 @@ class DevToolPolicy:
 
     def protected_paths(self) -> tuple:
         oracles = (path for command in self.verifications for path, _ in command.oracle_files)
-        return tuple(dict.fromkeys((*self.analysis_only_paths, *oracles)))
+        judged = (path for command in self.verifications for path in command.protected_paths)
+        return tuple(dict.fromkeys((*self.analysis_only_paths, *oracles, *judged)))
 
     def is_protected(self, relative: str) -> bool:
         # Case-folded on every OS so a case variant cannot bypass the guard.
@@ -205,5 +226,6 @@ def rebuild_policy(policy: object) -> DevToolPolicy:
         if type(command) is not VerificationCommand:
             raise InvalidDevToolPolicy(subject="verifications")
         commands.append(VerificationCommand(command.command_id, command.argv, command.timeout_seconds,
-                                            command.max_output_bytes, command.oracle_files))
+                                            command.max_output_bytes, command.oracle_files,
+                                            command.protected_paths))
     return DevToolPolicy(policy.workspace_id, tuple(commands), policy.analysis_only_paths, policy.max_file_bytes)

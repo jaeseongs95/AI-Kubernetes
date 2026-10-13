@@ -36,6 +36,8 @@ from aik_devtools import (  # noqa: E402
     DevToolError, DevToolPolicy, DevTools, EffectUnknown, InvalidDevToolPolicy, Invocation,
     VerificationCommand, files_scope_target, tool_declarations, verification_scope_target,
 )
+from aik_devtools import tools as devtools_module  # noqa: E402
+from aik_runtime import paths as runtime_paths, storage as runtime_storage  # noqa: E402
 
 
 WORKSPACE = "ws-dev"
@@ -70,7 +72,10 @@ class FakeProjects:
 
 
 class FakeAuthority:
-    """Mimics the AuthorityGateway contract (scope, revisions, intent, receipts, replay rules)."""
+    """Mimics the AuthorityGateway contract (scope, revisions, intent, receipts, replay rules).
+
+    It does not check lease or expiry; that part of the real gateway is NOT_RUN.
+    """
 
     def __init__(self, *, tools=None, targets=None):
         self.kinds = {declaration.tool_id: declaration.effect_kind for declaration in tool_declarations()}
@@ -126,6 +131,24 @@ class FakeAuthority:
 
     def effect_state(self, effect_id):
         return self.effects.get(effect_id)
+
+
+class TamperedAuthority(FakeAuthority):
+    """Returns an otherwise valid decision with one field replaced."""
+
+    def __init__(self, **change):
+        super().__init__()
+        self.change = change
+
+    def request(self, session, call):
+        return replace(super().request(session, call), **self.change)
+
+
+class LosingReceipts(FakeAuthority):
+    """The receipt channel fails after the effect."""
+
+    def forward_receipt(self, session, tool_call_id, status, *, receipt_ref=None):
+        raise RuntimeError("synthetic receipt channel failure")
 
 
 class DevToolsTests(unittest.TestCase):
@@ -423,6 +446,243 @@ class DevToolsTests(unittest.TestCase):
             tools.create_file(self.session, self.inv(3), "src/c.txt", b"x")
         self.assertEqual(self.assert_code(context, DevToolCode.WORKSPACE_UNAVAILABLE).subject, "root_missing")
         self.assertEqual(len(self.authority.requests), requests)
+
+    # ------------------------------------------------- review regressions (F1)
+    def test_worker_shadow_module_in_root_cannot_turn_verification_into_success(self) -> None:
+        tools = self.tools()
+        tools.create_file(self.session, self.inv(1), "pathlib.py", b"import sys\nsys.exit(0)\n")
+        result = tools.run_verification(self.session, self.inv(2), "unit")
+        self.assertTrue(result.oracle_ok)
+        # The real pathlib is used: src/app.txt is missing, so the judge fails.
+        self.assertEqual((result.status, result.exit_code, result.passed), ("completed", 1, False))
+        self.assertEqual(self.runs(), 1)
+
+    def test_executable_inside_workspace_is_refused_before_running(self) -> None:
+        executable = str(self.root / "venv" / "bin" / "python")
+        policy = DevToolPolicy(WORKSPACE, (VerificationCommand("local", (executable, "-c", "pass"),
+                                                               timeout_seconds=30),))
+        tools = DevTools(authority=self.authority, workspaces=self.manager, policy=policy)
+        with self.assertRaises(DevToolError) as context:
+            tools.run_verification(self.session, self.inv(1), "local")
+        self.assertEqual(self.assert_code(context, DevToolCode.COMMAND_NOT_ALLOWED).subject, "argv")
+        self.assertEqual(self.authority.receipts[-1][:2], ("call-1", "failed"))
+
+    def test_command_protected_paths_cannot_be_written_by_worker_tools(self) -> None:
+        command = VerificationCommand("judge", (PYTHON, "-c", "pass"),
+                                      protected_paths=("conftest.py", "tests/support"))
+        tools = DevTools(authority=self.authority, workspaces=self.manager,
+                         policy=DevToolPolicy(WORKSPACE, (command,)))
+        for number, path in ((1, "conftest.py"), (2, "tests/support/helper.py"), (3, "CONFTEST.py")):
+            with self.subTest(path=path), self.assertRaises(DevToolError) as context:
+                tools.create_file(self.session, self.inv(number), path, b"pass")
+            self.assert_code(context, DevToolCode.PATH_PROTECTED)
+        self.assertEqual(self.authority.requests, [])
+        self.assertIn("conftest.py", tools.capabilities()["analysis_only_paths"])
+        self.assertNotEqual(command.definition_digest(),
+                            VerificationCommand("judge", (PYTHON, "-c", "pass")).definition_digest())
+        with self.assertRaises(InvalidDevToolPolicy):
+            VerificationCommand("judge", (PYTHON,), protected_paths=("../outside",))
+
+    # ------------------------------------------------- review regressions (F2)
+    def test_resent_update_after_interruption_and_later_change_reports_unknown_not_failed(self) -> None:
+        tools = self.tools()
+        created = tools.create_file(self.session, self.inv(1), "src/app.txt", b"v1")
+        with mock.patch.object(DevTools, "_after_effect", side_effect=SimulatedCrash):
+            with self.assertRaises(SimulatedCrash):
+                tools.update_file(self.session, self.inv(2), "src/app.txt", b"v2", expected_digest=created.digest)
+        tools.update_file(self.session, self.inv(3), "src/app.txt", b"v3", expected_digest=sha256_digest(b"v2"))
+        with self.assertRaises(EffectUnknown) as context:
+            tools.update_file(self.session, self.inv(2), "src/app.txt", b"v2", expected_digest=created.digest)
+        self.assertEqual(context.exception.code, DevToolCode.OUTCOME_UNKNOWN)
+        self.assertEqual(self.authority.receipts[-1][:2], ("call-2", "unknown"))
+        self.assertNotIn(("call-2", "failed"), [receipt[:2] for receipt in self.authority.receipts])
+        self.assertEqual((self.root / "src" / "app.txt").read_bytes(), b"v3")
+
+    def test_restarted_create_resend_after_later_change_reports_unknown(self) -> None:
+        with mock.patch.object(DevTools, "_after_effect", side_effect=SimulatedCrash):
+            with self.assertRaises(SimulatedCrash):
+                self.tools().create_file(self.session, self.inv(1), "src/app.txt", b"a")
+        self.tools().update_file(self.session, self.inv(2), "src/app.txt", b"b", expected_digest=sha256_digest(b"a"))
+        with self.assertRaises(EffectUnknown):
+            self.tools().create_file(self.session, self.inv(1), "src/app.txt", b"a")
+        self.assertEqual(self.authority.receipts[-1][:2], ("call-1", "unknown"))
+        self.assertNotIn(("call-1", "failed"), [receipt[:2] for receipt in self.authority.receipts])
+
+    def test_resumed_call_cancelled_after_possible_effect_reports_unknown(self) -> None:
+        tools = self.tools()
+        with mock.patch.object(DevTools, "_after_effect", side_effect=SimulatedCrash):
+            with self.assertRaises(SimulatedCrash):
+                tools.create_file(self.session, self.inv(1), "src/app.txt", b"a")
+        event = threading.Event()
+        event.set()
+        with self.assertRaises(EffectUnknown):
+            tools.create_file(self.session, self.inv(1, cancel=event), "src/app.txt", b"a")
+        self.assertEqual(self.authority.receipts[-1][:2], ("call-1", "unknown"))
+
+    # ------------------------------------------------- review regressions (F3)
+    def test_death_between_link_and_unlink_is_cleaned_and_observed_as_applied(self) -> None:
+        real_link = os.link
+
+        def link_then_crash(source, destination, *args, **kwargs):
+            real_link(source, destination)
+            raise SimulatedCrash
+
+        with mock.patch.object(os, "link", new=link_then_crash), \
+                mock.patch.object(Path, "unlink", new=lambda self, missing_ok=False: None):
+            with self.assertRaises(SimulatedCrash):
+                self.tools().create_file(self.session, self.inv(1), "src/app.txt", b"a")
+        target = self.root / "src" / "app.txt"
+        self.assertEqual(target.stat().st_nlink, 2, "The fault harness did not leave a temporary twin.")
+
+        observed = self.tools().create_file(self.session, self.inv(1), "src/app.txt", b"a")
+        self.assertEqual(observed.status, "already_applied")
+        self.assertEqual(target.stat().st_nlink, 1)
+        self.assertEqual([name for name in os.listdir(target.parent) if name.startswith(".aik-devtools-")], [])
+        self.assertEqual(self.authority.receipts[-1][:2], ("call-1", "succeeded"))
+
+    # ------------------------------------------------- review regressions (F4)
+    def test_read_resend_rereads_bytes_and_reports_stale_after_change(self) -> None:
+        tools = self.tools()
+        (self.root / "src").mkdir()
+        target = self.root / "src" / "app.txt"
+        target.write_bytes(b"one")
+        first = tools.read_file(self.session, self.inv(1, effect=False), "src/app.txt")
+        requests = len(self.authority.requests)
+        again = tools.read_file(self.session, self.inv(1, effect=False), "src/app.txt")
+        self.assertTrue(again.replayed)
+        self.assertEqual(replace(again, replayed=False), first)
+        self.assertGreater(len(self.authority.requests), requests)
+        self.assertTrue(tools.verify_result(again))
+        target.write_bytes(b"two")
+        with self.assertRaises(DevToolError) as context:
+            tools.read_file(self.session, self.inv(1, effect=False), "src/app.txt")
+        self.assert_code(context, DevToolCode.STALE_INPUT)
+
+    def test_stored_results_are_bounded_and_evicted_effects_are_never_rerun(self) -> None:
+        tools = DevTools(authority=self.authority, workspaces=self.manager, policy=self.policy(), max_entries=2)
+        (self.root / "src").mkdir()
+        (self.root / "src" / "app.txt").write_bytes(b"data")
+        reads = [tools.read_file(self.session, self.inv(number, effect=False), "src/app.txt")
+                 for number in range(1, 5)]
+        self.assertFalse(tools.verify_result(reads[0]))
+        self.assertFalse(tools.verify_result(reads[1]))
+        self.assertTrue(tools.verify_result(reads[3]))
+        self.assertEqual(len(tools._entries), 2)
+
+        tools.run_verification(self.session, self.inv(10), "unit")
+        tools.run_verification(self.session, self.inv(11), "fail")
+        tools.run_verification(self.session, self.inv(12), "fail")
+        with self.assertRaises(EffectUnknown):
+            tools.run_verification(self.session, self.inv(10), "unit")
+        self.assertEqual(self.runs(), 1)
+
+        small = DevTools(authority=self.authority, workspaces=self.manager, policy=self.policy(),
+                         max_stored_bytes=150)
+        noisy = small.run_verification(self.session, self.inv(20), "noisy")
+        self.assertFalse(small.verify_result(noisy))
+        self.assertEqual(small._stored_bytes, 0)
+        with self.assertRaises(InvalidDevToolPolicy):
+            DevTools(authority=self.authority, workspaces=self.manager, policy=self.policy(), max_entries=0)
+
+    # ------------------------------------------------- review regressions (F5)
+    @unittest.skipIf(os.name == "nt", "Process group kill after normal exit is POSIX-only (Windows NOT_RUN).")
+    def test_background_descendant_is_stopped_after_normal_exit(self) -> None:
+        marker = self.base / "late-descendant.txt"
+        grandchild = "import pathlib, sys, time; time.sleep(1.0); pathlib.Path(sys.argv[1]).write_text('late')"
+        spawn = "import subprocess, sys; subprocess.Popen([sys.executable, '-c', sys.argv[1], sys.argv[2]])"
+        policy = DevToolPolicy(WORKSPACE, (VerificationCommand(
+            "spawn", (PYTHON, "-c", spawn, grandchild, str(marker)), timeout_seconds=30),))
+        tools = DevTools(authority=self.authority, workspaces=self.manager, policy=policy)
+        result = tools.run_verification(self.session, self.inv(1), "spawn")
+        self.assertEqual((result.status, result.exit_code), ("completed", 0))
+        time.sleep(2.0)
+        self.assertFalse(marker.exists(), "A descendant kept running after the receipt.")
+
+    # ------------------------------------------------- review regressions (F7)
+    def test_effect_id_reused_by_another_tool_call_is_refused_locally(self) -> None:
+        tools = self.tools()
+        tools.run_verification(self.session, Invocation("call-a", INPUT_REVISION, 1, "effect-shared"), "fail")
+        requests = len(self.authority.requests)
+        with self.assertRaises(DevToolError) as context:
+            tools.run_verification(self.session, Invocation("call-b", INPUT_REVISION, 1, "effect-shared"), "unit")
+        self.assertEqual(self.assert_code(context, DevToolCode.CALL_CONFLICT).subject, "effect_id")
+        self.assertEqual(len(self.authority.requests), requests)
+        self.assertEqual(self.runs(), 0)
+
+    # ------------------------------------------------- review coverage (F8)
+    def test_script_extension_with_native_absolute_path_is_unsupported(self) -> None:
+        executable = "C:\\x\\run.bat" if os.name == "nt" else "/opt/x/run.bat"
+        with self.assertRaises(InvalidDevToolPolicy) as context:
+            VerificationCommand("script", (executable,))
+        self.assertEqual(context.exception.code, DevToolCode.UNSUPPORTED_CAPABILITY)
+
+    def test_tampered_decision_is_invalid_and_nothing_runs(self) -> None:
+        with self.assertRaises(DevToolError) as context:
+            self.tools(TamperedAuthority(effect_kind=EffectKind.IDEMPOTENT)).run_verification(
+                self.session, self.inv(1), "unit")
+        self.assert_code(context, DevToolCode.AUTHORIZATION_INVALID)
+        self.assertEqual(self.runs(), 0)
+        with self.assertRaises(DevToolError) as context:
+            self.tools(TamperedAuthority(session_id="session-other")).create_file(
+                self.session, self.inv(2), "src/new.txt", b"x")
+        self.assert_code(context, DevToolCode.AUTHORIZATION_INVALID)
+        self.assertFalse((self.root / "src" / "new.txt").exists())
+
+    def test_receipt_forwarding_failure_keeps_result_and_marks_reconciliation(self) -> None:
+        created = self.tools(LosingReceipts()).create_file(self.session, self.inv(1), "src/app.txt", b"a")
+        self.assertEqual(created.status, "created")
+        self.assertEqual((created.receipt.forwarded, created.receipt.reconciliation_required,
+                          created.receipt.error_code), (False, True, "RECEIPT_UNKNOWN"))
+        self.assertEqual((self.root / "src" / "app.txt").read_bytes(), b"a")
+
+    def test_oversized_content_and_file_are_too_large(self) -> None:
+        tools = self.tools()
+        with self.assertRaises(DevToolError) as context:
+            tools.create_file(self.session, self.inv(1), "src/big.txt", b"x" * (4 * 1024 * 1024 + 1))
+        self.assert_code(context, DevToolCode.TOO_LARGE)
+        self.assertEqual(self.authority.requests, [])
+        small = DevTools(authority=self.authority, workspaces=self.manager,
+                         policy=DevToolPolicy(WORKSPACE, max_file_bytes=8))
+        (self.root / "src").mkdir()
+        (self.root / "src" / "big.txt").write_bytes(b"y" * 16)
+        with self.assertRaises(DevToolError) as context:
+            small.read_file(self.session, self.inv(2, effect=False), "src/big.txt")
+        self.assert_code(context, DevToolCode.TOO_LARGE)
+
+    def test_cancel_during_run_stops_the_process(self) -> None:
+        policy = DevToolPolicy(WORKSPACE, (VerificationCommand(
+            "long", (PYTHON, "-c", "import time; time.sleep(30)"), timeout_seconds=30),))
+        tools = DevTools(authority=self.authority, workspaces=self.manager, policy=policy)
+        event = threading.Event()
+        timer = threading.Timer(0.5, event.set)
+        timer.start()
+        self.addCleanup(timer.cancel)
+        started = time.monotonic()
+        result = tools.run_verification(self.session, self.inv(1, cancel=event), "long")
+        self.assertLess(time.monotonic() - started, 10)
+        self.assertEqual((result.status, result.exit_code, result.passed, result.timed_out),
+                         ("cancelled", None, False, False))
+        self.assertEqual(self.authority.receipts[-1][:2], ("call-1", "cancelled"))
+
+    def test_update_through_hardlinked_file_is_refused(self) -> None:
+        (self.root / "src").mkdir()
+        inside = self.root / "src" / "data.txt"
+        inside.write_bytes(b"orig")
+        outside = self.base / "outside-link.txt"
+        try:
+            outside.hardlink_to(inside)
+        except (OSError, NotImplementedError) as error:
+            self.skipTest(f"Hard links unavailable: {error}")
+        with self.assertRaises(DevToolError) as context:
+            self.tools().update_file(self.session, self.inv(1), "src/data.txt", b"new",
+                                     expected_digest=sha256_digest(b"orig"))
+        self.assert_code(context, DevToolCode.PATH_UNSAFE)
+        self.assertEqual((inside.read_bytes(), outside.read_bytes()), (b"orig", b"orig"))
+
+    # ------------------------------------------------- review regressions (F10)
+    def test_devtools_does_not_bind_private_runtime_helpers(self) -> None:
+        for private in (runtime_paths._inspect, runtime_storage._sync_directory):
+            self.assertFalse(any(value is private for value in vars(devtools_module).values()))
 
 
 if __name__ == "__main__":

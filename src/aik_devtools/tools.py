@@ -1,14 +1,16 @@
 """Development worker tools bound to authority, workspace root and the trusted policy.
 
 Call order (first failure wins): session -> invocation -> local arguments ->
-stored result (resend) -> workspace root re-verification -> aik_authority
-request (VM intent for effects) -> cancel check -> effect -> VM receipt.
-Stored results and interruption markers live in process memory only.
+stored result (resend) -> workspace root re-verification -> prior effect state
+-> aik_authority request (VM intent for effects) -> cancel check -> effect ->
+VM receipt. Stored results and interruption markers live in process memory
+only, with bounded entry count and stored payload bytes.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+import errno
 import hashlib
 import json
 import os
@@ -25,10 +27,8 @@ from aik_authority import (
     STATUS_AUTHORIZED, AuthorityCode as C, AuthorityDenied, AuthorityError, EffectKind, EffectOutcomeUnknown,
     EffectReceipt, ToolCall, ToolCallAuthorization, ToolSession,
 )
-from aik_runtime.errors import InvalidRecord, UnsafeStoragePath
+from aik_runtime.errors import InvalidRecord
 from aik_runtime.models import MAX_INTEGER, identifier
-from aik_runtime.paths import _inspect
-from aik_runtime.storage import _sync_directory
 from aik_vm_bridge.binding import DIGEST_PATTERN
 from aik_workspace import (
     ExecutionContext, InputCondition, InvalidInputPath, WorkspaceUnavailable, normalize_input_path,
@@ -36,7 +36,7 @@ from aik_workspace import (
 )
 from aik_workspace.inputs import read_verified
 
-from .errors import DevToolCode as D, DevToolError, EffectUnknown
+from .errors import DevToolCode as D, DevToolError, EffectUnknown, InvalidDevToolPolicy
 from .policy import (
     EFFECT_KINDS, TOOL_CREATE_FILE, TOOL_READ_FILE, TOOL_RUN_VERIFICATION, TOOL_UPDATE_FILE,
     UNSUPPORTED_CAPABILITIES, DevToolPolicy, VerificationCommand, rebuild_policy,
@@ -48,6 +48,11 @@ _ENV_KEYS = ("PATH", "PATHEXT", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "TEMP", "
              "HOME", "USERPROFILE", "LANG", "LC_ALL", "LC_CTYPE")
 _POLL_SECONDS = 0.02
 _TEMP_PREFIX = ".aik-devtools-"
+_TEMP_SUFFIX = ".tmp"
+DEFAULT_MAX_ENTRIES = 4096
+DEFAULT_MAX_STORED_BYTES = 64 * 1024 * 1024
+# Gateway effect states meaning an earlier attempt may already have run the effect.
+_RESUME_STATES = frozenset({"intent_recorded", "receipt_forwarded", "outcome_unknown"})
 
 
 # ----------------------------------------------------------------- targets
@@ -177,18 +182,36 @@ class VerificationResult:
     replayed: bool = False
 
 
-class _Entry:
-    __slots__ = ("session_id", "fingerprint", "result", "error")
+def _payload_size(result) -> int:
+    if type(result) is VerificationResult:
+        return len(result.stdout.encode("utf-8", "replace")) + len(result.stderr.encode("utf-8", "replace"))
+    if type(result) is FileReadResult:
+        return len(result.content)
+    return 0
 
-    def __init__(self, session_id: str, fingerprint: str, result=None, error=None):
+
+class _Entry:
+    __slots__ = ("session_id", "fingerprint", "effect_id", "result", "error", "size")
+
+    def __init__(self, session_id: str, fingerprint: str, effect_id=None, result=None, error=None):
         self.session_id = session_id
         self.fingerprint = fingerprint
+        self.effect_id = effect_id
         self.result = result
         self.error = error
+        self.size = _payload_size(result)
+
+    @property
+    def terminal(self) -> bool:
+        return self.result is not None or self.error is not None
 
 
 class _Refused(Exception):
-    """No effect was performed; the receipt is ``failed``."""
+    """The current attempt refused before performing its effect; the receipt is ``failed``.
+
+    A refusal observed while re-observing an interrupted attempt is reported as
+    ``unknown`` instead, because the earlier attempt may have performed it.
+    """
 
     def __init__(self, error: DevToolError):
         super().__init__(error.code.value)
@@ -201,6 +224,10 @@ class _Unknown(Exception):
     def __init__(self, subject: str):
         super().__init__(subject)
         self.subject = subject
+
+
+class _UnsafePath(Exception):
+    """A path component is a link, reparse point, special file or hardlink alias."""
 
 
 def _refuse(code: D, subject: str) -> _Refused:
@@ -217,12 +244,57 @@ def _digest_text(payload: dict) -> str:
     return "sha256:" + hashlib.sha256(text.encode("ascii")).hexdigest()
 
 
+def _inspect_component(path: Path) -> None:
+    """Local equivalent of the runtime path rule; no private aik_runtime helper is bound."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return
+    except OSError:
+        raise _UnsafePath() from None
+    if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+        raise _UnsafePath()
+    if not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)):
+        raise _UnsafePath()
+    if stat.S_ISREG(info.st_mode) and info.st_nlink != 1:
+        raise _UnsafePath()
+
+
+def _sync_dir(path: Path) -> None:
+    # Windows exposes no portable directory fsync through Python.
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        try:
+            os.fsync(descriptor)
+        except OSError as error:
+            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
+                raise
+    finally:
+        os.close(descriptor)
+
+
 def _environment() -> dict:
     """Fixed allowlisted environment; other variables (and any secret in them) are not passed."""
     environment = {key: os.environ[key] for key in _ENV_KEYS if key in os.environ}
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment["PYTHONIOENCODING"] = "utf-8"
+    # Python 3.11+: never prepend the cwd (the worker-writable root) to sys.path,
+    # so a worker-created module cannot shadow the judge's imports.
+    environment["PYTHONSAFEPATH"] = "1"
     return environment
+
+
+def _executable_in_workspace(root: Path, executable: str) -> bool:
+    """True when the policy executable lives in (or resolves into) the worker-writable root."""
+    try:
+        roots = (root, Path(os.path.realpath(root)))
+        candidates = (Path(executable), Path(os.path.realpath(os.path.dirname(executable))),
+                      Path(os.path.realpath(executable)))
+        return any(candidate.is_relative_to(base) for candidate in candidates for base in roots)
+    except (OSError, ValueError):
+        return True
 
 
 def _kill(process: subprocess.Popen) -> None:
@@ -246,7 +318,7 @@ def _captured(stream, limit: int) -> tuple[bytes, int]:
 
 
 def _write_temp(directory: Path, data: bytes, mode: int) -> Path:
-    descriptor, name = tempfile.mkstemp(prefix=_TEMP_PREFIX, suffix=".tmp", dir=directory)
+    descriptor, name = tempfile.mkstemp(prefix=_TEMP_PREFIX, suffix=_TEMP_SUFFIX, dir=directory)
     temporary = Path(name)
     try:
         with os.fdopen(descriptor, "wb") as stream:
@@ -265,17 +337,25 @@ def _write_temp(directory: Path, data: bytes, mode: int) -> Path:
 class DevTools:
     """Bounded development tools for one workspace. The trusted backend owns this object."""
 
-    def __init__(self, *, authority, workspaces, policy: DevToolPolicy):
+    def __init__(self, *, authority, workspaces, policy: DevToolPolicy,
+                 max_entries: int = DEFAULT_MAX_ENTRIES, max_stored_bytes: int = DEFAULT_MAX_STORED_BYTES):
         if not all(callable(getattr(authority, name, None)) for name in ("request", "forward_receipt")):
             raise TypeError("An authority port with request and forward_receipt is required.")
         if not callable(getattr(workspaces, "execution_context", None)):
             raise TypeError("A workspace provider with execution_context is required.")
+        if type(max_entries) is not int or not 1 <= max_entries <= 1_000_000:
+            raise InvalidDevToolPolicy(subject="max_entries")
+        if type(max_stored_bytes) is not int or not 1 <= max_stored_bytes <= 1 << 40:
+            raise InvalidDevToolPolicy(subject="max_stored_bytes")
         self._policy = rebuild_policy(policy)
         self._authority = authority
         self._workspaces = workspaces
         self.workspace_id = self._policy.workspace_id
         self._lock = threading.RLock()
         self._entries: dict[str, _Entry] = {}
+        self._max_entries = max_entries
+        self._max_stored_bytes = max_stored_bytes
+        self._stored_bytes = 0
 
     def __repr__(self) -> str:
         return f"DevTools(workspace_id={self.workspace_id!r})"
@@ -290,6 +370,8 @@ class DevTools:
             "verifications": tuple(command.command_id for command in self._policy.verifications),
             "analysis_only_paths": self._policy.protected_paths(),
             "max_file_bytes": self._policy.max_file_bytes,
+            "max_stored_results": self._max_entries,
+            "max_stored_bytes": self._max_stored_bytes,
             "unsupported": UNSUPPORTED_CAPABILITIES,
             "guarantee": "api_restricted_tools_not_os_isolation",
         }
@@ -358,17 +440,59 @@ class DevTools:
                           verification_target(self.workspace_id, command.command_id), perform)
 
     def verify_result(self, result: object) -> bool:
-        """True only for a result this instance actually produced (not a fabricated copy)."""
+        """True only for a result this instance actually produced and still retains."""
         if type(result) not in (FileReadResult, FileWriteResult, VerificationResult):
             return False
         with self._lock:
             entry = self._entries.get(result.tool_call_id)
-            return entry is not None and entry.result is not None and \
-                replace(result, replayed=False) == entry.result
+            if entry is None or entry.result is None:
+                return False
+            if type(result) is FileReadResult:
+                # Read content is not retained; the bytes must match the stored digest.
+                if type(result.content) is not bytes or len(result.content) != result.size \
+                        or sha256_digest(result.content) != result.digest:
+                    return False
+                return replace(result, content=b"", replayed=False) == entry.result
+            return replace(result, replayed=False) == entry.result
 
     # ------------------------------------------------------------- core
     def _after_effect(self, tool_call_id: str) -> None:
         """Fault-injection seam between effect and receipt; intentionally a no-op."""
+
+    def _store(self, tool_call_id: str, entry: _Entry) -> None:
+        old = self._entries.get(tool_call_id)
+        if old is not None:
+            self._stored_bytes -= old.size
+        self._entries[tool_call_id] = entry
+        self._stored_bytes += entry.size
+        self._evict()
+
+    def _evict(self) -> None:
+        """Drop the oldest terminal entries; interruption markers are never evicted."""
+        terminal = [key for key, entry in self._entries.items() if entry.terminal]
+        excess = len(terminal) - self._max_entries
+        for key in terminal:
+            if excess <= 0 and self._stored_bytes <= self._max_stored_bytes:
+                break
+            removed = self._entries.pop(key)
+            self._stored_bytes -= removed.size
+            excess -= 1
+
+    def _check_effect_id(self, tool_call_id: str, effect_id: str) -> None:
+        for key, entry in self._entries.items():
+            if key != tool_call_id and entry.effect_id == effect_id:
+                raise DevToolError(D.CALL_CONFLICT, subject="effect_id")
+
+    def _effect_recorded(self, effect_id: str) -> bool:
+        """Whether an earlier attempt may already have performed this effect."""
+        reader = getattr(self._authority, "effect_state", None)
+        if not callable(reader):
+            return False
+        try:
+            state = reader(effect_id)
+        except Exception:
+            return True  # unknown prior state: never report a definite "no effect"
+        return state in _RESUME_STATES
 
     def _call(self, session, invocation, tool_id, arguments, target, perform):
         session = self._session(session)
@@ -386,34 +510,58 @@ class DevTools:
         })
         with self._lock:
             entry = self._entries.get(tool_call_id)
+            replay_read = None
+            resumed = False
             if entry is not None:
                 if entry.session_id != session.session_id or entry.fingerprint != fingerprint:
                     raise DevToolError(D.CALL_CONFLICT, subject="tool_call_id")
                 if entry.error is not None:
                     raise _clone(entry.error)
-                if entry.result is not None:
+                if type(entry.result) is FileReadResult:
+                    # Read content is not retained: reauthorize and reread the same digest.
+                    replay_read = entry.result
+                elif entry.result is not None:
                     return replace(entry.result, replayed=True)
-                if kind is EffectKind.NON_IDEMPOTENT:
+                elif kind is EffectKind.NON_IDEMPOTENT:
                     raise EffectUnknown(D.OUTCOME_UNKNOWN, subject="interrupted")
-                # Idempotent interruption: fall through and observe the real file state.
+                else:
+                    # Idempotent interruption: observe the real file state.
+                    resumed = True
+            elif effectful:
+                self._check_effect_id(tool_call_id, invocation.effect_id)
             root = self._root()
             call = self._tool_call(tool_id, target, invocation, arguments)
+            if effectful and not resumed:
+                resumed = self._effect_recorded(invocation.effect_id)
             self._authorize(session, call, kind)
             if effectful:
                 # Interruption marker; replaced by the result or error below.
-                self._entries[tool_call_id] = _Entry(session.session_id, fingerprint)
+                self._store(tool_call_id, _Entry(session.session_id, fingerprint, invocation.effect_id))
             if invocation.cancel is not None and invocation.cancel.is_set():
+                if effectful and resumed:
+                    self._forward(session, tool_call_id, "unknown")
+                    raise EffectUnknown(D.OUTCOME_UNKNOWN, subject="reobserved")
                 error = DevToolError(D.CANCELLED, subject="before_effect")
                 if effectful:
                     self._forward(session, tool_call_id, "cancelled")
-                self._entries[tool_call_id] = _Entry(session.session_id, fingerprint, error=error)
+                if replay_read is None:
+                    self._store(tool_call_id, _Entry(session.session_id, fingerprint, invocation.effect_id,
+                                                     error=error))
                 raise _clone(error)
             try:
                 result, status = perform(root, invocation)
             except _Refused as refused:
+                if replay_read is not None:
+                    raise _clone(refused.error) from None
+                if effectful and resumed:
+                    # The earlier attempt may have performed this effect; a refusal
+                    # observed now cannot prove that nothing happened.
+                    self._forward(session, tool_call_id, "unknown")
+                    raise EffectUnknown(D.OUTCOME_UNKNOWN, subject="reobserved") from None
                 if effectful:
                     self._forward(session, tool_call_id, "failed")
-                self._entries[tool_call_id] = _Entry(session.session_id, fingerprint, error=refused.error)
+                self._store(tool_call_id, _Entry(session.session_id, fingerprint, invocation.effect_id,
+                                                 error=refused.error))
                 raise _clone(refused.error) from None
             except (_Unknown, OSError) as error:
                 if not effectful:
@@ -421,11 +569,16 @@ class DevTools:
                 self._forward(session, tool_call_id, "unknown")
                 subject = error.subject if isinstance(error, _Unknown) else "io"
                 raise EffectUnknown(D.OUTCOME_UNKNOWN, subject=subject) from None
+            if replay_read is not None:
+                if result.digest != replay_read.digest or result.size != replay_read.size:
+                    raise DevToolError(D.STALE_INPUT, subject="replay")
+                return replace(replay_read, content=result.content, replayed=True)
             self._after_effect(tool_call_id)
             if effectful:
                 reference = result.digest if type(result) is FileWriteResult else result.output_digest
                 result = replace(result, receipt=self._forward(session, tool_call_id, status, reference))
-            self._entries[tool_call_id] = _Entry(session.session_id, fingerprint, result=result)
+            stored = replace(result, content=b"") if type(result) is FileReadResult else result
+            self._store(tool_call_id, _Entry(session.session_id, fingerprint, invocation.effect_id, result=stored))
             return result
 
     def _session(self, session: object) -> ToolSession:
@@ -531,11 +684,11 @@ class DevTools:
         try:
             for part in relative.split("/"):
                 current = current / part
-                _inspect(current)
+                _inspect_component(current)
             info = os.lstat(current)
             if stat.S_ISREG(info.st_mode) and info.st_size > self._policy.max_file_bytes:
                 return _refuse(D.TOO_LARGE, "path")
-        except (UnsafeStoragePath, OSError):
+        except (_UnsafePath, OSError):
             pass
         return _refuse(D.PATH_UNSAFE, "path")
 
@@ -553,27 +706,58 @@ class DevTools:
             raise _Unknown("confirm")
 
     @staticmethod
+    def _clean_residue(root: Path, relative: str) -> None:
+        """Remove our own temporary hardlink twins left by death between link() and unlink().
+
+        Only ``.aik-devtools-*.tmp`` entries that are the same file as the target
+        are removed. A failure leaves the state unconfirmed (receipt ``unknown``).
+        """
+        parts = relative.split("/")
+        parent = root
+        try:
+            for part in parts[:-1]:
+                parent = parent / part
+                _inspect_component(parent)
+            target_info = os.lstat(parent / parts[-1])
+        except (_UnsafePath, OSError):
+            return  # missing or unsafe: the regular observation decides
+        if not stat.S_ISREG(target_info.st_mode) or target_info.st_nlink == 1:
+            return
+        try:
+            with os.scandir(parent) as entries:
+                names = [item.name for item in entries
+                         if item.name.startswith(_TEMP_PREFIX) and item.name.endswith(_TEMP_SUFFIX)]
+            for name in names:
+                candidate = parent / name
+                info = os.lstat(candidate)
+                if stat.S_ISREG(info.st_mode) and os.path.samestat(info, target_info):
+                    os.unlink(candidate)
+        except OSError:
+            raise _Unknown("residue") from None
+
+    @staticmethod
     def _ensure_parent(root: Path, parts: list) -> Path:
         current = root
         try:
             for part in parts[:-1]:
                 current = current / part
-                _inspect(current)
+                _inspect_component(current)
                 try:
                     info = os.lstat(current)
                 except FileNotFoundError:
                     os.mkdir(current, 0o755)
-                    _inspect(current)
+                    _inspect_component(current)
                     info = os.lstat(current)
                 if not stat.S_ISDIR(info.st_mode):
                     raise _refuse(D.PATH_UNSAFE, "path")
             if not current.resolve(strict=True).is_relative_to(root.resolve(strict=True)):
                 raise _refuse(D.PATH_UNSAFE, "path")
-        except UnsafeStoragePath:
+        except _UnsafePath:
             raise _refuse(D.PATH_UNSAFE, "path") from None
         return current
 
     def _create(self, root: Path, relative: str, data: bytes, digest: str) -> str:
+        self._clean_residue(root, relative)
         condition, existing = read_verified(root, relative, self._policy.max_file_bytes)
         if condition is InputCondition.CURRENT:
             if sha256_digest(existing) == digest:
@@ -596,22 +780,26 @@ class DevTools:
                 raise _refuse(D.WRITE_FAILED, "link") from None
         finally:
             temporary.unlink(missing_ok=True)
-        _sync_directory(parent)
+        _sync_dir(parent)
         self._confirm(root, relative, digest)
         return "created"
 
     def _update(self, root: Path, relative: str, data: bytes, digest: str, expected: str) -> str:
+        self._clean_residue(root, relative)
         condition, existing = read_verified(root, relative, self._policy.max_file_bytes)
         if condition is InputCondition.MISSING:
             raise _refuse(D.NOT_FOUND, "path")
         if condition is not InputCondition.CURRENT:
             raise self._unsafe(root, relative)
+        target = root.joinpath(*relative.split("/"))
+        if os.lstat(target).st_nlink != 1:
+            # A hardlink alias may expose the same bytes outside the root.
+            raise _refuse(D.PATH_UNSAFE, "path")
         current = sha256_digest(existing)
         if current == digest:
             return "already_applied"
         if current != expected:
             raise _refuse(D.STALE_INPUT, "expected_digest")
-        target = root.joinpath(*relative.split("/"))
         mode = stat.S_IMODE(os.lstat(target).st_mode)
         temporary = _write_temp(target.parent, data, mode)
         try:
@@ -621,7 +809,7 @@ class DevTools:
             os.replace(temporary, target)
         finally:
             temporary.unlink(missing_ok=True)
-        _sync_directory(target.parent)
+        _sync_dir(target.parent)
         self._confirm(root, relative, digest)
         return "updated"
 
@@ -635,6 +823,10 @@ class DevTools:
 
     def _verify(self, root: Path, inv: Invocation, command: VerificationCommand):
         definition = command.definition_digest()
+        if _executable_in_workspace(root, command.argv[0]):
+            # The worker can edit files under the root, so an executable there
+            # could be replaced to report success. The command is not run.
+            raise _refuse(D.COMMAND_NOT_ALLOWED, "argv")
         if not self._oracles_current(root, command):
             digest = _digest_text({"command_id": command.command_id, "definition_digest": definition,
                                    "status": "oracle_mismatch"})
@@ -664,6 +856,7 @@ class DevTools:
             stdout_truncated or stderr_truncated, run["duration_ms"], output_digest,
         )
         # The receipt reports the tool execution observation, not the verification verdict.
+        # timed_out/cancelled happen after the process started: partial side effects are possible.
         receipt = {"completed": "succeeded", "oracle_changed": "succeeded",
                    "timed_out": "failed", "cancelled": "cancelled"}[status]
         return result, receipt
@@ -707,6 +900,13 @@ class DevTools:
                 if process.poll() is None:
                     _kill(process)
                 raise
+            if status == "completed" and os.name != "nt":
+                # Background descendants of a normally exited command could keep
+                # changing the workspace after the oracle re-check and receipt.
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    pass
             duration = int((time.monotonic() - started) * 1000)
             stdout, stdout_bytes = _captured(out, command.max_output_bytes)
             stderr, stderr_bytes = _captured(err, command.max_output_bytes)
