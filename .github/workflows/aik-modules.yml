@@ -1,0 +1,68 @@
+# Linux/Windows regression for every AIK Python module and its ledger consistency.
+# A pass is development verification only; it is not provider, VM, AGS or Windows
+# product qualification. JavaScript packages (aik_ipc) are covered by desktop-ipc.yml.
+# Real upstream tests report NOT_RUN when the upstream is not installed.
+name: AIK modules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'contracts/**'
+      - 'planning/**'
+      - '.github/workflows/aik-modules.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'contracts/**'
+      - 'planning/**'
+      - '.github/workflows/aik-modules.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aik-modules-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  modules:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - name: Checkout the exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Python pinned runtime
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Ledger consistency
+        run: python tools/backlog.py validate
+      - name: Every module test (src/aik_* packages)
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Every src package is imported by a test module
+        shell: python
+        run: |
+          import pathlib, re, sys
+          texts = [path.read_text(encoding="utf-8") for path in pathlib.Path("tests").glob("test_*.py")]
+          packages = sorted(path.name for path in pathlib.Path("src").glob("aik_*") if path.is_dir() and any(path.glob("*.py")))
+          missing = [name for name in packages
+                     if not any(re.search(rf"^\s*(from|import) {name}\b", text, re.M) for text in texts)]
+          if missing:
+              sys.exit("packages without a test module import: " + ", ".join(missing))
+          print("packages covered:", len(packages))
