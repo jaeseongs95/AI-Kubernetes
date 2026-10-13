@@ -23,9 +23,11 @@ value is kept unchanged.
   integer ``sequence``. The original mapping is kept unchanged under
   ``vm_history_cursor``. A mapping without a valid sequence is left as is, and
   the bridge rejects it.
-* Nested IDs (for example ``project.id``/``project.root``, ``attempt.*`` and
-  ``runtime_job.attempt_id``) are copied to top-level keys only when the
-  top-level key is absent or equal. A disagreement is a malformed response.
+* Nested IDs (for example ``project.id``/``project.root``,
+  ``project.active_goal_revision_id``/``project.active_plan_revision_id``,
+  ``attempt.*`` and ``runtime_job.attempt_id``) are copied to top-level keys
+  only when the top-level key is absent or equal. A disagreement is a
+  malformed response.
 * ``job`` is added from ``runtime_job`` or the flat ``runtime_job_*`` fields.
 * ``goal_state`` is an AIK-derived label, not a VM field. It is added to a
   status only when absent, from ``control_state`` (paused/cancelled) or
@@ -40,11 +42,24 @@ not retained in ``__cause__`` or ``__context__``. Codes made by the adapter
 itself are listed in ``ADAPTER_CODES``; the bridge never reports them as VM
 codes.
 
-The durable binding extension (``bind_execution``/``read_execution_binding``)
-does not exist upstream. This adapter neither exposes nor imitates it and never
-declares it in its handshake, so bound execution through the bridge stays
-fail-closed (``SEAM_UNAVAILABLE``). Installed-wheel and Windows calls are
-NOT_RUN.
+Durable binding. The upstream binding extension
+(``bind_execution``/``read_execution_binding``) does not exist upstream and is
+not planned by the VM design. This adapter never exposes ``bind_execution``
+and never declares ``aik-task-execution-binding-v1``, so the extension-based
+bound execution of the bridge stays fail-closed (``SEAM_UNAVAILABLE``).
+
+Instead, the hosted path uses the VM design seam: an ``AikHostedRuntime``
+injected as the VM runtime (``EngineApplication(service, runtime=...)``). When
+the adapter is given ``hosted_runtime=...`` it declares
+``aik-hosted-runtime-v1`` in its handshake and exposes
+``read_execution_binding(attempt_id)``, which reads the owner-confirmed
+binding from the hosted runtime's AIK-owned journal (not from VM). Without a
+hosted runtime the ``read_execution_binding`` attribute does not exist.
+
+The adapter cannot prove that the injected application was really built with
+that runtime: it does not read VM private attributes. That link is the
+caller's responsibility; ``build_hosted_application`` builds both together to
+make the correct wiring easy. Installed-wheel and Windows calls are NOT_RUN.
 """
 
 from __future__ import annotations
@@ -61,7 +76,8 @@ import threading
 from types import MappingProxyType
 from typing import Any, Mapping
 
-from .surface import Command
+from .hosted_runtime import AikHostedRuntime
+from .surface import HOSTED_RUNTIME_EXTENSION, Command
 
 
 _CODE = re.compile(r"[A-Z][A-Z0-9_]{1,63}\Z")
@@ -70,6 +86,8 @@ _COMMAND_NAMES = tuple(command.value for command in Command)
 _BINDING_METHODS = ("bind_execution", "read_execution_binding")
 _APPLICATION_ERROR_MODULES = ("flowmarshal.engine.application", "flowmarshal.engine", "flowmarshal.engine.errors")
 _LEDGER_ERROR_MODULES = ("flowmarshal.engine.ledger", "flowmarshal.engine", "flowmarshal.engine.errors")
+# Keyword options of build_hosted_application that configure the port, not the factory.
+_PORT_OPTIONS = ("surface_revision", "engine_schema_revision", "error_types")
 
 PROJECT_NOT_FOUND = "PROJECT_NOT_FOUND"
 INVALID_ENGINE_RESPONSE = "INVALID_ENGINE_RESPONSE"
@@ -210,6 +228,8 @@ def _normalize_status(data: dict) -> dict:
         _lift(data, "project_id", project.get("id"))
         _lift(data, "project_root", project.get("root"))
         _lift(data, "plan_revision_id", project.get("active_plan_revision_id"))
+        _lift(data, "active_plan_revision_id", project.get("active_plan_revision_id"))
+        _lift(data, "active_goal_revision_id", project.get("active_goal_revision_id"))
     goal_state = _derive_goal_state(data)
     if goal_state is not None and "goal_state" not in data:
         data["goal_state"] = goal_state
@@ -264,10 +284,16 @@ class EngineApplicationPort:
     ``error_types`` may inject ``(application_error, ledger_error)`` classes
     (used by fake tests). By default they are imported lazily from the
     upstream package. When it is not importable, failures are unclassified.
+
+    ``hosted_runtime`` declares the AIK hosted runtime path
+    (``aik-hosted-runtime-v1``). The caller must have built the application
+    with that same runtime (see ``build_hosted_application``); the adapter
+    cannot verify it.
     """
 
     def __init__(self, application: object, *, surface_revision: str | None = None,
-                 engine_schema_revision: int | None = None, error_types: tuple | None = None):
+                 engine_schema_revision: int | None = None, error_types: tuple | None = None,
+                 hosted_runtime: AikHostedRuntime | None = None):
         if application is None:
             raise TypeError("An EngineApplication instance is required.")
         if surface_revision is not None and (type(surface_revision) is not str or not surface_revision):
@@ -280,12 +306,18 @@ class EngineApplicationPort:
                 for item in error_types
             ):
                 raise TypeError("error_types must be (application_error, ledger_error).")
+        if hosted_runtime is not None and not isinstance(hosted_runtime, AikHostedRuntime):
+            raise TypeError("hosted_runtime must be an AikHostedRuntime.")
         self._app = application
         self._surface_revision = surface_revision
         self._schema_revision = engine_schema_revision
         self._error_types = error_types
+        self._hosted_runtime = hosted_runtime
         self._lock = threading.Lock()
         self._calls: list[str] = []
+        if hosted_runtime is not None:
+            # Exposed only on the hosted path; absent otherwise (hasattr False).
+            self.read_execution_binding = self._read_execution_binding
 
     # -- diagnostics --
     @property
@@ -298,6 +330,10 @@ class EngineApplicationPort:
     def upstream_binding_methods_present(self) -> bool:
         """Whether the application has both durable-binding methods (False upstream)."""
         return all(callable(getattr(self._app, name, None)) for name in _BINDING_METHODS)
+
+    @property
+    def hosted_runtime(self) -> AikHostedRuntime | None:
+        return self._hosted_runtime
 
     # -- internals --
     def _resolve_error_types(self) -> tuple:
@@ -348,6 +384,10 @@ class EngineApplicationPort:
             raise _invalid()
         return data
 
+    def _read_execution_binding(self, attempt_id: str) -> dict | None:
+        """Owner-confirmed binding from the AIK journal (hosted path only), not from VM."""
+        return self._hosted_runtime.store.read_execution_binding(attempt_id)
+
     # -- handshake (introspection of the installed façade) --
     def handshake(self) -> dict:
         methods: dict[str, str] = {}
@@ -362,8 +402,9 @@ class EngineApplicationPort:
             "surface_revision": self._surface_revision,
             "engine_schema_revision": self._schema_revision,
             "methods": methods,
-            # The durable binding extension does not exist upstream.
-            "extensions": [],
+            # The upstream binding extension does not exist; only the AIK
+            # hosted runtime path can be declared.
+            "extensions": [HOSTED_RUNTIME_EXTENSION] if self._hosted_runtime is not None else [],
         }
 
     # -- VmApplicationPort --
@@ -455,3 +496,25 @@ class EngineApplicationPort:
 
     def project_exists(self, project_id: str) -> bool:
         return self.lookup_project(project_id) is not None
+
+
+def build_hosted_application(engine_application_factory, service, hosted_runtime: AikHostedRuntime,
+                             **kwargs) -> EngineApplicationPort:
+    """Build ``EngineApplication(service, runtime=hosted_runtime, **kwargs)`` and its hosted port.
+
+    ``engine_application_factory`` is normally the upstream ``EngineApplication``
+    class supplied by the caller (this module never imports it). The port
+    options ``surface_revision``, ``engine_schema_revision`` and
+    ``error_types`` are taken out of ``kwargs`` and given to the port, not to
+    the factory. A ``runtime`` keyword is refused: the hosted runtime is the
+    only runtime this helper wires.
+    """
+    if not callable(engine_application_factory):
+        raise TypeError("engine_application_factory must be callable.")
+    if not isinstance(hosted_runtime, AikHostedRuntime):
+        raise TypeError("hosted_runtime must be an AikHostedRuntime.")
+    if "runtime" in kwargs:
+        raise TypeError("The runtime is the hosted runtime; do not pass another one.")
+    options = {name: kwargs.pop(name) for name in _PORT_OPTIONS if name in kwargs}
+    application = engine_application_factory(service, runtime=hosted_runtime, **kwargs)
+    return EngineApplicationPort(application, hosted_runtime=hosted_runtime, **options)

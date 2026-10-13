@@ -3,6 +3,13 @@
 The declared surface is the AIK-001 projection (``vm-public-surface.json``).
 Only method names and parameter names are compared; the bridge never imports
 the VM package or reads its storage.
+
+Two extension names are recognized: ``aik-task-execution-binding-v1`` (an
+upstream binding extension that VM does not have) and
+``aik-hosted-runtime-v1`` (an AIK-hosted runtime injected through the VM
+runtime port; see ``hosted_runtime``). Handshake validation rules are
+unchanged: any list of extension strings is accepted, and the bridge acts
+only on the names it recognizes.
 """
 
 from __future__ import annotations
@@ -22,6 +29,8 @@ SURFACE_FORMAT = "aik-upstream-surface-v1"
 PINNED_SURFACE_REVISION = "32bb0f9dd9f024045d24487312b50f5b703573a3"
 SUPPORTED_ENGINE_SCHEMA_REVISIONS = (4,)
 BINDING_EXTENSION = "aik-task-execution-binding-v1"
+HOSTED_RUNTIME_EXTENSION = "aik-hosted-runtime-v1"
+KNOWN_EXTENSIONS = frozenset({BINDING_EXTENSION, HOSTED_RUNTIME_EXTENSION})
 # integration-contract.json unresolved gates that block AIK-031 completion.
 BLOCKING_GATES = ("AGS_HOST_INTEGRATION_MANIFEST_MISSING", "AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED")
 
@@ -196,6 +205,11 @@ class Handshake:
     surface_revision: str
     engine_schema_revision: int
     extensions: frozenset
+
+    @property
+    def recognized_extensions(self) -> frozenset:
+        """Declared extensions that this package knows (``KNOWN_EXTENSIONS``)."""
+        return self.extensions & KNOWN_EXTENSIONS
 
 
 def check_handshake(surface: DeclaredSurface, raw: object, commands: Iterable[Command]) -> Handshake:

@@ -13,6 +13,19 @@ Only a Core-consumed observation (``consumed``) of the latest job launched for
 an Attempt can release that Attempt's guard; ``provider_terminal`` never does.
 Project-level guards are never released by an observation; only an explicit
 ``reconcile_project`` call clears them.
+
+Two bound-execution paths exist:
+
+* The extension path (``run_once`` with ``RunOnceRequest``) needs an upstream
+  ``aik-task-execution-binding-v1`` extension that VM does not have; it stays
+  fail-closed against the real VM.
+* The hosted path (``run_once_hosted`` and ``confirm_attempt``) is active when
+  the bridge has a ``binding_store`` and the handshake declares
+  ``aik-hosted-runtime-v1``. VM reserves the Attempt itself; the injected
+  ``AikHostedRuntime`` binds the AIK assignment durably before the first
+  provider effect; ``confirm_attempt`` completes the owner-confirmed
+  ``TaskExecutionBinding`` from ``attempt_detail`` joined with ``status``. In
+  hosted mode, observe/cancel/inventory compare against that confirmed binding.
 """
 
 from __future__ import annotations
@@ -32,9 +45,10 @@ from aik_runtime.models import Lease, Placement, Pool, identifier
 from .binding import DIGEST_PATTERN, TaskExecutionBinding, verify_assignment
 from .engine_port import ADAPTER_CODES, INVALID_ENGINE_RESPONSE, PROJECT_MISMATCH, EnginePortError
 from .errors import BridgeCode, EffectOutcome, VmBridgeError
+from .hosted_runtime import HOSTED_ASSIGNMENT_FIELDS, ExecutionBindingStore
 from .surface import (
-    BINDING_EXTENSION, CapabilityReport, Command, DeclaredSurface, Handshake, check_handshake,
-    load_surface, preflight,
+    BINDING_EXTENSION, HOSTED_RUNTIME_EXTENSION, CapabilityReport, Command, DeclaredSurface, Handshake,
+    check_handshake, load_surface, preflight,
 )
 
 
@@ -50,6 +64,10 @@ _ADAPTER_RESPONSE_CODES = frozenset({INVALID_ENGINE_RESPONSE, PROJECT_MISMATCH})
 _OWNER_REQUIRED = ("project_id", "task_id", "attempt_id", "goal_revision_id", "plan_revision_id",
                    "execution_spec_digest")
 _RUN_REQUIRED = ("task_id", "attempt_id")
+# Hosted owner query: VM AttemptDetail has no goal revision; it is joined from status.
+_HOSTED_OWNER_REQUIRED = ("project_id", "attempt_id", "task_id", "execution_spec_digest", "plan_revision_id")
+_NESTED_ATTEMPT_KEYS = ("attempt_id", "task_id", "execution_spec_digest")
+HOSTED_STATES = ("confirmed", "binding_pending")
 
 
 def _id(value: object, field: str) -> None:
@@ -121,6 +139,21 @@ class RunOnceRequest:
     def __post_init__(self) -> None:
         _id(self.request_id, "request_id")
         _binding(self.binding, None)
+        if type(self.resume) is not bool:
+            raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="resume")
+
+
+@dataclass(frozen=True, slots=True)
+class HostedRunOnceRequest:
+    """run_once on the hosted path: VM reserves the Attempt; AIK binds in its runtime."""
+
+    request_id: str
+    project_id: str
+    resume: bool = False
+
+    def __post_init__(self) -> None:
+        _id(self.request_id, "request_id")
+        _id(self.project_id, "project_id")
         if type(self.resume) is not bool:
             raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="resume")
 
@@ -290,6 +323,26 @@ class BridgeReceipt:
     job: JobObservation | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class HostedConfirmation:
+    """Result of ``confirm_attempt``.
+
+    ``confirmed``: the owner-confirmed binding is stored in the AIK journal.
+    ``binding_pending``: no provider effect has been bound for the Attempt yet;
+    this is not a success claim. Neither state is a VM completion verdict.
+    """
+
+    state: str
+    vm_project_id: str
+    vm_attempt_id: str
+    vm_task_id: str | None = None
+    binding_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        if type(self.state) is not str or self.state not in HOSTED_STATES:
+            raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="state")
+
+
 class _FrozenList(list):
     """A list snapshot whose ordinary mutating methods are refused.
 
@@ -345,6 +398,39 @@ def _extract_refs(response: Mapping[str, Any], outcome: EffectOutcome) -> VmRefs
             raise VmBridgeError(BridgeCode.INVALID_RESPONSE, outcome, subject="history_cursor")
         values["history_cursor"] = cursor
     return VmRefs(**values)
+
+
+def _owner_view(detail: Mapping[str, Any]) -> dict:
+    """Top-level owner fields, completed from a nested ``attempt`` mapping when absent."""
+    view = dict(detail)
+    nested = detail.get("attempt")
+    if isinstance(nested, Mapping):
+        for key in _NESTED_ATTEMPT_KEYS:
+            value = nested.get(key)
+            if value is None:
+                continue
+            if view.get(key) is None:
+                view[key] = value
+            elif view[key] != value:
+                raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject=key)
+    return view
+
+
+def _active_revision(status: Mapping[str, Any], key: str) -> str | None:
+    """An active revision ID from the top level or ``project``; both must agree."""
+    candidates = [status.get(key)]
+    project = status.get("project")
+    if isinstance(project, Mapping):
+        candidates.append(project.get(key))
+    values = [item for item in candidates if item is not None]
+    for item in values:
+        try:
+            identifier(item, key)
+        except InvalidRecord:
+            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject=key) from None
+    if len(set(values)) > 1:
+        raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject=key)
+    return values[0] if values else None
 
 
 def _parse_job(response: Mapping[str, Any]) -> JobObservation:
@@ -411,6 +497,18 @@ def _mapped(error: Exception, label: str, effectful: bool) -> VmBridgeError:
     return VmBridgeError(BridgeCode.QUERY_FAILED, _KNOWN, subject=label)
 
 
+def _store_call(function, *args):
+    """Call the binding store; keep its fixed-code errors, classify anything else."""
+    failure = None
+    try:
+        return function(*args)
+    except VmBridgeError as error:
+        failure = error
+    except Exception:
+        failure = VmBridgeError(BridgeCode.BINDING_STORE_FAILED, subject="binding_store")
+    raise failure from None
+
+
 # ----- ports ----------------------------------------------------------------
 
 class VmApplicationPort(Protocol):
@@ -449,7 +547,8 @@ class VmBindingExtensionPort(Protocol):
 class VmBridge:
     def __init__(self, port: object, surface: DeclaredSurface | Mapping[str, Any] | str, *,
                  commands: Iterable[Command | str] | None = None,
-                 now: Callable[[], datetime] | None = None):
+                 now: Callable[[], datetime] | None = None,
+                 binding_store: ExecutionBindingStore | None = None):
         self._surface = surface if isinstance(surface, DeclaredSurface) else load_surface(surface)
         try:
             selected = tuple(dict.fromkeys(Command(c) for c in (tuple(Command) if commands is None else commands)))
@@ -457,6 +556,8 @@ class VmBridge:
             raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="commands") from None
         if not selected:
             raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="commands")
+        if binding_store is not None and not isinstance(binding_store, ExecutionBindingStore):
+            raise VmBridgeError(BridgeCode.INVALID_REQUEST, subject="binding_store")
         preflight(self._surface, selected).require()
         absent = [c.value for c in selected if not callable(getattr(port, c.value, None))]
         if not callable(getattr(port, "handshake", None)):
@@ -466,6 +567,7 @@ class VmBridge:
         self._port = port
         self._commands = selected
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._binding_store = binding_store
         self._handshake: Handshake | None = None
         self._lock = threading.RLock()
         self._used_requests: set[str] = set()
@@ -490,6 +592,10 @@ class VmBridge:
             raise _mapped(error, "handshake", False) from None
         self._handshake = check_handshake(self._surface, raw, self._commands)
         return self._handshake
+
+    @property
+    def binding_store(self) -> ExecutionBindingStore | None:
+        return self._binding_store
 
     @property
     def unresolved_attempts(self) -> frozenset:
@@ -536,11 +642,26 @@ class VmBridge:
             if project is not None:
                 self._unresolved_projects.add(project)
 
-    def _require_extension(self, handshake: Handshake) -> None:
+    def _hosted(self, handshake: Handshake | None) -> bool:
+        return (self._binding_store is not None and handshake is not None
+                and HOSTED_RUNTIME_EXTENSION in handshake.extensions)
+
+    def _require_hosted(self, handshake: Handshake) -> None:
+        if not self._hosted(handshake):
+            raise VmBridgeError(BridgeCode.SEAM_UNAVAILABLE, subject="aik-hosted-runtime")
+
+    def _require_bind_extension(self, handshake: Handshake) -> None:
+        """The upstream binding extension (bind_execution/read_execution_binding)."""
         if (BINDING_EXTENSION not in handshake.extensions
                 or not callable(getattr(self._port, "bind_execution", None))
                 or not callable(getattr(self._port, "read_execution_binding", None))):
             raise VmBridgeError(BridgeCode.SEAM_UNAVAILABLE, subject="aik-bound-runtime")
+
+    def _require_extension(self, handshake: Handshake) -> None:
+        """A persisted-binding source: the hosted journal, or the upstream extension."""
+        if self._hosted(handshake):
+            return
+        self._require_bind_extension(handshake)
 
     def _call(self, label: str, effectful: bool, function, *args, **kwargs) -> dict:
         outcome = _UNKNOWN if effectful else _KNOWN
@@ -579,20 +700,38 @@ class VmBridge:
             None if binding is None else binding.digest(), _parse_job(response) if with_job else None,
         )
 
-    def _persisted_digest(self, attempt: str) -> str | None:
-        """The binding digest VM persisted for the Attempt, or None if absent."""
+    @staticmethod
+    def _digest_of(persisted: object, attempt: str, label: str) -> str | None:
+        if persisted is None:
+            return None
+        if not isinstance(persisted, Mapping):
+            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject=label)
+        digest = persisted.get("binding_digest")
+        if type(digest) is not str or DIGEST_PATTERN.fullmatch(digest) is None:
+            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject=label)
+        reported = persisted.get("vm_attempt_id")
+        if reported is not None and reported != attempt:
+            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject=label)
+        return digest
+
+    def _port_persisted_digest(self, attempt: str) -> str | None:
+        """The binding digest VM persisted through the upstream extension, or None."""
         try:
             persisted = self._port.read_execution_binding(attempt)
         except Exception as error:
             raise _mapped(error, "read_execution_binding", False) from None
-        if persisted is None:
-            return None
-        if not isinstance(persisted, Mapping):
-            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject="read_execution_binding")
-        digest = persisted.get("binding_digest")
-        if type(digest) is not str or DIGEST_PATTERN.fullmatch(digest) is None:
-            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject="read_execution_binding")
-        return digest
+        return self._digest_of(persisted, attempt, "read_execution_binding")
+
+    def _persisted_digest(self, attempt: str) -> str | None:
+        """The persisted binding digest for the Attempt, or None if absent.
+
+        Hosted mode reads the owner-confirmed binding from the AIK journal;
+        otherwise the upstream extension is read through the port.
+        """
+        if self._hosted(self._handshake):
+            persisted = _store_call(self._binding_store.read_execution_binding, attempt)
+            return self._digest_of(persisted, attempt, "read_execution_binding")
+        return self._port_persisted_digest(attempt)
 
     def _require_persisted(self, binding: TaskExecutionBinding) -> None:
         """Observe/cancel/inventory only with the persisted original binding."""
@@ -677,11 +816,11 @@ class VmBridge:
         return self._receipt(Command.MODEL_BINDING_STATUS, request.request_id, project_id, response,
                              effectful=False, binding=request.binding)
 
-    # -- bound execution --
+    # -- bound execution (upstream extension path) --
     def run_once(self, request: RunOnceRequest) -> BridgeReceipt:
         self._check(request, RunOnceRequest)
         handshake = self._ready(Command.RUN_ONCE, Command.ATTEMPT_DETAIL)
-        self._require_extension(handshake)
+        self._require_bind_extension(handshake)
         binding = request.binding
         attempt = binding.vm_attempt_id
         project = binding.vm_project_id
@@ -711,7 +850,7 @@ class VmBridge:
         _same_execution(owner, binding, _KNOWN, _OWNER_REQUIRED)
 
         digest = binding.digest()
-        persisted = self._persisted_digest(attempt)
+        persisted = self._port_persisted_digest(attempt)
         if persisted is None:
             echo = self._effect(attempt, None, "bind_execution", self._port.bind_execution, binding.to_mapping())
             if echo.get("binding_digest") != digest:
@@ -745,6 +884,134 @@ class VmBridge:
             self._mark_unknown(attempt, None)
         return receipt
 
+    # -- hosted execution (aik-hosted-runtime-v1) --
+    def run_once_hosted(self, request: HostedRunOnceRequest) -> tuple:
+        """VM reserves the Attempt and dispatches through the injected hosted runtime.
+
+        Returns ``(receipt, confirmation)``; ``confirmation`` is None when the
+        response does not identify an Attempt. A failed confirmation after the
+        effect is raised with outcome UNKNOWN and marks the Attempt unresolved.
+        """
+        self._check(request, HostedRunOnceRequest)
+        handshake = self._ready(Command.RUN_ONCE, Command.ATTEMPT_DETAIL, Command.STATUS)
+        self._require_hosted(handshake)
+        project = request.project_id
+        with self._lock:
+            if project in self._unresolved_projects:
+                raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _UNKNOWN, subject="vm_project_id")
+            self._claim(request.request_id)
+        response = self._effect(None, project, "run_once", self._port.run_once, project, resume=request.resume)
+        try:
+            receipt = self._receipt(Command.RUN_ONCE, request.request_id, project, response,
+                                    effectful=True, with_job=True)
+        except VmBridgeError as error:
+            if error.outcome is _UNKNOWN:
+                self._mark_unknown(None, project)
+            raise
+        attempt = receipt.refs.attempt_id
+        job = receipt.job
+        if attempt is None:
+            reported = job.vm_status is not None or job.job_id is not None
+            if reported and job.phase is JobPhase.UNKNOWN:
+                # A job of unknown state that cannot be tied to an Attempt.
+                self._mark_unknown(None, project)
+            return receipt, None
+        with self._lock:
+            self._terminal_observed.discard(attempt)
+            self._launch_generation[attempt] = self._launch_generation.get(attempt, 0) + 1
+            self._launched_job[attempt] = job.job_id
+        if job.phase is JobPhase.UNKNOWN:
+            self._mark_unknown(attempt, None)
+        failure = None
+        confirmation = None
+        try:
+            confirmation = self._confirm(project, attempt)
+        except VmBridgeError as error:
+            failure = VmBridgeError(error.code, _UNKNOWN, vm_code=error.vm_code, subject=error.subject,
+                                    details=error.details)
+        if failure is not None:
+            self._mark_unknown(attempt, None)
+            raise failure from None
+        return receipt, confirmation
+
+    def confirm_attempt(self, project_id: str, attempt_id: str, *, request_id: str | None = None) -> HostedConfirmation:
+        """Complete and store the owner-confirmed binding of a hosted Attempt.
+
+        Reads the AIK effect binding, the VM owner query (``attempt_detail``)
+        and the active Goal/Plan revisions (``status``). ``binding_pending``
+        means no provider effect has been bound yet; it is not a success.
+        """
+        _id(project_id, "project_id")
+        _id(attempt_id, "attempt_id")
+        if request_id is not None:
+            _id(request_id, "request_id")
+        handshake = self._ready(Command.ATTEMPT_DETAIL, Command.STATUS)
+        self._require_hosted(handshake)
+        if request_id is not None:
+            self._claim(request_id)
+        return self._confirm(project_id, attempt_id)
+
+    def _confirm(self, project_id: str, attempt_id: str) -> HostedConfirmation:
+        store = self._binding_store
+        stored = _store_call(store.read_attempt, attempt_id)
+        if stored is None:
+            return HostedConfirmation("binding_pending", project_id, attempt_id, None, None)
+        if stored.vm_project_id != project_id:
+            raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="vm_project_id")
+        first = stored.first_intent()
+        if first is None:
+            # Only resume/interrupt intents: no create/start binding exists yet.
+            return HostedConfirmation("binding_pending", project_id, attempt_id, None, None)
+
+        detail = self._call("attempt_detail", False, self._port.attempt_detail, attempt_id)
+        owner = _extract_refs(_owner_view(detail), _KNOWN)
+        for subject in _HOSTED_OWNER_REQUIRED:
+            if getattr(owner, subject) is None:
+                raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject=subject)
+        if owner.project_id != project_id:
+            raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="project_id")
+        if owner.attempt_id != attempt_id:
+            raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="attempt_id")
+
+        status = self._call("status", False, self._port.status, project_id)
+        status_refs = _extract_refs(status, _KNOWN)
+        if status_refs.project_id is not None and status_refs.project_id != project_id:
+            raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="project_id")
+        goal = _active_revision(status, "active_goal_revision_id")
+        plan = _active_revision(status, "active_plan_revision_id")
+        if goal is None:
+            raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="active_goal_revision_id")
+        if plan is None:
+            raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="active_plan_revision_id")
+        if status_refs.plan_revision_id is not None and status_refs.plan_revision_id != plan:
+            raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="plan_revision_id")
+        if owner.plan_revision_id != plan:
+            raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="plan_revision_id")
+        if owner.goal_revision_id is not None and owner.goal_revision_id != goal:
+            raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="goal_revision_id")
+        if first.vm_call_id is None:
+            # The trace scope did not identify the provider call; the v1
+            # binding requires it.
+            raise VmBridgeError(BridgeCode.SEAM_UNAVAILABLE, subject="trace_call_id")
+
+        values = {name: stored.assignment[name] for name in HOSTED_ASSIGNMENT_FIELDS}
+        values.update(
+            vm_goal_revision_id=goal, vm_plan_revision_id=plan, vm_task_id=owner.task_id,
+            vm_attempt_id=attempt_id, vm_execution_spec_digest=owner.execution_spec_digest,
+            vm_runtime_intent_id=first.vm_intent_id, vm_provider_call_id=first.vm_call_id,
+        )
+        failed = False
+        binding = None
+        try:
+            binding = TaskExecutionBinding(**values)
+        except (VmBridgeError, TypeError):
+            failed = True
+        if failed:
+            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject="binding") from None
+        digest = _store_call(store.confirm_owner, binding)
+        return HostedConfirmation("confirmed", project_id, attempt_id, owner.task_id, digest)
+
+    # -- observation and cancellation --
     def _release_after_consumption(self, attempt: str, generation: int | None, job_id: str | None) -> None:
         """Release an Attempt guard only for its latest launch, observed consumed."""
         with self._lock:

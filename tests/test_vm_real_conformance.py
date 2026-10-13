@@ -42,6 +42,10 @@ from aik_vm_bridge import (  # noqa: E402
     JobObservation, JobPhase, ObserveRequest, PauseRequest, ProjectQuery, RunOnceRequest,
     TaskExecutionBinding, VmBridge, VmBridgeError, check_handshake, load_surface, parameter_names,
 )
+from aik_vm_bridge.hosted_runtime import (  # noqa: E402
+    HOSTED_RUNTIME_EXTENSION, TRACE_FIELDS, AikHostedRuntime, ExecutionBindingStore, read_operation_trace,
+)
+from aik_vm_bridge.engine_port import build_hosted_application  # noqa: E402
 from aik_vm_bridge.surface import REQUIRED_PARAMETERS  # noqa: E402
 from aik_workspace.errors import VmProjectUnavailable  # noqa: E402
 from aik_workspace.vm_projects import BridgeProjectPort  # noqa: E402
@@ -696,6 +700,52 @@ class RealUpstreamConformanceTests(unittest.TestCase):
         self.assertIn(raised.exception.code, (BridgeCode.SEAM_UNAVAILABLE, BridgeCode.CAPABILITY_MISSING))
         self.assertNotIn("run_once", self.port.calls)
         self.assertNotIn("attempt_detail", self.port.calls)
+
+    # -- hosted runtime seam (aik-hosted-runtime-v1) against the real VM symbols --
+    def test_f_hosted_runtime_matches_the_real_runtime_port_signatures(self) -> None:
+        protocol = importlib.import_module("flowmarshal.engine.runtime").CodexRuntimePort
+        names = sorted(name for name, value in vars(protocol).items()
+                       if not name.startswith("_") and callable(value))
+        self.assertEqual(names, ["close", "create_thread", "interrupt", "list_models", "read", "read_stored",
+                                 "resume", "start_turn", "verify_execution_policy"])
+
+        def shape(function):
+            # Names, kinds and defaults; annotations are not compared.
+            return [(item.name, item.kind, item.default)
+                    for item in inspect.signature(function).parameters.values()]
+        for name in names:
+            with self.subTest(method=name):
+                self.assertEqual(shape(getattr(AikHostedRuntime, name)), shape(getattr(protocol, name)))
+
+    def test_g_trace_reader_reads_the_real_operation_trace_scope(self) -> None:
+        module = importlib.import_module("flowmarshal.engine.operation_trace")
+        declared = {field.name for field in __import__("dataclasses").fields(module.OperationTraceScope)}
+        self.assertLessEqual(set(TRACE_FIELDS), declared)
+        self.assertIsNone(read_operation_trace())
+        # Only the identifier fields are read; the trace/parent objects are not used.
+        scope = module.OperationTraceScope(
+            trace=None, parent=None, deadline_monotonic_ns=None, deadline_at=None, call_id="call-1",
+            attempt_id="attempt-1", intent_id="intent-1", thread_id="thread-1", turn_id=None)
+        with module.use_operation_trace_scope(scope):
+            trace = read_operation_trace()
+        self.assertEqual((trace.attempt_id, trace.intent_id, trace.call_id, trace.thread_id, trace.turn_id),
+                         ("attempt-1", "intent-1", "call-1", "thread-1", None))
+        self.assertIsNone(read_operation_trace())
+
+    def test_h_real_engine_application_accepts_the_hosted_runtime(self) -> None:
+        store = ExecutionBindingStore(self.base / "aik-binding-journal.sqlite3")
+        hosted = AikHostedRuntime(lambda connection_id: None, store, lambda cwd, trace: None)
+        ledger = UPSTREAM["SQLiteEngineLedger"](self.base / "engine-ledger-hosted.db")
+        service = UPSTREAM["EngineService"](ledger)
+        service.initialize()
+        port = build_hosted_application(
+            UPSTREAM["EngineApplication"], service, hosted, surface_revision=PINNED_SURFACE_REVISION,
+            engine_schema_revision=SUPPORTED_ENGINE_SCHEMA_REVISIONS[0])
+        self.assertIn(HOSTED_RUNTIME_EXTENSION, port.handshake()["extensions"])
+        self.assertFalse(hasattr(port, "bind_execution"))
+        self.assertIsNone(port.read_execution_binding("attempt-1"))
+        # Construction only: no runtime method was called, so no provider effect.
+        self.assertEqual(store.effect_records(), ())
 
 
 class FakeDistribution:

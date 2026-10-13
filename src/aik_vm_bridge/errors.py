@@ -20,6 +20,10 @@ class BridgeCode(StrEnum):
     VM_REJECTED = "VM_REJECTED"
     OUTCOME_UNKNOWN = "OUTCOME_UNKNOWN"
     QUERY_FAILED = "QUERY_FAILED"
+    # Hosted runtime (aik-hosted-runtime-v1) classifications.
+    THREAD_ID_COLLISION = "THREAD_ID_COLLISION"
+    THREAD_ROUTE_UNKNOWN = "THREAD_ROUTE_UNKNOWN"
+    BINDING_STORE_FAILED = "BINDING_STORE_FAILED"
 
 
 class EffectOutcome(StrEnum):

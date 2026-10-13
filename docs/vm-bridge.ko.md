@@ -145,6 +145,83 @@ project = port.lookup_project(project_id)                      # EngineProject �
 
 **인가 결속 한계:** `authorize`는 `source`와 `selected_plan_revision_id`만 전달한다. `operating_policy`·`capability`·`authorization_target`은 VM 기본값이 적용되며, 그 의미는 확인하지 않았다.
 
+## VM 설계 seam 위의 hosted runtime binding (`aik-hosted-runtime-v1`)
+
+VM 설계(vibemarshal 32bb0f9 코드와 설계 문서)에는 `bind_execution`/`read_execution_binding` 확장이 없고, 앞으로 만들 계획도 없다. 대신 VM은 두 가지를 제공한다.
+
+- `EngineApplication(service, runtime=...)`은 주입된 `CodexRuntimePort` 구현으로 `RuntimeJobSupervisor`를 만든다.
+- runtime 메서드를 호출하는 동안 `current_operation_trace_scope()`로 Attempt, runtime intent, provider call을 알 수 있다.
+
+AIK는 이 두 seam과 owner query(`attempt_detail`·`status`)만으로 효과 전 binding을 AIK 쪽에 남긴다. 위의 확장 기반 경로(`run_once`·`RunOnceRequest`)는 바꾸지 않았고, 실제 VM에서는 여전히 `SEAM_UNAVAILABLE`로 차단된다.
+
+**구성 요소**
+
+- `AikHostedRuntime(runtime_for, store, assignment_source)`: VM에 주입하는 runtime이다. 메서드 이름·인자·기본값이 실제 `CodexRuntimePort` 9개 메서드와 같다(실제 upstream 적합성 시험 (f)).
+  - `runtime_for(connection_id)`는 연결별 inner runtime을 돌려준다. 예를 들어 계정 설정을 고른 VM 기존 runtime이다. AIK는 provider를 새로 만들지 않는다.
+  - `assignment_source(cwd, trace)`는 현재 placement/lease/route를 담은 `HostedAssignment`를 돌려준다.
+- `ExecutionBindingStore(path)`: AIK 소유 SQLite journal(`aik_runtime.binding_journal`)이다.
+  - Attempt binding과 intent binding은 불변이다.
+  - thread→connection 경로를 저장한다.
+  - owner 확인이 끝난 `TaskExecutionBinding` v1과 결과 불명 표시도 저장한다. 재시작 뒤에도 같은 상태를 읽는다.
+- `build_hosted_application(EngineApplication, service, hosted_runtime)`: VM application과 port를 같은 hosted runtime으로 함께 만든다.
+  - 이렇게 만든 `EngineApplicationPort(hosted_runtime=...)`는 handshake에 `aik-hosted-runtime-v1`을 선언하고, store의 `read_execution_binding`을 제공한다.
+  - `bind_execution`은 제공하지 않는다.
+  - 주입된 application이 실제로 이 runtime을 쓰는지는 VM 비공개 속성을 읽지 않으므로 증명할 수 없다. 이 helper로 함께 만드는 것이 호출자 책임이다.
+- `VmBridge(..., binding_store=store)`: `run_once_hosted(HostedRunOnceRequest)`와 `confirm_attempt(project_id, attempt_id)`를 제공한다.
+
+**provider 효과 전 순서** (`create_thread`·`start_turn`·`resume`·`interrupt`)
+
+1. 호출 시점에 trace scope를 읽는다. VM trace 모듈은 이때만 lazy import한다.
+2. assignment를 정하고, `binding.check_assignment`로 placement/lease/pool을 확인한다. 만료·비활성이면 `LEASE_NOT_USABLE`, fencing·ID가 다르면 `BINDING_MISMATCH`다.
+3. store에 durable하게 기록한다.
+4. 그 다음에만 원래 connection의 inner runtime을 부른다.
+
+1~3단계에서 실패하면 inner를 부르지 않는다. 같은 Attempt에 다른 assignment가 오면 `BINDING_MISMATCH`이며 효과는 없다.
+
+**호출 종류별 처리**
+
+- **Task 실행 호출**(trace에 `attempt_id`가 있음): Attempt binding과 intent binding을 기록한다. `intent_id` 없이 `attempt_id`만 있으면 거절한다.
+- **준비 호출**(Planning·Goal 준비처럼 Attempt가 없음): `TaskExecutionBinding`을 만들지 않고 thread 경로(`preparation`)만 남긴다.
+
+**원래 계정 정책**
+
+- 기존 thread의 `start_turn`·`resume`·`interrupt`·`read`·`read_stored`는 저장된 경로의 connection으로만 간다. `assignment_source`가 다른 계정을 주어도 계정을 바꾸지 않는다.
+- 경로 없는 thread는 `THREAD_ROUTE_UNKNOWN`으로 거절한다.
+- 같은 thread ID가 서로 다른 connection에 있으면 `THREAD_ID_COLLISION`으로 거절한다(fail-closed).
+- Task thread는 trace의 Attempt가 thread의 Attempt와 같아야 한다.
+
+**interrupt 정책**
+
+중단은 비용을 줄이는 안전한 방향이다. 그래서 lease가 만료된 상태에서도 원래 계정으로 중단하는 것을 허용하고, 그 사실(`lease_usable=false`)을 기록한다. 다만 placement/lease/fencing 자체가 다르면 거절한다.
+
+**결과 불명**
+
+다음 경우 해당 Attempt나 thread를 unknown으로 표시하고 `OUTCOME_UNKNOWN`을 낸다.
+
+- durable 기록 뒤 inner가 예외를 냈다.
+- 새 thread ID를 읽을 수 없다.
+- 경로 기록에 실패했다.
+
+unknown으로 표시된 대상의 다음 효과는 `RECONCILIATION_REQUIRED`로 막힌다. 호출자가 VM으로 대조한 뒤 `reconcile_attempt`/`reconcile_thread`로 명시적으로 풀어야 한다. 자동 재실행은 하지 않는다.
+
+**owner 확인** (`confirm_attempt`)
+
+1. `attempt_detail`(attempt/task/execution spec digest/plan revision)과 `status`의 활성 goal·plan revision을 join한다. 실제 `AttemptDetail`에 `goal_revision_id`가 없기 때문이다. Plan이 활성인 동안 VM은 Goal revision 변경을 거절한다.
+2. plan revision이 다르거나 없으면 `CONTRACT_MISMATCH`다.
+3. 저장된 assignment, 첫 intent/call과 합쳐 `TaskExecutionBinding` v1을 완성하고 digest를 고정한다.
+4. 효과 binding이 아직 없으면 `binding_pending`을 돌려준다. 이것은 성공 주장이 아니다.
+5. 확인된 binding으로 hosted 모드의 `observe`·`cancel`·`inventory`가 동작한다.
+
+**남은 한계**
+
+- provider 호출이 supervisor 스레드에서 일어날 때도 trace scope가 존재한다는 점은 VM 설계 가정이다. 실제 설치형 RuntimeJob 실행으로 확인하지 않았다. RuntimeJob은 VM 1.0에서 Windows 전용이다.
+- 실제 upstream 적합성 시험은 VM 표면이 맞는지까지만 확인한다.
+  - (f) 시그니처 일치
+  - (g) 실제 trace scope 읽기
+  - (h) 실제 `EngineApplication`이 hosted runtime을 받아들임(생성만 하며 효과 없음)
+- 실제 Task 실행, 실모델, Windows는 NOT_RUN이다.
+- AGS governance gate가 A2 전환 전이라 실제 governed dispatch에 도달하지 못한다. 따라서 통합 완료가 아니다.
+
 ## 오류 의미 보존
 
 | 상황 | 결과 |
@@ -172,8 +249,8 @@ project = port.lookup_project(project_id)                      # EngineProject �
 
 ## 여전히 남은 차단 사유
 
-1. **durable binding extension 부재**(`AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED`): 실제 `EngineApplication`에는 `bind_execution`/`read_execution_binding`이 없다. 따라서 bound `run_once`, 원래 binding 기반 관측·취소·inventory는 모두 fail-closed다. 우회나 가짜 구현은 하지 않는다.
-2. **owner query 정보 부족:** 실제 `AttemptDetail`에 `goal_revision_id`가 없다.
+1. **durable binding:** 실제 `EngineApplication`에는 `bind_execution`/`read_execution_binding`이 없고, VM 설계에도 없다. 확장 기반 `run_once`는 계속 fail-closed다. VM 설계 seam 위의 hosted 경로(위 절)를 구현했지만, 실제 설치형 VM에서 Task를 실행하는 검증은 NOT_RUN이다(`AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED`는 그 검증 전까지 유지).
+2. **owner query 정보 부족:** 실제 `AttemptDetail`에 `goal_revision_id`가 없다. hosted 경로는 `status` join으로 결속하고, 확장 기반 경로는 여전히 `INVALID_RESPONSE`로 멈춘다.
 3. **AGS manifest 부재**(`AGS_HOST_INTEGRATION_MANIFEST_MISSING`).
 4. **설치형 검증 NOT_RUN:**
    - 설치형 wheel·Windows 호출 검증이 없다. 적합성 시험은 소스 import 기반이며 Linux 결과는 개발 검증이다.
