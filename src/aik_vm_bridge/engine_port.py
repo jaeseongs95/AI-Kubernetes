@@ -12,15 +12,33 @@ The adapter does two things:
   ``FinalReport`` and others) into plain JSON-like mappings with
   ``model_dump(mode="json")``.
 * It normalizes the observed key layout into the shape that the bridge,
-  workspace and controller read. Original VM keys are preserved. The only
-  exception is ``status()["tasks"]``, which is moved to ``vm_tasks`` because
-  its row format differs from the controller's assumed task view.
+  workspace and controller read.
+
+Key rewrites are limited to the following. Every other original VM key and
+value is kept unchanged.
+
+* The ``tasks`` list of ``status()`` is moved to ``vm_tasks`` because its row format
+  differs from the controller's assumed task view.
+* A ``history_cursor`` mapping (upstream ``HistoryCursor``) is replaced by its
+  integer ``sequence``. The original mapping is kept unchanged under
+  ``vm_history_cursor``. A mapping without a valid sequence is left as is, and
+  the bridge rejects it.
+* Nested IDs (for example ``project.id``/``project.root``, ``attempt.*`` and
+  ``runtime_job.attempt_id``) are copied to top-level keys only when the
+  top-level key is absent or equal. A disagreement is a malformed response.
+* ``job`` is added from ``runtime_job`` or the flat ``runtime_job_*`` fields.
+* ``goal_state`` is an AIK-derived label, not a VM field. It is added to a
+  status only when absent, from ``control_state`` (paused/cancelled) or
+  ``authorization_state == "required"`` (``awaiting_authorization``).
 
 Errors keep their original classification. ``EngineApplicationError`` keeps
 its leading code (for example ``ATTEMPT_NOT_FOUND`` or ``RUNTIME_REQUIRED``).
 ``EngineLedgerError`` has no code upstream; only the exact observed
 "project not found" message is translated to ``PROJECT_NOT_FOUND``. Raw
-messages are never copied into the raised error.
+messages are never copied into the raised error, and the upstream exception is
+not retained in ``__cause__`` or ``__context__``. Codes made by the adapter
+itself are listed in ``ADAPTER_CODES``; the bridge never reports them as VM
+codes.
 
 The durable binding extension (``bind_execution``/``read_execution_binding``)
 does not exist upstream. This adapter neither exposes nor imitates it and never
@@ -59,6 +77,12 @@ ENGINE_APPLICATION_ERROR = "ENGINE_APPLICATION_ERROR"
 ENGINE_LEDGER_ERROR = "ENGINE_LEDGER_ERROR"
 ENGINE_METHOD_ABSENT = "ENGINE_METHOD_ABSENT"
 PROJECT_MISMATCH = "PROJECT_MISMATCH"
+# Classifications produced by this adapter, not codes returned by the VM.
+# PROJECT_NOT_FOUND is excluded: it translates the VM's own "not found" result.
+ADAPTER_CODES = frozenset({
+    INVALID_ENGINE_RESPONSE, ENGINE_APPLICATION_ERROR, ENGINE_LEDGER_ERROR, ENGINE_METHOD_ABSENT,
+    PROJECT_MISMATCH,
+})
 # EngineLedgerError carries no code. Only this exact observed upstream message
 # is classified; any other ledger message stays ENGINE_LEDGER_ERROR.
 LEDGER_MESSAGE_CODES = MappingProxyType({"프로젝트를 찾을 수 없습니다.": PROJECT_NOT_FOUND})
@@ -67,9 +91,9 @@ LEDGER_MESSAGE_CODES = MappingProxyType({"프로젝트를 찾을 수 없습니�
 class EnginePortError(Exception):
     """A classified upstream failure without the upstream message text.
 
-    ``code`` is a VM code, an adapter classification, or ``None`` when the
-    failure is unclassified. ``category`` is one of ``application``,
-    ``ledger``, ``response`` or ``unexpected``.
+    ``code`` is a VM code, an adapter classification (``ADAPTER_CODES``), or
+    ``None`` when the failure is unclassified. ``category`` is one of
+    ``application``, ``ledger``, ``response`` or ``unexpected``.
     """
 
     def __init__(self, code: str | None, category: str):
@@ -171,7 +195,7 @@ def _flatten_cursor(data: dict) -> None:
 
 
 def _derive_goal_state(data: dict) -> str | None:
-    """Only states that follow directly from upstream status() code paths."""
+    """An AIK-derived label from control_state/authorization_state only."""
     control = data.get("control_state")
     if control in ("paused", "cancelled"):
         return control
@@ -304,14 +328,22 @@ class EngineApplicationPort:
             raise EnginePortError(ENGINE_METHOD_ABSENT, "application")
         with self._lock:
             self._calls.append(name)
+        failure = None
         try:
             result = function(*args, **kwargs)
         except Exception as error:
-            raise self._classify(error) from None
+            failure = self._classify(error)
+        if failure is not None:
+            # Raised outside the handler: neither __cause__ nor __context__
+            # keeps the upstream exception or its message.
+            raise failure from None
+        data = None
         try:
             data = _plain(result)
         except Exception:
-            raise _invalid() from None
+            failure = _invalid()
+        if failure is not None:
+            raise failure from None
         if not isinstance(data, dict):
             raise _invalid()
         return data

@@ -7,7 +7,9 @@ Two groups:
 * ``RealUpstreamConformanceTests`` run only when ``flowmarshal.engine`` is
   importable. They use a temporary synthetic ledger and project and call the
   real façade without a runtime, provider, model or network. Otherwise they
-  are skipped with a NOT_RUN reason. A skip is not a pass.
+  are skipped with a NOT_RUN reason. A skip is not a pass. With
+  ``AIK_REQUIRE_UPSTREAM=1`` a missing surface contract fails instead of
+  skipping.
 
 Passing on Linux is development verification; installed-wheel and Windows
 calls remain NOT_RUN.
@@ -19,11 +21,13 @@ from datetime import datetime, timezone
 import importlib
 import importlib.util
 import inspect
+import json
 import os
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,9 +38,9 @@ from aik_runtime.errors import InvalidRecord  # noqa: E402
 from aik_runtime.models import identifier  # noqa: E402
 from aik_vm_bridge import (  # noqa: E402
     JOB_STATUS_PHASES, PINNED_SURFACE_REVISION, SUPPORTED_ENGINE_SCHEMA_REVISIONS, AttemptQuery,
-    BridgeCode, Command, EffectOutcome, EngineApplicationPort, EnginePortError, JobObservation,
-    JobPhase, ObserveRequest, ProjectQuery, RunOnceRequest, TaskExecutionBinding, VmBridge,
-    VmBridgeError, check_handshake, load_surface, parameter_names,
+    BridgeCode, Command, EffectOutcome, EngineApplicationPort, EnginePortError, FinalReportRequest,
+    JobObservation, JobPhase, ObserveRequest, PauseRequest, ProjectQuery, RunOnceRequest,
+    TaskExecutionBinding, VmBridge, VmBridgeError, check_handshake, load_surface, parameter_names,
 )
 from aik_vm_bridge.surface import REQUIRED_PARAMETERS  # noqa: E402
 from aik_workspace.errors import VmProjectUnavailable  # noqa: E402
@@ -46,6 +50,7 @@ from aik_workspace.vm_projects import BridgeProjectPort  # noqa: E402
 SURFACE_PATH = ROOT / "contracts/upstream/vm-public-surface.json"
 SECRET_MARKER = "SYNTHETIC_SECRET_MUST_NOT_LEAK"
 NOT_FOUND_MESSAGE = "프로젝트를 찾을 수 없습니다."
+PINNED_UPSTREAM_COMMIT = "32bb0f9"
 DIGEST_A = "sha256:" + "a" * 64
 DIGEST_B = "sha256:" + "b" * 64
 DIGEST_C = "sha256:" + "c" * 64
@@ -92,6 +97,23 @@ def is_aik_identifier(value: object) -> bool:
     except InvalidRecord:
         return False
     return True
+
+
+def installed_commit(distribution) -> str | None:
+    """The VCS commit recorded in an installed distribution's direct_url.json, or None."""
+    try:
+        text = distribution.read_text("direct_url.json")
+    except Exception:
+        return None
+    if not text:
+        return None
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    vcs = data.get("vcs_info") if isinstance(data, dict) else None
+    commit = vcs.get("commit_id") if isinstance(vcs, dict) else None
+    return commit if isinstance(commit, str) and commit else None
 
 
 def run_request(project_id: str, request_id: str = "run-1") -> RunOnceRequest:
@@ -348,6 +370,48 @@ class EnginePortAdapterTests(unittest.TestCase):
         self.assertEqual((query.exception.code, query.exception.vm_code, query.exception.outcome),
                          (BridgeCode.VM_REJECTED, "ATTEMPT_NOT_FOUND", EffectOutcome.KNOWN_FAILURE))
 
+    def test_review_f8_upstream_exception_is_not_retained_in_the_error_context(self) -> None:
+        app = FakeApp()
+        app.failures["revise"] = FakeApplicationError("GOAL_REVISION_ACTIVE_PLAN: " + SECRET_MARKER)
+        app.failures["status"] = ValueError(SECRET_MARKER)
+        app.responses["final_report"] = {"project_id": "project-1", "opaque": object()}
+        port = fake_port(app)
+        calls = ((lambda: port.revise("project-1", source_request="x")),
+                 (lambda: port.status("project-1")),
+                 (lambda: port.final_report("project-1")))
+        for index, call in enumerate(calls):
+            with self.subTest(case=index):
+                with self.assertRaises(EnginePortError) as raised:
+                    call()
+                self.assertIsNone(raised.exception.__cause__)
+                self.assertIsNone(raised.exception.__context__)
+
+    def test_review_f6_adapter_classifications_are_not_reported_as_vm_codes(self) -> None:
+        app = FakeApp()
+        app.failures["attempt_detail"] = FakeLedgerError("other ledger failure " + SECRET_MARKER)
+        app.responses["final_report"] = {"project_id": "project-1", "opaque": object()}
+        app.failures["pause"] = FakeApplicationError("lowercase text " + SECRET_MARKER)
+        app.failures["status"] = FakeLedgerError(NOT_FOUND_MESSAGE)
+        bridge = VmBridge(fake_port(app), surface_dict())
+        with self.assertRaises(VmBridgeError) as ledger:
+            bridge.attempt_detail(AttemptQuery("req-1", "attempt-1"))
+        self.assertEqual((ledger.exception.code, ledger.exception.vm_code, ledger.exception.outcome),
+                         (BridgeCode.QUERY_FAILED, None, EffectOutcome.KNOWN_FAILURE))
+        with self.assertRaises(VmBridgeError) as invalid:
+            bridge.final_report(FinalReportRequest("req-2", "project-1"))
+        self.assertEqual((invalid.exception.code, invalid.exception.vm_code, invalid.exception.outcome),
+                         (BridgeCode.INVALID_RESPONSE, None, EffectOutcome.KNOWN_FAILURE))
+        with self.assertRaises(VmBridgeError) as effect:
+            bridge.pause(PauseRequest("req-3", "project-1", "stop"))
+        self.assertEqual((effect.exception.code, effect.exception.vm_code, effect.exception.outcome),
+                         (BridgeCode.OUTCOME_UNKNOWN, None, EffectOutcome.UNKNOWN))
+        self.assertIn("project-1", bridge.unresolved_projects)
+        # The translated VM "not found" result keeps its code.
+        with self.assertRaises(VmBridgeError) as absent:
+            bridge.status(ProjectQuery("req-4", "project-1"))
+        self.assertEqual((absent.exception.code, absent.exception.vm_code, absent.exception.outcome),
+                         (BridgeCode.VM_REJECTED, "PROJECT_NOT_FOUND", EffectOutcome.KNOWN_FAILURE))
+
     def test_unclassified_and_unserializable_results_fail_closed(self) -> None:
         app = FakeApp()
         app.failures["status"] = ValueError(SECRET_MARKER)
@@ -377,6 +441,16 @@ class EnginePortAdapterTests(unittest.TestCase):
         self.assertEqual((receipt.refs.attempt_id, receipt.refs.task_id, receipt.refs.history_cursor,
                           receipt.refs.plan_revision_id, receipt.refs.goal_revision_id),
                          ("attempt-1", "task-1", 7, "plan-rev-1", None))
+
+    def test_review_f5_module_documentation_lists_every_rewritten_vm_key(self) -> None:
+        from aik_vm_bridge import engine_port
+
+        documentation = engine_port.__doc__ or ""
+        for key in ("history_cursor", "vm_history_cursor", "tasks", "vm_tasks", "goal_state"):
+            with self.subTest(key=key):
+                self.assertIn(f"``{key}``", documentation)
+        original = FakeApp().responses["attempt_detail"].model_dump(mode="json")["history_cursor"]
+        self.assertEqual(fake_port().attempt_detail("attempt-1")["vm_history_cursor"], original)
 
     def test_run_once_result_fields_are_normalized_to_a_job(self) -> None:
         data = fake_port().run_once("project-1")
@@ -475,6 +549,14 @@ class UpstreamRequirementTests(unittest.TestCase):
         location = Path(flowmarshal.__file__).resolve()
         self.assertIn("site-packages", location.parts, location)
 
+    def test_required_upstream_is_the_pinned_commit(self) -> None:
+        # The version string alone cannot distinguish commits.
+        import importlib.metadata
+        commit = installed_commit(importlib.metadata.distribution("flowmarshal-engine"))
+        self.assertIsNotNone(commit, "NOT_CONFIRMED: the installed upstream records no VCS commit "
+                                     "(direct_url.json vcs_info.commit_id); 32bb0f9 cannot be confirmed.")
+        self.assertTrue(commit.startswith(PINNED_UPSTREAM_COMMIT), "installed upstream is not 32bb0f9")
+
 
 def _create_project(service, name: str, root: Path):
     try:
@@ -514,13 +596,18 @@ class RealUpstreamConformanceTests(unittest.TestCase):
         self.project_id = _project_id(_create_project(service, "aik-conformance", self.project_root))
         self.app = UPSTREAM["EngineApplication"](service)
         # Declared test assumptions: the pinned surface revision and the only
-        # bridge-supported schema revision. Neither is read from the ledger.
+        # bridge-supported schema revision. Neither is read from the ledger,
+        # so the handshake revision check below verifies nothing about them.
         self.port = EngineApplicationPort(self.app, surface_revision=PINNED_SURFACE_REVISION,
                                           engine_schema_revision=SUPPORTED_ENGINE_SCHEMA_REVISIONS[0])
 
     def require_surface(self) -> None:
         if not SURFACE_PATH.is_file():
-            self.skipTest("NOT_RUN: contracts/upstream/vm-public-surface.json is absent")
+            reason = "NOT_RUN: contracts/upstream/vm-public-surface.json is absent"
+            if REQUIRE_UPSTREAM:
+                # Required mode: an unchecked surface is a failure, not a skip.
+                self.fail("AIK_REQUIRE_UPSTREAM=1: " + reason)
+            self.skipTest(reason)
 
     def require_aik_project_id(self) -> None:
         self.assertTrue(is_aik_identifier(self.project_id),
@@ -538,6 +625,7 @@ class RealUpstreamConformanceTests(unittest.TestCase):
                              if name != "self")
                 self.assertEqual(declared, real)
                 self.assertTrue(set(REQUIRED_PARAMETERS[command]) <= set(real))
+        # Method names are checked; the revision values are declared assumptions.
         handshake = check_handshake(surface, self.port.handshake(), tuple(Command))
         self.assertEqual(handshake.extensions, frozenset())
 
@@ -608,6 +696,50 @@ class RealUpstreamConformanceTests(unittest.TestCase):
         self.assertIn(raised.exception.code, (BridgeCode.SEAM_UNAVAILABLE, BridgeCode.CAPABILITY_MISSING))
         self.assertNotIn("run_once", self.port.calls)
         self.assertNotIn("attempt_detail", self.port.calls)
+
+
+class FakeDistribution:
+    """Only read_text('direct_url.json') is used."""
+
+    def __init__(self, text):
+        self.text = text
+
+    def read_text(self, name):
+        return self.text if name == "direct_url.json" else None
+
+
+class ConformanceGateTests(unittest.TestCase):
+    """The NOT_RUN/required-mode gates themselves; no upstream is needed."""
+
+    def test_review_f4_required_mode_fails_instead_of_skipping_without_the_surface_file(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="aik-surface-gate-") as directory:
+            absent = Path(directory) / "vm-public-surface.json"
+            for required, expected in ((True, "failed"), (False, "skipped")):
+                with self.subTest(required=required), \
+                        mock.patch.dict(globals(), {"REQUIRE_UPSTREAM": required, "SURFACE_PATH": absent}):
+                    case = RealUpstreamConformanceTests("test_b_every_runtime_job_status_is_classified")
+                    outcome = "passed"
+                    try:
+                        case.require_surface()
+                    except unittest.SkipTest:
+                        outcome = "skipped"
+                    except AssertionError:
+                        outcome = "failed"
+                    self.assertEqual(outcome, expected)
+
+    def test_review_f9_installed_commit_is_read_only_from_recorded_vcs_metadata(self) -> None:
+        pinned = PINNED_UPSTREAM_COMMIT + "0" * 33
+        cases = (
+            (json.dumps({"url": "https://example.invalid/vm.git",
+                         "vcs_info": {"vcs": "git", "commit_id": pinned}}), pinned),
+            (json.dumps({"url": "file:///synthetic/vm", "dir_info": {}}), None),
+            (json.dumps({"vcs_info": {"vcs": "git", "commit_id": ""}}), None),
+            ("not json", None),
+            (None, None),
+        )
+        for text, expected in cases:
+            with self.subTest(text=text):
+                self.assertEqual(installed_commit(FakeDistribution(text)), expected)
 
 
 if __name__ == "__main__":

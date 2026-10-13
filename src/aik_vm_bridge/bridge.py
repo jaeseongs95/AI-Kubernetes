@@ -9,6 +9,10 @@ instance and in memory only; they are not durable and not shared.
 
 Job states are interpreted against the upstream ``RuntimeJobStatus`` values of
 the pinned revision (``JOB_STATUS_PHASES``). Any other value is UNKNOWN.
+Only a Core-consumed observation (``consumed``) of the latest job launched for
+an Attempt can release that Attempt's guard; ``provider_terminal`` never does.
+Project-level guards are never released by an observation; only an explicit
+``reconcile_project`` call clears them.
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ from aik_runtime.errors import InvalidRecord
 from aik_runtime.models import Lease, Placement, Pool, identifier
 
 from .binding import DIGEST_PATTERN, TaskExecutionBinding, verify_assignment
+from .engine_port import ADAPTER_CODES, INVALID_ENGINE_RESPONSE, PROJECT_MISMATCH, EnginePortError
 from .errors import BridgeCode, EffectOutcome, VmBridgeError
 from .surface import (
     BINDING_EXTENSION, CapabilityReport, Command, DeclaredSurface, Handshake, check_handshake,
@@ -41,6 +46,7 @@ _UNKNOWN = EffectOutcome.UNKNOWN
 # an assumption that has not been checked against the installed VM's error
 # table; every other code on an effectful call is reported as UNKNOWN.
 _PRE_EFFECT_VM_CODES = frozenset({"STALE_EXECUTION_INPUT", "CORE_CAPABILITY_DENIED", "MODEL_BINDING_CHANGED"})
+_ADAPTER_RESPONSE_CODES = frozenset({INVALID_ENGINE_RESPONSE, PROJECT_MISMATCH})
 _OWNER_REQUIRED = ("project_id", "task_id", "attempt_id", "goal_revision_id", "plan_revision_id",
                    "execution_spec_digest")
 _RUN_REQUIRED = ("task_id", "attempt_id")
@@ -218,14 +224,18 @@ class InventoryRequest:
 class JobPhase(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
-    TERMINAL = "terminal"  # provider/job terminal, never a VM completion verdict
+    # Provider/job terminal (display phase). Never a VM completion verdict and,
+    # for provider_terminal, never a reason to release a relaunch guard.
+    TERMINAL = "terminal"
     UNKNOWN = "unknown"
 
 
 # Upstream RuntimeJobStatus (vibemarshal 32bb0f9, domain.py) -> bridge phase.
 # - provider_terminal: the provider turn ended. Core has not consumed it, and
-#   it is not proof of a completed or confirmed external effect.
-# - consumed: Core consumed the job result (core_consumed=True).
+#   it is not proof of a completed or confirmed external effect. Its phase is
+#   TERMINAL for display only; it never releases a guard.
+# - consumed: Core consumed the job result (core_consumed=True). This is the
+#   only observation that may release an Attempt guard.
 # - collector_lost: the collector lost the provider turn; it may still act.
 # - cancelled: Core may still have to settle a cancelled job
 #   (unsettled_cancelled_runtime_job), so the effect state is not settled.
@@ -378,8 +388,16 @@ def _same_execution(refs: VmRefs, binding: TaskExecutionBinding, outcome: Effect
 
 
 def _mapped(error: Exception, label: str, effectful: bool) -> VmBridgeError:
-    """Keep the VM's original code; never copy raw messages or tracebacks."""
+    """Keep the VM's original code; never copy raw messages or tracebacks.
+
+    Classifications made by ``engine_port`` (``ADAPTER_CODES``) are not VM
+    codes, so they are never reported as ``vm_code``.
+    """
     code = getattr(error, "code", None)
+    if isinstance(error, EnginePortError) and code in ADAPTER_CODES:
+        if code in _ADAPTER_RESPONSE_CODES:
+            return VmBridgeError(BridgeCode.INVALID_RESPONSE, _UNKNOWN if effectful else _KNOWN, subject=label)
+        code = None
     if type(code) is str and _VM_CODE.fullmatch(code):
         if effectful:
             # Only codes known to mean "rejected before any effect" are known
@@ -454,7 +472,12 @@ class VmBridge:
         self._unresolved: set[str] = set()
         self._unresolved_projects: set[str] = set()
         self._inflight: set[str] = set()
+        # Attempts whose latest launched job this bridge observed as consumed.
         self._terminal_observed: set[str] = set()
+        # Per-Attempt launch generation and the job ID of the latest launch
+        # (None when the launch result did not identify a job).
+        self._launch_generation: dict[str, int] = {}
+        self._launched_job: dict[str, str | None] = {}
 
     # -- capability & version --
     def preflight(self) -> CapabilityReport:
@@ -470,15 +493,26 @@ class VmBridge:
 
     @property
     def unresolved_attempts(self) -> frozenset:
-        """Attempts whose effect state is UNKNOWN; run_once refuses them until a terminal observation."""
+        """Attempts whose effect state is UNKNOWN; run_once refuses them until a Core-consumed observation."""
         with self._lock:
             return frozenset(self._unresolved)
 
     @property
     def unresolved_projects(self) -> frozenset:
-        """Projects with an UNKNOWN project-level effect; run_once refuses them until a terminal observation."""
+        """Projects with an UNKNOWN project-level effect; run_once refuses them until ``reconcile_project``."""
         with self._lock:
             return frozenset(self._unresolved_projects)
+
+    def reconcile_project(self, project_id: str) -> None:
+        """Explicitly clear a project-level UNKNOWN guard.
+
+        A project command cannot be correlated with any job, so no observation
+        clears this guard. The caller must have reconciled the VM project state
+        itself; the bridge verifies nothing here and attempt guards remain.
+        """
+        _id(project_id, "project_id")
+        with self._lock:
+            self._unresolved_projects.discard(project_id)
 
     def _ready(self, *commands: Command) -> Handshake:
         for command in commands:
@@ -510,10 +544,15 @@ class VmBridge:
 
     def _call(self, label: str, effectful: bool, function, *args, **kwargs) -> dict:
         outcome = _UNKNOWN if effectful else _KNOWN
+        failure = None
         try:
             response = function(*args, **kwargs)
         except Exception as error:
-            raise _mapped(error, label, effectful) from None
+            failure = _mapped(error, label, effectful)
+        if failure is not None:
+            # Raised outside the handler: neither __cause__ nor __context__
+            # keeps the port exception or its raw message.
+            raise failure from None
         if not isinstance(response, Mapping):
             raise VmBridgeError(BridgeCode.INVALID_RESPONSE, outcome, subject=label)
         try:
@@ -683,10 +722,13 @@ class VmBridge:
             raise VmBridgeError(BridgeCode.BINDING_MISMATCH, _KNOWN, subject="persisted_binding")
         elif attempt not in self._terminal_observed:
             # Already bound with this binding; relaunch only after this bridge
-            # has observed a terminal job for it (resume does not bypass this).
+            # has observed Core consume its latest job (resume does not bypass this).
             raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _KNOWN, subject="attempt_bound")
         with self._lock:
             self._terminal_observed.discard(attempt)
+            # A new launch invalidates every observation started before it.
+            self._launch_generation[attempt] = self._launch_generation.get(attempt, 0) + 1
+            self._launched_job[attempt] = None
 
         response = self._effect(attempt, None, "run_once", self._port.run_once, binding.vm_project_id,
                                 resume=request.resume)
@@ -697,31 +739,53 @@ class VmBridge:
         except VmBridgeError:
             self._mark_unknown(attempt, None)
             raise
+        with self._lock:
+            self._launched_job[attempt] = receipt.job.job_id
         if receipt.job.phase is JobPhase.UNKNOWN:
             self._mark_unknown(attempt, None)
         return receipt
+
+    def _release_after_consumption(self, attempt: str, generation: int | None, job_id: str | None) -> None:
+        """Release an Attempt guard only for its latest launch, observed consumed."""
+        with self._lock:
+            if attempt in self._inflight or self._launch_generation.get(attempt, 0) != generation:
+                return  # A launch started during this observation: the result is stale.
+            expected = self._launched_job.get(attempt)
+            if expected is not None and job_id != expected:
+                return  # A consumed older job says nothing about the latest launch.
+            self._unresolved.discard(attempt)
+            self._terminal_observed.add(attempt)
 
     def observe(self, request: ObserveRequest) -> BridgeReceipt:
         self._check(request, ObserveRequest)
         self._ready(Command.OBSERVE)
         self._claim(request.request_id)
         binding = request.binding
+        generation = None
         if binding is not None:
             self._require_persisted(binding)
-        response = self._call("observe", False, self._port.observe, request.project_id)
+            with self._lock:
+                generation = self._launch_generation.get(binding.vm_attempt_id, 0)
+        failure = None
+        try:
+            response = self._call("observe", False, self._port.observe, request.project_id)
+        except VmBridgeError as error:
+            if error.code is not BridgeCode.QUERY_FAILED:
+                raise
+            # Upstream observe may settle, reattach or tick runtime jobs; an
+            # unclassified failure can therefore follow VM-side changes. No
+            # guard is added, but "no effect" is not claimed either.
+            failure = VmBridgeError(BridgeCode.OUTCOME_UNKNOWN, _UNKNOWN, subject="observe")
+        if failure is not None:
+            raise failure from None
         receipt = self._receipt(Command.OBSERVE, request.request_id, request.project_id, response,
                                 effectful=False, binding=binding, with_job=True)
-        terminal = receipt.job.phase is JobPhase.TERMINAL
         if binding is not None and receipt.refs.attempt_id == binding.vm_attempt_id:
             _same_execution(receipt.refs, binding, _KNOWN)
-            if terminal:
-                # Pending/running/unknown keeps the guard: the job may still act.
-                with self._lock:
-                    self._unresolved.discard(binding.vm_attempt_id)
-                    self._terminal_observed.add(binding.vm_attempt_id)
-        if terminal:
-            with self._lock:
-                self._unresolved_projects.discard(request.project_id)
+            if receipt.job.core_consumed:
+                # Pending/running/provider_terminal/unknown keep the guard:
+                # Core has not consumed the job, which may still act.
+                self._release_after_consumption(binding.vm_attempt_id, generation, receipt.job.job_id)
         return receipt
 
     def cancel(self, request: CancelRequest) -> BridgeReceipt:

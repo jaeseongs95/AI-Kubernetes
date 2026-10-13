@@ -218,6 +218,10 @@ def run_request(request_id="run-1", **binding_overrides) -> RunOnceRequest:
                           placement, lease, pool)
 
 
+def observed_job(job_id: str, status: str, attempt_id: str = "attempt-1") -> dict:
+    return {"project_id": "project-1", "attempt_id": attempt_id, "job": {"job_id": job_id, "status": status}}
+
+
 def find_contract(name: str) -> Path | None:
     matches = sorted((ROOT / "contracts").glob(f"**/{name}")) if (ROOT / "contracts").is_dir() else []
     return matches[0] if matches else None
@@ -369,6 +373,20 @@ class CommandQueryTests(unittest.TestCase):
         self.assertIsNone(error.__cause__)
         self.assertTrue(error.__suppress_context__)
 
+    def test_f8_port_exception_is_not_retained_in_the_error_context(self) -> None:
+        vm = FakeVm()
+        vm.failures["status"] = OSError(SECRET_MARKER)
+        vm.failures["pause"] = CodedError("EXTERNAL_UNKNOWN", SECRET_MARKER)
+        bridge = VmBridge(vm, surface_dict())
+        with self.assertRaises(VmBridgeError) as query:
+            bridge.status(ProjectQuery("req-1", "project-1"))
+        with self.assertRaises(VmBridgeError) as effect:
+            bridge.pause(PauseRequest("req-2", "project-1", "stop"))
+        for error in (query.exception, effect.exception):
+            with self.subTest(code=error.code):
+                self.assertIsNone(error.__cause__)
+                self.assertIsNone(error.__context__)
+
     def test_external_unknown_keeps_vm_code_and_reports_unknown_outcome(self) -> None:
         vm = FakeVm()
         vm.failures["pause"] = CodedError("EXTERNAL_UNKNOWN", SECRET_MARKER)
@@ -392,6 +410,25 @@ class CommandQueryTests(unittest.TestCase):
         self.assertEqual((query.exception.code, query.exception.outcome),
                          (BridgeCode.QUERY_FAILED, EffectOutcome.KNOWN_FAILURE))
         self.assertEqual(vm.names().count("replan"), 1)
+
+    def test_f7_uncoded_observe_failure_is_unknown_without_adding_guards(self) -> None:
+        vm = FakeVm()
+        vm.failures["observe"] = TimeoutError(SECRET_MARKER)
+        bridge = VmBridge(vm, surface_dict())
+        with self.assertRaises(VmBridgeError) as raised:
+            bridge.observe(ObserveRequest("observe-1", "project-1"))
+        self.assertEqual((raised.exception.code, raised.exception.outcome, raised.exception.subject),
+                         (BridgeCode.OUTCOME_UNKNOWN, EffectOutcome.UNKNOWN, "observe"))
+        self.assertNotIn(SECRET_MARKER, str(raised.exception) + repr(raised.exception))
+        self.assertIsNone(raised.exception.__context__)
+        self.assertEqual((bridge.unresolved_attempts, bridge.unresolved_projects), (frozenset(), frozenset()))
+        # A VM-coded precondition rejection keeps the query classification.
+        vm.failures["observe"] = CodedError("RUNTIME_REQUIRED", SECRET_MARKER)
+        with self.assertRaises(VmBridgeError) as coded:
+            bridge.observe(ObserveRequest("observe-2", "project-1"))
+        self.assertEqual((coded.exception.code, coded.exception.vm_code, coded.exception.outcome),
+                         (BridgeCode.VM_REJECTED, "RUNTIME_REQUIRED", EffectOutcome.KNOWN_FAILURE))
+        self.assertEqual(bridge.unresolved_projects, frozenset())
 
     def test_f6_coded_failures_of_effects_are_unknown_unless_known_pre_effect(self) -> None:
         vm = FakeVm()
@@ -708,6 +745,124 @@ class BoundExecutionTests(unittest.TestCase):
         self.assertEqual(vm.names().count("run_once"), 2)
         self.assertEqual(vm.names().count("bind_execution"), 1)
 
+    def test_review_f1_provider_terminal_observation_never_permits_relaunch(self) -> None:
+        binding = TaskExecutionBinding(**binding_fields())
+        # Launched job still bound: provider_terminal is not Core consumption.
+        vm = BoundFakeVm()
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        bridge.run_once(run_request("run-1"))
+        vm.responses["observe"] = observed_job("job-1", "provider_terminal")
+        observed = bridge.observe(ObserveRequest("observe-1", "project-1", binding))
+        self.assertEqual((observed.job.phase, observed.job.core_consumed), (JobPhase.TERMINAL, False))
+        with self.assertRaises(VmBridgeError) as raised:
+            bridge.run_once(run_request("run-2"))
+        self.assertEqual((raised.exception.code, raised.exception.subject),
+                         (BridgeCode.RECONCILIATION_REQUIRED, "attempt_bound"))
+        self.assertEqual(vm.names().count("run_once"), 1)
+        # An UNKNOWN Attempt stays unresolved after provider_terminal as well.
+        vm = BoundFakeVm()
+        vm.failures["run_once"] = ConnectionResetError(SECRET_MARKER)
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        with self.assertRaises(VmBridgeError):
+            bridge.run_once(run_request("run-1"))
+        del vm.failures["run_once"]
+        vm.responses["observe"] = observed_job("job-1", "provider_terminal")
+        bridge.observe(ObserveRequest("observe-1", "project-1", binding))
+        self.assertIn("attempt-1", bridge.unresolved_attempts)
+        with self.assertRaises(VmBridgeError) as blocked:
+            bridge.run_once(run_request("run-2"))
+        self.assertEqual((blocked.exception.code, blocked.exception.subject),
+                         (BridgeCode.RECONCILIATION_REQUIRED, "vm_attempt_id"))
+        self.assertEqual(vm.names().count("run_once"), 1)
+        vm.responses["observe"] = observed_job("job-1", "consumed")
+        bridge.observe(ObserveRequest("observe-2", "project-1", binding))
+        self.assertEqual(bridge.unresolved_attempts, frozenset())
+        bridge.run_once(run_request("run-3"))
+        self.assertEqual(vm.names().count("run_once"), 2)
+
+    def test_review_f2_unrelated_job_observation_does_not_clear_a_project_unknown(self) -> None:
+        vm = BoundFakeVm()
+        vm.failures["authorize"] = CodedError("EXTERNAL_UNKNOWN", SECRET_MARKER)
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        with self.assertRaises(VmBridgeError):
+            bridge.authorize(AuthorizeRequest("auth-1", "project-1", "gui"))
+        for status in ("provider_terminal", "consumed"):
+            with self.subTest(status=status):
+                vm.responses["observe"] = observed_job("job-7", status, attempt_id="attempt-7")
+                bridge.observe(ObserveRequest(f"observe-{status}", "project-1"))
+                self.assertEqual(bridge.unresolved_projects, frozenset({"project-1"}))
+        with self.assertRaises(VmBridgeError) as blocked:
+            bridge.run_once(run_request("run-1"))
+        self.assertEqual((blocked.exception.code, blocked.exception.subject),
+                         (BridgeCode.RECONCILIATION_REQUIRED, "vm_project_id"))
+        self.assertNotIn("run_once", vm.names())
+        with self.assertRaises(VmBridgeError) as invalid:
+            bridge.reconcile_project("project 1")
+        self.assertIs(invalid.exception.code, BridgeCode.INVALID_REQUEST)
+        bridge.reconcile_project("project-1")
+        self.assertEqual(bridge.unresolved_projects, frozenset())
+        bridge.run_once(run_request("run-1"))
+        self.assertEqual(vm.names().count("run_once"), 1)
+
+    def test_review_f3_consumed_older_job_does_not_clear_a_newer_unknown_launch(self) -> None:
+        vm = BoundFakeVm()
+        binding = TaskExecutionBinding(**binding_fields())
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        bridge.run_once(run_request("run-1"))
+        bridge.observe(ObserveRequest("observe-1", "project-1", binding))  # job-1 consumed
+        vm.responses["run_once"] = {"project_id": "project-1", "task_id": "task-1", "attempt_id": "attempt-1",
+                                    "job": {"job_id": "job-2", "status": "mystery_state"}}
+        bridge.run_once(run_request("run-2"))
+        self.assertIn("attempt-1", bridge.unresolved_attempts)
+        # The VM still reports the older consumed job-1.
+        bridge.observe(ObserveRequest("observe-2", "project-1", binding))
+        self.assertIn("attempt-1", bridge.unresolved_attempts)
+        with self.assertRaises(VmBridgeError) as blocked:
+            bridge.run_once(run_request("run-3"))
+        self.assertIs(blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
+        self.assertEqual(vm.names().count("run_once"), 2)
+        vm.responses["observe"] = observed_job("job-2", "consumed")
+        bridge.observe(ObserveRequest("observe-3", "project-1", binding))
+        self.assertEqual(bridge.unresolved_attempts, frozenset())
+        bridge.run_once(run_request("run-4"))
+        self.assertEqual(vm.names().count("run_once"), 3)
+
+    def test_review_f3_observation_overlapping_a_new_launch_does_not_release_it(self) -> None:
+        class InterleavingVm(BoundFakeVm):
+            def __init__(self):
+                super().__init__()
+                self.during_observe = None
+
+            def observe(self, project_id):
+                hook, self.during_observe = self.during_observe, None
+                if hook is not None:
+                    hook()
+                return super().observe(project_id)
+
+        vm = InterleavingVm()
+        binding = TaskExecutionBinding(**binding_fields())
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        bridge.run_once(run_request("run-1"))
+        bridge.observe(ObserveRequest("observe-1", "project-1", binding))  # job-1 consumed
+
+        def relaunch_with_unclear_result():
+            vm.failures["run_once"] = ConnectionResetError(SECRET_MARKER)
+            try:
+                with self.assertRaises(VmBridgeError):
+                    bridge.run_once(run_request("run-2"))
+            finally:
+                del vm.failures["run_once"]
+
+        vm.during_observe = relaunch_with_unclear_result
+        # This observation started before run-2 and returns the stale job-1.
+        bridge.observe(ObserveRequest("observe-2", "project-1", binding))
+        self.assertIn("attempt-1", bridge.unresolved_attempts)
+        with self.assertRaises(VmBridgeError) as blocked:
+            bridge.run_once(run_request("run-3"))
+        self.assertEqual((blocked.exception.code, blocked.exception.subject),
+                         (BridgeCode.RECONCILIATION_REQUIRED, "vm_attempt_id"))
+        self.assertEqual(vm.names().count("run_once"), 2)
+
     def test_read_execution_binding_failure_or_malformed_stops_before_binding(self) -> None:
         cases = (
             ("raise", OSError(SECRET_MARKER), BridgeCode.QUERY_FAILED),
@@ -781,11 +936,20 @@ class BoundExecutionTests(unittest.TestCase):
             bridge.run_once(run_request("run-2"))
         self.assertIs(blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
         self.assertEqual(vm.names().count("run_once"), 1)
+        # provider_terminal is not Core consumption: the guard stays.
         vm.responses["observe"] = {"project_id": "project-1", "attempt_id": "attempt-1",
                                    "job": {"job_id": "job-1", "status": "provider_terminal"}}
         bridge.observe(ObserveRequest("observe-2", "project-1", binding))
+        self.assertIn("attempt-1", bridge.unresolved_attempts)
+        with self.assertRaises(VmBridgeError) as still_blocked:
+            bridge.run_once(run_request("run-3"))
+        self.assertIs(still_blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
+        self.assertEqual(vm.names().count("run_once"), 1)
+        vm.responses["observe"] = {"project_id": "project-1", "attempt_id": "attempt-1",
+                                   "job": {"job_id": "job-1", "status": "consumed"}}
+        bridge.observe(ObserveRequest("observe-3", "project-1", binding))
         self.assertEqual(bridge.unresolved_attempts, frozenset())
-        bridge.run_once(run_request("run-3"))
+        bridge.run_once(run_request("run-4"))
         self.assertEqual(vm.names().count("run_once"), 2)
 
     def test_f6_coded_transport_error_from_run_once_is_unknown_and_blocks_relaunch(self) -> None:
@@ -804,7 +968,7 @@ class BoundExecutionTests(unittest.TestCase):
         self.assertIs(blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
         self.assertEqual(vm.names().count("run_once"), 1)
 
-    def test_f4_project_level_unknown_blocks_run_once_until_terminal_observation(self) -> None:
+    def test_f4_project_level_unknown_blocks_run_once_until_explicit_reconciliation(self) -> None:
         vm = BoundFakeVm()
         vm.failures["pause"] = CodedError("EXTERNAL_UNKNOWN", SECRET_MARKER)
         bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
@@ -817,6 +981,12 @@ class BoundExecutionTests(unittest.TestCase):
                          (BridgeCode.RECONCILIATION_REQUIRED, "vm_project_id"))
         self.assertEqual(vm.names(), ["handshake", "pause"])
         bridge.observe(ObserveRequest("observe-1", "project-1"))
+        self.assertEqual(bridge.unresolved_projects, frozenset({"project-1"}))
+        with self.assertRaises(VmBridgeError) as still_blocked:
+            bridge.run_once(run_request("run-1"))
+        self.assertEqual((still_blocked.exception.code, still_blocked.exception.subject),
+                         (BridgeCode.RECONCILIATION_REQUIRED, "vm_project_id"))
+        bridge.reconcile_project("project-1")
         self.assertEqual(bridge.unresolved_projects, frozenset())
         bridge.run_once(run_request("run-1"))
         self.assertEqual(vm.names().count("run_once"), 1)
