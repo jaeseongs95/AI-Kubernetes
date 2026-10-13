@@ -2,7 +2,8 @@
 
 This module produces a wake signal through an injected callback. It does not
 call any model itself. A signal is emitted at most once per queue state, so a
-director that does not consume items is not woken repeatedly.
+director that does not consume items is not woken repeatedly. min_interval
+applies to every callback attempt, including attempts that raised.
 """
 
 from __future__ import annotations
@@ -56,9 +57,11 @@ class WakePolicy:
             if self._last_wake_at is not None and now - self._last_wake_at < self._min_interval:
                 return None
             signal = WakeSignal(snapshot.available, snapshot.kinds)
-            self._wake(signal)  # On failure the state is not marked; a later poll retries.
-            self._last_key = snapshot.key
+            # Record the attempt before calling: a raising callback is retried
+            # by a later poll, but no sooner than min_interval.
             self._last_wake_at = now
+            self._wake(signal)
+            self._last_key = snapshot.key
             return signal
 
     def reset(self) -> None:

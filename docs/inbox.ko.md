@@ -28,9 +28,18 @@
 - 오류 메시지에는 payload 값이나 필드 이름을 넣지 않는다.
 - 같은 `message_id`에 내용이 다른 이벤트가 오면 `MessageConflict`를 반환한다. 이때 기존 기록은 유지되고 새 이벤트는 저장되지 않는다.
 
+### 이벤트 identity와 중복
+
+중복 판정은 두 가지다.
+
+1. 같은 `message_id`가 이미 저장돼 있으면 `duplicate`(내용이 다르면 `MessageConflict`).
+2. `message_id`가 새것이라도 같은 `source`·`event_cursor`에 `goal_id`·`kind`·`payload`까지 동일한 이벤트가 이미 저장돼 있으면, 상류가 재시도에 새 ID를 붙인 같은 이벤트로 보고 `duplicate`를 반환한다. 반환 record는 **먼저 저장된 기록**(원래 `message_id`)이며, 새 ID는 저장되지 않고 change counter와 wake도 바뀌지 않는다.
+
+같은 cursor라도 내용이 다르면 서로 다른 이벤트로 보고 `out_of_order`로 저장·전달한다. 두 번째 판정은 cursor가 source의 마지막 값 이하일 때만 수행하며, 별도 인덱스가 없어 그 경우 inbox 크기에 비례하는 조회 비용이 든다(schema 호환을 위해 인덱스를 추가하지 않았다).
+
 ## 순서 역전
 
-source마다 마지막 cursor를 기록한다. 새 cursor가 마지막 값보다 크면 `in_order`로 기록하고 마지막 값을 갱신한다. 같거나 작으면 `out_of_order`로 기록한다. out_of_order 항목도 버리지 않고 저장·전달하므로, 총괄은 `StoredMessage.order`로 역전을 확인할 수 있다. cursor가 연속하지 않는 경우(gap)는 정상 흐름으로 보고 별도로 표시하지 않는다. 전달 순서는 수신 순서(`seq`)의 FIFO이며, 종류별 우선순위는 없다.
+source마다 마지막 cursor를 기록한다. 새 cursor가 마지막 값보다 크면 `in_order`로 기록하고 마지막 값을 갱신한다. 같거나 작으면 위의 중복 판정 후 `out_of_order`로 기록한다. out_of_order 항목도 버리지 않고 저장·전달하므로, 총괄은 `StoredMessage.order`로 역전을 확인할 수 있다. cursor가 연속하지 않는 경우(gap)는 정상 흐름으로 보고 별도로 표시하지 않는다. 전달 순서는 수신 순서(`seq`)의 FIFO이며, 종류별 우선순위는 없다.
 
 ## 상태와 lease
 
@@ -42,7 +51,9 @@ source마다 마지막 cursor를 기록한다. 새 cursor가 마지막 값보다
 | `failed` | 처리 실패, `retry_after` 이후 다시 lease 가능 |
 | `dead` | 최대 시도 횟수 초과 또는 영구 실패. 자동 재처리하지 않는다 |
 
-`lease_next(consumer_id, lease_seconds=60)`가 가장 오래된 처리 가능 항목을 lease하며, lease할 때 `attempts`가 1 증가한다. `ack`와 `fail`에는 현재 lease token이 필요하다. lease가 만료됐거나 token이 다르면 `LeaseLost`가 발생한다. 같은 token으로 `ack`를 다시 호출하면 멱등 처리된다. 최대 시도 횟수는 `max_attempts`(기본 5)다. `fail`의 `error_code`는 식별자만 허용하며, 오류 원문을 저장하지 않는다.
+`lease_next(consumer_id, lease_seconds=60)`가 가장 오래된 처리 가능 항목을 lease하며, lease할 때 `attempts`가 1 증가한다. `ack`와 `fail`에는 현재 lease token이 필요하다. lease가 만료됐거나 token이 다르거나 항목이 `received`·`failed`·`dead`이면 `LeaseLost`가 발생한다. 최대 시도 횟수는 `max_attempts`(기본 5)다. `fail`의 `error_code`는 식별자만 허용하며, 오류 원문을 저장하지 않는다.
+
+같은 token으로 `ack`를 다시 호출하면 멱등 처리된다. 단, 재ACK에서 허용되는 outbox는 **이 메시지에 이미 기록된 동일 항목**(또는 없음)뿐이다. 새 `outbox_id`를 덧붙이면 `MessageConflict`가 발생하고 아무것도 추가되지 않는다. 이미 처리된 메시지에서 새 후속 요청이 생기지 않게 하기 위함이다.
 
 **ACK와 작업 완료는 다르다.** ACK는 "총괄이 이 메시지를 처리했다"는 기록일 뿐이다. goal/task 완료 판정은 VM 소유이며, 이 패키지는 그런 필드나 API를 갖지 않는다. `AckResult.goal_completion`은 항상 `"not_determined"`다. `execution_result`의 ACK도 실행 성공 판정이 아니다.
 
@@ -50,19 +61,21 @@ source마다 마지막 cursor를 기록한다. 새 cursor가 마지막 값보다
 
 `ack(message_id, token, outbox=[OutboxMessage(...)])`는 ACK와 후속 요청을 같은 트랜잭션에 기록한다. 후속 요청 종류는 `vm_request`·`ags_request`·`user_notice`다. `outbox_id`가 충돌하면 ACK 전체가 rollback되어 메시지는 `leased`로 남는다. 대기 항목은 `pending_outbox()`로 조회하고, 전달 후 `mark_delivered(outbox_id)`를 호출한다. `delivered`는 소유 서비스에 전달했다는 뜻이며, goal 완료를 뜻하지 않는다. 실제 전송 transport는 이번 범위 밖이다.
 
+**전달은 at-least-once다.** `pending_outbox`와 `mark_delivered` 사이에 claim·fencing이 없다. 전달자가 둘이면 같은 항목을 둘 다 전송할 수 있고, 전송 후 `mark_delivered` 전에 죽으면 재시작 후 다시 전송된다. 따라서 전달자는 단일 owner여야 하고, 수신 서비스는 `outbox_id`로 멱등 처리해야 한다.
+
 ## 재시작 회수
 
-`InboxStore`는 열릴 때 `recover()`를 실행하고 결과를 `last_recovery`에 남긴다. 만료된 `leased` 항목은 `received`로 돌리고 `last_error="lease_expired"`를 기록한다. 최대 시도에 도달한 항목은 `dead`로 바꾼다. 만료 전 lease는 기본적으로 유지된다. supervisor(AIK-006)가 단일 owner를 보장하는 재시작에서는 `InboxStore(..., reclaim_all_leases=True)` 또는 `recover(release_all_leases=True)`로 모든 lease를 즉시 회수할 수 있다. `lease_next`도 처리 전에 만료 lease를 회수한다.
+`InboxStore`는 열릴 때 `recover()`를 실행하고 결과를 `last_recovery`에 남긴다. 만료된 `leased` 항목은 `received`로 돌리고 `last_error="lease_expired"`를 기록한다. 최대 시도에 도달한 항목은 `dead`로 바꾼다. 만료 전 lease는 기본적으로 유지된다. supervisor(AIK-006)가 단일 owner를 보장하는 재시작에서는 `InboxStore(..., reclaim_all_leases=True)` 또는 `recover(release_all_leases=True)`로 모든 lease를 즉시 회수할 수 있다. `lease_next`와 `wake_snapshot`(따라서 `WakePolicy.poll`)도 처리 전에 만료 lease를 같은 규칙으로 회수한다.
 
 ## wake 정책
 
 `WakePolicy(store, wake_callback, clock=None, min_interval=0.0)`의 `poll()` 규칙은 다음과 같다.
 
-- 지금 lease 가능한 항목이 없으면 callback을 호출하지 않고 `None`을 반환한다. 빈 큐, 모든 항목이 lease 중인 큐, backoff 대기 중인 큐가 여기에 해당한다.
+- 지금 lease 가능한 항목이 없으면 callback을 호출하지 않고 `None`을 반환한다. 빈 큐, 모든 항목이 lease 중인 큐, backoff 대기 중인 큐가 여기에 해당한다. 최대 시도에 도달한 만료 lease는 poll 시점에 먼저 `dead`로 정리되므로 wake 대상이 아니다.
 - 처리 가능 항목이 있고 큐 상태가 마지막 신호 이후 변했을 때만 `WakeSignal(available, kinds)`로 callback을 한 번 호출한다. 큐 상태는 변경 카운터, 처리 가능 수, seq·attempts 집계로 판단한다.
 - 총괄이 항목을 소비하지 않아도 같은 상태로는 다시 깨우지 않는다. 따라서 polling을 반복해도 무한 model 호출로 이어지지 않는다.
 - 중복 수신은 상태를 바꾸지 않으므로 wake를 만들지 않는다.
-- `min_interval`은 연속 wake의 최소 간격(초)이다. callback이 예외를 내면 상태를 기록하지 않으므로 다음 poll에서 다시 시도한다.
+- `min_interval`은 연속 callback **시도**의 최소 간격(초)이다. callback이 예외를 내면 예외가 `poll()` 호출자에게 전파되고 큐 상태는 신호 완료로 기록하지 않으므로 이후 poll에서 다시 시도하지만, 그 재시도도 `min_interval`이 지난 뒤에만 일어난다. 기본값 `0`에서는 실패한 callback이 poll마다 재시도되므로, 실패할 수 있는 model 호출을 연결할 때는 양수 `min_interval`을 지정해야 한다.
 - 시계는 `InboxStore(clock=...)`와 `WakePolicy(clock=...)`로 주입한다.
 - 총괄 프로세스가 재시작되면 `reset()`을 호출하거나 새 policy를 만들어 남은 항목에 대해 다시 깨운다.
 
@@ -73,7 +86,7 @@ from aik_inbox import InboxStore, InboxMessage, Consumer, WakePolicy
 
 store = InboxStore()
 store.receive(InboxMessage('msg-1', 'goal-1', 'gui', 1, 'user_instruction', {'text': 'synthetic'}))
-policy = WakePolicy(store, lambda signal: print('wake', signal.available))
+policy = WakePolicy(store, lambda signal: print('wake', signal.available), min_interval=5)
 policy.poll()
 consumer = Consumer(store, 'director')
 leased = consumer.next()
@@ -87,28 +100,31 @@ if leased is not None:
 python -m unittest tests/test_inbox.py -v
 ```
 
-시험은 OS 임시 폴더의 합성 DB만 사용하며 다음을 확인한다.
+시험은 OS 임시 폴더의 합성 DB만 사용하며 다음 항목을 다룬다.
 
 - 재열기 후 보존
-- ACK 이후를 포함한 중복 멱등 처리와 충돌 거절
+- ACK 이후를 포함한 중복 멱등 처리와 충돌 거절, 새 message_id로 재전송된 동일 이벤트의 중복 처리
 - source별 순서 역전 감지
-- lease 배타성과 token 검사, ACK와 goal 완료의 분리
+- lease 배타성과 token 검사(잘못된·만료된 token, `received`·`acked`·`dead` 항목에 대한 ACK/fail 거절), ACK와 goal 완료의 분리
+- 재ACK에서 새 outbox 항목 거절
 - 만료 lease 회수와 재시작 회수
 - 실제 자식 프로세스를 강제 종료한 뒤 미처리 항목 회수
+- 쓰기 트랜잭션 도중 강제 종료로 남은 hot journal의 재열기 rollback
 - backoff·dead 전이
-- 빈 큐 1000회 poll에서 wake 0회, 종류별 반응, 중복 wake 억제와 rate limit
+- 빈 큐 1000회 poll에서 wake 0회, 종류별 반응, 중복 wake 억제와 rate limit, 최대 시도 도달 만료 lease에 대한 wake 억제, callback 예외 재시도 간격, `reset()`
 - outbox 원자성
-- payload 비밀·크기·타입 거절
+- payload 비밀·크기·타입 거절, 범위를 벗어난 `after_seq` 거절
 - 원장·저장소·상대 경로·외부/손상/빈 DB 거절
 - application ID 구분과 기본 위치
 - 잠금 시간 초과
 
-Linux 통과는 개발 검증이며 Windows 지원 증거가 아니다.
+이 목록은 시험이 다루는 범위이며 실행 결과 기록이 아니다. Linux 통과는 개발 검증이며 Windows 지원 증거가 아니다.
 
 ## 미검증 항목 (NOT_RUN)
 
-- 실제 Windows 11에서의 `msvcrt.locking` 잠금, `%LOCALAPPDATA%` 기본 경로, 프로세스 강제 종료 후 lease 회수, rename 전원 장애 내구성
+- 실제 Windows 11에서의 `msvcrt.locking` 잠금, `%LOCALAPPDATA%` 기본 경로, 프로세스 강제 종료 후 lease 회수·hot journal 복구, rename 전원 장애 내구성
 - AGS/VM 이벤트 수신기와 GUI 지시 입력의 실제 연결, outbox 전송 transport, 총괄 model 호출 루프와 wake callback의 실제 결합
+- 상류가 재시도 시 message_id 또는 (source, cursor, 내용)을 유지한다는 계약의 실제 확인
 - 대규모 큐의 처리량·지연 시간
 - 전원 차단·저장장치 고장
 - 비밀 값 휴리스틱의 완전성

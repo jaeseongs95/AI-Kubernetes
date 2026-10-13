@@ -22,6 +22,7 @@ import time
 import uuid
 
 from aik_runtime.errors import StorageBusy
+from aik_runtime.models import MAX_INTEGER
 from aik_runtime.paths import database_lock, default_database_path, validate_database_path
 
 from .errors import InboxError, InvalidInboxDatabase, InvalidMessage, LeaseLost, MessageConflict
@@ -176,6 +177,11 @@ def _seconds_ms(value: object, name: str, *, maximum: float, positive: bool) -> 
 def _check_token(token: object) -> None:
     if type(token) is not str or _TOKEN.fullmatch(token) is None:
         raise LeaseLost("The lease token is not valid.")
+
+
+def _check_after_seq(value: object) -> None:
+    if type(value) is not int or not 0 <= value <= MAX_INTEGER:
+        raise InvalidMessage("after_seq must be a nonnegative bounded integer.")
 
 
 def _decode(row) -> StoredMessage:
@@ -334,7 +340,13 @@ class InboxStore:
     # -- inbox -----------------------------------------------------------------
 
     def receive(self, message: InboxMessage) -> ReceiveResult:
-        """Persist once per message_id; detect cursor regressions per source."""
+        """Persist once per event; detect cursor regressions per source.
+
+        An event is a duplicate when its message_id is already stored, or when
+        the same source and event_cursor already carry identical content
+        (goal_id, kind, payload) under another message_id. Duplicates return
+        the stored record and change nothing.
+        """
         if type(message) is not InboxMessage:
             raise InvalidMessage("Only InboxMessage records can be received.")
         # Rebuild: object.__setattr__ can bypass a frozen dataclass initializer.
@@ -351,6 +363,8 @@ class InboxStore:
                 return ReceiveResult("duplicate", _decode(row))
             last = connection.execute("SELECT last_cursor FROM cursors WHERE source = ?", (message.source,)).fetchone()
             if last is None or message.event_cursor > last[0]:
+                # No stored event of this source can have a cursor above the
+                # recorded maximum, so an in-order event cannot be a replay.
                 order = "in_order"
                 connection.execute(
                     "INSERT INTO cursors (source, last_cursor) VALUES (?, ?) "
@@ -358,6 +372,13 @@ class InboxStore:
                     (message.source, message.event_cursor),
                 )
             else:
+                same_event = connection.execute(
+                    f"SELECT {_MESSAGE_COLUMNS} FROM inbox WHERE source = ? AND event_cursor = ? "
+                    "AND fingerprint = ? ORDER BY seq LIMIT 1",
+                    (message.source, message.event_cursor, digest),
+                ).fetchone()
+                if same_event is not None:
+                    return ReceiveResult("duplicate", _decode(same_event))
                 order = "out_of_order"
             connection.execute(
                 "INSERT INTO inbox (message_id, goal_id, source, event_cursor, kind, payload, fingerprint, "
@@ -436,7 +457,11 @@ class InboxStore:
         return tuple(items)
 
     def ack(self, message_id: str, lease_token: str, outbox=()) -> AckResult:
-        """Mark the message handled and queue follow-ups in the same transaction."""
+        """Mark the message handled and queue follow-ups in the same transaction.
+
+        Repeating an ACK with the same token is idempotent only for outbox
+        items already recorded for this message; new items are rejected.
+        """
         check_identifier(message_id, "message_id")
         _check_token(lease_token)
         items = self._outbox_items(outbox)
@@ -457,6 +482,8 @@ class InboxStore:
                 if existing is not None:
                     if existing[0] != message_id or not hmac.compare_digest(existing[1], digest):
                         raise MessageConflict("A different outbox item already uses this outbox_id.")
+                elif already:
+                    raise MessageConflict("An acknowledged message cannot gain new outbox items.")
                 else:
                     connection.execute(
                         "INSERT INTO outbox (outbox_id, message_id, goal_id, kind, payload, fingerprint, state, "
@@ -497,8 +524,7 @@ class InboxStore:
             raise InvalidMessage("Unknown inbox state.")
         if type(limit) is not int or not 1 <= limit <= 1000:
             raise InvalidMessage("The query limit must be an integer between 1 and 1000.")
-        if type(after_seq) is not int or after_seq < 0:
-            raise InvalidMessage("after_seq must be a nonnegative integer.")
+        _check_after_seq(after_seq)
         with self._transaction() as connection:
             if state is None:
                 rows = connection.execute(
@@ -513,6 +539,9 @@ class InboxStore:
         """Count items the director could lease now; key changes on queue mutation."""
         now = self._now_ms()
         with self._transaction() as connection:
+            # Settle expired leases first: an item at max_attempts becomes dead
+            # here instead of being counted as leasable work.
+            self._reclaim(connection, now, False)
             counter = connection.execute("SELECT value FROM meta WHERE name = 'change_counter'").fetchone()
             if counter is None:
                 raise InvalidInboxDatabase("The inbox change counter is missing.")
@@ -529,8 +558,7 @@ class InboxStore:
     def pending_outbox(self, *, limit: int = 100, after_seq: int = 0) -> tuple:
         if type(limit) is not int or not 1 <= limit <= 1000:
             raise InvalidMessage("The query limit must be an integer between 1 and 1000.")
-        if type(after_seq) is not int or after_seq < 0:
-            raise InvalidMessage("after_seq must be a nonnegative integer.")
+        _check_after_seq(after_seq)
         with self._transaction() as connection:
             rows = connection.execute(
                 f"SELECT {_OUTBOX_COLUMNS} FROM outbox WHERE state = 'pending' AND seq > ? ORDER BY seq LIMIT ?",
@@ -544,7 +572,11 @@ class InboxStore:
             return None if row is None else _decode_outbox(row)
 
     def mark_delivered(self, outbox_id: str) -> StoredOutbox:
-        """Delivery to the owning service only; never goal or task completion."""
+        """Delivery to the owning service only; never goal or task completion.
+
+        There is no delivery claim or fencing: delivery is at-least-once and
+        requires a single delivering owner plus outbox_id idempotency downstream.
+        """
         check_identifier(outbox_id, "outbox_id")
         now = self._now_ms()
         with self._transaction() as connection:
