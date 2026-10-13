@@ -1,0 +1,38 @@
+name: Desktop IPC boundary
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/aik_ipc/**'
+      - 'tests/test_desktop_ipc.cjs'
+      - '.github/workflows/desktop-ipc.yml'
+  pull_request:
+    paths:
+      - 'src/aik_ipc/**'
+      - 'tests/test_desktop_ipc.cjs'
+      - '.github/workflows/desktop-ipc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-ipc:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: Reject unsupported IPC and verify immutable sanitized outputs
+        run: node --test tests/test_desktop_ipc.cjs
