@@ -26,9 +26,16 @@ def _regular(info) -> bool:
     return stat.S_ISREG(info.st_mode) and not (getattr(info, "st_file_attributes", 0) & 0x400)
 
 
-def _stamp(info) -> tuple:
+def _identity_stamp(info) -> tuple:
+    # Windows path stat and fd stat can expose different ctime semantics for
+    # copied files. Compare file identity/content metadata across interfaces,
+    # but retain ctime when comparing each interface to its own earlier value.
     return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns,
-            info.st_ctime_ns, info.st_mode, getattr(info, "st_file_attributes", 0))
+            info.st_mode, getattr(info, "st_file_attributes", 0))
+
+
+def _stamp(info) -> tuple:
+    return (*_identity_stamp(info), info.st_ctime_ns)
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,7 +69,7 @@ def read_snapshot(path: Path, *, maximum: int = MAX_BYTES) -> FileSnapshot:
                  | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0))
         descriptor = os.open(target, flags)
         opened = os.fstat(descriptor)
-        if not _regular(opened) or _stamp(opened) != _stamp(before):
+        if not _regular(opened) or _identity_stamp(opened) != _identity_stamp(before):
             raise ContractError("FILE_CHANGED_DURING_CHECK")
         blocks, total = [], 0
         while True:
@@ -75,7 +82,9 @@ def read_snapshot(path: Path, *, maximum: int = MAX_BYTES) -> FileSnapshot:
             blocks.append(block)
         if total != opened.st_size or _stamp(os.fstat(descriptor)) != _stamp(opened):
             raise ContractError("FILE_CHANGED_DURING_CHECK")
-        snapshot = FileSnapshot(target, b"".join(blocks), _stamp(opened))
+        # Final pathname checks use the original pathname observation, not the
+        # descriptor's potentially different ctime representation.
+        snapshot = FileSnapshot(target, b"".join(blocks), _stamp(before))
         snapshot.require_unchanged()
         return snapshot
     except ContractError:
