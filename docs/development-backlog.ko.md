@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-12T13:06:19Z`
+- 수정일 (UTC): `2026-10-13T03:15:45Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 86개 · 진행 중 0개 · 진행 차단 2개 · 완료 2개 · 취소 0개
+- 상태: 미착수 85개 · 진행 중 0개 · 진행 차단 3개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -32,7 +32,7 @@ python tools/backlog.py report
 
 | 단계 | 범위 | 태스크 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 착수 가능 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 5 | 0 | 2 | 2 | 0 | 0 |
+| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 4 | 0 | 3 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 14 | 0 | 0 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 27 | 0 | 0 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
@@ -201,13 +201,13 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop backend |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 5 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T03:15:45Z` |
 
 GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backend broker에서 통제한다. 실행 경로별 OS principal·trust profile·실제 권한과 격리 보장 범위를 명시한다.
 
@@ -226,7 +226,7 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-004-IPC-LIFECYCLE-20261013` · partial_implementation_validation · `evidence/desktop-ipc/2026-10-13-lifecycle/README.ko.md` · AIK-004 IPC 수명주기 보강: 요청·응답 snapshot, UUID 대소문자 정규화, 미종료 요청의 replay fence 보존, 기본 5초 응답 기한과 AbortSignal, 실제 작업 종료 전까지 동시성 슬롯 보존, Proxy/toJSON/원시 오류 차단. 기존 10개와 신규 25개 Node 시험 35/35 PASS, 실패/스킵 0. 검증 소스 864fc3aa17ed5ace15ecf869e34f731b627abf93. AIK-083 미완료 및 설치형 GUI/native 통합 미검증이므로 완료 처리하지 않고 blocked로 기록. 기존 90개 태스크·311개 완료 기준·365개 의존성 보존. · `2026-10-13T03:15:45Z`
 
 ### AIK-005
 
@@ -3735,7 +3735,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-12T13:06:19Z |
+| `updated_at` | 2026-10-13T03:15:45Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |
