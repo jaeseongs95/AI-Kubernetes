@@ -3,6 +3,8 @@
 Window state does not stop the runtime. PAUSED and SHUTTING_DOWN reject new
 placements. In-flight leases are never deleted or rewritten here; restart lists
 them as observation targets. Lease/fencing transitions belong to AIK-033/034.
+Without a runtime store no scan happens, so results are reported as unknown
+(incomplete), never as "no in-flight jobs".
 """
 
 from __future__ import annotations
@@ -47,6 +49,7 @@ class ShutdownReport:
 
 
 def _scan_in_flight(store: RuntimeStore) -> tuple:
+    # Scope is the whole store: Lease/Placement carry no workspace field.
     found = []
     after = None
     with store.transaction() as tx:
@@ -63,10 +66,15 @@ class Supervisor:
 
     def __init__(self, paths: InstancePaths, lock: InstanceLock, record: EndpointRecord,
                  store: RuntimeStore | None, observation_targets: tuple,
-                 previous_instance_id: str | None, stale_endpoint_replaced: bool):
+                 previous_instance_id: str | None, stale_endpoint_replaced: bool,
+                 observation_scan_complete: bool | None = None):
         self.paths = paths
         self.record = record
         self.observation_targets = observation_targets
+        # False means the targets are unknown (no store was scanned), not empty.
+        self.observation_scan_complete = (
+            store is not None if observation_scan_complete is None else bool(observation_scan_complete)
+        )
         self.previous_instance_id = previous_instance_id
         self.stale_endpoint_replaced = stale_endpoint_replaced
         self._lock = lock
@@ -130,6 +138,14 @@ class Supervisor:
                 raise SupervisorError("No runtime store is configured for placements.")
             return self._store.save(placement, expected_revision=0)
 
+    def _withdraw_endpoint(self) -> None:
+        try:
+            current = read_endpoint(self.paths.endpoint)
+        except InvalidEndpoint:
+            current = None
+        if current is None or current.instance_id == self.instance_id:
+            remove_endpoint(self.paths.endpoint)
+
     def shutdown(self) -> ShutdownReport:
         """Full exit: reject new placements, keep in-flight leases, release the lock."""
         with self._mutex:
@@ -137,20 +153,19 @@ class Supervisor:
                 return self._report
             self._lifecycle = "SHUTTING_DOWN"
             ids: tuple = ()
-            complete = True
+            complete = self._store is not None
             try:
-                if self._store is not None:
-                    ids = tuple(entry.value.id for entry in _scan_in_flight(self._store))
-            except (StorageError, OSError):
-                complete = False
+                # Withdraw the endpoint before the (possibly slow) scan: a
+                # relaunch then waits for the lock instead of attaching to a
+                # dying owner.
+                self._withdraw_endpoint()
             finally:
                 try:
-                    try:
-                        current = read_endpoint(self.paths.endpoint)
-                    except InvalidEndpoint:
-                        current = None
-                    if current is None or current.instance_id == self.instance_id:
-                        remove_endpoint(self.paths.endpoint)
+                    if self._store is not None:
+                        ids = tuple(entry.value.id for entry in _scan_in_flight(self._store))
+                except (StorageError, OSError):
+                    complete = False
+                    ids = ()
                 finally:
                     self._lock.release()
                     self._window = "WINDOW_CLOSED"
@@ -180,7 +195,8 @@ def _become_owner(paths: InstancePaths, lock: InstanceLock, workspace_id: str, c
     record = EndpointRecord(instance_id, workspace_id, component, os.getpid(), utc_now(),
                             default_endpoint(paths, workspace_id, component, instance_id))
     write_endpoint(paths.endpoint, record)
-    return Supervisor(paths, lock, record, store, targets, previous, stale)
+    return Supervisor(paths, lock, record, store, targets, previous, stale,
+                      observation_scan_complete=store is not None)
 
 
 def launch(workspace_id: str, *, component: str = "director", state_root=None,
@@ -207,7 +223,8 @@ def launch(workspace_id: str, *, component: str = "director", state_root=None,
             record = read_endpoint(paths.endpoint)
         except InvalidEndpoint:
             record = None
-        if record is not None and record.workspace_id == workspace_id and record.component == component:
+        if (record is not None and record.workspace_id.lower() == workspace_id.lower()
+                and record.component == component):
             return Attachment(record)
         if time.monotonic() >= deadline:
             raise SupervisorUnavailable("A live owner holds the instance lock without a usable endpoint.")

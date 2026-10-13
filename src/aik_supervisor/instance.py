@@ -4,6 +4,8 @@ Liveness is decided only by an OS file lock that the kernel releases when the
 owning process dies (POSIX flock, Windows msvcrt.locking). The PID inside the
 endpoint record is informational and never used to decide liveness.
 Paths reuse aik_runtime.paths validation (no repositories, ledgers, aliases).
+Workspace IDs are ASCII and compared case-insensitively, so case-insensitive
+(NTFS) and case-sensitive filesystems map an ID pair to the same instance.
 """
 
 from __future__ import annotations
@@ -97,7 +99,10 @@ def instance_paths(workspace_id: str, component: str = "director", state_root=No
         root = default_state_root() if state_root is None else Path(state_root)
     except TypeError:
         raise UnsafeStoragePath("The supervisor state root is invalid.") from None
-    lock = validate_database_path(root / workspace_id / f"{component}.instance.lock", create_parent=create)
+    # Workspace IDs are ASCII-only. Folding case keeps one instance directory
+    # per ID on both case-insensitive (NTFS) and case-sensitive filesystems.
+    lock = validate_database_path(root / workspace_id.lower() / f"{component}.instance.lock",
+                                  create_parent=create)
     endpoint = validate_database_path(lock.parent / f"{component}.endpoint.json")
     return InstancePaths(lock.parent, lock, endpoint, lock.parent / f"{component}.sock")
 
@@ -314,13 +319,18 @@ def read_endpoint(path: Path) -> EndpointRecord | None:
         return None
     except OSError:
         raise InvalidEndpoint("The endpoint record could not be read safely.") from None
-    with os.fdopen(descriptor, "rb") as stream:
-        data = stream.read(_MAX_RECORD_BYTES + 1)
+    try:
+        with os.fdopen(descriptor, "rb") as stream:
+            data = stream.read(_MAX_RECORD_BYTES + 1)
+    except OSError:
+        raise InvalidEndpoint("The endpoint record could not be read safely.") from None
     if len(data) > _MAX_RECORD_BYTES:
         raise InvalidEndpoint("The endpoint record is too large.")
     try:
         parsed = json.loads(data.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        # Deeply nested input can exhaust the parser's recursion budget; it is
+        # still just a malformed (stale) record, not a fatal launch failure.
         raise InvalidEndpoint("The endpoint record is not valid JSON.") from None
     return EndpointRecord.from_json(parsed)
 
