@@ -6,13 +6,19 @@ output never contains a governance PASS, a qualified route or a COMPATIBLE
 state. ``compatible`` stays reserved for a separate installed conformance run
 and governed qualification on an approved target.
 
-Only fixed codes, contract identifiers, revisions, version labels and digests
-are returned. Raw stdout/stderr, local paths and provider text from inspection
-reports are not copied into the result.
+Only fixed codes, contract identifiers, bounded revisions, version labels,
+timezone-aware timestamps and digests are returned. Raw stdout/stderr, local
+paths and provider text from inspection reports are not copied into the
+result. Free-form diagnostic text in revision/timestamp fields is dropped.
+
+``identity`` holds the baseline contract expectation, not values observed on
+an installation. A saved diagnostic consumed by the CLI is recomputed from its
+inspection record before use (``verify_saved_diagnostic``).
 """
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
 from pathlib import Path
 import re
@@ -24,6 +30,7 @@ FORMAT = "aik-upstream-defects-v1"
 DIAGNOSTIC_FORMAT = "aik-upstream-diagnostic-v1"
 _REPO = Path(__file__).resolve().parents[2]
 _CONTRACTS = _REPO / "contracts" / "upstream"
+_HISTORICAL_INSPECTION = _CONTRACTS / "installed-inspection.json"
 
 _TASK = re.compile(r"AIK-\d{3}\Z")
 _CODE = re.compile(r"[A-Z][A-Z0-9_]{0,63}\Z")
@@ -34,6 +41,9 @@ _EVIDENCE = re.compile(r"[A-Za-z0-9._/#-]{1,200}\Z")
 
 _SOURCES = {"historical": "NOT_RUN", "live": "REQUIRES_REVIEW"}
 _ROUTE_STATES = frozenset(("BLOCKED", "UNVERIFIED"))
+# Fields excluded from the saved-diagnostic recomputation comparison. The
+# timestamp is format-checked separately instead of being trusted verbatim.
+_VOLATILE_DIAGNOSTIC_KEYS = frozenset(("observed_at",))
 
 # A diagnostic finding that reproduces a declared integration-contract gate.
 REASON_TO_DEFECT = {
@@ -77,6 +87,18 @@ def _fail(code: str) -> DiagnosticError:
     return DiagnosticError(code)
 
 
+def _error_code(error: BaseException) -> str:
+    """Return a fixed code carried by a DiagnosticError, never free text."""
+    candidates = [getattr(error, "code", None)]
+    if error.args:
+        candidates.append(error.args[0])
+    candidates.append(str(error))
+    for candidate in candidates:
+        if type(candidate) is str and _CODE.fullmatch(candidate):
+            return candidate
+    return "UNSPECIFIED_DIAGNOSTIC_ERROR"
+
+
 def _mapping(value: Any) -> dict[str, Any]:
     return value if type(value) is dict else {}
 
@@ -109,6 +131,26 @@ def _tasks(values: Any) -> list[str]:
 
 def _label(value: Any) -> str | None:
     return value if type(value) is str and _LABEL.fullmatch(value) else None
+
+
+def _revision_value(value: Any) -> str | int | None:
+    """A revision is a bounded label or a nonnegative integer; else dropped."""
+    if type(value) is int and value >= 0:
+        return value
+    return _label(value)
+
+
+def _timestamp(value: Any) -> str | None:
+    """Keep only a bounded, timezone-aware ISO 8601 timestamp."""
+    if type(value) is not str or not 1 <= len(value) <= 64:
+        return None
+    try:
+        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if stamp.tzinfo is None or stamp.utcoffset() is None:
+        return None
+    return value
 
 
 def _sha_or_none(value: Any) -> str | None:
@@ -194,6 +236,35 @@ def _validate_diagnostic(diagnostic: Any, baseline_bytes: bytes, matrix_bytes: b
             raise _fail("DIAGNOSTIC_INPUT_MISMATCH")
 
 
+def _normalized_diagnostic(value: Any) -> str:
+    if type(value) is not dict:
+        raise _fail("DIAGNOSTIC_INPUT_MISMATCH")
+    trimmed = {key: item for key, item in value.items() if key not in _VOLATILE_DIAGNOSTIC_KEYS}
+    return json.dumps(trimmed, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def verify_saved_diagnostic(diagnostic: Any, inspection: dict[str, Any], inspection_bytes: bytes,
+                            baseline: dict[str, Any], baseline_bytes: bytes,
+                            matrix: dict[str, Any], matrix_bytes: bytes,
+                            integration: dict[str, Any], integration_bytes: bytes,
+                            *, require_source: str | None = None) -> None:
+    """Bind a saved diagnostic to its inspection record by recomputation.
+
+    The claimed ``source_kind`` is reused for the recomputation; it cannot be
+    proven offline, so ``require_source`` pins it when the caller knows the
+    inspection record's origin (for example the committed historical record).
+    Everything except ``observed_at`` must equal ``diagnostics.inspect``.
+    """
+    _validate_diagnostic(diagnostic, baseline_bytes, matrix_bytes, integration_bytes)
+    source = diagnostic["source_kind"]
+    if require_source is not None and source != require_source:
+        raise _fail("DIAGNOSTIC_INPUT_MISMATCH")
+    recomputed = inspect(inspection, inspection_bytes, baseline, baseline_bytes,
+                         matrix, matrix_bytes, integration, integration_bytes, source=source)
+    if _normalized_diagnostic(diagnostic) != _normalized_diagnostic(recomputed):
+        raise _fail("DIAGNOSTIC_INPUT_MISMATCH")
+
+
 def _identity(baseline: dict[str, Any], diagnostic: dict[str, Any]) -> dict[str, Any]:
     ags, vm = _mapping(baseline.get("ags")), _mapping(baseline.get("vm"))
     if ags.get("revision") != diagnostic.get("ags_revision") or vm.get("revision") != diagnostic.get("vm_revision"):
@@ -203,18 +274,29 @@ def _identity(baseline: dict[str, Any], diagnostic: dict[str, Any]) -> dict[str,
     present = ags.get("host_integration_manifest_present")
     host_manifest = "PRESENT" if present is True else "ABSENT" if present is False else "UNKNOWN"
     schema_revision = vm.get("sqlite_schema_revision")
+    codes = set(diagnostic["codes"])
+
+    def installed_match(code: str) -> str:
+        # Never MATCH: matching the installed artifact requires installed
+        # conformance, which this module does not run.
+        return "MISMATCH_REPORTED" if code in codes else "NOT_CONFIRMED"
+
     return {
+        # The ags/vm values below are the baseline contract expectation, not
+        # values observed on the current installation.
+        "identity_source": "baseline_contract",
         "ags": {
-            "revision": ags["revision"],
+            "revision": _revision_value(ags.get("revision")),
             "version_label": _label(ags.get("version_label")),
             "archive_sha256": _sha_or_none(ags.get("archive_sha256")),
             "archive_tree_digest": _sha_or_none(ags.get("archive_tree_digest")),
             "manifest_file_count": ags_count,
             "manifest_sha256": ags_manifest,
             "host_integration_manifest": host_manifest,
+            "installed_match": installed_match("AGS_ARTIFACT_MISMATCH"),
         },
         "vm": {
-            "revision": vm["revision"],
+            "revision": _revision_value(vm.get("revision")),
             "distribution": _label(vm.get("distribution")),
             "version_label": _label(vm.get("version_label")),
             "wheel_sha256": _sha_or_none(vm.get("wheel_sha256")),
@@ -222,12 +304,13 @@ def _identity(baseline: dict[str, Any], diagnostic: dict[str, Any]) -> dict[str,
             "domain_schema_version": _label(vm.get("domain_schema_version")),
             "manifest_file_count": vm_count,
             "manifest_sha256": vm_manifest,
+            "installed_match": installed_match("VM_ARTIFACT_MISMATCH"),
         },
         "baseline_sha256": diagnostic["baseline_sha256"],
         "matrix_sha256": diagnostic["matrix_sha256"],
         "integration_sha256": diagnostic["integration_sha256"],
         "inspection_sha256": _sha_or_none(diagnostic.get("inspection_sha256")),
-        "matrix_revision": diagnostic.get("matrix_revision") if type(diagnostic.get("matrix_revision")) is str else None,
+        "matrix_revision": _label(diagnostic.get("matrix_revision")),
     }
 
 
@@ -339,6 +422,12 @@ def _model_effort(routes: list[dict[str, Any]], by_id: dict[str, dict], live_pro
             "auth_kind": next(iter(auths)),
             "task": "AIK-082",
             "route_ids": [m["route_id"] for m in members],
+            # Per-route state/codes stay separate; one route's stale or
+            # unsupported result never changes a sibling's entry here.
+            "route_states": [{"route_id": m["route_id"], "state": m["state"], "codes": list(m["codes"])}
+                             for m in members],
+            # state/codes below are an explicit aggregate of route_states.
+            "state_scope": "AGGREGATE_OF_ROUTES",
             "state": "BLOCKED" if any(m["state"] == "BLOCKED" for m in members) else "UNVERIFIED",
             "codes": sorted({code for m in members for code in m["codes"]}),
             "model_observation": observation,
@@ -352,7 +441,12 @@ def _model_effort(routes: list[dict[str, Any]], by_id: dict[str, dict], live_pro
 def build_defect_report(diagnostic: dict[str, Any], baseline: dict[str, Any], baseline_bytes: bytes,
                         matrix: dict[str, Any], matrix_bytes: bytes,
                         integration: dict[str, Any], integration_bytes: bytes) -> dict[str, Any]:
-    """Return a JSON-serializable, GUI-consumable upstream defect list."""
+    """Return a JSON-serializable, GUI-consumable upstream defect list.
+
+    This function validates diagnostic claims and contract digests but does
+    not recompute the diagnostic. Call ``verify_saved_diagnostic`` first for a
+    diagnostic that was not produced in-process by ``diagnostics.inspect``.
+    """
     _validate_diagnostic(diagnostic, baseline_bytes, matrix_bytes, integration_bytes)
     if type(baseline) is not dict or type(matrix) is not dict or type(integration) is not dict:
         raise _fail("INVALID_CONTRACT_FORMAT")
@@ -393,7 +487,7 @@ def build_defect_report(diagnostic: dict[str, Any], baseline: dict[str, Any], ba
         "format": FORMAT,
         "task_id": "AIK-008",
         "source_kind": source,
-        "observed_at": diagnostic.get("observed_at") if type(diagnostic.get("observed_at")) is str else None,
+        "observed_at": _timestamp(diagnostic.get("observed_at")),
         "diagnostic_sha256": digest(canonical),
         "compatibility": compatibility,
         "compatibility_state": compatibility.lower(),
@@ -430,11 +524,27 @@ def diagnose_defects(inspection: dict[str, Any], inspection_bytes: bytes,
                                integration, integration_bytes)
 
 
+def _failure_report(cause: str) -> dict[str, Any]:
+    return {
+        "format": FORMAT, "task_id": "AIK-008", "status": "FAIL",
+        "code": "INVALID_DEFECT_INPUT", "cause_code": cause,
+        "qualification": "NOT_QUALIFIED", "provider_calls": 0,
+        "gui": {
+            "ready_for_dispatch": False,
+            "primary_code": "INVALID_DEFECT_INPUT",
+            "next_step": "FIX_DEFECT_INPUT",
+            "reasons": [{"code": cause, "category": "input", "message_key": _message_key(cause),
+                         "linked_tasks": ["AIK-008"]}],
+        },
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="AIK-008 upstream defect list (offline, no provider calls)")
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--inspection", type=Path, help="Existing installed inspection report (historical)")
-    group.add_argument("--diagnostic", type=Path, help="Existing aik-upstream-diagnostic-v1 report")
+    parser.add_argument("--inspection", type=Path,
+                        help="Installed inspection report (default: committed historical record)")
+    parser.add_argument("--diagnostic", type=Path,
+                        help="Saved aik-upstream-diagnostic-v1 report; recomputed against --inspection")
     parser.add_argument("--baseline", type=Path, default=_CONTRACTS / "baseline.json")
     parser.add_argument("--matrix", type=Path, default=_CONTRACTS / "support-matrix.json")
     parser.add_argument("--integration", type=Path, default=_CONTRACTS / "integration-contract.json")
@@ -448,20 +558,33 @@ def main(argv: list[str] | None = None) -> int:
         baseline, baseline_bytes = read_json(args.baseline)
         matrix, matrix_bytes = read_json(args.matrix)
         integration, integration_bytes = read_json(args.integration)
+        inspection_path = args.inspection or _HISTORICAL_INSPECTION
+        inspection, inspection_bytes = read_json(inspection_path)
         if args.diagnostic is not None:
             diagnostic, _ = read_json(args.diagnostic)
+            # The committed record is historical; a live claim against it is
+            # a forged source. A live claim with another record stays a claim.
+            pinned = "historical" if inspection_path.resolve() == _HISTORICAL_INSPECTION.resolve() else None
+            verify_saved_diagnostic(diagnostic, inspection, inspection_bytes, baseline, baseline_bytes,
+                                    matrix, matrix_bytes, integration, integration_bytes,
+                                    require_source=pinned)
         else:
-            inspection, inspection_bytes = read_json(args.inspection or _CONTRACTS / "installed-inspection.json")
             diagnostic = inspect(inspection, inspection_bytes, baseline, baseline_bytes, matrix,
                                  matrix_bytes, integration, integration_bytes, source="historical")
         report = build_defect_report(diagnostic, baseline, baseline_bytes, matrix, matrix_bytes,
                                      integration, integration_bytes)
         exit_code = 0 if args.allow_blocked else 2
-    except (DiagnosticError, ValueError, TypeError, OSError, KeyError, RecursionError):
-        # Never echo paths, raw payloads or exception text.
-        report = {"format": FORMAT, "task_id": "AIK-008", "status": "FAIL",
-                  "code": "INVALID_DEFECT_INPUT", "qualification": "NOT_QUALIFIED",
-                  "gui": {"ready_for_dispatch": False, "primary_code": "INVALID_DEFECT_INPUT"}}
+    except (DiagnosticError, ValueError, TypeError, OSError, KeyError, RecursionError) as error:
+        # Never echo paths, raw payloads or exception text; only fixed codes.
+        if isinstance(error, DiagnosticError):
+            cause = _error_code(error)
+        elif isinstance(error, OSError):
+            cause = "INPUT_UNREADABLE"
+        elif isinstance(error, (ValueError, RecursionError)):
+            cause = "INPUT_MALFORMED"
+        else:
+            cause = "UNEXPECTED_INPUT_STRUCTURE"
+        report = _failure_report(cause)
         exit_code = 1
     content = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.output is not None:
@@ -476,7 +599,7 @@ def main(argv: list[str] | None = None) -> int:
     return exit_code
 
 
-__all__ = ["FORMAT", "build_defect_report", "diagnose_defects", "main"]
+__all__ = ["FORMAT", "build_defect_report", "diagnose_defects", "verify_saved_diagnostic", "main"]
 
 
 if __name__ == "__main__":
