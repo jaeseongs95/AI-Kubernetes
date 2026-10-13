@@ -26,6 +26,10 @@ from .bridge import (
 )
 from .engine_port import EngineApplicationPort, EnginePortError, EngineProject, build_hosted_application
 from .errors import BridgeCode, EffectOutcome, VmBridgeError
+from .governance import (
+    GATE_BLOCKER_CODES, KNOWN_REASON_CODES, UNREACHABLE_FACTS, GatePhase, GateState, GovernanceGateView,
+    PluginTaskObservation, project_final_report, project_run_once, project_status_blocked_tasks,
+)
 from .hosted_runtime import (
     EFFECT_OPERATIONS, HOSTED_ASSIGNMENT_FIELDS, TRACE_MODULE, AikHostedRuntime, ExecutionBindingStore,
     HostedAssignment, StoredAttempt, StoredIntent, ThreadRoute, TraceRef, read_operation_trace,
@@ -52,4 +56,7 @@ __all__ = [
     "AikHostedRuntime", "ExecutionBindingStore", "HostedAssignment", "TraceRef", "ThreadRoute",
     "StoredIntent", "StoredAttempt", "read_operation_trace", "HOSTED_ASSIGNMENT_FIELDS",
     "EFFECT_OPERATIONS", "TRACE_MODULE",
+    "GateState", "GatePhase", "GATE_BLOCKER_CODES", "KNOWN_REASON_CODES", "UNREACHABLE_FACTS",
+    "GovernanceGateView", "PluginTaskObservation", "project_run_once", "project_final_report",
+    "project_status_blocked_tasks",
 ]
