@@ -25,7 +25,8 @@ from aik_runtime.paths import database_lock, default_database_path, validate_dat
 
 from .errors import (
     CredentialNotFound, InvalidCredentialRef, InvalidSecret, UnsafeVaultPath,
-    VaultAccessDenied, VaultBusy, VaultCorrupt, VaultError, VaultStorageError,
+    VaultAccessDenied, VaultBusy, VaultCorrupt, VaultDurabilityUnconfirmed, VaultError,
+    VaultStorageError,
 )
 
 
@@ -66,6 +67,57 @@ def default_vault_directory() -> Path:
     except UnsafeStoragePath:
         raise UnsafeVaultPath() from None
     return (runtime.parent.parent if os.name == "nt" else runtime.parent) / "vault"
+
+
+def _permission_denied(target: object) -> bool:
+    """Re-probe a path rejected by ``aik_runtime.paths``.
+
+    ``aik_runtime`` reports every inspection failure as UnsafeStoragePath and
+    drops the cause. Return True only when the OS denies the current user
+    access to the vault directory chain, the anchor or its lockfile, so the
+    caller can report VAULT_ACCESS_DENIED instead of VAULT_UNSAFE_PATH. The
+    probe never creates or modifies anything. Any other outcome is False.
+    """
+    try:
+        target = Path(target)
+        if not target.is_absolute():
+            return False
+        directory = target.parent
+        previous = None
+        for component in (*reversed(directory.parents), directory):
+            try:
+                os.lstat(component)
+            except PermissionError:
+                return True
+            except FileNotFoundError:
+                # Creating the missing directory needs write access to its parent.
+                return previous is not None and not os.access(previous, os.W_OK | os.X_OK)
+            previous = component
+        try:
+            os.lstat(target)
+        except PermissionError:
+            return True
+        except FileNotFoundError:
+            pass
+        lockfile = target.with_name(target.name + ".storage.lock")
+        try:
+            info = os.lstat(lockfile)
+        except PermissionError:
+            return True
+        except FileNotFoundError:
+            # The lockfile is created on first use inside the vault directory.
+            return not os.access(directory, os.W_OK | os.X_OK)
+        if not stat.S_ISREG(info.st_mode):
+            return False
+        flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+        try:
+            descriptor = os.open(lockfile, flags)
+        except PermissionError:
+            return True
+        os.close(descriptor)
+        return False
+    except (OSError, TypeError, ValueError):
+        return False
 
 
 def _encode_secret(secret: object) -> bytearray:
@@ -119,8 +171,15 @@ class _FileVaultBackend(VaultBackend):
         self.timeout = float(timeout)
         try:
             requested = Path(default_vault_directory() if directory is None else directory)
-            anchor = validate_database_path(requested / _ANCHOR, create_parent=True)
+            candidate = requested / _ANCHOR
+        except (TypeError, ValueError):
+            raise UnsafeVaultPath() from None
+        try:
+            anchor = validate_database_path(candidate, create_parent=True)
         except (UnsafeStoragePath, TypeError, ValueError, OSError):
+            denied = _permission_denied(candidate)
+            if denied:
+                raise VaultAccessDenied(_FILE_DENIED) from None
             raise UnsafeVaultPath() from None
         self._anchor = anchor
         self.directory = anchor.parent
@@ -129,6 +188,8 @@ class _FileVaultBackend(VaultBackend):
         if os.name != "nt":
             try:
                 os.chmod(self.directory, 0o700)
+            except PermissionError:
+                raise VaultAccessDenied(_FILE_DENIED) from None
             except OSError:
                 raise UnsafeVaultPath() from None
 
@@ -151,6 +212,11 @@ class _FileVaultBackend(VaultBackend):
         # Binds each blob to its reference; it is not a secret.
         return _ENTROPY_PREFIX + ref_id.encode("ascii")
 
+    def _unsafe_or_denied(self) -> VaultError:
+        if _permission_denied(self._anchor):
+            return VaultAccessDenied(_FILE_DENIED)
+        return UnsafeVaultPath()
+
     @contextmanager
     def _locked(self):
         try:
@@ -159,19 +225,22 @@ class _FileVaultBackend(VaultBackend):
         except StorageBusy:
             raise VaultBusy() from None
         except UnsafeStoragePath:
-            raise UnsafeVaultPath() from None
+            error = self._unsafe_or_denied()
+            raise error from None
+        except PermissionError:
+            raise VaultAccessDenied(_FILE_DENIED) from None
         except OSError:
             raise VaultStorageError() from None
 
-    @staticmethod
     @contextmanager
-    def _io():
+    def _io(self):
         try:
             yield
         except VaultError:
             raise
         except UnsafeStoragePath:
-            raise UnsafeVaultPath() from None
+            error = self._unsafe_or_denied()
+            raise error from None
         except PermissionError:
             raise VaultAccessDenied(_FILE_DENIED) from None
         except OSError:
@@ -193,6 +262,17 @@ class _FileVaultBackend(VaultBackend):
         finally:
             os.close(descriptor)
 
+    def _sync_published(self, ref_id: str) -> None:
+        """Sync after a rename/unlink that is already visible.
+
+        A failure here is not an ordinary I/O failure: the change took effect.
+        Report it separately with the opaque reference instead of VAULT_IO_ERROR.
+        """
+        try:
+            self._sync_directory()
+        except OSError:
+            raise VaultDurabilityUnconfirmed(credential_ref=REF_PREFIX + ref_id) from None
+
     def _write(self, path: Path, ref_id: str, plaintext: bytearray) -> None:
         blob = self._header() + self._protect(plaintext, self._entropy(ref_id))
         descriptor, temporary_name = tempfile.mkstemp(prefix=".aikv-", suffix=".tmp", dir=self.directory)
@@ -211,7 +291,7 @@ class _FileVaultBackend(VaultBackend):
             except OSError:
                 pass
             raise
-        self._sync_directory()
+        self._sync_published(ref_id)
 
     @staticmethod
     def _read(path: Path) -> bytes:
@@ -264,7 +344,7 @@ class _FileVaultBackend(VaultBackend):
                 path.unlink()
             except FileNotFoundError:
                 raise CredentialNotFound() from None
-            self._sync_directory()
+            self._sync_published(ref_id)
 
     def resolve(self, credential_ref: str) -> str:
         ref_id = parse_credential_ref(credential_ref)

@@ -54,6 +54,22 @@ class VaultStorageError(VaultError):
     default_message = "The vault files could not be read or written."
 
 
+class VaultDurabilityUnconfirmed(VaultStorageError):
+    """The change is already visible on disk, but its durable sync failed.
+
+    The outcome is not a plain failure: a put/replace/delete took effect.
+    ``credential_ref`` is the opaque reference (never secret material) so a
+    caller can still find, retry or delete the affected credential.
+    """
+
+    code = "VAULT_DURABILITY_UNCONFIRMED"
+    default_message = "The vault change is visible, but its durability could not be confirmed."
+
+    def __init__(self, message: str | None = None, *, credential_ref: str | None = None):
+        super().__init__(message)
+        self.credential_ref = credential_ref
+
+
 class UnsafeVaultPath(VaultError, ValueError):
     code = "VAULT_UNSAFE_PATH"
     default_message = "The vault location is not a private per-user runtime location."

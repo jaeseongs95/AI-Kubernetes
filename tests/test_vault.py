@@ -1,12 +1,13 @@
 """AIK-009 vault tests with synthetic secrets and disposable directories.
 
 No real credential, provider or network is used. Real Windows DPAPI is only
-exercised by a Windows-only test, which is NOT_RUN on Linux. Passing this suite
+exercised by Windows-only tests, which are NOT_RUN on Linux. Passing this suite
 on Linux is development verification, not evidence of Windows support.
 """
 from __future__ import annotations
 
 import base64
+import errno
 import hashlib
 import json
 import logging
@@ -33,8 +34,10 @@ from aik_vault import (  # noqa: E402
     CRYPTPROTECT_LOCAL_MACHINE, CRYPTPROTECT_UI_FORBIDDEN, MAX_SECRET_BYTES, REF_PREFIX,
     CredentialNotFound, DpapiCallError, DpapiVaultBackend, FakeVaultBackend,
     InvalidCredentialRef, InvalidSecret, UnsafeVaultPath, VaultAccessDenied, VaultBusy,
-    VaultCorrupt, VaultError, VaultUnavailable, default_vault_directory, open_user_vault,
+    VaultCorrupt, VaultDurabilityUnconfirmed, VaultError, VaultStorageError, VaultUnavailable,
+    default_vault_directory, open_user_vault,
 )
+from aik_vault.dpapi import _Crypt32Api  # noqa: E402
 
 
 SECRET = "sk-SYNTHETICvault0123456789abcdefTEST"
@@ -48,6 +51,13 @@ from aik_vault import FakeVaultBackend
 vault = FakeVaultBackend(Path(sys.argv[2]), key=bytes.fromhex(sys.argv[3]))
 print(vault.put(sys.stdin.read()))
 '''
+DPAPI_RESTART_CHILD = r'''
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from aik_vault import open_user_vault
+print(open_user_vault(Path(sys.argv[2])).put(sys.stdin.read()))
+'''
 
 
 def secret_variants(secret: str) -> list[bytes]:
@@ -56,6 +66,10 @@ def secret_variants(secret: str) -> list[bytes]:
     for encoded in (base64.b64encode(raw), base64.urlsafe_b64encode(raw)):
         variants.extend((encoded, encoded.rstrip(b"=")))
     return variants
+
+
+def _running_as_root() -> bool:
+    return hasattr(os, "geteuid") and os.geteuid() == 0
 
 
 class RecordingDpapi:
@@ -226,6 +240,20 @@ class VaultTests(unittest.TestCase):
         self.assertEqual(len(self.ciphertext_files()), 1)
         self.assertEqual(waiting.resolve(ref), SECRET)
 
+    def test_lock_timeout_reports_busy_for_delete_and_resolve(self) -> None:
+        # F4(c): delete/resolve also stop at the lock and leave the ciphertext.
+        waiting = FakeVaultBackend(self.directory, key=self.key, timeout=0.05)
+        ref = self.vault.put(SECRET)
+        with runtime_paths.database_lock(self.vault._anchor):
+            for label, operation in (("resolve", lambda: waiting.resolve(ref)),
+                                     ("delete", lambda: waiting.delete(ref))):
+                with self.subTest(operation=label):
+                    with self.assertRaises(VaultBusy) as busy:
+                        operation()
+                    self.assertEqual(busy.exception.code, "VAULT_BUSY")
+        self.assertTrue(self.ciphertext(ref).is_file())
+        self.assertEqual(waiting.resolve(ref), SECRET)
+
     def test_unsafe_directories_and_symlinked_ciphertext_are_rejected(self) -> None:
         with self.assertRaises(UnsafeVaultPath):
             FakeVaultBackend(Path("relative-vault"), key=self.key)
@@ -251,11 +279,133 @@ class VaultTests(unittest.TestCase):
             self.vault.delete(ref)
         self.assertTrue(moved.is_file())
 
+    def test_hardlinked_ciphertext_is_rejected_and_preserved(self) -> None:
+        # F4(d): a hardlink alias of a ciphertext file is a path-rule violation.
+        ref = self.vault.put(SECRET)
+        path = self.ciphertext(ref)
+        original = path.read_bytes()
+        alias = self.root / "hardlinked.aikv"
+        try:
+            alias.hardlink_to(path)
+        except (OSError, NotImplementedError) as error:
+            self.skipTest(f"Hard links unavailable: {error}")
+        for label, operation in (("resolve", lambda: self.vault.resolve(ref)),
+                                 ("replace", lambda: self.vault.replace(ref, REPLACEMENT)),
+                                 ("delete", lambda: self.vault.delete(ref))):
+            with self.subTest(operation=label):
+                with self.assertRaises(UnsafeVaultPath) as rejected:
+                    operation()
+                self.assertEqual(rejected.exception.code, "VAULT_UNSAFE_PATH")
+        self.assertEqual(path.read_bytes(), original)
+        self.assertEqual(alias.read_bytes(), original)
+
     @unittest.skipIf(os.name == "nt", "POSIX mode bits; Windows ACL inheritance is NOT_RUN.")
     def test_ciphertext_files_are_private_on_posix(self) -> None:
         ref = self.vault.put(SECRET)
         self.assertEqual(self.ciphertext(ref).stat().st_mode & 0o777, 0o600)
         self.assertEqual(self.vault.directory.stat().st_mode & 0o777, 0o700)
+
+    @unittest.skipIf(os.name == "nt" or _running_as_root(),
+                     "POSIX permission denial; root bypasses mode bits and Windows ACL denial is NOT_RUN.")
+    def test_directory_permission_denial_reports_access_denied_not_unsafe_path(self) -> None:
+        # F1: an inaccessible vault directory is an access failure, not an unsafe path.
+        ref = self.vault.put(SECRET)
+        os.chmod(self.vault.directory, 0)
+        self.addCleanup(os.chmod, self.vault.directory, 0o700)
+        operations = (
+            ("resolve", lambda: self.vault.resolve(ref)),
+            ("delete", lambda: self.vault.delete(ref)),
+            ("replace", lambda: self.vault.replace(ref, REPLACEMENT)),
+            ("put", lambda: self.vault.put(REPLACEMENT)),
+            ("open", lambda: FakeVaultBackend(self.directory, key=self.key)),
+        )
+        for label, operation in operations:
+            with self.subTest(operation=label):
+                with self.assertRaises(VaultAccessDenied) as denied:
+                    operation()
+                self.assertEqual(denied.exception.code, "VAULT_ACCESS_DENIED")
+                self.assert_no_secret(str(denied.exception)
+                                      + "".join(traceback.format_exception(denied.exception)))
+        os.chmod(self.vault.directory, 0o700)
+        self.assertEqual(self.vault.resolve(ref), SECRET)
+        self.assertEqual(len(self.ciphertext_files()), 1)
+
+    @unittest.skipIf(os.name == "nt", "The directory chmod is POSIX-only.")
+    def test_directory_chmod_permission_denial_reports_access_denied(self) -> None:
+        # F1: chmod of a directory owned by another user fails with EPERM.
+        with mock.patch.object(os, "chmod", side_effect=PermissionError(errno.EPERM, "synthetic")):
+            with self.assertRaises(VaultAccessDenied) as denied:
+                FakeVaultBackend(self.directory, key=self.key)
+        self.assertEqual(denied.exception.code, "VAULT_ACCESS_DENIED")
+
+    def test_file_permission_and_io_failures_map_to_fixed_codes(self) -> None:
+        # F4(b): PermissionError -> VAULT_ACCESS_DENIED, other OSError -> VAULT_IO_ERROR.
+        ref = self.vault.put(SECRET)
+        real_open = os.open
+
+        def failing_open(failure):
+            def opener(path, flags, *args, **kwargs):
+                if str(path).endswith(".aikv"):
+                    raise failure
+                return real_open(path, flags, *args, **kwargs)
+            return opener
+
+        with mock.patch.object(os, "open", side_effect=failing_open(PermissionError(errno.EACCES, "synthetic"))):
+            with self.assertRaises(VaultAccessDenied) as denied:
+                self.vault.resolve(ref)
+        self.assertEqual(denied.exception.code, "VAULT_ACCESS_DENIED")
+        with mock.patch.object(os, "open", side_effect=failing_open(OSError(errno.EIO, "synthetic"))):
+            with self.assertRaises(VaultStorageError) as io_error:
+                self.vault.resolve(ref)
+        self.assertIs(type(io_error.exception), VaultStorageError)
+        self.assertEqual(io_error.exception.code, "VAULT_IO_ERROR")
+
+        real_replace = os.replace
+
+        def deny_publication(source, destination):
+            if str(destination).endswith(".aikv"):
+                raise PermissionError(errno.EACCES, "synthetic sharing violation")
+            return real_replace(source, destination)
+
+        with mock.patch.object(os, "replace", side_effect=deny_publication):
+            with self.assertRaises(VaultAccessDenied):
+                self.vault.put(REPLACEMENT)
+            with self.assertRaises(VaultAccessDenied):
+                self.vault.replace(ref, REPLACEMENT)
+        self.assertEqual(self.vault.resolve(ref), SECRET)
+        self.assertEqual(len(self.ciphertext_files()), 1)
+        self.assertEqual(list(self.vault.directory.glob(".aikv-*")), [])
+
+    def test_post_publication_sync_failure_reports_unconfirmed_durability_with_reference(self) -> None:
+        # F3: the rename/unlink already took effect; this is not a plain I/O failure.
+        def failing_sync():
+            raise OSError(errno.EIO, "synthetic directory fsync failure")
+
+        with mock.patch.object(self.vault, "_sync_directory", side_effect=failing_sync):
+            with self.assertRaises(VaultDurabilityUnconfirmed) as put_failure:
+                self.vault.put(SECRET)
+        error = put_failure.exception
+        self.assertEqual(error.code, "VAULT_DURABILITY_UNCONFIRMED")
+        self.assertIsInstance(error, VaultStorageError)
+        ref = error.credential_ref
+        self.assertRegex(ref, _REF_PATTERN)
+        self.assertEqual(self.vault.resolve(ref), SECRET)
+
+        with mock.patch.object(self.vault, "_sync_directory", side_effect=failing_sync):
+            with self.assertRaises(VaultDurabilityUnconfirmed) as replace_failure:
+                self.vault.replace(ref, REPLACEMENT)
+        self.assertEqual(replace_failure.exception.credential_ref, ref)
+        self.assertEqual(self.vault.resolve(ref), REPLACEMENT)
+
+        with mock.patch.object(self.vault, "_sync_directory", side_effect=failing_sync):
+            with self.assertRaises(VaultDurabilityUnconfirmed) as delete_failure:
+                self.vault.delete(ref)
+        self.assertEqual(delete_failure.exception.credential_ref, ref)
+        with self.assertRaises(CredentialNotFound):
+            self.vault.resolve(ref)
+        for failure in (error, replace_failure.exception, delete_failure.exception):
+            self.assert_no_secret(str(failure) + repr(failure) + "".join(traceback.format_exception(failure)))
+        self.assertEqual(list(self.vault.directory.glob(".aikv-*")), [])
 
     def test_fake_backend_requires_explicit_directory_and_hides_key(self) -> None:
         with self.assertRaises(ValueError):
@@ -376,6 +526,23 @@ class VaultTests(unittest.TestCase):
         with self.assertRaises(VaultCorrupt):
             FakeVaultBackend(self.root / "dpapi-vault", key=self.key).resolve(ref)
 
+    def test_ctypes_binding_rejects_machine_scope_flag_before_any_call(self) -> None:
+        # F4(a): exercise the real _Crypt32Api guard without loading crypt32.
+        api = _Crypt32Api.__new__(_Crypt32Api)
+        invoked = []
+
+        def native(*arguments):
+            invoked.append(arguments)
+            return 1
+
+        for flags in (CRYPTPROTECT_LOCAL_MACHINE, CRYPTPROTECT_LOCAL_MACHINE | CRYPTPROTECT_UI_FORBIDDEN):
+            for operation in ("protect", "unprotect"):
+                with self.subTest(flags=flags, operation=operation):
+                    with self.assertRaises(ValueError):
+                        api._call(native, operation, b"synthetic-data", b"synthetic-entropy", flags,
+                                  wipe_output=operation == "unprotect")
+        self.assertEqual(invoked, [])
+
     def test_dpapi_failures_map_to_fixed_error_codes(self) -> None:
         api = RecordingDpapi()
         vault = DpapiVaultBackend(self.root / "dpapi-vault", _api=api)
@@ -420,6 +587,23 @@ class VaultTests(unittest.TestCase):
         vault.delete(ref)
         with self.assertRaises(CredentialNotFound):
             vault.resolve(ref)
+
+    @unittest.skipUnless(os.name == "nt", "Real DPAPI process restart is NOT_RUN outside Windows.")
+    def test_real_dpapi_reference_survives_actual_process_restart_on_windows(self) -> None:
+        # F4(e): a separate child process protects; this process unprotects.
+        directory = self.root / "real-dpapi-restart"
+        result = subprocess.run(
+            [sys.executable, "-c", DPAPI_RESTART_CHILD, str(ROOT / "src"), str(directory)],
+            input=SECRET, capture_output=True, text=True, encoding="utf-8", check=True, timeout=60, cwd=self.root,
+        )
+        self.assert_no_secret(result.stdout + result.stderr)
+        ref = result.stdout.strip()
+        self.assertRegex(ref, _REF_PATTERN)
+        reopened = open_user_vault(directory)
+        self.assertEqual(reopened.resolve(ref), SECRET)
+        reopened.delete(ref)
+        with self.assertRaises(CredentialNotFound):
+            reopened.resolve(ref)
 
 
 if __name__ == "__main__":

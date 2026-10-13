@@ -15,8 +15,8 @@ from .dpapi import (
 )
 from .errors import (
     CredentialNotFound, InvalidCredentialRef, InvalidSecret, UnsafeVaultPath,
-    VaultAccessDenied, VaultBusy, VaultCorrupt, VaultError, VaultStorageError,
-    VaultUnavailable,
+    VaultAccessDenied, VaultBusy, VaultCorrupt, VaultDurabilityUnconfirmed, VaultError,
+    VaultStorageError, VaultUnavailable,
 )
 
 __all__ = [
@@ -26,5 +26,5 @@ __all__ = [
     "CRYPTPROTECT_LOCAL_MACHINE", "CRYPTPROTECT_UI_FORBIDDEN", "PROTECT_FLAGS", "DpapiCallError",
     "VaultError", "InvalidSecret", "InvalidCredentialRef", "CredentialNotFound",
     "VaultAccessDenied", "VaultCorrupt", "VaultUnavailable", "VaultBusy",
-    "VaultStorageError", "UnsafeVaultPath",
+    "VaultStorageError", "VaultDurabilityUnconfirmed", "UnsafeVaultPath",
 ]
