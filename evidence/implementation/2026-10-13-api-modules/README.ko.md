@@ -5,7 +5,10 @@
 ## 검증 범위와 한계
 
 - 모든 시험은 표준 라이브러리 `unittest`와 합성 데이터·fake port만 쓴다. 이 세션의 Linux(Python 3.13)에서 `python -m unittest discover -s tests`로 전체 회귀를 실행해 통과했다(각 commit 직전).
-- 독립 CI는 `.github/workflows/aik-modules.yml`(Ubuntu·Windows, Python 3.14.8)로 연결했다. 그 실행 결과는 이 기록에 포함하지 않으며, CI 통과도 제품 qualification이 아니다.
+- 독립 CI는 `.github/workflows/aik-modules.yml`(Ubuntu·Windows, Python 3.14.8)로 연결했다. CI 통과는 제품 qualification이 아니다.
+  - run #23(`15940c5`, 2026-10-13): 모듈 시험 1172개가 Ubuntu와 windows-2022(Windows Server 2022)에서 모두 통과했다.
+  - 같은 run에서 VM 32bb0f9를 git에서 설치한 실제 upstream 적합성 시험 29개가 두 OS 모두 통과했다(skip 0).
+  - windows-2022는 Windows Server다. Windows 11 데스크톱, 사용자 세션, 다중 사용자 격리 검증은 아니다.
 - 구현 초안과 독립 검토·수정은 Claude API(Opus) 호출로 만들었다. 적용·시험·판정·commit은 세션 총괄이 수행했다. 각 태스크는 독립 검토 finding을 반영한 수정 commit을 포함한다(일부는 검토 진행 중).
 - VM 인터페이스 중 일부(실행 binding extension, 효과 intent/receipt port)는 현재 upstream에 없는 **가정 확장**이다. 실제 설치형 upstream에 연결하기 전에는 통합 완료로 처리하지 않는다.
 - 실제 연결 근거: VM 어댑터의 고정 revision 소스 적합성 시험([vm-bridge 문서](../../../docs/vm-bridge.ko.md)), Anthropic Messages API 최소 진단([기록](../../provider-adapter/2026-10-13-anthropic-live-probe/README.ko.md)), Windows CI(`aik-modules.yml`)가 찾은 Windows 결함 수정(file ID 범위, shell 분류 순서).
@@ -579,6 +582,26 @@
   - supervisor 스레드에서 trace scope가 존재한다는 점은 VM 설계 가정이며, 실측하지 않았다.
   - AGS A2 전환 전이라 governed dispatch에 도달하지 못한다(AIK-081).
   - `AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED`는 설치형 검증 전까지 유지한다.
+  - 통합 완료가 아니다.
+
+### AIK-031 추가 기록 — Windows hosted E2E 진단 (CI run #23, `15940c5`)
+
+- **도구:** `tools/diagnose_hosted_e2e.py`, CI job `hosted-e2e-diagnostic`(windows-2022)
+- **실행 내용:** VM 32bb0f9 소스로 합성 Goal·Plan을 준비한 뒤, VM Windows 전용 RuntimeJob supervisor로 Task를 dispatch했다.
+  - AIK hosted runtime이 VM `FakeCodexRuntime`을 감쌌다.
+  - 모델·계정·네트워크 호출은 없었다.
+- **결과: `DIAGNOSTIC_PASS`.** 아래를 확인했다.
+  - VM worker 스레드(`flowmarshal-worker_turn-*`, 메인 스레드 아님)의 `create_thread`·`start_turn`이 hosted runtime을 지났다. 이때 trace scope의 Attempt·intent·call ID를 읽었다.
+  - 각 효과 호출 순간에 해당 Attempt의 durable in-flight 행이 이미 있었다(효과 전 기록).
+  - 성공 뒤 in-flight 행이 정리됐다.
+  - `confirm_attempt`가 VM owner query와 `status` join으로 binding을 확정했다.
+  - 이 확인으로 "VM supervisor 스레드에서도 trace scope가 존재한다"는 VM 설계 가정이 Windows 실제 실행에서 관측됐다.
+- **새로 관측한 설계 제약:** VM은 역할 실행 중 호스트의 재진입(`attempt_detail`)을 `CORE_CAPABILITY_DENIED`로 거절한다. 그래서 효과 시점의 placement Task는 `HOSTED_TASK_PENDING`으로 두고, owner 확인 때 확정한다.
+- **한계:**
+  - VM wheel이 개발자 모듈(`e2e_qualification` 등)을 빼므로, VM은 **소스에서 import**했다. 설치형 wheel 근거가 아니다.
+  - governance gate는 진단용 허용 gate다. AGS가 아니다.
+  - 이번 run은 Task 완료까지 진행했지만 독립 Goal Test 판정(`goal_verdict_id`)에는 시간 안에 도달하지 못했다(null).
+  - 실모델, Windows 11, AGS A2는 NOT_RUN이다.
   - 통합 완료가 아니다.
 
 ## AIK-040
