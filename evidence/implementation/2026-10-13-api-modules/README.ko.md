@@ -525,6 +525,30 @@
 - 실제 provider·broker 연동
 - 재시작 내구성 검증
 
+## AIK-030
+
+- 구현: src/aik_jev에 JEV(TypeSafe 공개 계약 0.2.0) bridge를 구현했다. RawPrompt는 원문을 바꾸지 않고 sha256·길이로 결속하며, CommonReq는 코드가 확인한 metadata(작업 모드·대상·스킬 후보·제약)만 canonical JSON으로 담고 RAW 본문을 넣지 않는다. JevClient는 GET /v1/models·POST /v1/systemone을 재시도·redirect·모델 fallback 없이 호출하고 응답을 엄격 검증한다. JevBridge는 ON이면 RAW 원문과 REQ로 choice 질문을 보내 추천·확률·usage·관측 모델을 provider_observed로 기록하고, OFF·호출 불가·응답 거절이면 JEV 없이 같은 vendor의 품질 통과 최저비용 분류 후보만 기록한다(직접 호출하지 않음). AGENT의 최종 선택은 별도 append-only 기록(model_reported)으로 남기며 추천과 다르거나 후보 밖이어도 거절·덮어쓰기하지 않는다.
+- 검증: tests/test_jev.py 18개가 합성 데이터·fake transport로 RAW 보존, RAW_REQ_MISMATCH, ON 성공·관측 모델 분리, OFF 호출 0회와 fallback 후보 규칙, HTTP 오류·timeout별 상태와 재시도 0회, 응답 계약 위반, 토큰 비노출, AGENT 선택 분리, request_id 재호출·충돌, journal append-only를 검사한다. 추가로 tools/probe_jev.py로 실제 서비스에 합성 요청 1건을 보내 classified(요청 jev-latest, 관측 jev-1.13.0)와 AGENT 선택 별도 기록을 관측했다(evidence/jev/2026-10-13-live-probe).
+- 커밋: `e228314`
+- 시험: `tests/test_jev.py` (18개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | 실제 JEV 공개 계약(0.2.0)·모델 목록·systemone 응답을 관측했고 RAW 보존·확인된 metadata만의 REQ를 구현했다. VM/AGS 두 고정 계약 저장소에 JEV 경계가 없어 내부 편입은 미완료이며 upstream 변경 참조는 없다. |
+| 2 | 단위 범위 충족 | JEV 분류(provider_observed)와 AGENT 최종 선택(model_reported)을 별도 테이블·필드로 기록하고 실호출 진단에서도 둘이 분리됨을 관측했다. |
+| 3 | 부분 | OFF·호출 불가 시 같은 vendor의 품질 통과 최저비용 후보를 기록하고 선택을 강제하지 않는다. fallback 분류 LLM의 실제 실행과 벤더 품질 기준 판정은 NOT_RUN이다. |
+
+차단 사유:
+- VM/AGS 고정 계약에 JEV 연동 경계 없음(편입 불가, upstream 요청 안 함)
+- fallback 분류 후보의 벤더 품질 기준 판정·실행 경로 미연결
+- 선행 AIK-031·AIK-032의 실제 governed 실행 미검증
+
+실행하지 않은 검증(NOT_RUN):
+- token_resolver Bearer 직접 부착과 vault 연결
+- 실제 사용자 요청·스킬 manifest에 대한 분류 품질
+- fallback LLM 실제 실행
+- Windows 실행
+
 ## AIK-031
 
 - 구현: aik_vm_bridge에 typed request/receipt, surface preflight, 버전 handshake, 오류 매핑, TaskExecutionBinding, 실제 EngineApplication 어댑터를 구현했다. durable binding이 없으면 run_once를 SEAM_UNAVAILABLE로 차단한다.
