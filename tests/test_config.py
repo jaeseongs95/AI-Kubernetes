@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from contextlib import closing
 import copy
-from dataclasses import replace
+from dataclasses import dataclass, replace
 import json
 import os
 from pathlib import Path
+import shutil
 import sqlite3
 import sys
 import tempfile
@@ -29,12 +30,14 @@ from aik_config import (  # noqa: E402
     WorkspaceBinding, WorkspaceBindingMismatch, WorkspaceBindingRequired, WorkspaceLimits,
     default_settings_path,
 )
+from aik_config import storage as config_storage  # noqa: E402
 from aik_runtime import RuntimeStore  # noqa: E402
 from aik_runtime import paths as runtime_paths  # noqa: E402
 
 
 SECRET_MARKER = "SYNTHETIC_SECRET_MUST_NOT_BE_STORED"
 ALPHA_ROOT = "/synthetic/roots/alpha"
+JOURNAL_MAGIC = b"\xd9\xd5\x05\xf9\x20\xa1\x63\xd7"
 
 
 class FakeAuthority:
@@ -50,8 +53,15 @@ class FakeAuthority:
         return self.bindings.get(workspace_id)
 
 
+ALPHA_BINDING = WorkspaceBinding("ws-alpha", ALPHA_ROOT, "vm-project-alpha")
+
+
 def seed(store: SettingsStore) -> None:
-    with store.transaction() as tx:
+    # Binding a workspace requires AIK-084 confirmation (fail-closed), so the
+    # seed writes through a store with a synthetic authority for ws-alpha.
+    writer = SettingsStore(store.path, timeout=store.timeout,
+                           binding_authority=FakeAuthority({"ws-alpha": ALPHA_BINDING}))
+    with writer.transaction() as tx:
         tx.save(Workspace("ws-alpha", "알파 작업공간", ALPHA_ROOT, "vm-project-alpha"))
         tx.save(Workspace("ws-beta", "Beta"))
         tx.save(ConnectionProfile("conn-alpha", "ws-alpha", "synthetic", auth_mode="api_key"))
@@ -376,6 +386,203 @@ class SettingsTests(unittest.TestCase):
                 with self.assertRaises(InvalidDatabase):
                     SettingsStore(path)
                 self.assertEqual(path.read_bytes(), before)
+
+    # ------------------------------------------------- review regression tests
+
+    def test_binding_without_authority_is_rejected_and_not_stored(self) -> None:
+        # F1 / F6(e): an unconfirmed root must not become a frozen binding.
+        store = SettingsStore(self.database)
+        with self.assertRaises(WorkspaceBindingRequired):
+            store.save(Workspace("ws-new", "New", "/synthetic/roots/typo", "vm-project-new"))
+        self.assertIsNone(store.get(Workspace, "ws-new"))
+        plain = Workspace("ws-plain", "Plain")
+        store.save(plain)
+        with self.assertRaises(WorkspaceBindingRequired):
+            store.save(Workspace("ws-plain", "Plain", "/synthetic/roots/typo", "vm-project-plain"),
+                       expected_revision=1)
+        self.assertEqual(store.get(Workspace, "ws-plain"), Revisioned(plain, 1))
+        # The real AIK-084 binding can still be applied afterwards.
+        authority = FakeAuthority({"ws-plain": WorkspaceBinding("ws-plain", "/synthetic/roots/real", "vm-project-plain")})
+        confirmed = Workspace("ws-plain", "Plain", "/synthetic/roots/real", "vm-project-plain")
+        self.assertEqual(SettingsStore(self.database, binding_authority=authority).save(confirmed, expected_revision=1),
+                         Revisioned(confirmed, 2))
+        self.assertNotIn(b"/synthetic/roots/typo", self.database.read_bytes())
+
+    def test_rebind_workspace_applies_only_the_authority_binding(self) -> None:
+        # F2: a stale binding has a recovery path that only AIK-084 drives.
+        store = SettingsStore(self.database)
+        seed(store)
+        original = store.get(Workspace, "ws-alpha")
+        store.select_workspace("ws-alpha")
+        authority = FakeAuthority({"ws-alpha": WorkspaceBinding("ws-alpha", "/synthetic/roots/rebound",
+                                                                "vm-project-alpha-2")})
+        bound = SettingsStore(self.database, binding_authority=authority)
+        with self.assertRaises(WorkspaceBindingMismatch):
+            bound.resolve_execution_target()
+
+        with self.assertRaises(WorkspaceBindingRequired):
+            store.rebind_workspace("ws-alpha", expected_revision=1)
+        with self.assertRaises(WorkspaceBindingRequired):
+            SettingsStore(self.database, binding_authority=FakeAuthority()).rebind_workspace("ws-alpha", 1)
+        with self.assertRaises(WorkspaceBindingRequired):
+            SettingsStore(self.database, binding_authority=FakeAuthority(fail=True)).rebind_workspace("ws-alpha", 1)
+        foreign_owner = FakeAuthority({"ws-alpha": WorkspaceBinding("ws-beta", "/synthetic/roots/x", "vm-x")})
+        with self.assertRaises(WorkspaceBindingMismatch):
+            SettingsStore(self.database, binding_authority=foreign_owner).rebind_workspace("ws-alpha", 1)
+        with self.assertRaises(RevisionConflict):
+            bound.rebind_workspace("ws-alpha", expected_revision=2)
+        with self.assertRaises(InvalidReference):
+            bound.rebind_workspace("ws-missing", expected_revision=1)
+        self.assertEqual(store.get(Workspace, "ws-alpha"), original)
+
+        rebound = Workspace("ws-alpha", "알파 작업공간", "/synthetic/roots/rebound", "vm-project-alpha-2")
+        self.assertEqual(bound.rebind_workspace("ws-alpha", expected_revision=1), Revisioned(rebound, 2))
+        self.assertEqual(bound.resolve_execution_target(),
+                         ExecutionTarget("ws-alpha", "/synthetic/roots/rebound", "vm-project-alpha-2"))
+        # An unbound (for example imported) workspace is bound the same way.
+        authority.bindings["ws-beta"] = WorkspaceBinding("ws-beta", "/synthetic/roots/beta", "vm-project-beta")
+        self.assertTrue(bound.rebind_workspace("ws-beta", expected_revision=1).value.bound)
+        self.assert_integrity()
+
+    def test_foreign_hot_journal_is_checked_on_a_private_copy_and_source_preserved(self) -> None:
+        # F4: a hot journal beside an AIKC-headed file must not be replayed into it.
+        SettingsStore(self.database)
+        journal = self.database.with_name(self.database.name + "-journal")
+        foreign = self.root / "foreign-writer.sqlite3"
+        foreign_journal = foreign.with_name(foreign.name + "-journal")
+        with closing(sqlite3.connect(foreign, isolation_level=None)) as connection:
+            connection.execute("PRAGMA journal_mode=DELETE")
+            connection.execute("PRAGMA synchronous=FULL")
+            connection.execute("CREATE TABLE payload (value TEXT)")
+            connection.execute("PRAGMA cache_size=4")
+            connection.execute("PRAGMA cache_spill=ON")
+            connection.execute("BEGIN IMMEDIATE")
+            for number in range(512):
+                connection.execute("INSERT INTO payload VALUES (?)", (f"{number:04d}-" + "x" * 200,))
+            self.assertTrue(foreign_journal.is_file(), "The harness did not produce a rollback journal.")
+            self.assertEqual(foreign_journal.read_bytes()[:8], JOURNAL_MAGIC)
+            shutil.copyfile(foreign_journal, journal)
+            connection.rollback()
+        before, journal_before = self.database.read_bytes(), journal.read_bytes()
+        with self.assertRaises(InvalidDatabase):
+            SettingsStore(self.database)
+        self.assertEqual(self.database.read_bytes(), before)
+        self.assertEqual(journal.read_bytes(), journal_before)
+        self.assertEqual([p.name for p in self.database.parent.iterdir() if p.name.startswith(".aik-settings-")], [])
+
+    def test_genuine_hot_journal_still_recovers_after_private_check(self) -> None:
+        # F4 guard: the private check must not block legitimate crash recovery.
+        store = SettingsStore(self.database)
+        store.save(Workspace("ws-committed", "Committed"))
+        crashed = self.root / "crashed" / "settings.sqlite3"
+        crashed.parent.mkdir()
+        journal = self.database.with_name(self.database.name + "-journal")
+        with closing(sqlite3.connect(self.database, isolation_level=None)) as connection:
+            connection.execute("PRAGMA synchronous=FULL")
+            connection.execute("PRAGMA cache_size=4")
+            connection.execute("PRAGMA cache_spill=ON")
+            connection.execute("BEGIN IMMEDIATE")
+            for number in range(512):
+                connection.execute(
+                    "INSERT INTO workspaces (id, name, canonical_root, vm_project_id, revision) "
+                    "VALUES (?, ?, NULL, NULL, 1)", (f"ws-uncommitted-{number:04d}", "x" * 120))
+            self.assertTrue(journal.is_file())
+            shutil.copyfile(self.database, crashed)
+            shutil.copyfile(journal, crashed.with_name(crashed.name + "-journal"))
+            connection.rollback()
+        recovered = SettingsStore(crashed)
+        self.assertEqual(recovered.list(Workspace), (Revisioned(Workspace("ws-committed", "Committed"), 1),))
+        self.assertFalse(crashed.with_name(crashed.name + "-journal").exists())
+        self.assert_integrity(crashed)
+
+    def test_import_record_limit_is_enforced_before_records_are_constructed(self) -> None:
+        # F5: the limit must bound work, not be checked after building records.
+        target = SettingsStore(self.database)
+        document = {
+            "format": "aik.settings-export", "format_version": 1, "scope": "settings",
+            "contains_secret_values": False, "excluded": [],
+            "workspaces": [{
+                "id": "ws-bulk", "name": "Bulk", "requires_binding": True,
+                "connections": [
+                    {"id": f"conn-{number:05d}", "provider": "synthetic", "auth_mode": "none",
+                     "requires_authentication": False}
+                    for number in range(config_storage.MAX_IMPORT_RECORDS)
+                ],
+                "profiles": [], "limits": None, "permissions": None,
+            }],
+        }
+        with mock.patch.object(config_storage, "ConnectionProfile", wraps=ConnectionProfile) as constructor:
+            with self.assertRaisesRegex(InvalidSettingsDocument, "import record limit"):
+                target.import_settings(document)
+        self.assertEqual(constructor.call_count, 0)
+        self.assertEqual(target.list(Workspace), ())
+
+    def test_selected_unreferenced_workspace_cannot_be_deleted(self) -> None:
+        # F6(a): the selection alone blocks deletion.
+        store = SettingsStore(self.database)
+        store.save(Workspace("ws-lonely", "Lonely"))
+        store.save(Workspace("ws-other", "Other"))
+        store.select_workspace("ws-lonely")
+        with self.assertRaises(InvalidReference):
+            store.delete(Workspace, "ws-lonely", expected_revision=1)
+        self.assertIsNotNone(store.get(Workspace, "ws-lonely"))
+        store.select_workspace("ws-other", expected_revision=1)
+        store.delete(Workspace, "ws-lonely", expected_revision=1)
+        self.assertIsNone(store.get(Workspace, "ws-lonely"))
+
+    def test_bound_workspace_cannot_be_unbound_and_subclasses_are_rejected(self) -> None:
+        # F6(b)(c)
+        store = SettingsStore(self.database)
+        seed(store)
+        with self.assertRaises(InvalidSetting):
+            store.save(Workspace("ws-alpha", "알파 작업공간"), expected_revision=1)
+        self.assertTrue(store.get(Workspace, "ws-alpha").value.bound)
+
+        @dataclass(frozen=True)
+        class ExtendedWorkspace(Workspace):
+            note: str = SECRET_MARKER
+
+        with self.assertRaises(InvalidSetting):
+            store.save(ExtendedWorkspace("ws-extended", "Extended"))
+        self.assertIsNone(store.get(Workspace, "ws-extended"))
+        self.assertNotIn(SECRET_MARKER.encode(), self.database.read_bytes())
+
+    def test_import_rejects_malformed_documents_atomically(self) -> None:
+        # F6(d)
+        source = SettingsStore(self.database)
+        seed(source)
+        document = source.export_settings()
+        target = SettingsStore(self.root / "import target" / "settings.sqlite3")
+
+        def variant(change):
+            changed = copy.deepcopy(document)
+            change(changed)
+            return changed
+
+        cases = {
+            "absent-connection": (InvalidReference, variant(lambda d: d["workspaces"][0]["profiles"].append(
+                {"id": "worker-absent", "role": "worker", "connection_id": "conn-absent", "model": "m",
+                 "effort": None}))),
+            "duplicate-workspace": (InvalidSettingsDocument,
+                                    variant(lambda d: d["workspaces"][1].__setitem__("id", "ws-alpha"))),
+            "duplicate-profile": (InvalidSettingsDocument, variant(
+                lambda d: d["workspaces"][0]["profiles"].append(copy.deepcopy(d["workspaces"][0]["profiles"][0])))),
+            "duplicate-connection": (InvalidSettingsDocument, variant(
+                lambda d: d["workspaces"][1]["connections"].append(
+                    copy.deepcopy(d["workspaces"][0]["connections"][0])))),
+            "format": (InvalidSettingsDocument, variant(lambda d: d.__setitem__("format", "other.export"))),
+            "format-version": (InvalidSettingsDocument, variant(lambda d: d.__setitem__("format_version", 2))),
+            "format-version-bool": (InvalidSettingsDocument,
+                                    variant(lambda d: d.__setitem__("format_version", True))),
+            "scope": (InvalidSettingsDocument, variant(lambda d: d.__setitem__("scope", "backup"))),
+        }
+        for name, (expected, candidate) in cases.items():
+            with self.subTest(case=name):
+                with self.assertRaises(expected):
+                    target.import_settings(candidate)
+                self.assertEqual(target.list(Workspace), ())
+                self.assertEqual(target.list(ConnectionProfile), ())
+                self.assertEqual(target.list(AgentProfile), ())
 
 
 if __name__ == "__main__":

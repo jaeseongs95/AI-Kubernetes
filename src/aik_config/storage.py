@@ -4,7 +4,8 @@ Each operation opens a fresh SQLite connection under the aik_runtime process
 lock and the same path validation as runtime storage, but in its own file with
 its own application ID. Existing files are identified from their header before
 SQLite opens them, so foreign databases (including runtime storage) are not
-touched.
+touched. When a rollback journal is present, SQLite recovery and validation
+first run on a private copy, so a rejected file and its journal are preserved.
 """
 
 from __future__ import annotations
@@ -143,6 +144,10 @@ def _list(value: object, what: str) -> list:
     return value
 
 
+def _too_many_records() -> InvalidSettingsDocument:
+    return InvalidSettingsDocument("The settings export exceeds the import record limit.")
+
+
 def _parse_document(document: object) -> tuple:
     """Validate a whole export before any write; returns (records, report)."""
     top = _exact(document, ("format", "format_version", "scope", "contains_secret_values", "excluded",
@@ -156,11 +161,22 @@ def _parse_document(document: object) -> tuple:
         raise InvalidSettingsDocument("The settings export exclusion list is invalid.")
 
     entries = _list(top["workspaces"], "workspace list")
+    if len(entries) > MAX_IMPORT_RECORDS:
+        raise _too_many_records()
     owners: dict[str, str] = {}
+    total = 0
     for entry in entries:
         entry = _exact(entry, ("id", "name", "requires_binding", "connections", "profiles", "limits",
                                "permissions"), "workspace")
-        for connection in _list(entry["connections"], "connection list"):
+        connections = _list(entry["connections"], "connection list")
+        profiles = _list(entry["profiles"], "profile list")
+        # Count from list lengths before iterating or constructing anything, so
+        # the limit also bounds the CPU and memory spent on an oversized input.
+        total += 1 + len(connections) + len(profiles)
+        total += (entry["limits"] is not None) + (entry["permissions"] is not None)
+        if total > MAX_IMPORT_RECORDS:
+            raise _too_many_records()
+        for connection in connections:
             connection = _exact(connection, ("id", "provider", "auth_mode", "requires_authentication"),
                                 "connection")
             if type(connection["id"]) is str:
@@ -211,7 +227,7 @@ def _parse_document(document: object) -> tuple:
             item = _exact(entry["permissions"], ("file_write", "shell_command", "network"), "permissions")
             records.append(PermissionDefaults(workspace.id, **item))
         if len(records) > MAX_IMPORT_RECORDS:
-            raise InvalidSettingsDocument("The settings export exceeds the import record limit.")
+            raise _too_many_records()
     report = ImportReport(tuple(workspace_ids), tuple(needs_auth), tuple(workspace_ids))
     return records, report
 
@@ -261,20 +277,32 @@ class SettingsTransaction:
             )
         return tuple(_decode(model, row) for row in rows)
 
-    def _verify_binding(self, workspace: Workspace) -> ExecutionTarget:
-        if not workspace.bound:
-            raise WorkspaceBindingRequired("The workspace has no AIK-084 canonical root and VM project binding.")
+    def _authority_binding(self, workspace_id: str) -> WorkspaceBinding:
+        """The current AIK-084 binding for a workspace, or a fail-closed error."""
         if self._authority is None:
             raise WorkspaceBindingRequired("No AIK-084 binding authority is available to confirm the workspace.")
         try:
-            binding = self._authority.binding_for(workspace.id)
+            binding = self._authority.binding_for(workspace_id)
         except Exception:
             raise WorkspaceBindingRequired("The AIK-084 workspace binding could not be confirmed.") from None
         if binding is None:
             raise WorkspaceBindingRequired("AIK-084 reports no binding for the workspace.")
-        if type(binding) is not WorkspaceBinding or (
-            binding.workspace_id, binding.canonical_root, binding.vm_project_id,
-        ) != (workspace.id, workspace.canonical_root, workspace.vm_project_id):
+        if type(binding) is not WorkspaceBinding:
+            raise WorkspaceBindingMismatch("The settings binding differs from the AIK-084 binding.")
+        try:
+            # Reconstruct: object.__setattr__ can bypass the binding validator.
+            binding = WorkspaceBinding(binding.workspace_id, binding.canonical_root, binding.vm_project_id)
+        except InvalidRecord:
+            raise WorkspaceBindingMismatch("The AIK-084 binding violates its contract.") from None
+        if binding.workspace_id != workspace_id:
+            raise WorkspaceBindingMismatch("The settings binding differs from the AIK-084 binding.")
+        return binding
+
+    def _verify_binding(self, workspace: Workspace) -> ExecutionTarget:
+        if not workspace.bound:
+            raise WorkspaceBindingRequired("The workspace has no AIK-084 canonical root and VM project binding.")
+        binding = self._authority_binding(workspace.id)
+        if (binding.canonical_root, binding.vm_project_id) != (workspace.canonical_root, workspace.vm_project_id):
             raise WorkspaceBindingMismatch("The settings binding differs from the AIK-084 binding.")
         return ExecutionTarget(workspace.id, workspace.canonical_root, workspace.vm_project_id)
 
@@ -284,8 +312,10 @@ class SettingsTransaction:
         if isinstance(value, Workspace):
             if previous is not None and previous.bound:
                 if (previous.canonical_root, previous.vm_project_id) != (value.canonical_root, value.vm_project_id):
-                    raise InvalidSetting("A bound workspace root and VM project are owned by AIK-084.")
-            elif value.bound and self._authority is not None:
+                    raise InvalidSetting("A bound workspace root and VM project change only through rebind.")
+            elif value.bound:
+                # Setting a new binding requires AIK-084 confirmation; without
+                # an authority this fails closed instead of storing it unchecked.
                 self._verify_binding(value)
             return
         if self._fetch(Workspace, value.workspace_id) is None:
@@ -336,6 +366,38 @@ class SettingsTransaction:
                         raise RevisionConflict("The settings record revision has changed.")
         except sqlite3.IntegrityError:
             raise InvalidReference("Settings references or constraints are inconsistent.") from None
+        except sqlite3.Error as error:
+            _sqlite_failure(error)
+        return Revisioned(value, revision)
+
+    def rebind_workspace(self, workspace_id: str, expected_revision: int) -> Revisioned:
+        """Store the current AIK-084 binding; the authority is the only source.
+
+        Callers cannot supply a root or VM project here. Without an authority,
+        or when it fails or reports no binding, nothing is changed.
+        """
+        self._require_active()
+        check_identifier(workspace_id, "workspace_id")
+        _revision(expected_revision, allow_create=False)
+        try:
+            with self._write():
+                current = self._fetch(Workspace, workspace_id)
+                if current is None:
+                    raise InvalidReference("The workspace to bind does not exist.")
+                if current.revision != expected_revision or expected_revision == MAX_INTEGER:
+                    raise RevisionConflict("The workspace revision has changed.")
+                binding = self._authority_binding(workspace_id)
+                value = Workspace(workspace_id, current.value.name, binding.canonical_root, binding.vm_project_id)
+                revision = expected_revision + 1
+                updated = self._connection.execute(
+                    'UPDATE "workspaces" SET "canonical_root" = ?, "vm_project_id" = ?, "revision" = ? '
+                    'WHERE "id" = ? AND "revision" = ?',
+                    (value.canonical_root, value.vm_project_id, revision, workspace_id, expected_revision),
+                )
+                if updated.rowcount != 1:
+                    raise RevisionConflict("The workspace revision has changed.")
+        except sqlite3.IntegrityError:
+            raise InvalidReference("The workspace binding is inconsistent.") from None
         except sqlite3.Error as error:
             _sqlite_failure(error)
         return Revisioned(value, revision)
@@ -605,14 +667,42 @@ class SettingsStore:
             raise InvalidDatabase("This file is not an AIK settings database.")
         return True
 
+    @staticmethod
+    def _validate_contents(connection: sqlite3.Connection) -> None:
+        schema.validate_schema(connection, full=True)
+        for model, (table, _) in _SPEC.items():
+            for row in connection.execute(f'SELECT {_column_sql(model)} FROM "{table}"'):
+                _decode(model, row)
+
+    def _validate_recovery_copy(self) -> None:
+        """Let SQLite apply an existing journal to a private copy first.
+
+        Opening the real file would replay its hot journal in place before any
+        check, so a damaged pair or a foreign journal would rewrite bytes that
+        are then rejected. The source pair is only used after the copy passes.
+        """
+        journal = self.path.with_name(self.path.name + "-journal")
+        if not journal.exists():
+            return
+        temporary = Path(tempfile.mkdtemp(prefix=".aik-settings-check-", dir=self.path.parent))
+        try:
+            checked = temporary / "checked.sqlite3"
+            shutil.copyfile(self.path, checked)
+            shutil.copyfile(journal, checked.with_name(checked.name + "-journal"))
+            try:
+                with closing(self._connect(checked)) as connection:
+                    self._validate_contents(connection)
+            except sqlite3.Error:
+                raise InvalidDatabase("The settings database could not be safely recovered.") from None
+        finally:
+            shutil.rmtree(temporary, ignore_errors=True)
+
     def _initialize(self) -> None:
         try:
             if self._check_files():
+                self._validate_recovery_copy()
                 with closing(self._connect(self.path)) as connection:
-                    schema.validate_schema(connection, full=True)
-                    for model, (table, _) in _SPEC.items():
-                        for row in connection.execute(f'SELECT {_column_sql(model)} FROM "{table}"'):
-                            _decode(model, row)
+                    self._validate_contents(connection)
                 return
             temporary = Path(tempfile.mkdtemp(prefix=".aik-settings-init-", dir=self.path.parent))
             try:
@@ -641,6 +731,8 @@ class SettingsStore:
         with database_lock(self.path, self.timeout):
             try:
                 exists = self._check_files()
+                if exists:
+                    self._validate_recovery_copy()
             except OSError:
                 raise StorageError("The settings database files could not be inspected.") from None
             if not exists:
@@ -669,6 +761,10 @@ class SettingsStore:
     def save(self, value, expected_revision: int = 0) -> Revisioned:
         with self.transaction() as tx:
             return tx.save(value, expected_revision)
+
+    def rebind_workspace(self, workspace_id: str, expected_revision: int) -> Revisioned:
+        with self.transaction() as tx:
+            return tx.rebind_workspace(workspace_id, expected_revision)
 
     def get(self, model, key: str) -> Revisioned | None:
         with self.transaction() as tx:
