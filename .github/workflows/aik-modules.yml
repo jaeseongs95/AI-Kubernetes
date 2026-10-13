@@ -82,6 +82,9 @@ jobs:
       PYTHONUTF8: '1'
       VM_UPSTREAM_TOKEN: ${{ secrets.VM_UPSTREAM_TOKEN }}
     steps:
+      - name: Allow long upstream paths on Windows
+        if: env.VM_UPSTREAM_TOKEN != '' && runner.os == 'Windows'
+        run: git config --global core.longpaths true
       - name: Report NOT_RUN without upstream access
         if: env.VM_UPSTREAM_TOKEN == ''
         shell: bash
@@ -100,17 +103,27 @@ jobs:
           token: ${{ secrets.VM_UPSTREAM_TOKEN }}
           path: upstream-vm
           persist-credentials: false
+          sparse-checkout: requirements.lock
+          sparse-checkout-cone-mode: false
       - name: Python pinned runtime
         if: env.VM_UPSTREAM_TOKEN != ''
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.14.8'
           architecture: x64
+      # pip clones the pinned commit itself, so direct_url.json records
+      # vcs_info.commit_id (read by the pinned-commit test) with a token-free URL.
+      # Credentials reach git only through this step's GIT_CONFIG_* rewrite.
       - name: Install pinned upstream non-editable
         if: env.VM_UPSTREAM_TOKEN != ''
+        shell: bash
+        env:
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: url.https://x-access-token:${{ secrets.VM_UPSTREAM_TOKEN }}@github.com/jaeseongs95/vibemarshal.insteadOf
+          GIT_CONFIG_VALUE_0: https://github.com/jaeseongs95/vibemarshal
         run: |
           python -m pip install -r upstream-vm/requirements.lock
-          python -m pip install --no-deps ./upstream-vm
+          python -m pip install --no-deps "flowmarshal-engine @ git+https://github.com/jaeseongs95/vibemarshal@32bb0f9dd9f024045d24487312b50f5b703573a3"
       - name: Real upstream conformance (skips are failures)
         if: env.VM_UPSTREAM_TOKEN != ''
         env:
