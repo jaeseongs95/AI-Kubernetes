@@ -1,10 +1,13 @@
 """AIK-015 host protocol fixtures for the Claude Code subscription bridge.
 
 Every host response is synthetic. No real CLI, provider, credential or
-network is used. One test launches a local Python child process (not the
-host) only to check the live runner's launch deadline. A fixture pass is not
-a live host round trip (NOT_RUN). Linux execution of this suite is
-development verification, not Windows support.
+network is used.
+
+Some tests launch local Python child processes. These are not the host. They
+check the live runner's deadline, output limit and process-tree termination.
+
+A fixture pass is not a live host round trip (NOT_RUN). Linux execution of
+this suite is development verification, not Windows support.
 """
 from __future__ import annotations
 
@@ -12,10 +15,12 @@ from dataclasses import replace
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from unittest import mock
 
@@ -40,6 +45,70 @@ ACCOUNT_A = "acct-synthetic-a"
 ACCOUNT_B = "acct-synthetic-b"
 PROMPT = "synthetic prompt body that must travel only on stdin"
 VERSION_OK = CommandResult(0, b"2.1.0 (Claude Code)\n")
+POSIX_ONLY = "The Windows process-tree path (taskkill /T /F) is NOT_RUN in this suite."
+
+# A local synthetic child (not the host). It starts a sleeping grandchild,
+# records the grandchild PID, then floods output, sleeps, or exits at once.
+TREE_CHILD = r'''
+import os, subprocess, sys, time
+pidfile, mode, action = sys.argv[1], sys.argv[2], sys.argv[3]
+streams = {} if mode == "hold" else {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+grandchild = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"],
+                              stdin=subprocess.DEVNULL, **streams)
+with open(pidfile + ".tmp", "w", encoding="ascii") as handle:
+    handle.write(str(grandchild.pid))
+os.replace(pidfile + ".tmp", pidfile)
+if action == "flood":
+    block = b"x" * 65536
+    for _ in range(128):
+        sys.stdout.buffer.write(block)
+        sys.stdout.buffer.flush()
+    time.sleep(30)
+elif action == "sleep":
+    time.sleep(30)
+'''
+
+
+def read_pid(path: Path, wait: float = 10.0) -> int:
+    deadline = time.monotonic() + wait
+    while not path.exists():
+        if time.monotonic() >= deadline:
+            raise AssertionError("The synthetic grandchild PID was not recorded.")
+        time.sleep(0.02)
+    return int(path.read_text(encoding="ascii"))
+
+
+def process_alive(pid: int) -> bool:
+    if os.path.isfile("/proc/self/stat"):
+        try:
+            data = Path(f"/proc/{pid}/stat").read_bytes()
+        except OSError:
+            return False
+        return data[data.rindex(b")") + 2:].split()[0] not in (b"Z", b"X", b"x")
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def wait_gone(pid: int, wait: float = 5.0) -> bool:
+    deadline = time.monotonic() + wait
+    while process_alive(pid):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+    return True
+
+
+def kill_quietly(pid: int) -> None:
+    if process_alive(pid):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
 
 
 def status(logged_in=True, method="claude.ai", account=ACCOUNT_A, expired=None, extra=None,
@@ -754,6 +823,107 @@ class ClaudeHostBridgeTests(unittest.TestCase):
         second = bridge.connect("connection-2")
         self.assertEqual(bridge.capability(second).observed_models, ())
         self.assertEqual(bridge.capability(first, refresh=False).observed_models, (OBSERVED_MODEL,))
+
+    # -- review regressions (R-1: live output bound and process-tree termination) --
+    # Local synthetic Python processes only; none of them is the Claude Code host.
+
+    def capture_tree(self, call, pidfile: Path):
+        began = time.monotonic()
+        result = error = None
+        try:
+            result = call()
+        except Exception as caught:  # inspected by the caller
+            error = caught
+        elapsed = time.monotonic() - began
+        grandchild = read_pid(pidfile)
+        self.addCleanup(kill_quietly, grandchild)
+        return result, error, elapsed, grandchild
+
+    def tree_spec(self, pidfile: Path, mode: str, action: str, timeout: float, limit: int) -> CommandSpec:
+        return CommandSpec((sys.executable, "-c", TREE_CHILD, str(pidfile), mode, action), timeout, limit,
+                           build_environment(os.environ))
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_live_runner_stops_an_output_flood_at_the_limit_and_kills_the_tree(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="aik-host-claude-tree-") as temporary:
+            pidfile = Path(temporary) / "grandchild.pid"
+            spec = self.tree_spec(pidfile, "hold", "flood", 20.0, 1024)
+            result, error, elapsed, grandchild = self.capture_tree(lambda: SubprocessRunner().run(spec), pidfile)
+        self.assertIsNone(error)
+        self.assertTrue(result.truncated)
+        self.assertEqual(len(result.stdout), 1024)
+        self.assertLess(elapsed, 10, "The flood was not stopped at the limit before the deadline.")
+        self.assertTrue(wait_gone(grandchild), "A descendant survived the output-limit termination.")
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_live_runner_timeout_terminates_descendants_holding_the_pipe(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="aik-host-claude-tree-") as temporary:
+            pidfile = Path(temporary) / "grandchild.pid"
+            spec = self.tree_spec(pidfile, "hold", "sleep", 3.0, 1024)
+            result, error, elapsed, grandchild = self.capture_tree(lambda: SubprocessRunner().run(spec), pidfile)
+        self.assertIsNone(result)
+        self.assertIs(type(error), RunnerTimeout)
+        self.assertLess(elapsed, 15)
+        self.assertTrue(wait_gone(grandchild), "A descendant survived the deadline.")
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_live_runner_terminates_descendants_left_after_a_normal_exit(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="aik-host-claude-tree-") as temporary:
+            pidfile = Path(temporary) / "grandchild.pid"
+            spec = self.tree_spec(pidfile, "hold", "exit", 20.0, 1024)
+            result, error, elapsed, grandchild = self.capture_tree(lambda: SubprocessRunner().run(spec), pidfile)
+        self.assertIsNone(error)
+        self.assertEqual((result.exit_code, result.truncated), (0, False))
+        self.assertLess(elapsed, 15)
+        self.assertTrue(wait_gone(grandchild), "A descendant left behind by the command survived.")
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_unconfirmed_tree_termination_is_unknown_not_success(self) -> None:
+        from aik_host_claude import _process
+        import aik_host_claude.runner as runner_module
+
+        spec = CommandSpec((sys.executable, "-c", "print('ok')"), 20.0, 1024, build_environment(os.environ))
+        with mock.patch.object(_process, "GRACE_SECONDS", 0.2), \
+                mock.patch.object(_process, "_group_alive", return_value=None):
+            with self.assertRaises(runner_module.RunnerTerminationUnknown):
+                SubprocessRunner().run(spec)
+        self.assertTrue(issubclass(runner_module.RunnerTerminationUnknown, RunnerTimeout))
+        result = SubprocessRunner().run(spec)
+        self.assertEqual((result.exit_code, result.stdout.strip(), result.truncated), (0, b"ok", False))
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_live_launch_deadline_terminates_the_descendant_tree(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="aik-host-claude-tree-") as temporary:
+            pidfile = Path(temporary) / "grandchild.pid"
+            runner = SubprocessRunner()
+            runner.launch(self.tree_spec(pidfile, "devnull", "sleep", 2.0, 16))
+            process = runner._launched[-1]
+
+            def cleanup():
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=5)
+
+            self.addCleanup(cleanup)
+            grandchild = read_pid(pidfile)
+            self.addCleanup(kill_quietly, grandchild)
+        try:
+            process.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            self.fail("The launched process outlived its absolute deadline.")
+        self.assertTrue(wait_gone(grandchild), "A descendant survived the launch deadline.")
+
+    def test_r1_live_runner_keeps_stdin_delivery_and_bounded_stderr(self) -> None:
+        code = ("import sys; data = sys.stdin.buffer.read(); sys.stdout.write(str(len(data)));"
+                " sys.stderr.write('e' * 100)")
+        spec = CommandSpec((sys.executable, "-c", code), 30.0, 1024, build_environment(os.environ),
+                           b"y" * 200000)
+        self.assertNotIn("y" * 16, " ".join(spec.argv))
+        result = SubprocessRunner().run(spec)
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.stdout, b"200000")
+        self.assertEqual(result.stderr, b"e" * 100)
+        self.assertFalse(result.truncated)
 
 
 if __name__ == "__main__":

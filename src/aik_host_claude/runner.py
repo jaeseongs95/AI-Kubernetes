@@ -3,16 +3,25 @@
 Tests inject a synthetic runner. ``SubprocessRunner`` is the standard-library
 live runner. Its real use against the Claude Code host is NOT_RUN.
 
-Every command carries the following:
-- an absolute timeout (``run`` waits for it; ``launch`` kills the direct
-  child process when it expires)
-- a stdout size limit
-- an explicit environment
+Every command carries three limits.
 
-The environment is built from an allowlist. Any variable that looks like a
-credential is dropped, including ``ANTHROPIC_API_KEY`` and every
-``*TOKEN*`` variable. This keeps the subscription path from silently
-falling back to an API key. Prompt bytes travel on stdin, never in argv.
+Absolute timeout
+- ``run`` terminates the command's whole process tree when the timeout
+  expires.
+- ``launch`` does the same if the direct child is still running at the
+  deadline.
+
+Output limit
+- The limit is enforced while the command runs.
+- When the limit is exceeded, the process tree is terminated.
+
+Explicit environment
+- The environment is built from an allowlist.
+- Any variable that looks like a credential is dropped, including
+  ``ANTHROPIC_API_KEY`` and every ``*TOKEN*`` variable. This keeps the
+  subscription path from silently falling back to an API key.
+
+Prompt bytes travel on stdin, never in argv.
 """
 
 from __future__ import annotations
@@ -22,9 +31,10 @@ import math
 import os
 import shutil
 import subprocess
-import tempfile
 import threading
 from typing import Protocol, runtime_checkable
+
+from . import _process
 
 SOURCES = ("synthetic_fixture", "live")
 MAX_TIMEOUT_SECONDS = 3600.0
@@ -46,6 +56,17 @@ class RunnerTimeout(Exception):
 
     def __init__(self) -> None:
         super().__init__("RUNNER_TIMEOUT")
+
+
+class RunnerTerminationUnknown(RunnerTimeout):
+    """Termination of the command's process tree could not be confirmed.
+
+    This is a subclass of ``RunnerTimeout``, so callers treat it as an
+    unknown outcome. It is never a success.
+    """
+
+    def __init__(self) -> None:
+        Exception.__init__(self, "RUNNER_TERMINATION_UNKNOWN")
 
 
 class RunnerNotStarted(Exception):
@@ -111,7 +132,12 @@ class CommandSpec:
 
 @dataclass(frozen=True, slots=True)
 class CommandResult:
-    """Bounded command output. ``truncated`` means stdout exceeded its limit."""
+    """Bounded command output.
+
+    ``truncated`` means that stdout or stderr exceeded the limit. When the
+    live runner reports it, the command's process tree was terminated at that
+    point, and ``exit_code`` reflects that termination.
+    """
 
     exit_code: int
     stdout: bytes = field(default=b"", repr=False)
@@ -138,30 +164,34 @@ class CommandRunner(Protocol):
     def launch(self, spec: CommandSpec) -> None: ...
 
 
-def _bounded(stream, limit: int) -> tuple[bytes, bool]:
-    stream.seek(0)
-    data = stream.read(limit + 1)
-    return data[:limit], len(data) > limit
-
-
-def _terminate_after_deadline(process) -> None:
-    """Kill a launched process that outlived its absolute deadline."""
+def _terminate_after_deadline(process) -> bool:
+    """Kill a launched process tree whose direct child outlived its deadline."""
     try:
-        if process.poll() is None:
-            process.kill()
-            process.wait(timeout=5)
-    except (OSError, subprocess.TimeoutExpired):
-        pass
+        if _process.exited(process):
+            return True
+        return _process.terminate_tree(process)
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 class SubprocessRunner:
     """Live runner (standard library). Real Claude Code use is NOT_RUN.
 
-    ``run`` spools output to private temporary files and reads at most the
-    limit back. On timeout, ``subprocess.run`` kills the direct child process.
-    ``launch`` arms a daemon timer that kills the direct child when
-    ``spec.timeout`` expires. Grandchildren of a host CLI are not guaranteed
-    to be terminated in either case.
+    ``run``
+    - Reads stdout and stderr from pipes, keeping at most the limit of each.
+      Nothing is spooled to disk.
+    - Terminates the command's process tree when it times out or exceeds the
+      output limit.
+    - After a normal exit, kills members left in the POSIX process group.
+    - Re-observes the tree. If its termination cannot be confirmed,
+      ``RunnerTerminationUnknown`` is raised instead of returning a result.
+
+    ``launch``
+    - Arms a daemon timer.
+    - When ``spec.timeout`` expires, the timer terminates the tree if the
+      direct child is still running.
+
+    The Windows paths (``taskkill /T /F``) are NOT_RUN.
     """
 
     source = "live"
@@ -186,33 +216,38 @@ class SubprocessRunner:
             raise TypeError("CommandSpec required")
         argv, env = self._resolve(spec)
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
-        with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-            extra = {"input": spec.stdin} if spec.stdin is not None else {"stdin": subprocess.DEVNULL}
-            try:
-                completed = subprocess.run(
-                    argv, stdout=out, stderr=err, env=env, timeout=spec.timeout,
-                    shell=False, check=False, creationflags=flags, **extra,
-                )
-            except subprocess.TimeoutExpired:
-                raise RunnerTimeout() from None
-            except OSError:
-                raise RunnerNotStarted() from None
-            stdout, truncated = _bounded(out, spec.max_output_bytes)
-            stderr, _ = _bounded(err, spec.max_output_bytes)
-        return CommandResult(completed.returncode, stdout, stderr, truncated)
+        try:
+            process = subprocess.Popen(
+                argv, stdin=subprocess.PIPE if spec.stdin is not None else subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, shell=False,
+                close_fds=True, bufsize=0, **_process.popen_options(flags),
+            )
+        except (OSError, subprocess.SubprocessError):
+            raise RunnerNotStarted() from None
+        outcome = _process.supervise(process, timeout=spec.timeout, limit=spec.max_output_bytes,
+                                     stdin=spec.stdin)
+        if not outcome.tree_confirmed or outcome.exit_code is None:
+            raise RunnerTerminationUnknown()
+        if outcome.state == _process.TIMEOUT:
+            raise RunnerTimeout()
+        stdout, stderr = outcome.streams
+        truncated = outcome.state == _process.OVERFLOW or not outcome.complete
+        return CommandResult(outcome.exit_code, stdout, stderr, truncated)
 
     def launch(self, spec: CommandSpec) -> None:
         """Start the official interactive login without capturing its I/O.
 
-        The direct child is killed when ``spec.timeout`` expires.
+        When ``spec.timeout`` expires and the direct child is still running,
+        its process tree is terminated.
         """
         if type(spec) is not CommandSpec:
             raise TypeError("CommandSpec required")
         argv, env = self._resolve(spec)
         flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0) if os.name == "nt" else 0
         try:
-            process = subprocess.Popen(argv, env=env, shell=False, close_fds=True, creationflags=flags)
-        except OSError:
+            process = subprocess.Popen(argv, env=env, shell=False, close_fds=True,
+                                       **_process.popen_options(flags))
+        except (OSError, subprocess.SubprocessError):
             raise RunnerNotStarted() from None
         timer = threading.Timer(spec.timeout, _terminate_after_deadline, (process,))
         timer.daemon = True
@@ -222,6 +257,6 @@ class SubprocessRunner:
 
 __all__ = [
     "SOURCES", "MAX_TIMEOUT_SECONDS", "MAX_OUTPUT_LIMIT", "MAX_STDIN_BYTES", "ENV_ALLOWLIST",
-    "RunnerTimeout", "RunnerNotStarted", "build_environment", "CommandSpec", "CommandResult",
-    "CommandRunner", "SubprocessRunner",
+    "RunnerTimeout", "RunnerTerminationUnknown", "RunnerNotStarted", "build_environment",
+    "CommandSpec", "CommandResult", "CommandRunner", "SubprocessRunner",
 ]

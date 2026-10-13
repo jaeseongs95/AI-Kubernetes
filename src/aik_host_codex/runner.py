@@ -1,9 +1,16 @@
 """Injectable host CLI runner for the AIK-014 Codex bridge.
 
 Tests inject a synthetic runner. ``SubprocessRunner`` is the standard library
-live runner; its use with a real Codex host is NOT_RUN. Every invocation has
-an absolute timeout, an output byte limit and an environment allowlist. The
-captured output is returned only to the bridge parser and is never kept.
+live runner; its use with a real Codex host is NOT_RUN.
+
+Every invocation has three limits:
+- an absolute timeout
+- an output byte limit, enforced while the command runs
+- an environment allowlist
+
+Timeout, output overflow and cancellation terminate the command's whole
+process tree. The captured output is returned only to the bridge parser and
+is never kept.
 """
 
 from __future__ import annotations
@@ -13,9 +20,9 @@ import math
 import os
 import shutil
 import subprocess
-import threading
-import time
 from typing import Protocol, runtime_checkable
+
+from . import _process
 
 SOURCES = ("synthetic_fixture", "live")
 MAX_TIMEOUT = 120.0
@@ -52,13 +59,22 @@ class HostNotFound(RunnerError):
 
 
 class RunnerTimeout(RunnerError):
-    """The absolute deadline passed; the process was terminated."""
+    """The absolute deadline passed; the process tree was terminated."""
 
     code = "HOST_TIMEOUT"
 
 
+class ProcessTreeUnconfirmed(RunnerTimeout):
+    """Termination of the command's process tree could not be confirmed.
+
+    The outcome is unknown and is never reported as a success.
+    """
+
+    code = "HOST_TERMINATION_UNKNOWN"
+
+
 class OutputLimitExceeded(RunnerError):
-    """The process produced more output than allowed; it was terminated."""
+    """The process produced more output than allowed; its tree was terminated."""
 
     code = "HOST_OUTPUT_LIMIT"
 
@@ -125,10 +141,18 @@ class HostRunner(Protocol):
 
 
 class _ProcessHandle:
-    """A spawned interactive login process; its output is discarded."""
+    """A spawned interactive login process; its output is discarded.
+
+    ``terminate()`` ends the whole process tree if the direct child is still
+    running. ``termination_confirmed`` records the re-observed result:
+    - ``True``: the tree was terminated and confirmed gone.
+    - ``False``: termination could not be confirmed.
+    - ``None``: no termination was attempted.
+    """
 
     def __init__(self, process: subprocess.Popen) -> None:
         self._process = process
+        self.termination_confirmed: bool | None = None
 
     def __repr__(self) -> str:
         return "HostProcessHandle()"
@@ -137,12 +161,13 @@ class _ProcessHandle:
         return self._process.poll()
 
     def terminate(self) -> None:
-        if self._process.poll() is None:
-            self._process.terminate()
-            try:
-                self._process.wait(5)
-            except subprocess.TimeoutExpired:
-                self._process.kill()
+        if _process.exited(self._process):
+            self._process.poll()
+            return
+        try:
+            self.termination_confirmed = _process.terminate_tree(self._process, graceful=5.0)
+        except (OSError, subprocess.SubprocessError):
+            self.termination_confirmed = False
 
 
 class SubprocessRunner:
@@ -158,8 +183,9 @@ class SubprocessRunner:
         """Resolve only through the allowlisted PATH, never the parent's PATH or cwd.
 
         A bare name must resolve to a file whose directory is one of the
-        absolute entries of ``env["PATH"]`` (Windows ``shutil.which`` may try
-        the current directory first). An explicit name must be absolute.
+        absolute entries of ``env["PATH"]``. Windows ``shutil.which`` may try
+        the current directory first, which this rule rejects. An explicit name
+        must be absolute.
         """
         search = env.get("PATH")
         if not search:
@@ -184,65 +210,29 @@ class SubprocessRunner:
             raise ValueError("LIMITS_REQUIRED")
         argv, env = validate_invocation(argv, env, timeout, max_output)
         command = self._resolve(argv, env)
-        deadline = time.monotonic() + float(timeout)
         problem = None
         process = None
         try:
             process = subprocess.Popen(
                 command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                env=env, close_fds=True, shell=False, creationflags=_CREATION_FLAGS,
+                env=env, close_fds=True, shell=False, bufsize=0, **_process.popen_options(_CREATION_FLAGS),
             )
         except FileNotFoundError:
             problem = HostNotFound
-        except OSError:
+        except (OSError, subprocess.SubprocessError):
             problem = RunnerError
         if problem is not None:
             raise problem()
-        buffer = bytearray()
-        overflow = threading.Event()
-
-        def read() -> None:
-            try:
-                while True:
-                    chunk = process.stdout.read1(4096)
-                    if not chunk:
-                        return
-                    if len(buffer) + len(chunk) > max_output:
-                        overflow.set()
-                        return
-                    buffer.extend(chunk)
-            except (OSError, ValueError):
-                return
-
-        reader = threading.Thread(target=read, daemon=True)
-        reader.start()
-        reader.join(max(0.0, deadline - time.monotonic()))
-        outcome = None
-        exit_code = None
-        try:
-            if overflow.is_set():
-                outcome = OutputLimitExceeded
-            elif reader.is_alive():
-                outcome = RunnerTimeout
-            else:
-                try:
-                    exit_code = process.wait(max(0.0, deadline - time.monotonic()))
-                except subprocess.TimeoutExpired:
-                    outcome = RunnerTimeout
-        finally:
-            if process.poll() is None:
-                process.kill()
-                try:
-                    process.wait(5)
-                except subprocess.TimeoutExpired:
-                    pass
-            try:
-                process.stdout.close()
-            except OSError:
-                pass
-        if outcome is not None:
-            raise outcome()
-        return RunResult(exit_code, bytes(buffer))
+        outcome = _process.supervise(process, timeout=float(timeout), limit=max_output)
+        if not outcome.tree_confirmed or outcome.exit_code is None:
+            raise ProcessTreeUnconfirmed()
+        if outcome.state == _process.OVERFLOW:
+            raise OutputLimitExceeded()
+        if outcome.state == _process.TIMEOUT:
+            raise RunnerTimeout()
+        if not outcome.complete:
+            raise RunnerError()
+        return RunResult(outcome.exit_code, outcome.streams[0])
 
     def spawn(self, argv, *, env) -> _ProcessHandle:
         argv, env = validate_invocation(argv, env)
@@ -252,11 +242,11 @@ class SubprocessRunner:
         try:
             process = subprocess.Popen(
                 command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                env=env, close_fds=True, shell=False, creationflags=_CREATION_FLAGS,
+                env=env, close_fds=True, shell=False, **_process.popen_options(_CREATION_FLAGS),
             )
         except FileNotFoundError:
             problem = HostNotFound
-        except OSError:
+        except (OSError, subprocess.SubprocessError):
             problem = RunnerError
         if problem is not None:
             raise problem()
@@ -264,7 +254,7 @@ class SubprocessRunner:
 
 
 __all__ = [
-    "RunResult", "RunnerError", "HostNotFound", "RunnerTimeout", "OutputLimitExceeded",
-    "HostRunner", "SubprocessRunner", "ENV_ALLOWLIST", "MAX_TIMEOUT", "MAX_OUTPUT_LIMIT",
-    "SOURCES", "build_environment", "validate_invocation",
+    "RunResult", "RunnerError", "HostNotFound", "RunnerTimeout", "ProcessTreeUnconfirmed",
+    "OutputLimitExceeded", "HostRunner", "SubprocessRunner", "ENV_ALLOWLIST", "MAX_TIMEOUT",
+    "MAX_OUTPUT_LIMIT", "SOURCES", "build_environment", "validate_invocation",
 ]

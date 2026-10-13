@@ -1,10 +1,14 @@
 """AIK-014 host protocol fixture tests for the Codex host-auth bridge.
 
-Only synthetic runners, synthetic host outputs and a synthetic VM runtime are
-used for the bridge. No Codex CLI, provider, credential or network is touched.
-The SubprocessRunner bound tests start only a local ``sys.executable -c``
-process with synthetic code. Passing on Linux is development verification,
-not Windows support evidence, and fixture success is not a real login success.
+The bridge is exercised only with synthetic runners, synthetic host outputs
+and a synthetic VM runtime. No Codex CLI, provider, credential or network is
+touched.
+
+The SubprocessRunner bound and process-tree tests start only local
+``sys.executable -c`` processes with synthetic code.
+
+Passing on Linux is development verification, not Windows support evidence.
+Fixture success is not a real login success.
 """
 from __future__ import annotations
 
@@ -12,6 +16,7 @@ from dataclasses import replace
 import os
 from pathlib import Path
 import re
+import signal
 import sys
 import tempfile
 import threading
@@ -38,6 +43,70 @@ MASKED_KEY = "sk-SYNTH************MASK"
 ACCOUNT_A = "acct-synthetic-a"
 ACCOUNT_B = "acct-synthetic-b"
 HOST = ("openai", "codex-host")
+POSIX_ONLY = "The Windows process-tree path (taskkill /T /F) is NOT_RUN in this suite."
+
+# A local synthetic child (not the host). It starts a sleeping grandchild,
+# records the grandchild PID, then floods output, sleeps, or exits at once.
+TREE_CHILD = r'''
+import os, subprocess, sys, time
+pidfile, mode, action = sys.argv[1], sys.argv[2], sys.argv[3]
+streams = {} if mode == "hold" else {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+grandchild = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"],
+                              stdin=subprocess.DEVNULL, **streams)
+with open(pidfile + ".tmp", "w", encoding="ascii") as handle:
+    handle.write(str(grandchild.pid))
+os.replace(pidfile + ".tmp", pidfile)
+if action == "flood":
+    block = b"x" * 65536
+    for _ in range(128):
+        sys.stdout.buffer.write(block)
+        sys.stdout.buffer.flush()
+    time.sleep(30)
+elif action == "sleep":
+    time.sleep(30)
+'''
+
+
+def read_pid(path: Path, wait: float = 10.0) -> int:
+    deadline = time.monotonic() + wait
+    while not path.exists():
+        if time.monotonic() >= deadline:
+            raise AssertionError("The synthetic grandchild PID was not recorded.")
+        time.sleep(0.02)
+    return int(path.read_text(encoding="ascii"))
+
+
+def process_alive(pid: int) -> bool:
+    if os.path.isfile("/proc/self/stat"):
+        try:
+            data = Path(f"/proc/{pid}/stat").read_bytes()
+        except OSError:
+            return False
+        return data[data.rindex(b")") + 2:].split()[0] not in (b"Z", b"X", b"x")
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def wait_gone(pid: int, wait: float = 5.0) -> bool:
+    deadline = time.monotonic() + wait
+    while process_alive(pid):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+    return True
+
+
+def kill_quietly(pid: int) -> None:
+    if process_alive(pid):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
 
 
 class FakeLoginHandle:
@@ -667,6 +736,94 @@ class HostCodexTests(unittest.TestCase):
         self.assertFault(FaultKind.AUTH_REQUIRED, self.bridge.reconnect, binding, native="auth_required")
         self.host.present = False
         self.assertFault(FaultKind.UNSUPPORTED, self.bridge.reconnect, binding, native="host_absent")
+
+    # -- review regressions (R-1: live output bound and process-tree termination) --
+    # Local synthetic Python processes only; none of them is the Codex host.
+
+    def capture_tree(self, call, pidfile: Path):
+        began = time.monotonic()
+        result = error = None
+        try:
+            result = call()
+        except Exception as caught:  # inspected by the caller
+            error = caught
+        elapsed = time.monotonic() - began
+        grandchild = read_pid(pidfile)
+        self.addCleanup(kill_quietly, grandchild)
+        return result, error, elapsed, grandchild
+
+    def tree_argv(self, pidfile: Path, mode: str, action: str) -> tuple[str, ...]:
+        return (sys.executable, "-c", TREE_CHILD, str(pidfile), mode, action)
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_output_overflow_terminates_the_descendant_tree(self) -> None:
+        pidfile = Path(self.temporary.name) / "overflow.pid"
+        live = SubprocessRunner()
+        result, error, elapsed, grandchild = self.capture_tree(
+            lambda: live.run(self.tree_argv(pidfile, "hold", "flood"), env=self.local_process_env(),
+                             timeout=30.0, max_output=1024), pidfile)
+        self.assertIsNone(result)
+        self.assertIs(type(error), OutputLimitExceeded)
+        self.assertLess(elapsed, 15)
+        self.assertTrue(wait_gone(grandchild), "A descendant survived the output-limit termination.")
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_timeout_terminates_descendants_holding_the_pipe_promptly(self) -> None:
+        pidfile = Path(self.temporary.name) / "timeout.pid"
+        live = SubprocessRunner()
+        result, error, elapsed, grandchild = self.capture_tree(
+            lambda: live.run(self.tree_argv(pidfile, "hold", "sleep"), env=self.local_process_env(),
+                             timeout=3.0, max_output=1024), pidfile)
+        self.assertIsNone(result)
+        self.assertIs(type(error), RunnerTimeout)
+        self.assertLess(elapsed, 15, "The runner waited for a descendant instead of terminating it.")
+        self.assertTrue(wait_gone(grandchild), "A descendant survived the deadline.")
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_descendants_left_after_a_normal_exit_are_terminated(self) -> None:
+        pidfile = Path(self.temporary.name) / "exit.pid"
+        live = SubprocessRunner()
+        result, error, elapsed, grandchild = self.capture_tree(
+            lambda: live.run(self.tree_argv(pidfile, "devnull", "exit"), env=self.local_process_env(),
+                             timeout=20.0, max_output=1024), pidfile)
+        self.assertIsNone(error)
+        self.assertEqual(result.exit_code, 0)
+        self.assertLess(elapsed, 15)
+        self.assertTrue(wait_gone(grandchild), "A descendant left behind by the command survived.")
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_unconfirmed_tree_termination_is_unknown_not_success(self) -> None:
+        from aik_host_codex import _process
+
+        live = SubprocessRunner()
+        argv = (sys.executable, "-c", "print('ok')")
+        with mock.patch.object(_process, "GRACE_SECONDS", 0.2), \
+                mock.patch.object(_process, "_group_alive", return_value=None):
+            with self.assertRaises(runner_module.ProcessTreeUnconfirmed) as caught:
+                live.run(argv, env=self.local_process_env(), timeout=20.0, max_output=1024)
+        self.assertIsInstance(caught.exception, RunnerTimeout)
+        self.assertIsInstance(caught.exception, RunnerError)
+        result = live.run(argv, env=self.local_process_env(), timeout=20.0, max_output=1024)
+        self.assertEqual((result.exit_code, result.output.strip()), (0, b"ok"))
+
+    @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
+    def test_r1_spawned_login_terminate_ends_the_descendant_tree(self) -> None:
+        pidfile = Path(self.temporary.name) / "spawn.pid"
+        handle = SubprocessRunner().spawn(self.tree_argv(pidfile, "devnull", "sleep"), env=self.local_process_env())
+        process = handle._process
+
+        def cleanup():
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+        self.addCleanup(cleanup)
+        grandchild = read_pid(pidfile)
+        self.addCleanup(kill_quietly, grandchild)
+        handle.terminate()
+        self.assertIsNotNone(handle.poll())
+        self.assertTrue(wait_gone(grandchild), "A descendant survived the login cancellation.")
+        self.assertIs(handle.termination_confirmed, True)
 
 
 if __name__ == "__main__":
