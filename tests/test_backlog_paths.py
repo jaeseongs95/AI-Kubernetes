@@ -1,4 +1,5 @@
 """Exercise output-path mistakes against disposable repository copies."""
+from contextlib import closing
 from pathlib import Path
 import shutil
 import sqlite3
@@ -29,7 +30,9 @@ class BacklogPathTests(unittest.TestCase):
         self.snapshot.write_text("Canonical SQL sentinel\n", encoding="utf-8")
         self.custom = Path(self.directory.name) / "separate.sqlite3"
         shutil.copyfile(self.database, self.custom)
-        with sqlite3.connect(self.custom) as conn:
+        # The connection context commits/rolls back but does not close the
+        # handle. Explicit closure lets Windows delete the disposable DB.
+        with closing(sqlite3.connect(self.custom)) as conn, conn:
             conn.execute("UPDATE tasks SET title='CUSTOM COPY MARKER' WHERE id='AIK-001'")
 
     def run_tool(self, *arguments):
@@ -110,7 +113,7 @@ class BacklogPathTests(unittest.TestCase):
         self.assertFalse(alias.with_suffix(".sql").exists())
 
     def test_list_rejects_a_ready_view_that_lies(self):
-        with sqlite3.connect(self.custom) as conn:
+        with closing(sqlite3.connect(self.custom)) as conn, conn:
             conn.executescript("DROP VIEW v_ready_tasks; CREATE VIEW v_ready_tasks AS SELECT * FROM v_backlog WHERE status='todo';")
         result = self.run_tool("--db", self.custom, "list", "--ready")
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)

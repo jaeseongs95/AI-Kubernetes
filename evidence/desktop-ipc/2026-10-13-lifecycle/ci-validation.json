@@ -1,0 +1,45 @@
+{
+  "task_id": "AIK-004",
+  "source_commit": "864fc3aa17ed5ace15ecf869e34f731b627abf93",
+  "recorded_at": "2026-10-13T03:15:45Z",
+  "tests": {
+    "command": [
+      "node",
+      "--test",
+      "tests/test_desktop_ipc.cjs",
+      "tests/test_desktop_ipc_lifecycle.cjs"
+    ],
+    "tests": 35,
+    "passed": 35,
+    "failed": 0,
+    "skipped": 0,
+    "tap_sha256": "db887c6669e8b676911360634e17395340f0a2cb5b26ab9544168e147be00879"
+  },
+  "sources_sha256": {
+    "src/aik_ipc/desktop.cjs": "8c34dba7d8e8e4fb2e6eb5160f8bd6dc8f6e662c205ea320a3a8493416a78308",
+    "src/aik_ipc/preload.cjs": "4d1da1264a71f2068f7dea9f4f79f46df3e43a891e4d16f1a62c13760e381d3f",
+    "tests/test_desktop_ipc.cjs": "24722f31f7cbe9175abd841c718d35f57db93f4bce2a1f439e4a8137bd727f2a",
+    "tests/test_desktop_ipc_lifecycle.cjs": "95959d8a2bd98caa5d27d336cd677df8db89dde5014e7e2ff6208aee46596b3c"
+  },
+  "canonical_ledger_before_git_blob": "5f9d095c654d4b355af9936e58662ab83d2035d8",
+  "canonical_ledger_after_git_blob": "611bcdb4eb30d0a1c73687deb5d2080130db704f",
+  "ledger_delta": {
+    "tasks_changed": [
+      "AIK-004"
+    ],
+    "evidence_added": 1,
+    "events_added": 1,
+    "acceptance_criteria_unchanged": true,
+    "dependencies_unchanged": true,
+    "other_tasks_unchanged": true,
+    "schema_unchanged": true
+  },
+  "ledger_counts": {
+    "tasks": 90,
+    "acceptance_criteria": 311,
+    "task_dependencies": 365
+  },
+  "ready_tasks": 0,
+  "task_status": "blocked",
+  "installed_product_integration": "NOT_RUN"
+}
