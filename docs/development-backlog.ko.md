@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-13T14:36:19Z`
+- 수정일 (UTC): `2026-10-13T15:13:34Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 52개 · 진행 중 0개 · 진행 차단 36개 · 완료 2개 · 취소 0개
+- 상태: 미착수 48개 · 진행 중 0개 · 진행 차단 40개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -34,7 +34,7 @@ python tools/backlog.py report
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 0 | 0 | 7 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 1 | 0 | 13 | 0 | 0 | 0 |
-| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 11 | 0 | 16 | 0 | 0 | 0 |
+| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 7 | 0 | 20 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
 | M4 · Windows 첫 배포 검증 | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
@@ -1283,13 +1283,13 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | AGS bridge |
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E05 · AGS·VM 통합 |
 | 실행 순서 | 37 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T15:13:34Z` |
 
 설치형 AGS의 적합성과 실제 실행 관측을 VM의 필수 차단 조건으로 연결한다.
 
@@ -1308,7 +1308,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-032-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-032` · 부분 구현: commit 31609e1, tests/test_vm_governance.py 20개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(이 환경 검증 불가), 2(부분); 차단: AIK-081 A2 호환 AGS plugin 미확보; VM 공개 표면에 gate History 읽기 API가 없어 일부 사유(phase·no_effect·적합성 목록) 비공개; 선행 AIK-031 hosted 경로의 실제 governed 실행 미검증. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:13:34Z`
 
 ### AIK-030
 
@@ -1416,13 +1416,13 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Runtime dispatch |
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E06 · 배치·worker 수명 |
 | 실행 순서 | 41 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:49:10Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T15:13:34Z` |
 
 VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다. 모델의 도구 요청은 인가된 gateway를 통해 처리하고 결과를 다음 호출에 전달한다.
 
@@ -1443,7 +1443,7 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-035-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-035` · 부분 구현: commit c393880, tests/test_dispatch.py 18개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 3(부분), 4(부분), 5(부분); 차단: 선행 AIK-029·031·032·084·085의 실제 결합과 AIK-018 미완료; 실제 provider adapter·API 모델 호출 코드 없음(fake port); native 경로의 VM runtime·hosted runtime 결합과 권한/same-user 관측 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:13:34Z`
 
 ### AIK-036
 
@@ -1518,13 +1518,13 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Worker lifecycle |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E06 · 배치·worker 수명 |
 | 실행 순서 | 44 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T15:13:34Z` |
 
 신규 배치를 멈추는 동작과 실제 provider job 취소·종료를 구분해 처리한다.
 
@@ -1544,7 +1544,7 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-038-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-038` · 부분 구현: commit 31609e1, tests/test_lifecycle.py 18개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 4(부분); 차단: 선행 AIK-035 dispatch 미완료(골격만); 실제 provider adapter interrupt/observe와 worker 종료·정리 구현 없음; usage 정산의 실제 BudgetStore.settle 결합 미시험. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:13:34Z`
 
 ### AIK-039
 
@@ -1552,13 +1552,13 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Recovery |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E06 · 배치·worker 수명 |
 | 실행 순서 | 45 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T15:13:34Z` |
 
 앱·sidecar·네트워크 장애 후 provider identity를 먼저 조회하여 중복 실행을 방지한다.
 
@@ -1578,7 +1578,7 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-039-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-039` · 부분 구현: commit 080d185, tests/test_recovery.py 11개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 4(부분); 차단: 선행 AIK-035 dispatch 미완료(골격만); VM attempt_state·effect port의 실제 adapter 없음; 실제 provider 재관측 미실행. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:13:34Z`
 
 ### AIK-086
 
@@ -3740,7 +3740,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-13T14:36:19Z |
+| `updated_at` | 2026-10-13T15:13:34Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

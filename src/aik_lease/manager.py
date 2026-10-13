@@ -411,6 +411,30 @@ class LeaseManager:
                 return current
             return tx.save(replace(current.value, state="released"), expected_revision=current.revision)
 
+    def mark_unknown(self, lease_id: str, fencing_token: int, *,
+                     expected_revision: int | None = None) -> Versioned:
+        """Hold a dispatched live lease as unknown when its provider outcome cannot be observed.
+
+        Capacity and the budget hold stay in place; this is never a release.
+        A reserved lease without a recorded dispatch has had no effect, so it
+        cannot become unknown. ``expected_revision`` rejects a lease that
+        changed since the caller read it.
+        """
+        if expected_revision is not None and (type(expected_revision) is not int or expected_revision < 1):
+            raise LeaseError("INVALID_EXPECTED_REVISION")
+        with self._store.transaction() as tx:
+            current = self._current(tx, lease_id, fencing_token)
+            if expected_revision is not None and current.revision != expected_revision:
+                raise InvalidTransition("LEASE_CHANGED")
+            lease = current.value
+            if lease.state == "unknown":
+                return current
+            if lease.state not in _LIVE_STATES:
+                raise InvalidTransition("LEASE_NOT_LIVE")
+            if lease.state == "reserved" and lease.provider_job_id is None:
+                raise InvalidTransition("NO_DISPATCH_RECORDED")
+            return tx.save(replace(lease, state="unknown"), expected_revision=current.revision)
+
     # -------------------------------------------------------------- recovery
     def reconcile_reservations(self) -> ReconcileReport:
         """Repair state left by a crash between the lease write and budget steps.
