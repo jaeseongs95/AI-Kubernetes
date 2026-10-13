@@ -131,7 +131,7 @@ jobs:
         run: python -m unittest tests.test_vm_real_conformance -v
 
   hosted-e2e-diagnostic:
-    # Diagnostic only (tools/diagnose_hosted_e2e.py): the installed VM runs a
+    # Diagnostic only (tools/diagnose_hosted_e2e.py): the pinned VM source runs a
     # synthetic Task through its Windows-only RuntimeJob supervisor while the
     # AIK hosted runtime wraps VM's deterministic FakeCodexRuntime. No model,
     # account or network call; the governance gate is a diagnostic allow gate
@@ -155,7 +155,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - name: Checkout pinned upstream VM (lock, config and E2E fixture)
+      - name: Checkout pinned upstream VM (lock, source, config and E2E fixture)
         if: env.VM_UPSTREAM_TOKEN != ''
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -166,6 +166,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             requirements.lock
+            src/
             config/
             tests/fixtures/engine/project-e2e/
           sparse-checkout-cone-mode: false
@@ -175,16 +176,12 @@ jobs:
         with:
           python-version: '3.14.8'
           architecture: x64
-      - name: Install pinned upstream non-editable
+      # The VM wheel leaves out the developer modules the synthetic preparation
+      # needs (VM setup.py), so only the locked dependencies are installed and
+      # flowmarshal is imported from the pinned source checkout.
+      - name: Install locked upstream dependencies
         if: env.VM_UPSTREAM_TOKEN != ''
-        shell: bash
-        env:
-          GIT_CONFIG_COUNT: '1'
-          GIT_CONFIG_KEY_0: url.https://x-access-token:${{ secrets.VM_UPSTREAM_TOKEN }}@github.com/jaeseongs95/vibemarshal.insteadOf
-          GIT_CONFIG_VALUE_0: https://github.com/jaeseongs95/vibemarshal
-        run: |
-          python -m pip install -r upstream-vm/requirements.lock
-          python -m pip install --no-deps "flowmarshal-engine @ git+https://github.com/jaeseongs95/vibemarshal@32bb0f9dd9f024045d24487312b50f5b703573a3"
+        run: python -m pip install -r upstream-vm/requirements.lock
       - name: Hosted runtime E2E diagnostic (must reach DIAGNOSTIC_PASS)
         if: env.VM_UPSTREAM_TOKEN != ''
-        run: python tools/diagnose_hosted_e2e.py --vm-repo upstream-vm --require
+        run: python tools/diagnose_hosted_e2e.py --vm-repo upstream-vm --vm-source upstream-vm/src --vm-commit 32bb0f9dd9f024045d24487312b50f5b703573a3 --require

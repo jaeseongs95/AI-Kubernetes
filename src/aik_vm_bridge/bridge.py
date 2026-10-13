@@ -46,7 +46,7 @@ from aik_runtime.models import Lease, Placement, Pool, identifier
 from .binding import DIGEST_PATTERN, TaskExecutionBinding, verify_assignment
 from .engine_port import ADAPTER_CODES, INVALID_ENGINE_RESPONSE, PROJECT_MISMATCH, EnginePortError
 from .errors import BridgeCode, EffectOutcome, VmBridgeError
-from .hosted_runtime import HOSTED_ASSIGNMENT_FIELDS, ExecutionBindingStore
+from .hosted_runtime import HOSTED_ASSIGNMENT_FIELDS, HOSTED_TASK_PENDING, ExecutionBindingStore
 from .surface import (
     BINDING_EXTENSION, HOSTED_RUNTIME_EXTENSION, CapabilityReport, Command, DeclaredSurface, Handshake,
     check_handshake, load_surface, preflight,
@@ -1004,7 +1004,8 @@ class VmBridge:
         if owner.attempt_id != attempt_id:
             raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, subject="attempt_id")
         # Review R1-F6: the AIK placement's Task must be the VM owner's Task.
-        if stored.placement_vm_task_id is not None and stored.placement_vm_task_id != owner.task_id:
+        if stored.placement_vm_task_id not in (None, HOSTED_TASK_PENDING) \
+                and stored.placement_vm_task_id != owner.task_id:
             raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="vm_task_id")
 
         status = self._call("status", False, self._port.status, project_id)

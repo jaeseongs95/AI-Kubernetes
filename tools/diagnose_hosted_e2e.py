@@ -13,7 +13,13 @@ How it runs:
   (``flowmarshal.engine.e2e_qualification._prepare`` and its
   ``tests/fixtures/engine/project-e2e`` fixture). Both are VM internals used
   only by this diagnostic, never by AIK product code. ``--vm-repo`` is a VM
-  checkout at the installed commit (for ``config/`` and the fixture).
+  checkout (for ``config/`` and the fixture).
+* The VM wheel deliberately leaves its developer modules out
+  (``e2e_qualification``, ``qualification``, ``evaluation`` and others; see the
+  VM ``setup.py``). ``--vm-source`` therefore imports the whole ``flowmarshal``
+  package from the VM source checkout instead of an installed wheel; the report
+  records the import origin. This is source-tree evidence, not installed-wheel
+  evidence.
 * The provider is VM's deterministic ``FakeCodexRuntime`` wrapped by
   ``AikHostedRuntime``. No model, account or network is used.
 * The governance gate is a diagnostic allow gate, because the AGS A2 gate is
@@ -49,7 +55,7 @@ from aik_vm_bridge import (  # noqa: E402
 )
 from aik_vm_bridge.engine_port import build_hosted_application  # noqa: E402
 from aik_vm_bridge.hosted_runtime import (  # noqa: E402
-    AikHostedRuntime, ExecutionBindingStore, HostedAssignment,
+    HOSTED_TASK_PENDING, AikHostedRuntime, ExecutionBindingStore, HostedAssignment,
 )
 
 SURFACE_PATH = ROOT / "contracts/upstream/vm-public-surface.json"
@@ -101,6 +107,35 @@ class ObservedInner:
                               "inflight_at_call": inflight})
             return target(*args, **kwargs)
         return observed
+
+
+class RecordingHostedRuntime(AikHostedRuntime):
+    """Records every port call made by VM and any refusal, then re-raises it unchanged."""
+
+    PORT_METHODS = ("verify_execution_policy", "list_models", "create_thread", "start_turn", "read",
+                    "resume", "interrupt", "read_stored")
+
+    def __init__(self, *args, call_log: list, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._call_log = call_log
+
+    def __getattribute__(self, name):
+        value = super().__getattribute__(name)
+        if name not in RecordingHostedRuntime.PORT_METHODS:
+            return value
+        log = super().__getattribute__("_call_log")
+
+        def recorded(*args, **kwargs):
+            entry = {"method": name, "thread": threading.current_thread().name}
+            log.append(entry)
+            try:
+                return value(*args, **kwargs)
+            except BaseException as error:
+                entry["error"] = type(error).__name__
+                entry["code"] = str(getattr(error, "code", "") or "")
+                entry["subject"] = str(getattr(error, "subject", "") or "")
+                raise
+        return recorded
 
 
 def _installed_commit() -> str | None:
@@ -158,14 +193,24 @@ def run(vm_repo: Path, work: Path) -> dict:
 
     def assignment_source(cwd, trace):
         attempt = None if trace is None else trace.attempt_id
-        task = "preparation"
-        if attempt is not None:
-            # Public read of the Attempt that VM is dispatching (owner of the placement).
-            detail = holder["app"].attempt_detail(attempt)
-            task = _value(_value(detail, "attempt"), "task_id") or "unknown-task"
+        # The Task is learned at owner confirmation: VM refuses a host re-entry
+        # (e.g. attempt_detail) from inside a role scope. The probe below records
+        # that refusal once as evidence; the placement never guesses the Task.
+        task = HOSTED_TASK_PENDING
+        lookup_error = None
+        if attempt is not None and not holder.get("reentry_probed"):
+            holder["reentry_probed"] = True
+            try:
+                holder["app"].attempt_detail(attempt)
+                lookup_error = "allowed"
+            except Exception as error:
+                lookup_error = f"{type(error).__name__}: {str(error)[:200]}"
         key = attempt or "preparation"
-        assignment_calls.append({"attempt": attempt, "thread": threading.current_thread().name,
-                                 "main_thread": threading.current_thread() is threading.main_thread()})
+        assignment_calls.append({"attempt": attempt, "intent": None if trace is None else trace.intent_id,
+                                 "call": None if trace is None else trace.call_id,
+                                 "thread": threading.current_thread().name,
+                                 "main_thread": threading.current_thread() is threading.main_thread(),
+                                 "reentry_probe": lookup_error})
         pool = Pool(id="pool-1", provider="codex", connection_id="connection-1", enabled=True)
         placement = Placement(id=f"placement-{key}", pool_id="pool-1", profile_id="profile-1",
                               vm_instance_id="vm-instance-1", vm_project_id=project_id, vm_task_id=task,
@@ -181,7 +226,9 @@ def run(vm_repo: Path, work: Path) -> dict:
             placement=placement, lease=lease, pool=pool,
         )
 
-    hosted = AikHostedRuntime(lambda connection_id: inner, store, assignment_source)
+    port_calls: list = []
+    report["port_calls"] = port_calls
+    hosted = RecordingHostedRuntime(lambda connection_id: inner, store, assignment_source, call_log=port_calls)
     port = build_hosted_application(
         EngineApplication, prepared.service, hosted, governance=DiagnosticAllowGovernance(),
         surface_revision=PINNED_SURFACE_REVISION, engine_schema_revision=SUPPORTED_ENGINE_SCHEMA_REVISIONS[0])
@@ -276,13 +323,26 @@ def run(vm_repo: Path, work: Path) -> dict:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--vm-repo", type=Path, required=True)
+    parser.add_argument("--vm-source", type=Path,
+                        help="VM source directory (src) to import flowmarshal from instead of an installed wheel.")
+    parser.add_argument("--vm-commit", help="Commit of the VM checkout, recorded as given (informational).")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--require", action="store_true", help="Exit non-zero unless the key checks pass.")
     args = parser.parse_args(argv)
+    if args.vm_source is not None:
+        sys.path.insert(0, str(args.vm_source.resolve()))
+    try:
+        import flowmarshal
+        origin = str(Path(flowmarshal.__file__).resolve().parent)
+    except Exception as error:
+        origin = f"unimportable: {type(error).__name__}"
     report: dict = {
         "format": "aik-hosted-e2e-diagnostic-v1",
         "platform": platform.platform(), "os_name": os.name, "python": platform.python_version(),
-        "vm_installed_commit": _installed_commit(),
+        "vm_installed_commit": None if args.vm_source is not None else _installed_commit(),
+        "vm_import": "source" if args.vm_source is not None else "installed",
+        "vm_import_origin": origin,
+        "vm_checkout_commit": args.vm_commit,
         "scope": ("Diagnostic only: VM synthetic preparation, VM FakeCodexRuntime, diagnostic allow gate (not AGS). "
                   "Not product qualification and not integration completion."),
         "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),

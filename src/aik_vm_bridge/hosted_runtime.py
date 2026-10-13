@@ -70,6 +70,12 @@ TRACE_MODULE = "flowmarshal.engine.operation_trace"
 TRACE_FIELDS = ("attempt_id", "intent_id", "call_id", "thread_id", "turn_id")
 HOSTED_ASSIGNMENT_FIELDS = ("vm_instance_id", "vm_project_id", *AIK_BINDING_FIELDS)
 EFFECT_OPERATIONS = ("create_thread", "start_turn", "resume", "interrupt")
+# Placement Task ID meaning "learned only at owner confirmation". VM refuses a
+# host re-entry from a role scope (CORE_CAPABILITY_DENIED), so at effect time
+# the hosted runtime cannot ask VM which Task the traced Attempt belongs to;
+# the trace carries only Attempt/intent/call IDs. Observed with the hosted E2E
+# diagnostic (tools/diagnose_hosted_e2e.py).
+HOSTED_TASK_PENDING = "vm-task-pending-owner-confirmation"
 _FIRST_INTENT_OPERATIONS = ("create_thread", "start_turn")
 _KNOWN = EffectOutcome.KNOWN_FAILURE
 _UNKNOWN = EffectOutcome.UNKNOWN
@@ -78,6 +84,7 @@ _CURRENT_IDENTITY_FIELDS = ("vm_instance_id", "vm_project_id", "placement_id", "
 
 __all__ = [
     "HOSTED_RUNTIME_EXTENSION", "TRACE_MODULE", "HOSTED_ASSIGNMENT_FIELDS", "EFFECT_OPERATIONS",
+    "HOSTED_TASK_PENDING",
     "TraceRef", "HostedAssignment", "ThreadRoute", "StoredIntent", "StoredAttempt",
     "ExecutionBindingStore", "AikHostedRuntime", "read_operation_trace",
 ]
@@ -480,7 +487,8 @@ class ExecutionBindingStore:
         for name in HOSTED_ASSIGNMENT_FIELDS:
             if getattr(binding, name) != stored.assignment[name]:
                 raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject=name)
-        if stored.placement_vm_task_id != binding.vm_task_id:
+        if stored.placement_vm_task_id not in (None, HOSTED_TASK_PENDING) \
+                and stored.placement_vm_task_id != binding.vm_task_id:
             raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="vm_task_id")
         first = stored.first_intent()
         if first is None or first.vm_intent_id != binding.vm_runtime_intent_id:

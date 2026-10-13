@@ -45,7 +45,8 @@ from aik_vm_bridge.bridge import HostedConfirmation, HostedRunOnceRequest, VmBri
 from aik_vm_bridge.engine_port import EngineApplicationPort  # noqa: E402
 from aik_vm_bridge.errors import BridgeCode, EffectOutcome, VmBridgeError  # noqa: E402
 from aik_vm_bridge.hosted_runtime import (  # noqa: E402
-    TRACE_MODULE, AikHostedRuntime, ExecutionBindingStore, HostedAssignment, TraceRef, read_operation_trace,
+    HOSTED_TASK_PENDING, TRACE_MODULE, AikHostedRuntime, ExecutionBindingStore, HostedAssignment, TraceRef,
+    read_operation_trace,
 )
 from aik_vm_bridge.surface import HOSTED_RUNTIME_EXTENSION, PINNED_SURFACE_REVISION  # noqa: E402
 
@@ -871,6 +872,17 @@ class PlacementTaskTests(ReviewFixture):
         self.assertEqual((confirmation.state, confirmation.binding_digest),
                          ("confirmed", expected_binding().digest()))
 
+
+    def test_pending_placement_task_is_fixed_by_owner_confirmation(self) -> None:
+        # VM refuses a host re-entry from a role scope, so at effect time the
+        # placement cannot know the Task (observed by tools/diagnose_hosted_e2e.py).
+        store, runtime = self.open()
+        self.assignment[0] = make_assignment(task_id=HOSTED_TASK_PENDING)
+        self.dispatch_attempt(runtime)
+        self.assertEqual(store.read_attempt("attempt-1").placement_vm_task_id, HOSTED_TASK_PENDING)
+        confirmation = self.bridge(FakePort(), store).confirm_attempt("project-1", "attempt-1")
+        self.assertEqual((confirmation.state, confirmation.vm_task_id), ("confirmed", "task-1"))
+        self.assertEqual(store.read_execution_binding("attempt-1")["binding_digest"], confirmation.binding_digest)
 
 # ----- F7: header check before SQLite opens the file ------------------------
 

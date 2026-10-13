@@ -188,7 +188,25 @@ inner 호출 중 프로세스가 죽어도 재시작 뒤 in-flight 행이 남아
 
 - **Task 실행 호출**(trace에 `attempt_id`가 있음): Attempt binding과 intent binding을 기록한다. `intent_id` 없이 `attempt_id`만 있으면 거절한다.
 - **준비 호출**(Planning·Goal 준비처럼 Attempt가 없음): `TaskExecutionBinding`을 만들지 않고 thread 경로(`preparation`)만 남긴다. scope가 `None`이면 준비 호출로 보는 것은 "Task 실행 호출은 항상 scope 안에서 일어난다"는 VM 설계에 기댄 가정이다.
-- **placement 결정:** `Placement`은 `vm_attempt_id`·`vm_task_id`가 필수다. 그래서 `assignment_source`는 호출 시점 trace의 Attempt로 placement를 정해야 한다. placement의 Task ID는 owner 확인 때 VM의 Task와 대조하며, 다르면 `BINDING_MISMATCH`다(검토 R1-F6).
+- **placement 결정:** `Placement`은 `vm_attempt_id`·`vm_task_id`가 필수다. 그래서 `assignment_source`는 호출 시점 trace의 Attempt로 placement를 정해야 한다.
+  - VM은 역할 실행 도중 호스트가 다시 VM을 호출하는 것을 거절한다(`CORE_CAPABILITY_DENIED`).
+  - 그래서 효과 시점에는 VM에 Task를 물을 수 없다. 그때 trace에는 Attempt·intent·call ID만 있다.
+  - 이 경우 placement의 Task ID에 `HOSTED_TASK_PENDING`을 쓴다. 실제 Task는 owner 확인 때 VM에서 받아 binding에 고정한다.
+  - placement에 실제 Task ID가 있으면 owner 확인 때 VM의 Task와 대조하고, 다르면 `BINDING_MISMATCH`다(검토 R1-F6).
+
+**Windows E2E 진단**(`tools/diagnose_hosted_e2e.py`, CI job `hosted-e2e-diagnostic`)
+
+- 고정 VM 소스로 합성 Goal·Plan을 준비하고, VM Windows 전용 RuntimeJob supervisor로 Task를 실행한다. 이때 AIK hosted runtime이 VM의 결정적 `FakeCodexRuntime`을 감싼다.
+- 확인하는 항목:
+  - 효과가 hosted runtime을 지난다.
+  - trace의 Attempt·intent가 기록된다.
+  - 효과마다 binding이 먼저 기록된다.
+  - in-flight 행이 정리된다.
+  - owner 확인이 성공한다.
+- 모델·계정·네트워크는 쓰지 않는다.
+- VM wheel은 개발자 모듈(`e2e_qualification` 등)을 빼므로, 이 진단은 VM을 소스에서 import한다. 그래서 설치형 wheel 근거가 아니다.
+- governance gate는 진단용 허용 gate다. 그래서 통과해도 AGS 적합성, 제품 qualification, 통합 완료가 아니다.
+- POSIX에서는 owner lock에서 멈추며 `NOT_RUN`으로 보고한다.
 
 **원래 계정 정책**
 
