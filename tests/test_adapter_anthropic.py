@@ -222,6 +222,7 @@ class AnthropicAdapterTests(unittest.TestCase):
         self.assertEqual(request.method, "GET")
         self.assertEqual(request.header("x-api-key"), SECRET)
         self.assertIsNotNone(request.header("anthropic-version"))
+        self.assertEqual(request.header("user-agent"), "aik-adapter-anthropic/0.1 (AI-Kubernetes)")
         self.assertNotIn(SECRET, request.url)
         self.assertNotIn(SECRET, repr(request))
 

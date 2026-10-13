@@ -181,7 +181,7 @@ AIK-035 loop는 `assistant_message(result)`와 `tool_results_message([ToolResult
 |---|---|
 | base URL | `https://api.anthropic.com` (생성자에서 변경 가능, https·경로 없음만 허용) |
 | 엔드포인트 | `POST /v1/messages`, `GET /v1/models?limit=1`(인증 확인), `GET /v1/models/{id}` |
-| 헤더 | `x-api-key`, `anthropic-version: 2023-06-01`(변경 가능), `content-type: application/json` |
+| 헤더 | `x-api-key`, `anthropic-version: 2023-06-01`(변경 가능), `content-type: application/json`, `user-agent: aik-adapter-anthropic/0.1 (AI-Kubernetes)`(제품 식별; 라이브러리 기본값은 일부 gateway가 거절) |
 | 요청 필드 | `model`, `max_tokens`, `messages[].role/content`, `system`, `tools[].name/description/input_schema`, content block `text`/`tool_use`/`tool_result` |
 | 응답 필드 | `id`, `type="message"`, `role="assistant"`, `model`, `content[]`, `stop_reason` 값 목록, `usage`의 네 counter |
 | 오류 | `{"type":"error","error":{"type":...,"message":...}}`, `retry-after` 초 단위, 529 overloaded |
@@ -234,3 +234,7 @@ Linux 시험 통과는 개발 검증이며 Windows 지원 증거가 아니다. f
   - proxy 환경 변수는 표준 라이브러리 기본 동작을 따른다(미검증).
   - `timeout`은 urllib/socket의 **개별 작업(연결·각 수신) 단위 timeout이며 요청 전체의 총 기한이 아니다.** 서버가 기한보다 짧은 간격으로 조금씩 응답을 보내면 호출이 설정값보다 오래 지속될 수 있다. 총 기한 강제는 상위 supervisor/AIK-031 계층의 책임이며, 이 transport에서는 구현하지 않았다.
 - `authorize_dispatch`는 제품의 VM/AGS 인가·lease 검증과 연결해야 한다. 시험의 `lambda request: True`는 합성 fixture다.
+
+## 실제 Messages API 최소 진단 (2026-10-13)
+
+인증을 주입하는 egress gateway를 거쳐 어댑터의 `POST /v1/messages` 요청과 응답 decoder를 실제 API로 한 번 확인했다(`partial_probe_verified_wire_only`). 제품 경로인 guard는 `GET /v1/models` 사전 확인이 gateway에서 거절돼 실행되지 않았다. 직접 `x-api-key` 인증과 계정 binding도 검증하지 않았다. 근거: [실제 진단 기록](../evidence/provider-adapter/2026-10-13-anthropic-live-probe/README.ko.md).

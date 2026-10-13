@@ -41,6 +41,9 @@ DEFAULT_RUNTIME = "messages-api"
 # --- Unverified vendor assumptions (see docs/adapter-anthropic.ko.md) ---
 DEFAULT_BASE_URL = "https://api.anthropic.com"
 DEFAULT_API_VERSION = "2023-06-01"
+# An honest product identity. Library defaults (e.g. "Python-urllib/3.x") are
+# refused by some egress gateways/CDNs (observed: Cloudflare error 1010).
+USER_AGENT = "aik-adapter-anthropic/0.1 (AI-Kubernetes)"
 MESSAGES_PATH = "/v1/messages"
 MODELS_PATH = "/v1/models"
 # -------------------------------------------------------------------------
@@ -280,7 +283,7 @@ class AnthropicAdapter:
         if _KEY_CHARS.fullmatch(secret) is None:
             raise _failure(FaultKind.AUTH_REQUIRED, native="invalid_credential_format")
         headers = [("x-api-key", secret), ("anthropic-version", self._api_version),
-                   ("accept", "application/json")]
+                   ("accept", "application/json"), ("user-agent", USER_AGENT)]
         if json_body:
             headers.append(("content-type", "application/json"))
         return tuple(headers)

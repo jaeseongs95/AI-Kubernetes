@@ -1,0 +1,65 @@
+{
+  "format": "aik-anthropic-messages-probe-v1",
+  "probe": "AIK-082 minimal live diagnostic (Anthropic API path only)",
+  "status": "partial_probe_verified_wire_only",
+  "started_at": "2026-10-13T09:38:16Z",
+  "requested_model": "claude-haiku-5-5",
+  "api_version": "2023-06-01",
+  "path": "/v1/messages",
+  "credential": "injected by egress gateway; adapter x-api-key placeholder removed; no secret handled",
+  "not_verified": [
+    "direct vendor x-api-key authentication",
+    "account binding / fingerprint against the real account",
+    "/v1/models listing and check_model",
+    "Windows, AGS gate, VM binding, route qualification (AIK-086)"
+  ],
+  "guarded_path": {
+    "status": "NOT_RUN_GATEWAY_REFUSED_AUTH_PREFLIGHT",
+    "error": "AdapterFailure",
+    "fault": "ACCESS_DENIED",
+    "note": "fail-closed by design; not bypassed. The gateway allows only /v1/messages."
+  },
+  "adapter_messages_wire": {
+    "status": "probe_verified",
+    "receipt_state": "succeeded",
+    "provider_job_id_present": true,
+    "observed_model": "claude-haiku-5-5",
+    "observed_model_provenance": "provider_raw_response",
+    "stop_reason": "end_turn",
+    "completion": "complete",
+    "usage": {
+      "input_tokens": 18,
+      "output_tokens": 4,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0
+    },
+    "parts": 1,
+    "result_source": "live"
+  },
+  "exchanges": [
+    {
+      "method": "GET",
+      "path": "v1/models?limit=1",
+      "header_names": [
+        "accept",
+        "anthropic-version",
+        "user-agent"
+      ],
+      "status": 403,
+      "body_bytes": 163
+    },
+    {
+      "method": "POST",
+      "path": "v1/messages",
+      "header_names": [
+        "accept",
+        "anthropic-version",
+        "content-type",
+        "user-agent"
+      ],
+      "status": 200,
+      "body_bytes": 527
+    }
+  ],
+  "finished_at": "2026-10-13T09:38:18Z"
+}
