@@ -16,6 +16,7 @@ _PROVIDER = re.compile(r"[a-z][a-z0-9_-]{0,63}\Z")
 _FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
 _REF = re.compile(r"(secret|host-session)://[a-z0-9][a-z0-9_-]{0,63}/[A-Za-z0-9][A-Za-z0-9._/-]{0,191}\Z")
 _CODE = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]{0,63}\Z")
+_TOKEN_LIKE = re.compile(r"(?i)^(?:gh[pousr]_|github_pat_|sk_|AIza)|[A-Za-z0-9]{30,}")
 _VERSION = 1
 
 
@@ -224,7 +225,8 @@ class ProviderFault:
         if self.kind is FaultKind.UNKNOWN_OUTCOME and self.outcome is not Outcome.UNKNOWN:
             raise ValueError("INCONSISTENT_OUTCOME")
         if self.native_code is not None and (
-            type(self.native_code) is not str or _CODE.fullmatch(self.native_code) is None
+            type(self.native_code) is not str or _CODE.fullmatch(self.native_code) is None or
+            _TOKEN_LIKE.search(self.native_code) is not None
         ):
             raise ValueError("UNSAFE_PROVIDER_CODE")
         if self.http_status is not None and (
@@ -262,7 +264,8 @@ def fault_from_provider(
     ):
         raise ValueError("INVALID_RETRY_AFTER")
     if native_code is not None and (
-        type(native_code) is not str or _CODE.fullmatch(native_code) is None
+        type(native_code) is not str or _CODE.fullmatch(native_code) is None or
+        _TOKEN_LIKE.search(native_code) is not None
     ):
         native_code = None  # raw vendor values must never enter diagnostics
     kind = (
