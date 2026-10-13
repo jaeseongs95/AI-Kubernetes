@@ -3,18 +3,23 @@
 All data is synthetic: no provider, credential or network is used. Clocks are
 injected. The capability inventory is a real aik_capability.CapabilityInventory;
 its resources are registered through a test-only harness (see make_inventory).
+Some tests use a fake inventory that returns synthetic ValidationResults or
+raises, to exercise fail-closed branches.
 Linux runs are development verification, not Windows support evidence.
 """
 from __future__ import annotations
 
 from contextlib import closing
+from dataclasses import replace
 from datetime import datetime, timezone
 import io
 import json
+import os
 from pathlib import Path
 import sqlite3
 import sys
 import tempfile
+import threading
 from types import SimpleNamespace
 import unittest
 
@@ -22,7 +27,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from aik_capability import CapabilityInventory, Provenance  # noqa: E402
+from aik_capability import CapabilityError, CapabilityInventory, Provenance, ValidationResult  # noqa: E402
 from aik_capability import inventory as capability_inventory  # noqa: E402
 from aik_config import (  # noqa: E402
     AgentProfile, ConnectionProfile, CrossWorkspaceReference, InvalidDatabase, InvalidReference,
@@ -30,9 +35,11 @@ from aik_config import (  # noqa: E402
 )
 from aik_profiles import (  # noqa: E402
     CapabilityMismatch, DirectorProfile, ExecutionChoice, FallbackApproval, InvalidProfile,
-    ProfileStore, RoleProfile, from_agent_profile, profile_document, profile_to_dict, to_agent_profile,
+    ProfileError, ProfileStore, RoleProfile, from_agent_profile, profile_document, profile_to_dict,
+    to_agent_profile,
 )
-from aik_profiles.cli import main as cli_main  # noqa: E402
+from aik_profiles import storage as profile_storage  # noqa: E402
+from aik_profiles.cli import MAX_DOCUMENT_BYTES, main as cli_main  # noqa: E402
 
 
 FIXED_NOW = datetime(2030, 1, 1, tzinfo=timezone.utc)
@@ -51,6 +58,10 @@ def fixed_clock() -> datetime:
     return FIXED_NOW
 
 
+def failing_clock() -> datetime:
+    raise RuntimeError("synthetic clock failure")
+
+
 def make_inventory(lists: dict, resources=("conn-a", "conn-b")) -> CapabilityInventory:
     inventory = CapabilityInventory(clock=fixed_clock)
     for connection_id in resources:
@@ -61,8 +72,35 @@ def make_inventory(lists: dict, resources=("conn-a", "conn-b")) -> CapabilityInv
             auth_kind="none", revision=1,
         ))
     for connection_id, models in lists.items():
-        inventory.load_list(connection_id, Provenance.PROVIDER_OBSERVED, json.dumps({"models": models}))
+        inventory.load_list(connection_id, Provenance.PROVIDER_OBSERVED, json.dumps({"models": models}),
+                            source_ref="synthetic-observation",
+                            observed_at=FIXED_NOW)
     return inventory
+
+
+def synthetic_result(connection_id, model, effort, tools, *, accepted=True,
+                     supported_by=Provenance.PROVIDER_OBSERVED,
+                     request_provenance=Provenance.REQUESTED) -> ValidationResult:
+    return ValidationResult(
+        connection_id=connection_id, connection_revision=1, resource_revision=1, model=model,
+        effort=effort, tools=tools, request_provenance=request_provenance, accepted=accepted,
+        supported_by=supported_by if accepted else None,
+        evidence_digest=("0" * 64) if accepted else None, reasons=(),
+        validated_at="2030-01-01T00:00:00Z",
+    )
+
+
+class FakeInventory:
+    """Synthetic inventory returning a computed result or raising a given error."""
+
+    def __init__(self, *, error=None, result=None):
+        self.error = error
+        self.result = result
+
+    def validate(self, connection_id, model, effort=None, tools=()):
+        if self.error is not None:
+            raise self.error
+        return self.result(connection_id, model, effort, tools)
 
 
 def director_profile(**changes) -> DirectorProfile:
@@ -176,6 +214,24 @@ class ProfileTests(unittest.TestCase):
         # Existing aik_config AgentProfile rows are neither written nor replaced.
         self.assertEqual(self.settings.list(AgentProfile), ())
 
+    def test_worker_and_reviewer_changes_preserve_director_and_stale_second_store_conflicts(self) -> None:
+        director, worker, reviewer = director_profile(), worker_profile(), reviewer_profile()
+        for profile in (director, worker, reviewer):
+            self.store.save(profile)
+        second = ProfileStore(self.path, settings=self.settings)
+        stale_worker = second.get("worker-1")
+        updated_worker = replace(worker, max_calls=21)
+        self.assertEqual(self.store.save(updated_worker, expected_revision=1).revision, 2)
+        updated_reviewer = replace(reviewer, max_calls=11)
+        self.assertEqual(second.save(updated_reviewer, expected_revision=1).revision, 2)
+        with self.assertRaises(RevisionConflict):
+            second.save(replace(worker, max_calls=99), expected_revision=stale_worker.revision)
+        with self.assertRaises(RevisionConflict):
+            second.delete("worker-1", expected_revision=stale_worker.revision)
+        self.assertEqual(second.get("director-1"), Revisioned(director, 1))
+        self.assertEqual(self.store.get("worker-1"), Revisioned(updated_worker, 2))
+        self.assertEqual(self.store.get("reviewer-1"), Revisioned(updated_reviewer, 2))
+
     def test_delete_is_revision_checked_and_per_profile(self) -> None:
         self.store.save(director_profile())
         self.store.save(worker_profile())
@@ -184,6 +240,75 @@ class ProfileTests(unittest.TestCase):
         self.store.delete("director-1", expected_revision=1)
         self.assertIsNone(self.store.get("director-1"))
         self.assertEqual(self.store.get("worker-1"), Revisioned(worker_profile(), 1))
+
+    def test_fallback_approval_cannot_be_reused_after_profile_delete_and_recreate(self) -> None:
+        # F1 regression: a recreated ID must not restart at revision 1.
+        self.store.save(director_profile())
+        old_approval = FallbackApproval("director-1", 1, 0, "approval-1")
+        self.store.delete("director-1", expected_revision=1)
+        recreated = director_profile(fallbacks=(ExecutionChoice("conn-a", "synthetic-model-alpha", "low"),))
+        self.assertEqual(self.store.save(recreated), Revisioned(recreated, 2))
+        inventory = make_inventory(MISMATCH_LISTS)
+        decision = self.store.prepare_execution("director-1", inventory, approval=old_approval, clock=fixed_clock)
+        self.assertEqual(decision.status, "rejected")
+        self.assertIsNone(decision.bound)
+        self.assertIn("FALLBACK_APPROVAL_STALE_REVISION", decision.reasons)
+        self.assertEqual(len(decision.attempts), 1)
+        # An approval naming the new revision still works.
+        fresh = self.store.prepare_execution("director-1", inventory,
+                                             approval=FallbackApproval("director-1", 2, 0, "approval-2"),
+                                             clock=fixed_clock)
+        self.assertEqual(fresh.status, "bound")
+        # The tombstone survives reopening, also when the workspace changes.
+        reopened = ProfileStore(self.path, settings=self.settings)
+        reopened.delete("director-1", expected_revision=2)
+        moved = DirectorProfile("director-1", "ws-2", ExecutionChoice("conn-x", "synthetic-model-alpha"), 5)
+        self.assertEqual(reopened.save(moved).revision, 3)
+        for revision in (1, 2):
+            stale = reopened.prepare_execution("director-1", make_inventory({}, resources=("conn-x",)),
+                                               approval=FallbackApproval("director-1", revision, 0, "approval-x"),
+                                               clock=fixed_clock)
+            self.assertEqual(stale.status, "rejected")
+            self.assertNotEqual(stale.bound_position, "fallback:0")
+
+    def test_schema_one_profile_database_is_upgraded_in_place_with_records_preserved(self) -> None:
+        legacy = self.root / "legacy-profiles.sqlite3"
+        director = director_profile()
+        with closing(sqlite3.connect(legacy, isolation_level=None)) as connection:
+            profile_storage._create_schema(connection, 1)
+            connection.execute(
+                'INSERT INTO "profiles" ("id", "workspace_id", "role", "document", "revision") VALUES (?, ?, ?, ?, 3)',
+                ("director-1", "ws-1", "director", profile_storage._json_text(profile_to_dict(director))),
+            )
+        store = ProfileStore(legacy, settings=self.settings)
+        self.assertEqual(store.get("director-1"), Revisioned(director, 3))
+        with closing(sqlite3.connect(legacy.as_uri() + "?mode=ro", uri=True)) as connection:
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+            self.assertEqual(connection.execute("PRAGMA integrity_check").fetchall(), [("ok",)])
+        store.delete("director-1", expected_revision=3)
+        self.assertEqual(store.save(director).revision, 4)
+
+        future = self.root / "future-profiles.sqlite3"
+        with closing(sqlite3.connect(future, isolation_level=None)) as connection:
+            profile_storage._create_schema(connection, 2)
+            connection.execute("PRAGMA user_version = 99")
+        before = future.read_bytes()
+        with self.assertRaises(InvalidDatabase):
+            ProfileStore(future, settings=self.settings)
+        self.assertEqual(future.read_bytes(), before)
+
+    def test_contract_violating_stored_profile_is_reported_as_invalid_database(self) -> None:
+        self.store.save(director_profile())
+        for document in (json.dumps({"id": "director-1"}), '{"id": "a", "id": "b"}'):
+            with self.subTest(document=document):
+                with closing(sqlite3.connect(self.path)) as connection:
+                    connection.execute('UPDATE "profiles" SET "document" = ? WHERE "id" = ?',
+                                       (document, "director-1"))
+                    connection.commit()
+                with self.assertRaises(InvalidDatabase):
+                    self.store.get("director-1")
+                with self.assertRaises(InvalidDatabase):
+                    self.store.list("ws-1")
 
     # -------------------------------------------------------- references
     def test_missing_and_cross_workspace_references_are_rejected_at_save(self) -> None:
@@ -238,6 +363,13 @@ class ProfileTests(unittest.TestCase):
         self.assertIs(failure.exception.decision, decision)
         self.assertEqual(self.store.execution_records("director-1")[0]["status"], "rejected")
 
+    def test_model_mismatch_is_rejected(self) -> None:
+        self.store.save(worker_profile())
+        lists = {"conn-b": [{"model": "synthetic-model-gamma", "efforts": ["medium"], "tools": ["shell"]}]}
+        decision = self.store.prepare_execution("worker-1", make_inventory(lists), clock=fixed_clock)
+        self.assertEqual(decision.status, "rejected")
+        self.assertIn("provider_observed:MODEL_NOT_LISTED", decision.attempts[0].reasons)
+
     def test_explicitly_approved_fallback_is_used_and_recorded(self) -> None:
         director = director_profile()
         self.store.save(director)
@@ -289,6 +421,40 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(no_lists.status, "rejected")
         self.assertIn("NO_SUPPORT_EVIDENCE", no_lists.attempts[0].reasons)
 
+    def test_inventory_failures_and_malformed_results_fail_closed_without_raw_text(self) -> None:
+        self.store.save(worker_profile())
+        cases = (
+            ("exception", FakeInventory(error=RuntimeError(SECRET_MARKER)), ("INVENTORY_UNAVAILABLE",)),
+            ("unclassified", FakeInventory(error=CapabilityError(SECRET_MARKER)),
+             ("CAPABILITY_ERROR:UNCLASSIFIED",)),
+            ("result mismatch", FakeInventory(result=lambda c, m, e, t: synthetic_result(
+                c, "synthetic-model-other", e, t)), ("VALIDATION_RESULT_MISMATCH",)),
+            ("not requested", FakeInventory(result=lambda c, m, e, t: synthetic_result(
+                c, m, e, t, request_provenance=Provenance.PROVIDER_OBSERVED)), ("NO_SUPPORT_EVIDENCE",)),
+            ("local derived support", FakeInventory(result=lambda c, m, e, t: synthetic_result(
+                c, m, e, t, supported_by=Provenance.LOCAL_DERIVED)), ("NO_SUPPORT_EVIDENCE",)),
+        )
+        for name, inventory, reasons in cases:
+            with self.subTest(case=name):
+                decision = self.store.prepare_execution("worker-1", inventory, clock=fixed_clock)
+                self.assertEqual(decision.status, "rejected")
+                self.assertIsNone(decision.bound)
+                for reason in reasons:
+                    self.assertIn(reason, decision.attempts[0].reasons)
+                with self.assertRaises(CapabilityMismatch):
+                    decision.require()
+        self.assertNotIn(SECRET_MARKER, json.dumps(self.store.execution_records("worker-1", limit=1000)))
+
+    def test_configured_catalog_evidence_binds_and_is_recorded(self) -> None:
+        self.store.save(worker_profile())
+        inventory = make_inventory({})
+        inventory.register_manual("conn-b", json.dumps({"models": FULL_LISTS["conn-b"]}), catalog_ref="catalog-1")
+        decision = self.store.prepare_execution("worker-1", inventory, clock=fixed_clock)
+        self.assertEqual(decision.status, "bound")
+        self.assertIs(decision.bound_validation.supported_by, Provenance.CONFIGURED_CATALOG)
+        record = self.store.execution_records("worker-1", limit=1, newest_first=True)[0]
+        self.assertEqual(record["binding_provenance"]["supported_by"], "configured_catalog")
+
     def test_deleted_connection_rejects_execution_before_capability_check(self) -> None:
         self.store.save(worker_profile())
         self.settings.delete(ConnectionProfile, "conn-b", 1)
@@ -297,6 +463,43 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(decision.reasons, ("REFERENCE_MISSING",))
         self.assertEqual(decision.attempts, ())
         self.assertEqual(self.store.execution_records("worker-1")[0]["reasons"], ["REFERENCE_MISSING"])
+
+    def test_connection_moved_to_another_workspace_rejects_execution(self) -> None:
+        self.store.save(worker_profile())
+        self.settings.delete(ConnectionProfile, "conn-b", 1)
+        with self.settings.transaction() as tx:
+            tx.save(ConnectionProfile("conn-b", "ws-2", "vendor-b"))
+        decision = self.store.prepare_execution("worker-1", make_inventory(FULL_LISTS), clock=fixed_clock)
+        self.assertEqual(decision.status, "rejected")
+        self.assertEqual(decision.reasons, ("CROSS_WORKSPACE_REFERENCE",))
+        self.assertEqual(decision.attempts, ())
+        self.assertEqual(self.store.execution_records("worker-1")[0]["reasons"], ["CROSS_WORKSPACE_REFERENCE"])
+
+    def test_clock_failure_appends_no_execution_record(self) -> None:
+        self.store.save(worker_profile())
+        with self.assertRaises(ProfileError):
+            self.store.prepare_execution("worker-1", make_inventory(FULL_LISTS), clock=failing_clock)
+        self.assertEqual(self.store.execution_records("worker-1"), ())
+
+    def test_latest_execution_records_are_reachable_beyond_the_oldest_page(self) -> None:
+        self.store.save(director_profile())
+        mismatch = make_inventory(MISMATCH_LISTS)
+        for _ in range(2):
+            self.store.prepare_execution("director-1", mismatch, clock=fixed_clock)
+        self.store.prepare_execution("director-1", make_inventory(FULL_LISTS), clock=fixed_clock)
+        self.assertEqual(self.store.execution_records("director-1", limit=1)[0]["status"], "rejected")
+        newest = self.store.execution_records("director-1", limit=1, newest_first=True)
+        self.assertEqual(newest[0]["status"], "bound")
+        first_page = self.store.execution_record_entries("director-1", limit=2)
+        self.assertEqual([document["status"] for _, document in first_page], ["rejected", "rejected"])
+        rest = self.store.execution_record_entries("director-1", limit=2, after_seq=first_page[-1][0])
+        self.assertEqual([document["status"] for _, document in rest], ["bound"])
+        older = self.store.execution_records("director-1", limit=10, before_seq=rest[0][0], newest_first=True)
+        self.assertEqual([document["status"] for document in older], ["rejected", "rejected"])
+        for arguments in ({"after_seq": -1}, {"before_seq": True}, {"newest_first": "yes"}):
+            with self.subTest(arguments=arguments):
+                with self.assertRaises(InvalidProfile):
+                    self.store.execution_records("director-1", **arguments)
 
     # ------------------------------------------------- adapter and command
     def test_agent_profile_adapter_maps_without_writing_settings(self) -> None:
@@ -331,6 +534,35 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(cli_main(["validate", str(valid)], stdout=io.StringIO()), 0)
         self.assertEqual(cli_main([], stdout=io.StringIO()), 2)
 
+    def test_validation_command_rejects_oversized_and_directory_inputs(self) -> None:
+        oversized = self.root / "oversized.json"
+        with oversized.open("wb") as stream:
+            stream.truncate(MAX_DOCUMENT_BYTES + 10)
+        output = io.StringIO()
+        self.assertEqual(cli_main(["validate", str(oversized), str(self.root)], stdout=output), 1)
+        lines = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual([line["error"] for line in lines], ["DocumentTooLarge", "NotRegularFile"])
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "FIFOs are unavailable on this platform.")
+    def test_validation_command_rejects_fifo_without_blocking(self) -> None:
+        fifo = self.root / "profile.fifo"
+        os.mkfifo(fifo)
+        results = []
+        output = io.StringIO()
+        worker = threading.Thread(target=lambda: results.append(cli_main(["validate", str(fifo)], stdout=output)),
+                                  daemon=True)
+        worker.start()
+        worker.join(5)
+        if worker.is_alive():
+            # Release the blocked reader so the failing case does not linger.
+            try:
+                os.close(os.open(fifo, os.O_WRONLY | os.O_NONBLOCK))
+            except OSError:
+                pass
+            self.fail("The validation command blocked on a FIFO.")
+        self.assertEqual(results, [1])
+        self.assertEqual(json.loads(output.getvalue())["error"], "NotRegularFile")
+
     # ------------------------------------------------------------- files
     def test_settings_or_foreign_databases_are_rejected_and_preserved(self) -> None:
         with self.assertRaises(InvalidProfile):
@@ -343,6 +575,19 @@ class ProfileTests(unittest.TestCase):
         with self.assertRaises(InvalidDatabase):
             ProfileStore(foreign, settings=self.settings)
         self.assertEqual(foreign.read_bytes(), before)
+
+    def test_settings_companion_names_are_rejected_as_profile_paths(self) -> None:
+        settings_path = Path(self.settings.path)
+        for suffix in ("-journal", "-wal", "-shm", ".storage.lock"):
+            with self.subTest(suffix=suffix):
+                candidate = settings_path.with_name(settings_path.name + suffix)
+                existed = candidate.exists()
+                before = candidate.read_bytes() if existed else None
+                with self.assertRaises(InvalidProfile):
+                    ProfileStore(candidate, settings=self.settings)
+                self.assertEqual(candidate.exists(), existed)
+                if existed:
+                    self.assertEqual(candidate.read_bytes(), before)
 
     def test_missing_profile_database_is_not_recreated_implicitly(self) -> None:
         self.path.unlink()

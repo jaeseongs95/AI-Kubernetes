@@ -5,6 +5,11 @@ adapter only reads Workspace and ConnectionProfile from it for reference
 checks. Every profile is one row with its own revision, so a director update
 never touches worker or reviewer rows. Execution decisions are appended.
 Path validation and the process lock are reused from aik_runtime.paths.
+
+Schema version 2 adds a tombstone per deleted profile ID. A profile recreated
+with the same ID continues after the deleted revision, so an approval issued
+for an earlier incarnation can never match the new one. A version 1 file is
+upgraded in place inside one SQLite transaction (DELETE journal, FULL sync).
 """
 
 from __future__ import annotations
@@ -32,8 +37,9 @@ from .models import ROLE_NAMES, check_profile_identifier, parse_json, profile_fr
 
 
 APPLICATION_ID = 0x41494B50  # AIKP; distinct from runtime (AIKR) and settings (AIKC).
-SCHEMA_VERSION = 1
-_STATEMENTS = (
+SCHEMA_VERSION = 2
+SUPPORTED_VERSIONS = (1, 2)
+_V1_STATEMENTS = (
     'CREATE TABLE "profiles" (\n'
     '    "id" TEXT PRIMARY KEY NOT NULL CHECK (typeof("id") = \'text\' AND length("id") BETWEEN 1 AND 128),\n'
     '    "workspace_id" TEXT NOT NULL CHECK (typeof("workspace_id") = \'text\' AND length("workspace_id") BETWEEN 1 AND 128),\n'
@@ -52,7 +58,21 @@ _STATEMENTS = (
     ')',
     'CREATE INDEX "execution_records_profile" ON "execution_records" ("profile_id", "seq")',
 )
+_V2_STATEMENTS = (
+    'CREATE TABLE "profile_tombstones" (\n'
+    '    "id" TEXT PRIMARY KEY NOT NULL CHECK (typeof("id") = \'text\' AND length("id") BETWEEN 1 AND 128),\n'
+    '    "revision" INTEGER NOT NULL CHECK (typeof("revision") = \'integer\' AND "revision" >= 1)\n'
+    ')',
+)
 _SELECT_PROFILES = 'SELECT "id", "workspace_id", "role", "document", "revision" FROM "profiles"'
+_SQLITE_SUFFIXES = ("-journal", "-wal", "-shm", ".storage.lock")
+
+
+def _statements(version: int) -> tuple:
+    return _V1_STATEMENTS + (_V2_STATEMENTS if version >= 2 else ())
+
+
+_STATEMENTS = _statements(SCHEMA_VERSION)
 
 
 def default_profiles_path() -> Path:
@@ -60,13 +80,15 @@ def default_profiles_path() -> Path:
     return default_settings_path().with_name("profiles.sqlite3")
 
 
-def _create_schema(connection: sqlite3.Connection) -> None:
+def _create_schema(connection: sqlite3.Connection, version: int = SCHEMA_VERSION) -> None:
+    if type(version) is not int or version not in SUPPORTED_VERSIONS:
+        raise InvalidDatabase("Unsupported profile schema version.")
     connection.execute("BEGIN IMMEDIATE")
     try:
-        for statement in _STATEMENTS:
+        for statement in _statements(version):
             connection.execute(statement)
         connection.execute(f"PRAGMA application_id = {APPLICATION_ID}")
-        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        connection.execute(f"PRAGMA user_version = {version}")
         connection.commit()
     except BaseException:
         connection.rollback()
@@ -79,24 +101,40 @@ def _schema_rows(connection: sqlite3.Connection) -> tuple:
     ))
 
 
-@lru_cache(maxsize=1)
-def _expected_schema() -> tuple:
+@lru_cache(maxsize=2)
+def _expected_schema(version: int = SCHEMA_VERSION) -> tuple:
     with closing(sqlite3.connect(":memory:", isolation_level=None)) as connection:
-        _create_schema(connection)
+        _create_schema(connection, version)
         return _schema_rows(connection)
 
 
-def _validate_schema(connection: sqlite3.Connection, *, full: bool) -> None:
+def _validate_schema(connection: sqlite3.Connection, *, full: bool, version: int = SCHEMA_VERSION) -> None:
     try:
         if connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID \
-                or connection.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+                or connection.execute("PRAGMA user_version").fetchone()[0] != version \
+                or version not in SUPPORTED_VERSIONS:
             raise InvalidDatabase("This is not a supported AIK profile database.")
-        if _schema_rows(connection) != _expected_schema():
+        if _schema_rows(connection) != _expected_schema(version):
             raise InvalidDatabase("The profile schema differs from its declared version.")
         if full and tuple(row[0] for row in connection.execute("PRAGMA integrity_check")) != ("ok",):
             raise InvalidDatabase("Profile database integrity validation failed.")
     except sqlite3.Error:
         raise InvalidDatabase("Profile database validation could not be completed.") from None
+
+
+def _migrate_v1_to_v2(connection: sqlite3.Connection) -> None:
+    """Add the tombstone table and bump the version in one transaction."""
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        _validate_schema(connection, full=False, version=1)
+        for statement in _V2_STATEMENTS:
+            connection.execute(statement)
+        connection.execute("PRAGMA user_version = 2")
+        _validate_schema(connection, full=False, version=2)
+        connection.commit()
+    except BaseException:
+        connection.rollback()
+        raise
 
 
 def _json_text(document: dict) -> str:
@@ -112,7 +150,7 @@ def _decode_row(row) -> Revisioned:
         if type(revision) is not int or not 1 <= revision <= MAX_INTEGER:
             raise ValueError
         return Revisioned(profile, revision)
-    except (TypeError, ValueError):
+    except (InvalidProfile, TypeError, ValueError):
         raise InvalidDatabase("A stored execution profile violates its contract.") from None
 
 
@@ -148,6 +186,11 @@ def _sync_directory(path: Path) -> None:
         os.close(descriptor)
 
 
+def _sqlite_names(path: Path) -> set:
+    """A database path together with its SQLite companions and storage lock."""
+    return {path, *(path.with_name(path.name + suffix) for suffix in _SQLITE_SUFFIXES)}
+
+
 class ProfileStore:
     """Director/worker/reviewer execution profiles with independent revisions."""
 
@@ -160,8 +203,10 @@ class ProfileStore:
         self.settings = settings
         self.timeout = float(timeout)
         self.path = validate_database_path(default_profiles_path() if path is None else path, create_parent=True)
-        if self.path == settings.path:
-            raise InvalidProfile("Profile storage must use its own file, not the settings database.")
+        # Reject the settings file itself and every name SQLite or the storage
+        # lock uses beside it (and vice versa), before any file is created.
+        if _sqlite_names(self.path) & _sqlite_names(Path(settings.path)):
+            raise InvalidProfile("Profile storage must use its own file, not the settings database or its companions.")
         with database_lock(self.path, self.timeout):
             self._initialize()
 
@@ -206,9 +251,14 @@ class ProfileStore:
         try:
             if self._check_files():
                 with closing(self._connect(self.path)) as connection:
-                    _validate_schema(connection, full=True)
+                    declared = connection.execute("PRAGMA user_version").fetchone()[0]
+                    version = declared if declared in SUPPORTED_VERSIONS else SCHEMA_VERSION
+                    _validate_schema(connection, full=True, version=version)
                     for row in connection.execute(_SELECT_PROFILES):
                         _decode_row(row)
+                    if version < SCHEMA_VERSION:
+                        _migrate_v1_to_v2(connection)
+                        _validate_schema(connection, full=True)
                 return
             temporary = Path(tempfile.mkdtemp(prefix=".aik-profiles-init-", dir=self.path.parent))
             try:
@@ -277,6 +327,21 @@ class ProfileStore:
         row = connection.execute(_SELECT_PROFILES + ' WHERE "id" = ?', (profile_id,)).fetchone()
         return None if row is None else _decode_row(row)
 
+    @staticmethod
+    def _creation_revision(connection: sqlite3.Connection, profile_id: str) -> int:
+        """1 for a new ID; one past the deleted revision for a recreated ID."""
+        tombstone = connection.execute(
+            'SELECT "revision" FROM "profile_tombstones" WHERE "id" = ?', (profile_id,),
+        ).fetchone()
+        if tombstone is None:
+            return 1
+        previous = tombstone[0]
+        if type(previous) is not int or not 1 <= previous <= MAX_INTEGER:
+            raise InvalidDatabase("A stored profile tombstone violates its contract.")
+        if previous == MAX_INTEGER:
+            raise RevisionConflict("The execution profile revision cannot be incremented.")
+        return previous + 1
+
     # ------------------------------------------------------------------ API
     def save(self, profile, expected_revision: int = 0) -> Revisioned:
         value = rebuild_profile(profile)
@@ -290,12 +355,12 @@ class ProfileStore:
             if expected_revision == 0:
                 if row is not None:
                     raise RevisionConflict("The execution profile already exists.")
+                revision = self._creation_revision(connection, value.id)
                 connection.execute(
                     'INSERT INTO "profiles" ("id", "workspace_id", "role", "document", "revision") '
-                    'VALUES (?, ?, ?, ?, 1)',
-                    (value.id, value.workspace_id, value.role, document),
+                    'VALUES (?, ?, ?, ?, ?)',
+                    (value.id, value.workspace_id, value.role, document, revision),
                 )
-                revision = 1
             else:
                 if row is None or row[2] != expected_revision:
                     raise RevisionConflict("The execution profile revision has changed or the profile is absent.")
@@ -348,6 +413,11 @@ class ProfileStore:
             )
             if deleted.rowcount != 1:
                 raise RevisionConflict("The execution profile revision has changed or the profile is absent.")
+            # Keep the last revision so a recreated ID cannot reuse old approvals.
+            connection.execute(
+                'INSERT OR REPLACE INTO "profile_tombstones" ("id", "revision") VALUES (?, ?)',
+                (profile_id, expected_revision),
+            )
 
     def prepare_execution(self, profile_id: str, inventory, *, approval=None, clock=None) -> ExecutionDecision:
         """Verify capability right before execution and append the decision record."""
@@ -373,26 +443,55 @@ class ProfileStore:
             )
         return decision
 
-    def execution_records(self, profile_id: str | None = None, limit: int = 100) -> tuple:
+    def _record_rows(self, profile_id, limit, after_seq, before_seq, newest_first) -> tuple:
         if profile_id is not None:
             check_profile_identifier(profile_id)
         if type(limit) is not int or not 1 <= limit <= 1000:
             raise InvalidProfile("The query limit must be an integer between 1 and 1000.")
+        for value, field in ((after_seq, "after_seq"), (before_seq, "before_seq")):
+            if value is not None and (type(value) is not int or not 0 <= value <= MAX_INTEGER):
+                raise InvalidProfile(f"Invalid record cursor field: {field}.")
+        if type(newest_first) is not bool:
+            raise InvalidProfile("newest_first must be a boolean.")
+        conditions, parameters = [], []
+        if profile_id is not None:
+            conditions.append('"profile_id" = ?')
+            parameters.append(profile_id)
+        if after_seq is not None:
+            conditions.append('"seq" > ?')
+            parameters.append(after_seq)
+        if before_seq is not None:
+            conditions.append('"seq" < ?')
+            parameters.append(before_seq)
+        where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+        order = "DESC" if newest_first else "ASC"
         with self._transaction() as connection:
-            if profile_id is None:
-                rows = connection.execute(
-                    'SELECT "document" FROM "execution_records" ORDER BY "seq" LIMIT ?', (limit,)).fetchall()
-            else:
-                rows = connection.execute(
-                    'SELECT "document" FROM "execution_records" WHERE "profile_id" = ? ORDER BY "seq" LIMIT ?',
-                    (profile_id, limit)).fetchall()
+            rows = connection.execute(
+                'SELECT "seq", "document" FROM "execution_records"' + where + f' ORDER BY "seq" {order} LIMIT ?',
+                (*parameters, limit),
+            ).fetchall()
         records = []
-        for (document,) in rows:
+        for seq, document in rows:
+            if type(seq) is not int:
+                raise InvalidDatabase("A stored execution record sequence is malformed.")
             try:
                 parsed = parse_json(document)
             except InvalidProfile:
                 raise InvalidDatabase("A stored execution record is not valid JSON.") from None
             if type(parsed) is not dict:
                 raise InvalidDatabase("A stored execution record is malformed.")
-            records.append(parsed)
+            records.append((seq, parsed))
         return tuple(records)
+
+    def execution_records(self, profile_id: str | None = None, limit: int = 100, *,
+                          after_seq: int | None = None, before_seq: int | None = None,
+                          newest_first: bool = False) -> tuple:
+        """Decision documents; newest_first=True returns the latest decisions first."""
+        return tuple(document for _, document in
+                     self._record_rows(profile_id, limit, after_seq, before_seq, newest_first))
+
+    def execution_record_entries(self, profile_id: str | None = None, limit: int = 100, *,
+                                 after_seq: int | None = None, before_seq: int | None = None,
+                                 newest_first: bool = False) -> tuple:
+        """(seq, document) pairs; seq is the cursor for after_seq/before_seq paging."""
+        return self._record_rows(profile_id, limit, after_seq, before_seq, newest_first)
