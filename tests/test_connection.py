@@ -3,16 +3,21 @@
 No provider is contacted. Secrets are synthetic markers stored only in the
 test-only FakeVaultBackend; the connection and settings files must hold only
 opaque references. Linux runs are development verification, not Windows support.
+Commit failures are simulated (SQLite connection subclass / transaction wrapper);
+real disk-full or I/O errors are not reproduced.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, contextmanager
 from dataclasses import replace
 from pathlib import Path
+import shutil
 import sqlite3
 import sys
 import tempfile
+import threading
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,10 +29,14 @@ from aik_config import (  # noqa: E402
 )
 from aik_connection import (  # noqa: E402
     AuthContext, AuthContextMismatch, AuthenticationRequired, ConnectionInUse, ConnectionReference,
-    ConnectionSpec, ConnectionStore, CredentialRefUnavailable, DuplicateConnection, RuntimePoolReferences,
+    ConnectionSpec, ConnectionStore, CredentialRefUnavailable, DuplicateConnection,
+    InconsistentConnectionStore, ReferenceCheckUnavailable, RuntimePoolReferences,
     UnknownConnection, VaultCredentialRefChecker,
 )
+import aik_connection.store as connection_store_module  # noqa: E402
 from aik_runtime import Pool, RuntimeStore  # noqa: E402
+from aik_runtime.errors import StorageError  # noqa: E402
+import aik_runtime.storage as runtime_storage_module  # noqa: E402
 from aik_vault import FakeVaultBackend  # noqa: E402
 
 
@@ -44,6 +53,13 @@ def context_of(connection, **changes) -> AuthContext:
                   account_binding=connection.account_binding, binding_revision=connection.binding_revision)
     values.update(changes)
     return AuthContext(**values)
+
+
+class FailingCommitConnection(sqlite3.Connection):
+    """Simulates a details-file commit failure (for example disk full); nothing is committed."""
+
+    def commit(self):
+        raise sqlite3.OperationalError("synthetic disk I/O failure during commit")
 
 
 class ConnectionStoreTests(unittest.TestCase):
@@ -306,6 +322,220 @@ class ConnectionStoreTests(unittest.TestCase):
         with self.assertRaises(InvalidDatabase):
             ConnectionStore(self.settings, path=foreign)
         self.assertEqual(foreign.read_bytes(), before)
+
+    # ---------------------------------------------------- review regressions
+
+    def test_rebind_details_commit_failure_does_not_leave_the_revoked_binding_executable(self) -> None:
+        """F1: settings published needs_authentication, details kept the old verified binding."""
+        created = self.store.register(self.subscription()).value
+        old_context = context_of(created)
+        self.store.mark_verified("conn-sub-a", old_context, 1, verified_at="2030-01-01T00:00:00Z")
+        with mock.patch.object(self.store, "_connection_factory", FailingCommitConnection):
+            with self.assertRaises(InconsistentConnectionStore):
+                self.store.rebind("conn-sub-a", 2, account_binding="account-c")
+        stale = self.store.get("conn-sub-a")
+        self.assertEqual((stale.revision, stale.value.account_binding, stale.value.binding_revision),
+                         (2, "account-a", 1))
+        self.assertIsNotNone(stale.value.verified_at)
+        self.assertTrue(self.settings.get(ConnectionProfile, "conn-sub-a").value.needs_authentication)
+        with self.assertRaises(InconsistentConnectionStore):
+            self.store.verify_auth_context(old_context)
+        # An explicit repeat of the intended rebind reconciles both files.
+        repaired = self.store.rebind("conn-sub-a", 2, account_binding="account-c")
+        with self.assertRaises(AuthContextMismatch):
+            self.store.verify_auth_context(old_context)
+        with self.assertRaises(AuthenticationRequired):
+            self.store.verify_auth_context(context_of(repaired.value))
+
+    def test_mark_verified_details_commit_failure_publishes_no_authentication(self) -> None:
+        """F1: a failed details commit must not leave settings looking authenticated."""
+        created = self.store.register(self.subscription()).value
+        with mock.patch.object(self.store, "_connection_factory", FailingCommitConnection):
+            with self.assertRaises(StorageError) as failed:
+                self.store.mark_verified("conn-sub-a", context_of(created), 1,
+                                         verified_at="2030-01-01T00:00:00Z")
+        self.assertNotIsInstance(failed.exception, InconsistentConnectionStore)
+        current = self.store.get("conn-sub-a")
+        self.assertEqual((current.revision, current.value.verified_at), (1, None))
+        self.assertTrue(self.settings.get(ConnectionProfile, "conn-sub-a").value.needs_authentication)
+        with self.assertRaises(AuthenticationRequired):
+            self.store.verify_auth_context(context_of(created))
+
+    def test_mark_verified_settings_commit_failure_after_details_commit_fails_closed(self) -> None:
+        """F1: details verified but settings unchanged is reported and not executable."""
+        created = self.store.register(self.subscription()).value
+        context = context_of(created)
+        real_transaction = self.settings.transaction
+
+        @contextmanager
+        def failing_settings_commit():
+            with real_transaction() as stx:
+                yield stx
+                raise RuntimeError("synthetic settings commit failure")
+
+        with mock.patch.object(self.settings, "transaction", failing_settings_commit):
+            with self.assertRaises(InconsistentConnectionStore):
+                self.store.mark_verified("conn-sub-a", context, 1, verified_at="2030-01-01T00:00:00Z")
+        partial = self.store.get("conn-sub-a")
+        self.assertEqual((partial.revision, partial.value.verified_at), (2, "2030-01-01T00:00:00Z"))
+        self.assertTrue(self.settings.get(ConnectionProfile, "conn-sub-a").value.needs_authentication)
+        with self.assertRaises(InconsistentConnectionStore):
+            self.store.verify_auth_context(context)
+        self.store.mark_verified("conn-sub-a", context, 2, verified_at="2030-01-02T00:00:00Z")
+        self.assertFalse(self.settings.get(ConnectionProfile, "conn-sub-a").value.needs_authentication)
+        self.assertEqual(self.store.verify_auth_context(context).connection_id, "conn-sub-a")
+
+    def test_integrity_error_on_insert_is_reported_as_duplicate(self) -> None:
+        """F2: a constraint failure from INSERT surfaces as DuplicateConnection, not StorageError."""
+        first = self.store.register(self.subscription())
+        with mock.patch.object(connection_store_module, "_check_duplicates"):
+            with self.assertRaises(DuplicateConnection):
+                self.store.register(self.subscription())
+        self.assertEqual(self.store.list(), (first,))
+        self.assertEqual(self.settings.get(ConnectionProfile, "conn-sub-a").revision, 1)
+
+    def test_corrupt_stored_row_is_reported_as_invalid_database(self) -> None:
+        """F3/F10: an externally edited row is a damaged database, not a settings input error."""
+        self.store.register(self.subscription())
+        with closing(sqlite3.connect(self.store.path)) as connection:
+            connection.execute('UPDATE "connection_details" SET "account_label" = ? WHERE "connection_id" = ?',
+                               ("bad\x01label", "conn-sub-a"))
+            connection.commit()
+        with self.assertRaises(InvalidDatabase):
+            self.store.get("conn-sub-a")
+        with self.assertRaises(InvalidDatabase):
+            ConnectionStore(self.settings)
+
+    def test_impact_reports_whether_external_reference_sources_were_checked(self) -> None:
+        """F4: without reference sources the impact states that external use was not inspected."""
+        self.store.register(self.subscription())
+        self.assertFalse(self.store.impact("conn-sub-a").external_references_checked)
+        runtime = RuntimeStore(self.root / "runtime" / "runtime.sqlite3")
+        checked = ConnectionStore(self.settings, reference_sources=(RuntimePoolReferences(runtime),))
+        impact = checked.impact("conn-sub-a")
+        self.assertTrue(impact.external_references_checked)
+        self.assertEqual(impact.references, ())
+        result = self.store.delete("conn-sub-a", 1)
+        self.assertFalse(result.external_references_checked)
+
+    def test_connection_path_cannot_reuse_settings_companion_names(self) -> None:
+        """F7: the details file must not be created under a settings sidecar name."""
+        for suffix in ("-journal", "-wal", "-shm", ".storage.lock"):
+            candidate = self.settings.path.with_name(self.settings.path.name + suffix)
+            with self.subTest(suffix=suffix):
+                existed = candidate.exists()
+                before = candidate.read_bytes() if existed else None
+                with self.assertRaises(UnsafeStoragePath):
+                    ConnectionStore(self.settings, path=candidate)
+                self.assertEqual(candidate.exists(), existed)
+                if existed:
+                    self.assertEqual(candidate.read_bytes(), before)
+
+    def test_sync_helpers_do_not_depend_on_private_runtime_functions(self) -> None:
+        """F9: aik_connection keeps its own durability helpers."""
+        for name in ("_sync_file", "_sync_directory"):
+            helper = getattr(connection_store_module, name)
+            self.assertEqual(helper.__module__, "aik_connection.store")
+            self.assertIsNot(helper, getattr(runtime_storage_module, name))
+
+    def test_reference_source_failure_blocks_impact_and_deletion(self) -> None:
+        """F10: an unavailable or malformed reference source blocks deletion."""
+
+        class FailingSource:
+            def references_to(self, connection_id):
+                raise RuntimeError("synthetic reference source outage")
+
+        class UnsupportedSource:
+            def references_to(self, connection_id):
+                return ("not-a-reference",)
+
+        self.store.register(self.subscription())
+        for source in (FailingSource(), UnsupportedSource()):
+            with self.subTest(source=type(source).__name__):
+                store = ConnectionStore(self.settings, reference_sources=(source,))
+                with self.assertRaises(ReferenceCheckUnavailable):
+                    store.impact("conn-sub-a")
+                with self.assertRaises(ReferenceCheckUnavailable):
+                    store.delete("conn-sub-a", 1)
+                with self.assertRaises(ReferenceCheckUnavailable):
+                    store.delete("conn-sub-a", 1, force=True)
+        self.assertIsNotNone(self.store.get("conn-sub-a"))
+        self.assertIsNotNone(self.settings.get(ConnectionProfile, "conn-sub-a"))
+
+    def test_missing_or_different_settings_reference_fails_verification(self) -> None:
+        """F10: details without a matching settings reference are not executable."""
+        missing = self.store.register(self.subscription()).value
+        changed = self.store.register(self.subscription(connection_id="conn-sub-b", account_label="개인 구독 B",
+                                                        account_binding="account-b")).value
+        with self.settings.transaction() as stx:
+            stx.delete(ConnectionProfile, "conn-sub-a", 1)
+            stx.save(ConnectionProfile("conn-sub-b", "ws-1", "other-vendor", "host_session", True),
+                     expected_revision=1)
+        for connection in (missing, changed):
+            with self.subTest(connection_id=connection.connection_id):
+                with self.assertRaises(InvalidDatabase):
+                    self.store.verify_auth_context(context_of(connection))
+
+    def test_rebind_to_an_already_registered_account_is_a_duplicate(self) -> None:
+        """F10: rebind cannot create a second connection for the same account and path."""
+        original = self.store.register(self.subscription())
+        self.store.register(self.subscription(connection_id="conn-sub-b", account_label="개인 구독 B",
+                                              account_binding="account-b"))
+        with self.assertRaises(DuplicateConnection):
+            self.store.rebind("conn-sub-a", 1, account_binding="account-b")
+        self.assertEqual(self.store.get("conn-sub-a"), original)
+        self.assertEqual(self.settings.get(ConnectionProfile, "conn-sub-a").revision, 1)
+
+    def test_same_label_and_account_are_allowed_in_another_workspace(self) -> None:
+        """F10: label and account duplicates are scoped to a workspace."""
+        self.settings.save(Workspace("ws-2", "합성 작업공간 2"))
+        self.store.register(self.subscription())
+        other = self.store.register(self.subscription(connection_id="conn-sub-ws2", workspace_id="ws-2"))
+        self.assertEqual(other.revision, 1)
+        self.assertEqual([e.value.connection_id for e in self.store.list(workspace_id="ws-2")], ["conn-sub-ws2"])
+
+    def test_concurrent_registration_from_two_instances_admits_exactly_one(self) -> None:
+        """F10: two instances racing on the same ID produce one record and one duplicate error."""
+        second_settings = SettingsStore(self.settings.path)
+        stores = (self.store, ConnectionStore(second_settings, credential_checker=self.checker))
+        barrier = threading.Barrier(len(stores))
+        outcomes, guard = [], threading.Lock()
+
+        def attempt(store):
+            try:
+                barrier.wait(timeout=10)
+                result = store.register(self.subscription())
+            except Exception as error:  # recorded and asserted below
+                result = error
+            with guard:
+                outcomes.append(result)
+
+        threads = [threading.Thread(target=attempt, args=(store,)) for store in stores]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+        self.assertEqual(len(outcomes), 2)
+        successes = [item for item in outcomes if not isinstance(item, BaseException)]
+        failures = [item for item in outcomes if isinstance(item, BaseException)]
+        self.assertEqual(len(successes), 1)
+        self.assertEqual(len(failures), 1)
+        self.assertIsInstance(failures[0], DuplicateConnection)
+        self.assertEqual(self.store.list(), tuple(successes))
+        self.assertEqual([e.value.id for e in self.settings.list(ConnectionProfile)], ["conn-sub-a"])
+
+    def test_runtime_and_settings_databases_are_rejected_as_connection_files(self) -> None:
+        """F10: header application IDs of other AIK databases are refused, bytes preserved."""
+        runtime_path = self.root / "runtime" / "runtime.sqlite3"
+        RuntimeStore(runtime_path)
+        settings_copy = self.root / "config" / "settings-copy.sqlite3"
+        shutil.copyfile(self.settings.path, settings_copy)
+        for path in (runtime_path, settings_copy):
+            with self.subTest(path=path.name):
+                before = path.read_bytes()
+                with self.assertRaises(InvalidDatabase):
+                    ConnectionStore(self.settings, path=path)
+                self.assertEqual(path.read_bytes(), before)
 
 
 if __name__ == "__main__":

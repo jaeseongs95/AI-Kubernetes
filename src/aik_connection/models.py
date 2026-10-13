@@ -179,13 +179,22 @@ class ConnectionReference:
 
 @dataclass(frozen=True, slots=True)
 class DeletionImpact:
+    """References to a connection.
+
+    ``external_references_checked`` is False when no external reference source
+    (for example runtime pools) was configured, so external use is unknown.
+    """
+
     connection_id: str
     references: tuple
+    external_references_checked: bool = False
 
     def __post_init__(self) -> None:
         check_identifier(self.connection_id, "connection_id")
         if type(self.references) is not tuple or any(type(item) is not ConnectionReference for item in self.references):
             raise InvalidSetting("An impact report requires a tuple of connection references.")
+        if type(self.external_references_checked) is not bool:
+            raise InvalidSetting("external_references_checked must be a boolean.")
 
     @property
     def in_use(self) -> bool:

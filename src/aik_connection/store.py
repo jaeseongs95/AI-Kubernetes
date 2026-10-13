@@ -1,14 +1,25 @@
 """ConnectionProfile CRUD over aik_config.SettingsStore plus a details file.
 
-Lock order is always: details lock, then the settings lock. Publication order
-keeps the only reachable partial state fail-closed: a settings
-ConnectionProfile without details is an unregistered (non-executable) reference.
+The lock order is always the details lock first, then the settings lock.
+Publication order is chosen so that every reachable partial state stays
+non-executable (fail-closed):
+
+- ``register`` and updates that keep or restore ``needs_authentication``
+  (``rebind``) commit the settings first and the details second.
+- Updates that clear ``needs_authentication`` (``mark_verified``) and deletes
+  commit the details first and the settings second.
+
+``verify_auth_context`` compares the whole settings ConnectionProfile with the
+profile derived from the details. Any mismatch, including the authentication
+state, raises ``InconsistentConnectionStore``. The store does not repair this
+automatically.
 """
 
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
 from dataclasses import fields, replace
+import errno
 from functools import lru_cache
 import math
 import os
@@ -26,7 +37,6 @@ from aik_runtime.errors import (
 )
 from aik_runtime.models import MAX_INTEGER
 from aik_runtime.paths import database_lock, validate_database_path
-from aik_runtime.storage import _sync_directory, _sync_file
 
 from .errors import (
     AuthContextMismatch, AuthenticationRequired, ConnectionInUse, CredentialRefUnavailable,
@@ -45,6 +55,9 @@ _FIELDS = tuple(field.name for field in fields(Connection))
 _IMMUTABLE = ("connection_id", "workspace_id", "provider", "auth_kind", "execution_kind",
               "credential_ref", "provenance_id")
 _PAGE = 1000
+# SQLite and process-lock companions of a database file. The connection file
+# must not occupy (or be occupied by) a companion name of the settings file.
+_SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm", ".storage.lock", ".maintenance.lock")
 
 
 def _text(name: str, *, optional: bool = False) -> str:
@@ -98,6 +111,37 @@ def _sqlite_failure(error: sqlite3.Error) -> None:
     raise StorageError("The connection database operation could not be completed.") from None
 
 
+def _sync_file(path: Path) -> None:
+    """Flush file contents. A package-local copy; no private aik_runtime import."""
+    with path.open("r+b") as stream:
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _sync_directory(path: Path) -> None:
+    # Windows does not expose portable directory fsync through Python. File
+    # contents are flushed there, but rename power-loss durability is OS-owned.
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        try:
+            os.fsync(descriptor)
+        except OSError as error:
+            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
+                raise
+    finally:
+        os.close(descriptor)
+
+
+def _shares_files(first: Path, second: Path) -> bool:
+    """True when two database paths are equal or one is the other's companion."""
+    if os.path.normcase(str(first.parent)) != os.path.normcase(str(second.parent)):
+        return False
+    a, b = first.name.casefold(), second.name.casefold()
+    return a == b or any(a == b + suffix or b == a + suffix for suffix in _SIDECAR_SUFFIXES)
+
+
 def _decode(row) -> Revisioned:
     try:
         values = dict(zip(_FIELDS, row[:-1]))
@@ -105,7 +149,7 @@ def _decode(row) -> Revisioned:
         if type(revision) is not int or not 1 <= revision <= MAX_INTEGER:
             raise InvalidSetting("Invalid stored revision.")
         return Revisioned(Connection(**values), revision)
-    except (InvalidRecord, TypeError, ValueError, KeyError, IndexError):
+    except (InvalidSetting, InvalidRecord, TypeError, ValueError, KeyError, IndexError):
         raise InvalidDatabase("A stored connection record violates its contract.") from None
 
 
@@ -161,6 +205,9 @@ def _check_duplicates(rows, candidate: Connection, exclude: str | None) -> None:
 class ConnectionStore:
     """CRUD for connection metadata. It never stores secrets or contacts providers."""
 
+    # Private hook: the SQLite connection class used for the details file.
+    _connection_factory = sqlite3.Connection
+
     def __init__(self, settings: SettingsStore, path: Path | str | None = None, *,
                  credential_checker=None, reference_sources=(), timeout: float = 5.0):
         if not isinstance(settings, SettingsStore):
@@ -174,8 +221,12 @@ class ConnectionStore:
         self._sources = tuple(reference_sources)
         requested = settings.path.with_name("connections.sqlite3") if path is None else path
         self.path = validate_database_path(requested, create_parent=True)
-        if self.path == settings.path:
-            raise UnsafeStoragePath("Connection details require a file separate from the settings database.")
+        settings_path = Path(settings.path)
+        if self.path == settings_path or _shares_files(self.path, settings_path) \
+                or _shares_files(self.path, settings_path.resolve(strict=False)):
+            raise UnsafeStoragePath(
+                "Connection details require a file separate from the settings database and its companions."
+            )
         with database_lock(self.path, self.timeout):
             self._initialize()
 
@@ -183,7 +234,7 @@ class ConnectionStore:
     def _connect(self, path: Path, *, create: bool = False) -> sqlite3.Connection:
         connection = sqlite3.connect(
             path.as_uri() + ("?mode=rwc" if create else "?mode=rw"),
-            uri=True, timeout=self.timeout, isolation_level=None,
+            uri=True, timeout=self.timeout, isolation_level=None, factory=self._connection_factory,
         )
         try:
             connection.execute("PRAGMA trusted_schema = OFF")
@@ -307,7 +358,7 @@ class ConnectionStore:
             db.commit()
         except sqlite3.Error:
             raise InconsistentConnectionStore(
-                "The settings reference was published but connection details did not commit; "
+                "The settings reference may have been published but connection details did not commit; "
                 "the connection is not executable until repaired."
             ) from None
 
@@ -326,6 +377,13 @@ class ConnectionStore:
         entry = self._settings.get(ConnectionProfile, connection.connection_id)
         if entry is None or not _same_reference(entry.value, connection):
             raise InvalidDatabase("The settings connection reference is missing or differs from its details.")
+        if entry.value != _settings_profile(connection):
+            # For example a partially published rebind or mark_verified: the
+            # authentication state in settings and details disagree.
+            raise InconsistentConnectionStore(
+                "The settings authentication state differs from the connection details; "
+                "the connection is not executable until repaired."
+            )
         return entry
 
     def _external_references(self, connection_id: str) -> tuple:
@@ -354,12 +412,47 @@ class ConnectionStore:
         return tuple(profiles)
 
     @staticmethod
-    def _impact(connection_id: str, profiles: tuple, external: tuple) -> DeletionImpact:
+    def _impact(connection_id: str, profiles: tuple, external: tuple, external_checked: bool) -> DeletionImpact:
         references = [ConnectionReference("agent_profile", entry.value.id, entry.value.workspace_id, True)
                       for entry in profiles]
         references.extend(external)
         references.sort(key=lambda item: (item.kind, item.id))
-        return DeletionImpact(connection_id, tuple(references))
+        return DeletionImpact(connection_id, tuple(references), external_checked)
+
+    def _publish_update(self, db: sqlite3.Connection, connection_id: str, updated: Connection) -> None:
+        """Publish an updated binding to settings and details in a fail-closed order."""
+        desired = _settings_profile(updated)
+        details_committed = False
+        relaxing = False
+        try:
+            with self._settings.transaction() as stx:
+                entry = stx.get(ConnectionProfile, connection_id)
+                if entry is None or not _same_reference(entry.value, updated):
+                    raise InvalidDatabase("The settings connection reference is missing or differs from its details.")
+                relaxing = bool(entry.value.needs_authentication) and not desired.needs_authentication
+                if entry.value != desired:
+                    stx.save(desired, expected_revision=entry.revision)
+                if relaxing:
+                    # Clearing needs_authentication: details first, so a later
+                    # settings failure still reports "needs authentication".
+                    try:
+                        db.commit()
+                    except sqlite3.Error:
+                        raise StorageError(
+                            "The connection details did not commit; nothing was published."
+                        ) from None
+                    details_committed = True
+        except Exception:
+            if details_committed:
+                raise InconsistentConnectionStore(
+                    "Connection details were committed but the settings update did not commit; "
+                    "the connection is not executable until repaired."
+                ) from None
+            raise
+        if not relaxing:
+            # Keeping or setting needs_authentication: settings first, so a
+            # later details failure cannot leave settings looking authenticated.
+            self._commit_published(db)
 
     def _update(self, connection_id: str, expected_revision: int, mutate, *, sync_settings: bool) -> Revisioned:
         check_identifier(connection_id, "connection_id")
@@ -386,14 +479,7 @@ class ConnectionStore:
             if result.rowcount != 1:
                 raise RevisionConflict("The connection revision has changed.")
             if sync_settings:
-                with self._settings.transaction() as stx:
-                    entry = stx.get(ConnectionProfile, connection_id)
-                    if entry is None or not _same_reference(entry.value, updated):
-                        raise InvalidDatabase("The settings connection reference is missing or differs from its details.")
-                    desired = _settings_profile(updated)
-                    if entry.value != desired:
-                        stx.save(desired, expected_revision=entry.revision)
-                self._commit_published(db)
+                self._publish_update(db, connection_id, updated)
         return Revisioned(updated, revision)
 
     # ------------------------------------------------------------ public API
@@ -405,20 +491,20 @@ class ConnectionStore:
         values = {field.name: getattr(spec, field.name) for field in fields(ConnectionSpec)}
         connection = Connection(**values, verified_at=None, binding_revision=1,
                                 provenance_id="prov-" + secrets.token_hex(16))
-        try:
-            with self._details() as db:
-                _check_duplicates(self._all(db), connection, exclude=None)
-                placeholders = ", ".join("?" for _ in range(len(_FIELDS) + 1))
+        with self._details() as db:
+            _check_duplicates(self._all(db), connection, exclude=None)
+            placeholders = ", ".join("?" for _ in range(len(_FIELDS) + 1))
+            try:
                 db.execute(f'INSERT INTO "{_TABLE}" ({_COLUMNS}) VALUES ({placeholders})',
                            [*(getattr(connection, name) for name in _FIELDS), 1])
-                try:
-                    with self._settings.transaction() as stx:
-                        stx.save(_settings_profile(connection), expected_revision=0)
-                except RevisionConflict:
-                    raise DuplicateConnection("A settings connection with this ID already exists.") from None
-                self._commit_published(db)
-        except sqlite3.IntegrityError:
-            raise DuplicateConnection("The connection conflicts with a registered record.") from None
+            except sqlite3.IntegrityError:
+                raise DuplicateConnection("The connection conflicts with a registered record.") from None
+            try:
+                with self._settings.transaction() as stx:
+                    stx.save(_settings_profile(connection), expected_revision=0)
+            except RevisionConflict:
+                raise DuplicateConnection("A settings connection with this ID already exists.") from None
+            self._commit_published(db)
         return Revisioned(connection, 1)
 
     def get(self, connection_id: str) -> Revisioned | None:
@@ -500,7 +586,7 @@ class ConnectionStore:
             external = self._external_references(connection_id)
             with self._settings.transaction() as stx:
                 profiles = self._profile_references(stx, current.value)
-        return self._impact(connection_id, profiles, external)
+        return self._impact(connection_id, profiles, external, bool(self._sources))
 
     def delete(self, connection_id: str, expected_revision: int, *, force: bool = False,
                acknowledged_impact: DeletionImpact | None = None) -> DeletionImpact:
@@ -520,7 +606,7 @@ class ConnectionStore:
             try:
                 with self._settings.transaction() as stx:
                     profiles = self._profile_references(stx, current.value)
-                    impact = self._impact(connection_id, profiles, external)
+                    impact = self._impact(connection_id, profiles, external, bool(self._sources))
                     if impact.in_use:
                         if not force or impact.blocking or acknowledged_impact != impact:
                             raise ConnectionInUse(impact)
