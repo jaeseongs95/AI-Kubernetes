@@ -192,6 +192,10 @@ class GatedLeaseManager:
     def lease_manager(self) -> LeaseManager:
         return self._leases
 
+    @property
+    def gate(self) -> LifecycleGate:
+        return self._gate
+
     def _check(self, placement_id: str) -> tuple[bool, tuple[str, ...]]:
         try:
             located = self._lookup(placement_id)
