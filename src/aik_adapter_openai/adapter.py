@@ -34,7 +34,7 @@ from .contract import (
     MODEL_NOT_FOUND, MODEL_UNAUTHENTICATED, MODEL_UNKNOWN, RESPONSE_ID, TOOL_NAME,
     AdapterStatus, ModelCheck, ToolCall, TurnInput, TurnResult, Usage,
 )
-from .transport import HttpRequest, HttpResponse
+from .transport import DEFAULT_BASE_URL, HttpRequest, HttpResponse, UrllibTransport
 
 
 PROVIDER = "openai"
@@ -71,6 +71,21 @@ def slot_fingerprint(connection_id: str, credential_ref: str, revision: int) -> 
     """
     material = f"aik-openai-api-key-slot/v1\0{connection_id}\0{credential_ref}\0{revision}"
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+def _evidence_kind(transport: object) -> str:
+    """Label results without trusting a transport's own ``kind`` claim.
+
+    Only the standard-library transport pointed at the default vendor base URL
+    is labelled ``network``. A self-declared fixture stays ``fixture`` (the
+    conservative direction); everything else is ``unspecified``. The label is
+    evidence bookkeeping only and never a route qualification.
+    """
+    if type(transport) is UrllibTransport and getattr(transport, "_base", None) == DEFAULT_BASE_URL.rstrip("/"):
+        return "network"
+    if getattr(transport, "kind", None) == "fixture":
+        return "fixture"
+    return "unspecified"
 
 
 def _vault_fault(error: BaseException) -> AdapterFailure:
@@ -142,12 +157,17 @@ def _alias(response_id: str) -> str:
     return "openai-response:" + hashlib.sha256(response_id.encode("ascii")).hexdigest()[:48]
 
 
-def _tool_call(item: dict, scrub) -> tuple[ToolCall, bool] | None:
+def _tool_call(item: dict, scrub) -> tuple[ToolCall | None, bool]:
+    """Return (call or None, echo). Identifiers that echo the key are rejected."""
     call_id, name, arguments = item.get("call_id"), item.get("name"), item.get("arguments")
     if type(call_id) is not str or CALL_ID.fullmatch(call_id) is None:
-        return None
+        return None, False
     if type(name) is not str or TOOL_NAME.fullmatch(name) is None:
-        return None
+        return None, False
+    if scrub(call_id)[1] or scrub(name)[1]:
+        # A key-shaped identifier cannot be masked without breaking the call
+        # contract, so the whole call is treated as invalid.
+        return None, True
     parsed, echo = None, False
     if type(arguments) is str:
         _, echo = scrub(arguments)
@@ -167,15 +187,22 @@ def _turn_from(data: object, scrub, request_id: str, evidence_kind: str) -> Turn
     raw_id = data.get("id")
     if type(raw_id) is not str or RESPONSE_ID.fullmatch(raw_id) is None:
         return None
+    if scrub(raw_id)[1]:
+        # An echoed key must never become a stored ID or a later request path.
+        return None
+    echo = False
     status = data.get("status")
     state = _STATUS.get(status, JobState.UNKNOWN) if type(status) is str else JobState.UNKNOWN
     provider_status = status if type(status) is str and _SAFE_WORD.fullmatch(status) else None
+    if provider_status is not None and scrub(provider_status)[1]:
+        provider_status, echo = None, True
     model = data.get("model")
     model = model if type(model) is str and _PROVIDER_MODEL.fullmatch(model) else None
+    if model is not None and scrub(model)[1]:
+        model, echo = None, True
     texts: list[str] = []
     calls: list[ToolCall] = []
     unhandled: list[str] = []
-    echo = False
     output = data.get("output")
     if output is not None and type(output) is not list:
         unhandled.append("output_invalid")
@@ -193,12 +220,12 @@ def _turn_from(data: object, scrub, request_id: str, evidence_kind: str) -> Turn
                 else:
                     unhandled.append("message." + _word(part_type))
         elif kind == "function_call":
-            call = _tool_call(item, scrub)
+            call, found = _tool_call(item, scrub)
+            echo = echo or found
             if call is None:
                 unhandled.append("function_call.invalid")
             else:
-                calls.append(call[0])
-                echo = echo or call[1]
+                calls.append(call)
         else:
             unhandled.append(_word(kind))
     if type(output) is list and len(output) > MAX_ITEMS:
@@ -291,8 +318,7 @@ class OpenAIApiAdapter:
             raise TypeError("A callable clock is required.")
         self._ttl = _positive(auth_ttl_seconds, "INVALID_AUTH_TTL")
         self._timeout = _positive(timeout_seconds, "INVALID_TIMEOUT")
-        kind = getattr(transport, "kind", None)
-        self._evidence_kind = kind if kind in ("fixture", "network") else "unspecified"
+        self._evidence_kind = _evidence_kind(transport)
         self._transport = transport
         self._vault = vault
         self._clock = clock
@@ -353,6 +379,16 @@ class OpenAIApiAdapter:
     def _drop_staged(self, connection_id: str) -> None:
         self._staged = {key: value for key, value in self._staged.items()
                         if value[0].binding.connection_id != connection_id}
+
+    def _discard_secret(self, reference: object) -> bool:
+        """Best-effort deletion of a vault entry; True when it is known absent."""
+        try:
+            self._vault.delete(reference)
+        except CredentialNotFound:
+            return True
+        except Exception:
+            return False
+        return True
 
     @staticmethod
     def _check_secret(secret: object) -> None:
@@ -561,27 +597,50 @@ class OpenAIApiAdapter:
             return ModelCheck(model, availability, status)
 
     def rotate_key(self, binding: ConnectionBinding, new_secret: str) -> ConnectionBinding:
-        """Replace the vault secret in place; the binding revision advances."""
+        """Store the new key under a new reference, then delete the old reference.
+
+        Because the old reference disappears from the shared vault, another
+        adapter instance still holding the previous binding fails closed on its
+        next credential resolution instead of sending the new key under the old
+        revision. If deletion of the old reference cannot be confirmed, the new
+        reference is discarded (best effort), the previous binding stays current
+        with its authentication reset, and the caller may retry.
+        """
         self._check_secret(new_secret)
         with self._lock:
             connection = self._lookup(binding)
             if self._active(binding.connection_id):
                 raise _failure(FaultKind.ACCOUNT_CONFLICT)
-            fault = None
+            new_ref, fault = None, None
             try:
-                self._vault.replace(binding.credential_ref, new_secret)
-            except (InvalidSecret, InvalidCredentialRef, CredentialNotFound) as error:
+                new_ref = self._vault.put(new_secret)
+            except (InvalidSecret, InvalidCredentialRef, VaultAccessDenied) as error:
                 fault = _vault_fault(error)
             except Exception:
-                # The vault may now hold either key: require re-verification.
+                # A new entry may or may not exist: require re-verification.
                 connection.reset()
                 fault = _failure(FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN)
             if fault is not None:
                 self._event("rotate_key", binding=binding, result="failed")
                 raise fault
             revision = binding.revision + 1
-            updated = replace(binding, revision=revision, account_fingerprint=slot_fingerprint(
-                binding.connection_id, binding.credential_ref, revision))
+            updated = None
+            try:
+                updated = replace(binding, revision=revision, credential_ref=new_ref,
+                                  account_fingerprint=slot_fingerprint(binding.connection_id, new_ref, revision))
+            except (TypeError, ValueError):
+                updated = None
+            if updated is None:
+                self._discard_secret(new_ref)
+                self._event("rotate_key", binding=binding, result="failed")
+                raise _failure(FaultKind.INVALID_CONTRACT)
+            if not self._discard_secret(binding.credential_ref):
+                # The old reference may still exist: keep it current, drop the
+                # unused new entry and require re-verification before use.
+                self._discard_secret(new_ref)
+                connection.reset()
+                self._event("rotate_key", binding=binding, result="old_release_uncertain")
+                raise _failure(FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN)
             connection.binding = updated
             connection.reset()
             self._drop_staged(binding.connection_id)
@@ -589,9 +648,13 @@ class OpenAIApiAdapter:
             return updated
 
     def sign_out(self, binding: ConnectionBinding) -> AuthObservation:
-        """Release: delete the local vault secret. Vendor-side revocation is not done."""
+        """Release: delete the local vault secret. Vendor-side revocation is not done.
+
+        A released connection can call sign_out again so that an uncertain
+        deletion can be retried; an already deleted reference counts as done.
+        """
         with self._lock:
-            connection = self._lookup(binding)
+            connection = self._lookup(binding, allow_released=True)
             if self._active(binding.connection_id):
                 raise _failure(FaultKind.ACCOUNT_CONFLICT)
             fault = None

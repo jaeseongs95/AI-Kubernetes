@@ -6,6 +6,7 @@ implementation conformance, not a vendor observation or route qualification.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 import sys
@@ -13,6 +14,7 @@ import tempfile
 import traceback
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,12 +25,13 @@ from aik_adapter_openai import (  # noqa: E402
     HttpRequest, HttpResponse, Message, OpenAIApiAdapter, ToolCall, ToolResult,
     ToolSpec, TurnInput, UrllibTransport, slot_fingerprint,
 )
+import aik_adapter_openai.adapter as adapter_module  # noqa: E402
 from aik_provider import (  # noqa: E402
     AdapterFailure, AuthState, FaultKind, GuardedAdapter, JobRequest, JobState,
     Outcome, ProviderAdapter, Support,
 )
 from aik_runtime import CredentialRef  # noqa: E402
-from aik_vault import CredentialNotFound, FakeVaultBackend  # noqa: E402
+from aik_vault import CredentialNotFound, FakeVaultBackend, VaultAccessDenied  # noqa: E402
 
 
 SECRET = "FAKE-openai-key-0000-SYNTHETIC-not-real-A"
@@ -78,11 +81,40 @@ class FakeTransport:
         return outcome
 
 
+class FlakyVault(FakeVaultBackend):
+    """Synthetic fault injection: each queued exception fails one call before storage is touched."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.injected = {"put": [], "delete": [], "resolve": []}
+        self.stored: list = []
+
+    def _maybe_fail(self, operation: str) -> None:
+        queue = self.injected[operation]
+        if queue:
+            raise queue.pop(0)
+
+    def put(self, *args, **kwargs):
+        self._maybe_fail("put")
+        reference = super().put(*args, **kwargs)
+        self.stored.append(reference)
+        return reference
+
+    def delete(self, *args, **kwargs):
+        self._maybe_fail("delete")
+        return super().delete(*args, **kwargs)
+
+    def resolve(self, *args, **kwargs):
+        self._maybe_fail("resolve")
+        return super().resolve(*args, **kwargs)
+
+
 class OpenAIAdapterTests(unittest.TestCase):
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory(prefix="aik-openai-adapter-test-")
         self.addCleanup(temporary.cleanup)
-        self.vault = FakeVaultBackend(Path(temporary.name) / "vault", key=bytes(range(32)))
+        self.temp_root = Path(temporary.name)
+        self.vault = FakeVaultBackend(self.temp_root / "vault", key=bytes(range(32)))
         self.transport = FakeTransport()
         self.now = 1000.0
         self.adapter = OpenAIApiAdapter(transport=self.transport, vault=self.vault, clock=lambda: self.now)
@@ -90,12 +122,23 @@ class OpenAIAdapterTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.assertEqual(self.transport.unexpected, [])
         self.assert_no_secret(self.adapter.events(), json.dumps(self.adapter.events()))
-        for path in self.vault.directory.iterdir():
+        directory = self.vault.directory
+        for path in (directory.iterdir() if directory.exists() else ()):
+            if not path.is_file():
+                continue
             data = path.read_bytes()
             for secret in (SECRET, ROTATED):
                 self.assertNotIn(secret.encode("ascii"), data)
 
     # -- helpers ------------------------------------------------------------
+    def vault_files(self) -> list:
+        directory = self.vault.directory
+        return sorted(path.name for path in directory.iterdir()) if directory.exists() else []
+
+    def use_flaky_vault(self) -> None:
+        self.vault = FlakyVault(self.temp_root / "flaky-vault", key=bytes(range(32)))
+        self.adapter = OpenAIApiAdapter(transport=self.transport, vault=self.vault, clock=lambda: self.now)
+
     def assert_no_secret(self, *values) -> None:
         for value in values:
             texts = [repr(value), str(value)]
@@ -114,17 +157,20 @@ class OpenAIAdapterTests(unittest.TestCase):
         self.assertEqual(context.exception.fault.outcome, outcome)
         self.assert_no_secret(context.exception)
 
-    def ready(self, connection_id: str = "conn-1"):
-        binding = self.adapter.register_key(connection_id, SECRET)
+    def ready(self, connection_id: str = "conn-1", adapter=None):
+        adapter = self.adapter if adapter is None else adapter
+        binding = adapter.register_key(connection_id, SECRET)
         self.transport.add("GET", "/models", resp(200, {"object": "list", "data": []}))
-        self.assertEqual(self.adapter.verify_key(binding).state, AuthState.AUTHENTICATED)
+        self.assertEqual(adapter.verify_key(binding).state, AuthState.AUTHENTICATED)
         self.transport.add("GET", f"/models/{MODEL}", resp(200, {"id": MODEL, "object": "model"}))
-        self.assertEqual(self.adapter.check_model(binding, MODEL).availability, MODEL_AVAILABLE)
+        self.assertEqual(adapter.check_model(binding, MODEL).availability, MODEL_AVAILABLE)
         return binding
 
-    def staged(self, binding, request_id: str, turn: TurnInput | None = None, model: str = MODEL) -> JobRequest:
+    def staged(self, binding, request_id: str, turn: TurnInput | None = None, model: str = MODEL,
+               adapter=None) -> JobRequest:
+        adapter = self.adapter if adapter is None else adapter
         request = JobRequest(binding, request_id, "route-1", "vm-attempt-1", model)
-        self.adapter.stage_turn(request, turn or TurnInput(messages=(Message("user", "synthetic prompt"),)))
+        adapter.stage_turn(request, turn or TurnInput(messages=(Message("user", "synthetic prompt"),)))
         return request
 
     # -- registration and authentication -----------------------------------
@@ -142,12 +188,15 @@ class OpenAIAdapterTests(unittest.TestCase):
         self.assert_fault(duplicate, FaultKind.ACCOUNT_CONFLICT)
 
     def test_malformed_keys_are_rejected_before_the_vault_or_network(self) -> None:
+        # Compare the whole directory instead of a guessed file extension so the
+        # assertion cannot pass vacuously.
+        before = self.vault_files()
         for candidate in ("short", SECRET + "\r\nX-Injected: 1", "has space " + SECRET, 12345, ""):
             with self.subTest(kind=type(candidate).__name__):
                 with self.assertRaises(AdapterFailure) as rejected:
                     self.adapter.register_key("conn-bad", candidate)
                 self.assert_fault(rejected, FaultKind.INVALID_CONTRACT)
-        self.assertEqual(list(self.vault.directory.glob("*.aikv")), [])
+        self.assertEqual(self.vault_files(), before)
         self.assertEqual(self.transport.seen, [])
 
     def test_successful_verification_uses_the_key_only_in_the_request_header(self) -> None:
@@ -193,6 +242,36 @@ class OpenAIAdapterTests(unittest.TestCase):
         binding = self.adapter.register_key("conn-1", SECRET)
         self.vault.delete(binding.credential_ref)
         self.assertEqual(self.adapter.verify_key(binding).state, AuthState.UNAUTHENTICATED)
+        self.assertEqual(self.transport.seen, [])
+
+    def test_vault_access_denial_locks_the_connection_without_a_request(self) -> None:
+        self.use_flaky_vault()
+        binding = self.adapter.register_key("conn-1", SECRET)
+        self.vault.injected["resolve"].append(VaultAccessDenied("synthetic vault access denial"))
+        self.assertEqual(self.adapter.verify_key(binding).state, AuthState.LOCKED)
+        self.assertEqual(self.adapter.executable_models(binding), ())
+        self.assertEqual(self.transport.seen, [])
+
+    def test_attach_rejects_forged_fingerprints_revisions_and_foreign_bindings(self) -> None:
+        binding = self.adapter.register_key("conn-1", SECRET)
+        other = OpenAIApiAdapter(transport=self.transport, vault=self.vault, clock=lambda: self.now)
+        candidates = [("fingerprint", replace(binding, account_fingerprint="0" * 64)),
+                      ("revision", replace(binding, revision=2))]
+        try:
+            candidates.append(("provider", replace(binding, provider="anthropic")))
+        except ValueError:
+            pass  # the AIK-011 contract itself refuses the forged provider
+        for label, candidate in candidates:
+            with self.subTest(forged=label):
+                with self.assertRaises(AdapterFailure) as rejected:
+                    other.attach(candidate)
+                self.assert_fault(rejected, FaultKind.INVALID_CONTRACT)
+        with self.assertRaises(AdapterFailure) as not_binding:
+            other.attach(object())
+        self.assert_fault(not_binding, FaultKind.INVALID_CONTRACT)
+        other.attach(binding)
+        other.attach(binding)  # idempotent for the identical binding
+        self.assertEqual(other.auth_status(binding).state, AuthState.UNKNOWN)
         self.assertEqual(self.transport.seen, [])
 
     def test_expired_authentication_observation_is_not_advertised(self) -> None:
@@ -360,6 +439,43 @@ class OpenAIAdapterTests(unittest.TestCase):
         self.assertEqual(self.adapter.auth_status(binding).state, AuthState.UNAUTHENTICATED)
         self.assertEqual(self.adapter.executable_models(binding), ())
 
+    def test_unauthorized_observation_withdraws_the_advertised_resource(self) -> None:
+        binding = self.ready()
+        request = self.staged(binding, "req-observe-401")
+        self.transport.add("POST", "/responses", resp(200, {"id": "resp_observe01", "status": "queued"}))
+        receipt = self.adapter.start_job(request)
+        self.transport.add("GET", "/responses/resp_observe01", resp(401, {"error": {"code": "invalid_api_key"}}))
+        with self.assertRaises(AdapterFailure) as denied:
+            self.adapter.observe_job(request, receipt)
+        self.assert_fault(denied, FaultKind.AUTH_REQUIRED)
+        self.assertEqual(self.adapter.auth_status(binding).state, AuthState.UNAUTHENTICATED)
+        self.assertEqual(self.adapter.executable_models(binding), ())
+
+    def test_start_status_marks_only_404_and_403_on_the_model(self) -> None:
+        binding = self.ready()
+        second_model = "synthetic-model-b"
+        self.transport.add("GET", f"/models/{second_model}", resp(200, {"id": second_model}))
+        self.assertEqual(self.adapter.check_model(binding, second_model).availability, MODEL_AVAILABLE)
+        self.assertEqual(self.adapter.executable_models(binding), (MODEL, second_model))
+        denied = self.staged(binding, "req-start-403", model=second_model)
+        self.transport.add("POST", "/responses", resp(403, {"error": {"code": "model_denied"}}))
+        with self.assertRaises(AdapterFailure) as forbidden:
+            self.adapter.start_job(denied)
+        self.assert_no_secret(forbidden.exception)
+        self.assertEqual(self.adapter.executable_models(binding), (MODEL,))
+        not_allowed = self.staged(binding, "req-start-405")
+        self.transport.add("POST", "/responses", resp(405, {"error": {"code": "method_not_allowed"}}))
+        with self.assertRaises(AdapterFailure) as method:
+            self.adapter.start_job(not_allowed)
+        self.assert_no_secret(method.exception)
+        self.assertEqual(self.adapter.executable_models(binding), (MODEL,))  # 405 does not mark the model
+        missing = self.staged(binding, "req-start-404")
+        self.transport.add("POST", "/responses", resp(404, {"error": {"code": "model_not_found"}}))
+        with self.assertRaises(AdapterFailure) as not_found:
+            self.adapter.start_job(missing)
+        self.assert_no_secret(not_found.exception)
+        self.assertEqual(self.adapter.executable_models(binding), ())
+
     def test_malformed_success_and_mismatched_ids_are_invalid_receipts(self) -> None:
         binding = self.ready()
         for request_id, response in (("req-not-json", resp(200, raw=b"not json")),
@@ -393,6 +509,109 @@ class OpenAIAdapterTests(unittest.TestCase):
         self.assertEqual(result.tool_calls, (ToolCall("call_echo", "read_file", None, False),))
         self.assert_no_secret(result)
 
+    def test_identifier_fields_echoing_the_key_are_not_kept_or_used_as_paths(self) -> None:
+        binding = self.ready()
+        echoed_id = self.staged(binding, "req-id-echo")
+        self.transport.add("POST", "/responses", resp(200, {"id": SECRET, "status": "queued", "model": SECRET}))
+        with self.assertRaises(AdapterFailure) as invalid:
+            self.adapter.start_job(echoed_id)
+        self.assert_fault(invalid, FaultKind.INVALID_RECEIPT, Outcome.UNKNOWN)
+        self.assertIsNone(self.adapter.result("req-id-echo"))
+
+        echoed_fields = self.staged(binding, "req-field-echo")
+        self.transport.add("POST", "/responses", resp(200, completed("resp_idecho01", model=SECRET, output=[
+            {"type": "function_call", "call_id": SECRET, "name": "read_file", "arguments": "{}"},
+            {"type": "function_call", "call_id": "call_ok", "name": SECRET, "arguments": "{}"},
+        ])))
+        receipt = self.adapter.start_job(echoed_fields)
+        result = self.adapter.result("req-field-echo")
+        self.assertIsNone(result.model)
+        self.assertEqual(result.tool_calls, ())
+        self.assertEqual(result.unhandled_item_types, ("function_call.invalid", "function_call.invalid"))
+        self.assertTrue(result.secret_echo_redacted)
+        self.assert_no_secret(result, receipt)
+        self.transport.add("GET", "/responses/resp_idecho01", resp(200, completed("resp_idecho01")))
+        self.assertEqual(self.adapter.observe_job(echoed_fields, receipt).state, JobState.SUCCEEDED)
+        for entry in self.transport.seen:
+            self.assertNotIn(SECRET, entry.path)
+
+    def test_partial_usage_and_oversized_echo_are_reported_honestly(self) -> None:
+        binding = self.ready()
+        partial = self.staged(binding, "req-partial-usage")
+        self.transport.add("POST", "/responses", resp(200, completed(
+            "resp_partial01", usage={"input_tokens": 3, "output_tokens": True})))
+        self.adapter.start_job(partial)
+        usage = self.adapter.result("req-partial-usage").usage
+        self.assertEqual((usage.input_tokens, usage.output_tokens, usage.total_tokens), (3, None, None))
+        self.assertTrue(usage.reported)
+        large = self.staged(binding, "req-large-echo")
+        self.transport.add("POST", "/responses", resp(200, completed("resp_large01", output=[
+            {"type": "message", "content": [{"type": "output_text", "text": "x" * 70_000 + SECRET}]},
+        ])))
+        self.adapter.start_job(large)
+        result = self.adapter.result("req-large-echo")
+        self.assertTrue(result.secret_echo_redacted)
+        self.assert_no_secret(result)
+
+    def test_staging_model_and_output_bounds_are_enforced(self) -> None:
+        binding = self.ready()
+        with mock.patch.object(adapter_module, "MAX_STAGED", 2):
+            self.staged(binding, "req-bound-1")
+            self.staged(binding, "req-bound-2")
+            with self.assertRaises(AdapterFailure) as staged_limit:
+                self.staged(binding, "req-bound-3")
+            self.assert_fault(staged_limit, FaultKind.INVALID_CONTRACT)
+        with mock.patch.object(adapter_module, "MAX_MODELS", 1):
+            with self.assertRaises(AdapterFailure) as model_limit:
+                self.adapter.check_model(binding, "synthetic-model-extra")
+            self.assert_fault(model_limit, FaultKind.INVALID_CONTRACT)
+            self.transport.add("GET", f"/models/{MODEL}", resp(200, {"id": MODEL}))
+            self.assertEqual(self.adapter.check_model(binding, MODEL).availability, MODEL_AVAILABLE)
+        message = {"type": "message", "content": [{"type": "output_text", "text": "synthetic answer"}]}
+        self.transport.add("POST", "/responses", resp(200, completed("resp_trunc01", output=[message] * 3)))
+        with mock.patch.object(adapter_module, "MAX_ITEMS", 2):
+            self.adapter.start_job(JobRequest(binding, "req-bound-1", "route-1", "vm-attempt-1", MODEL))
+        truncated = self.adapter.result("req-bound-1")
+        self.assertIn("output_truncated", truncated.unhandled_item_types)
+        self.assertEqual(truncated.output_text, "synthetic answer" * 2)
+        self.transport.add("POST", "/responses", resp(200, completed("resp_large02")))
+        with mock.patch.object(adapter_module, "MAX_TEXT_CHARS", 5):
+            self.adapter.start_job(JobRequest(binding, "req-bound-2", "route-1", "vm-attempt-1", MODEL))
+        too_large = self.adapter.result("req-bound-2")
+        self.assertIsNone(too_large.output_text)
+        self.assertIn("output_text_too_large", too_large.unhandled_item_types)
+
+    def test_evidence_kind_is_not_copied_from_a_transport_self_declaration(self) -> None:
+        self.transport.kind = "network"  # synthetic fixture falsely claiming a live network
+        self.adapter = OpenAIApiAdapter(transport=self.transport, vault=self.vault, clock=lambda: self.now)
+        binding = self.ready()
+        request = self.staged(binding, "req-claimed-network")
+        self.transport.add("POST", "/responses", resp(200, completed("resp_claimed01")))
+        self.adapter.start_job(request)
+        self.assertEqual(self.adapter.result("req-claimed-network").evidence_kind, "unspecified")
+
+        class SpoofedNetworkTransport(UrllibTransport):
+            def __init__(self, delegate):
+                super().__init__()
+                self.delegate = delegate
+
+            def send(self, request, *, timeout):
+                return self.delegate.send(request, timeout=timeout)
+
+        spoof = OpenAIApiAdapter(transport=SpoofedNetworkTransport(self.transport), vault=self.vault,
+                                 clock=lambda: self.now)
+        spoof_binding = self.ready("conn-spoof", adapter=spoof)
+        spoof_request = self.staged(spoof_binding, "req-spoofed-network", adapter=spoof)
+        self.transport.add("POST", "/responses", resp(200, completed("resp_spoof01")))
+        spoof.start_job(spoof_request)
+        self.assertEqual(spoof.result("req-spoofed-network").evidence_kind, "unspecified")
+        self.assert_no_secret(spoof.events())
+        # Construction only; no request is sent through these transports.
+        local_mock = OpenAIApiAdapter(transport=UrllibTransport("https://localhost-mock.invalid/v1"), vault=self.vault)
+        self.assertEqual(local_mock._evidence_kind, "unspecified")
+        vendor = OpenAIApiAdapter(transport=UrllibTransport(), vault=self.vault)
+        self.assertEqual(vendor._evidence_kind, "network")
+
     # -- rotation and release ---------------------------------------------
     def test_rotation_advances_revision_requires_reverification_and_blocks_active_jobs(self) -> None:
         binding = self.ready()
@@ -407,7 +626,10 @@ class OpenAIAdapterTests(unittest.TestCase):
 
         rotated = self.adapter.rotate_key(binding, ROTATED)
         self.assertEqual(rotated.revision, 2)
-        self.assertEqual(rotated.credential_ref, binding.credential_ref)
+        # F-02: rotation now moves to a new vault reference and deletes the old one.
+        self.assertNotEqual(rotated.credential_ref, binding.credential_ref)
+        with self.assertRaises(CredentialNotFound):
+            self.vault.resolve(binding.credential_ref)
         self.assertNotEqual(rotated.account_fingerprint, binding.account_fingerprint)
         self.assertEqual(self.adapter.auth_status(rotated).state, AuthState.UNKNOWN)
         self.assertEqual(self.adapter.executable_models(rotated), ())
@@ -421,6 +643,68 @@ class OpenAIAdapterTests(unittest.TestCase):
             self.adapter.rotate_key(rotated, "bad key with spaces")
         self.assert_fault(invalid, FaultKind.INVALID_CONTRACT)
 
+    def test_rotation_invalidates_the_previous_binding_held_by_another_instance(self) -> None:
+        binding = self.ready()
+        other = OpenAIApiAdapter(transport=self.transport, vault=self.vault, clock=lambda: self.now)
+        other.attach(binding)
+        self.transport.add("GET", "/models", resp(200, {"data": []}))
+        self.assertEqual(other.verify_key(binding).state, AuthState.AUTHENTICATED)
+        self.transport.add("GET", f"/models/{MODEL}", resp(200, {"id": MODEL}))
+        self.assertEqual(other.check_model(binding, MODEL).availability, MODEL_AVAILABLE)
+
+        rotated = self.adapter.rotate_key(binding, ROTATED)
+        self.assertNotEqual(rotated.credential_ref, binding.credential_ref)
+        self.assertEqual(rotated.account_fingerprint, slot_fingerprint("conn-1", rotated.credential_ref, 2))
+        with self.assertRaises(CredentialNotFound):
+            self.vault.resolve(binding.credential_ref)
+        self.assertEqual(self.vault.resolve(rotated.credential_ref), ROTATED)
+
+        sent_before = len(self.transport.seen)
+        stale = JobRequest(binding, "req-other-stale", "route-1", "vm-attempt-1", MODEL)
+        other.stage_turn(stale, TurnInput(messages=(Message("user", "synthetic"),)))
+        with self.assertRaises(AdapterFailure) as refused:
+            other.start_job(stale)
+        self.assert_fault(refused, FaultKind.AUTH_REQUIRED)
+        self.assertEqual(len(self.transport.seen), sent_before)  # the new key was never sent
+        self.assertEqual(other.auth_status(binding).state, AuthState.UNAUTHENTICATED)
+        self.assertEqual(other.executable_models(binding), ())
+        self.assertEqual(other.verify_key(binding).state, AuthState.UNAUTHENTICATED)
+        self.assertEqual(len(self.transport.seen), sent_before)
+        self.assert_no_secret(other.events())
+
+    def test_rotation_with_uncertain_old_key_deletion_keeps_the_old_binding_and_can_retry(self) -> None:
+        self.use_flaky_vault()
+        binding = self.ready()
+        self.vault.injected["delete"].append(OSError("synthetic vault I/O failure"))
+        with self.assertRaises(AdapterFailure) as uncertain:
+            self.adapter.rotate_key(binding, ROTATED)
+        self.assert_fault(uncertain, FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN)
+        discarded = self.vault.stored[-1]
+        with self.assertRaises(CredentialNotFound):
+            self.vault.resolve(discarded)
+        self.assertEqual(self.vault.resolve(binding.credential_ref), SECRET)
+        self.assertEqual(self.adapter.auth_status(binding).state, AuthState.UNKNOWN)
+        self.assertEqual(self.adapter.executable_models(binding), ())
+        rotated = self.adapter.rotate_key(binding, ROTATED)
+        self.assertEqual(rotated.revision, 2)
+        with self.assertRaises(CredentialNotFound):
+            self.vault.resolve(binding.credential_ref)
+        self.assertEqual(self.vault.resolve(rotated.credential_ref), ROTATED)
+
+    def test_rotation_with_uncertain_new_key_storage_requires_reverification(self) -> None:
+        self.use_flaky_vault()
+        binding = self.ready()
+        self.vault.injected["put"].append(OSError("synthetic vault I/O failure"))
+        with self.assertRaises(AdapterFailure) as uncertain:
+            self.adapter.rotate_key(binding, ROTATED)
+        self.assert_fault(uncertain, FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN)
+        self.assertEqual(self.adapter.auth_status(binding).state, AuthState.UNKNOWN)
+        self.assertEqual(self.adapter.executable_models(binding), ())
+        self.assertEqual(self.vault.resolve(binding.credential_ref), SECRET)
+        self.transport.add("GET", "/models", resp(200, {"data": []}))
+        self.assertEqual(self.adapter.verify_key(binding).state, AuthState.AUTHENTICATED)
+        self.assertEqual(self.transport.seen[-1].authorization, "Bearer " + SECRET)
+
     def test_release_deletes_the_vault_secret_and_withdraws_resources(self) -> None:
         binding = self.ready()
         guard = GuardedAdapter(self.adapter, authorize_dispatch=lambda candidate: True)
@@ -433,6 +717,23 @@ class OpenAIAdapterTests(unittest.TestCase):
         with self.assertRaises(AdapterFailure) as released:
             self.adapter.verify_key(binding)
         self.assert_fault(released, FaultKind.AUTH_REQUIRED)
+
+    def test_uncertain_release_can_be_retried_until_the_vault_secret_is_deleted(self) -> None:
+        self.use_flaky_vault()
+        binding = self.ready()
+        self.vault.injected["delete"].append(OSError("synthetic vault I/O failure"))
+        with self.assertRaises(AdapterFailure) as uncertain:
+            self.adapter.sign_out(binding)
+        self.assert_fault(uncertain, FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN)
+        self.assertEqual(self.vault.resolve(binding.credential_ref), SECRET)  # still present
+        self.assertEqual(self.adapter.executable_models(binding), ())
+        with self.assertRaises(AdapterFailure) as blocked:
+            self.adapter.verify_key(binding)
+        self.assert_fault(blocked, FaultKind.AUTH_REQUIRED)
+        self.assertEqual(self.adapter.sign_out(binding).state, AuthState.UNAUTHENTICATED)
+        with self.assertRaises(CredentialNotFound):
+            self.vault.resolve(binding.credential_ref)
+        self.assertEqual(self.adapter.sign_out(binding).state, AuthState.UNAUTHENTICATED)  # idempotent
 
     # -- disclosures and boundaries ---------------------------------------
     def test_capabilities_separate_implementation_from_qualification(self) -> None:
