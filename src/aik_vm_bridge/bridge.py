@@ -4,7 +4,8 @@ AIK never edits the VM ledger: every Goal/Plan/Task change is a public façade
 command on the port. Responses are preserved as VM-owned snapshots and VM IDs
 are only referenced. ``run_once`` is treated as "reserve/observe then return";
 an unclear result is UNKNOWN and is never relaunched automatically.
-Duplicate-request and reconciliation guards are in memory, not durable.
+Duplicate-request, in-flight and reconciliation guards are per bridge
+instance and in memory only; they are not durable and not shared.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
 import re
+import threading
 from types import MappingProxyType
 from typing import Any, Callable, Iterable, Mapping, Protocol
 
@@ -32,6 +34,13 @@ _VM_CODE = re.compile(r"[A-Z][A-Z0-9_]{1,63}\Z")
 _STATUS = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
 _KNOWN = EffectOutcome.KNOWN_FAILURE
 _UNKNOWN = EffectOutcome.UNKNOWN
+# VM codes treated as "rejected before any effect" on effectful calls. This is
+# an assumption that has not been checked against the installed VM's error
+# table; every other code on an effectful call is reported as UNKNOWN.
+_PRE_EFFECT_VM_CODES = frozenset({"STALE_EXECUTION_INPUT", "CORE_CAPABILITY_DENIED", "MODEL_BINDING_CHANGED"})
+_OWNER_REQUIRED = ("project_id", "task_id", "attempt_id", "goal_revision_id", "plan_revision_id",
+                   "execution_spec_digest")
+_RUN_REQUIRED = ("task_id", "attempt_id")
 
 
 def _id(value: object, field: str) -> None:
@@ -249,6 +258,36 @@ class BridgeReceipt:
     job: JobObservation | None = None
 
 
+class _FrozenList(list):
+    """A list snapshot whose ordinary mutating methods are refused.
+
+    It still compares equal to plain lists. Copies (copy/pickle) are plain lists.
+    """
+
+    __slots__ = ()
+
+    def _readonly(self, *args, **kwargs):
+        raise TypeError("VM response snapshots are read-only.")
+
+    append = extend = insert = remove = pop = clear = sort = reverse = _readonly
+    __setitem__ = __delitem__ = __iadd__ = __imul__ = _readonly
+
+    def __reduce_ex__(self, protocol):
+        return (list, (list(self),))
+
+
+def _freeze(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return _FrozenList(_freeze(item) for item in value)
+    if type(value) is tuple:
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(value)
+    return value
+
+
 _REF_ID_KEYS = ("project_id", "goal_id", "goal_revision_id", "plan_revision_id", "task_id",
                 "attempt_id", "job_id", "authorization_id")
 
@@ -293,7 +332,9 @@ def _parse_job(response: Mapping[str, Any]) -> JobObservation:
     return JobObservation(phase, status, job_id)
 
 
-def _same_execution(refs: VmRefs, binding: TaskExecutionBinding, outcome: EffectOutcome) -> None:
+def _same_execution(refs: VmRefs, binding: TaskExecutionBinding, outcome: EffectOutcome,
+                    required: tuple[str, ...] = ()) -> None:
+    """Reject disagreeing fields; ``required`` fields must also be present."""
     pairs = (
         ("project_id", refs.project_id, binding.vm_project_id),
         ("task_id", refs.task_id, binding.vm_task_id),
@@ -305,13 +346,21 @@ def _same_execution(refs: VmRefs, binding: TaskExecutionBinding, outcome: Effect
     for subject, observed, bound in pairs:
         if observed is not None and observed != bound:
             raise VmBridgeError(BridgeCode.BINDING_MISMATCH, outcome, subject=subject)
+    for subject, observed, _ in pairs:
+        if observed is None and subject in required:
+            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, outcome, subject=subject)
 
 
 def _mapped(error: Exception, label: str, effectful: bool) -> VmBridgeError:
     """Keep the VM's original code; never copy raw messages or tracebacks."""
     code = getattr(error, "code", None)
     if type(code) is str and _VM_CODE.fullmatch(code):
-        outcome = _UNKNOWN if "UNKNOWN" in code.split("_") else _KNOWN
+        if effectful:
+            # Only codes known to mean "rejected before any effect" are known
+            # failures; any other coded failure of an effect may have acted.
+            outcome = _KNOWN if code in _PRE_EFFECT_VM_CODES else _UNKNOWN
+        else:
+            outcome = _UNKNOWN if "UNKNOWN" in code.split("_") else _KNOWN
         return VmBridgeError(BridgeCode.VM_REJECTED, outcome, vm_code=code, subject=label)
     if effectful:
         return VmBridgeError(BridgeCode.OUTCOME_UNKNOWN, _UNKNOWN, subject=label)
@@ -372,8 +421,12 @@ class VmBridge:
         self._commands = selected
         self._now = now or (lambda: datetime.now(timezone.utc))
         self._handshake: Handshake | None = None
+        self._lock = threading.RLock()
         self._used_requests: set[str] = set()
         self._unresolved: set[str] = set()
+        self._unresolved_projects: set[str] = set()
+        self._inflight: set[str] = set()
+        self._terminal_observed: set[str] = set()
 
     # -- capability & version --
     def preflight(self) -> CapabilityReport:
@@ -389,8 +442,15 @@ class VmBridge:
 
     @property
     def unresolved_attempts(self) -> frozenset:
-        """Attempts whose effect state is UNKNOWN; run_once refuses them until observed."""
-        return frozenset(self._unresolved)
+        """Attempts whose effect state is UNKNOWN; run_once refuses them until a terminal observation."""
+        with self._lock:
+            return frozenset(self._unresolved)
+
+    @property
+    def unresolved_projects(self) -> frozenset:
+        """Projects with an UNKNOWN project-level effect; run_once refuses them until a terminal observation."""
+        with self._lock:
+            return frozenset(self._unresolved_projects)
 
     def _ready(self, *commands: Command) -> Handshake:
         for command in commands:
@@ -399,10 +459,20 @@ class VmBridge:
         return self._handshake if self._handshake is not None else self.handshake()
 
     def _claim(self, request_id: str) -> None:
-        # Request IDs are never reused, including after failures.
-        if request_id in self._used_requests:
-            raise VmBridgeError(BridgeCode.DUPLICATE_REQUEST, subject="request_id")
-        self._used_requests.add(request_id)
+        # Once claimed (just before the first port call of the operation), a
+        # request ID is never reused, including after failures. Local
+        # pre-rejections before the claim do not consume it. IDs stay local.
+        with self._lock:
+            if request_id in self._used_requests:
+                raise VmBridgeError(BridgeCode.DUPLICATE_REQUEST, subject="request_id")
+            self._used_requests.add(request_id)
+
+    def _mark_unknown(self, attempt: str | None, project: str | None) -> None:
+        with self._lock:
+            if attempt is not None:
+                self._unresolved.add(attempt)
+            if project is not None:
+                self._unresolved_projects.add(project)
 
     def _require_extension(self, handshake: Handshake) -> None:
         if (BINDING_EXTENSION not in handshake.extensions
@@ -423,12 +493,12 @@ class VmBridge:
         except Exception:
             raise VmBridgeError(BridgeCode.INVALID_RESPONSE, outcome, subject=label) from None
 
-    def _effect(self, attempt: str | None, label: str, function, *args, **kwargs) -> dict:
+    def _effect(self, attempt: str | None, project: str | None, label: str, function, *args, **kwargs) -> dict:
         try:
             return self._call(label, True, function, *args, **kwargs)
         except VmBridgeError as error:
-            if error.outcome is _UNKNOWN and attempt is not None:
-                self._unresolved.add(attempt)
+            if error.outcome is _UNKNOWN:
+                self._mark_unknown(attempt, project)
             raise
 
     def _receipt(self, command: Command, request_id: str, project_id: str | None, response: dict, *,
@@ -438,22 +508,29 @@ class VmBridge:
         if project_id is not None and refs.project_id is not None and refs.project_id != project_id:
             raise VmBridgeError(BridgeCode.CONTRACT_MISMATCH, outcome, subject="project_id")
         return BridgeReceipt(
-            command, request_id, project_id, refs, MappingProxyType(response),
+            command, request_id, project_id, refs, _freeze(response),
             None if binding is None else binding.digest(), _parse_job(response) if with_job else None,
         )
+
+    def _persisted_digest(self, attempt: str) -> str | None:
+        """The binding digest VM persisted for the Attempt, or None if absent."""
+        try:
+            persisted = self._port.read_execution_binding(attempt)
+        except Exception as error:
+            raise _mapped(error, "read_execution_binding", False) from None
+        if persisted is None:
+            return None
+        if not isinstance(persisted, Mapping):
+            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject="read_execution_binding")
+        digest = persisted.get("binding_digest")
+        if type(digest) is not str or DIGEST_PATTERN.fullmatch(digest) is None:
+            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject="read_execution_binding")
+        return digest
 
     def _require_persisted(self, binding: TaskExecutionBinding) -> None:
         """Observe/cancel/inventory only with the persisted original binding."""
         self._require_extension(self._handshake)
-        try:
-            persisted = self._port.read_execution_binding(binding.vm_attempt_id)
-        except Exception as error:
-            raise _mapped(error, "read_execution_binding", False) from None
-        if persisted is None:
-            raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="persisted_binding")
-        if not isinstance(persisted, Mapping):
-            raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject="read_execution_binding")
-        if persisted.get("binding_digest") != binding.digest():
+        if self._persisted_digest(binding.vm_attempt_id) != binding.digest():
             raise VmBridgeError(BridgeCode.BINDING_MISMATCH, subject="persisted_binding")
 
     @staticmethod
@@ -465,8 +542,14 @@ class VmBridge:
     def _project_command(self, command: Command, request, *args, **kwargs) -> BridgeReceipt:
         self._ready(command)
         self._claim(request.request_id)
-        response = self._effect(None, command.value, getattr(self._port, command.value), *args, **kwargs)
-        return self._receipt(command, request.request_id, request.project_id, response, effectful=True)
+        response = self._effect(None, request.project_id, command.value, getattr(self._port, command.value),
+                                *args, **kwargs)
+        try:
+            return self._receipt(command, request.request_id, request.project_id, response, effectful=True)
+        except VmBridgeError as error:
+            if error.outcome is _UNKNOWN:
+                self._mark_unknown(None, request.project_id)
+            raise
 
     def prepare(self, request: GoalRequest) -> BridgeReceipt:
         self._check(request, GoalRequest)
@@ -534,34 +617,60 @@ class VmBridge:
         self._require_extension(handshake)
         binding = request.binding
         attempt = binding.vm_attempt_id
+        project = binding.vm_project_id
         verify_assignment(binding, placement=request.placement, lease=request.lease, pool=request.pool, now=self._now)
-        if attempt in self._unresolved:
-            raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _UNKNOWN, subject="vm_attempt_id")
-        self._claim(request.request_id)
+        with self._lock:
+            if attempt in self._unresolved:
+                raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _UNKNOWN, subject="vm_attempt_id")
+            if project in self._unresolved_projects:
+                raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _UNKNOWN, subject="vm_project_id")
+            if attempt in self._inflight:
+                raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _KNOWN, subject="attempt_in_flight")
+            self._claim(request.request_id)
+            self._inflight.add(attempt)
+        try:
+            return self._run_bound(request, binding, attempt)
+        finally:
+            with self._lock:
+                self._inflight.discard(attempt)
 
+    def _run_bound(self, request: RunOnceRequest, binding: TaskExecutionBinding, attempt: str) -> BridgeReceipt:
         # Owner query: the exact existing Attempt and its Task, before any effect.
+        # Every compared field must be present; absence is not agreement.
         detail = self._call("attempt_detail", False, self._port.attempt_detail, attempt)
         owner = _extract_refs(detail, _KNOWN)
         if owner.attempt_id is None or owner.task_id is None:
             raise VmBridgeError(BridgeCode.INVALID_RESPONSE, subject="attempt_detail")
-        _same_execution(owner, binding, _KNOWN)
+        _same_execution(owner, binding, _KNOWN, _OWNER_REQUIRED)
 
         digest = binding.digest()
-        echo = self._effect(attempt, "bind_execution", self._port.bind_execution, binding.to_mapping())
-        if echo.get("binding_digest") != digest:
-            self._unresolved.add(attempt)
-            raise VmBridgeError(BridgeCode.BINDING_MISMATCH, _UNKNOWN, subject="bind_execution")
+        persisted = self._persisted_digest(attempt)
+        if persisted is None:
+            echo = self._effect(attempt, None, "bind_execution", self._port.bind_execution, binding.to_mapping())
+            if echo.get("binding_digest") != digest:
+                self._mark_unknown(attempt, None)
+                raise VmBridgeError(BridgeCode.BINDING_MISMATCH, _UNKNOWN, subject="bind_execution")
+        elif persisted != digest:
+            # Another binding owns this Attempt; never rebind or relaunch it.
+            raise VmBridgeError(BridgeCode.BINDING_MISMATCH, _KNOWN, subject="persisted_binding")
+        elif attempt not in self._terminal_observed:
+            # Already bound with this binding; relaunch only after this bridge
+            # has observed a terminal job for it (resume does not bypass this).
+            raise VmBridgeError(BridgeCode.RECONCILIATION_REQUIRED, _KNOWN, subject="attempt_bound")
+        with self._lock:
+            self._terminal_observed.discard(attempt)
 
-        response = self._effect(attempt, "run_once", self._port.run_once, binding.vm_project_id, resume=request.resume)
+        response = self._effect(attempt, None, "run_once", self._port.run_once, binding.vm_project_id,
+                                resume=request.resume)
         try:
             receipt = self._receipt(Command.RUN_ONCE, request.request_id, binding.vm_project_id, response,
                                     effectful=True, binding=binding, with_job=True)
-            _same_execution(receipt.refs, binding, _UNKNOWN)
+            _same_execution(receipt.refs, binding, _UNKNOWN, _RUN_REQUIRED)
         except VmBridgeError:
-            self._unresolved.add(attempt)
+            self._mark_unknown(attempt, None)
             raise
         if receipt.job.phase is JobPhase.UNKNOWN:
-            self._unresolved.add(attempt)
+            self._mark_unknown(attempt, None)
         return receipt
 
     def observe(self, request: ObserveRequest) -> BridgeReceipt:
@@ -574,10 +683,17 @@ class VmBridge:
         response = self._call("observe", False, self._port.observe, request.project_id)
         receipt = self._receipt(Command.OBSERVE, request.request_id, request.project_id, response,
                                 effectful=False, binding=binding, with_job=True)
+        terminal = receipt.job.phase is JobPhase.TERMINAL
         if binding is not None and receipt.refs.attempt_id == binding.vm_attempt_id:
             _same_execution(receipt.refs, binding, _KNOWN)
-            if receipt.job.phase is not JobPhase.UNKNOWN:
-                self._unresolved.discard(binding.vm_attempt_id)
+            if terminal:
+                # Pending/running keeps the guard: the job may still act.
+                with self._lock:
+                    self._unresolved.discard(binding.vm_attempt_id)
+                    self._terminal_observed.add(binding.vm_attempt_id)
+        if terminal:
+            with self._lock:
+                self._unresolved_projects.discard(request.project_id)
         return receipt
 
     def cancel(self, request: CancelRequest) -> BridgeReceipt:
@@ -588,6 +704,14 @@ class VmBridge:
         if binding is not None:
             self._require_persisted(binding)
         attempt = None if binding is None else binding.vm_attempt_id
-        response = self._effect(attempt, "cancel", self._port.cancel, request.project_id, reason=request.reason)
-        return self._receipt(Command.CANCEL, request.request_id, request.project_id, response,
-                             effectful=True, binding=binding)
+        # cancel is a project-level façade call, so an unclear result also
+        # blocks run_once for the whole project.
+        response = self._effect(attempt, request.project_id, "cancel", self._port.cancel, request.project_id,
+                                reason=request.reason)
+        try:
+            return self._receipt(Command.CANCEL, request.request_id, request.project_id, response,
+                                 effectful=True, binding=binding)
+        except VmBridgeError as error:
+            if error.outcome is _UNKNOWN:
+                self._mark_unknown(attempt, request.project_id)
+            raise

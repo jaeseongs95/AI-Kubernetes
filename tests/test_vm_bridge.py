@@ -11,6 +11,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import threading
 import unittest
 
 
@@ -19,11 +20,11 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from aik_runtime import Lease, Placement, Pool  # noqa: E402
 from aik_vm_bridge import (  # noqa: E402
-    BINDING_EXTENSION, BINDING_FIELDS, PINNED_SURFACE_REVISION, AttemptQuery, AuthorizeRequest,
-    BridgeCode, CancelRequest, Command, EffectOutcome, FinalReportRequest, GoalRequest,
-    InventoryRequest, JobPhase, ObserveRequest, PauseRequest, ProjectQuery, ReplanRequest,
-    RunOnceRequest, TaskExecutionBinding, VmBridge, VmBridgeError, load_surface, parameter_names,
-    preflight, verify_assignment,
+    BINDING_EXTENSION, BINDING_FIELDS, BLOCKING_GATES, PINNED_SURFACE_REVISION, AttemptQuery,
+    AuthorizeRequest, BridgeCode, CancelRequest, Command, EffectOutcome, FinalReportRequest,
+    GoalRequest, InventoryRequest, JobPhase, ObserveRequest, PauseRequest, ProjectQuery,
+    ReplanRequest, RunOnceRequest, TaskExecutionBinding, VmBridge, VmBridgeError, load_surface,
+    parameter_names, preflight, verify_assignment,
 )
 
 
@@ -50,6 +51,7 @@ SIGNATURES = {
     "attempt_detail": "self, attempt_id: str",
     "model_binding_status": "self, project_id: str, *, inventory: ModelInventory | None=None",
 }
+_NO_OVERRIDE = object()
 
 
 def surface_dict(methods=None, revision=PINNED_SURFACE_REVISION) -> dict:
@@ -186,6 +188,8 @@ class BoundFakeVm(FakeVm):
     def __init__(self, **kwargs):
         super().__init__(extensions=(BINDING_EXTENSION,), **kwargs)
         self.persisted: dict = {}
+        self.bind_echo = None
+        self.read_override = _NO_OVERRIDE
 
     def bind_execution(self, binding):
         self.calls.append(("bind_execution", (dict(binding),), {}))
@@ -193,10 +197,14 @@ class BoundFakeVm(FakeVm):
             raise self.failures["bind_execution"]
         digest = canonical_digest(binding)
         self.persisted[binding["vm_attempt_id"]] = digest
-        return {"binding_digest": digest}
+        return {"binding_digest": digest if self.bind_echo is None else self.bind_echo}
 
     def read_execution_binding(self, vm_attempt_id):
         self.calls.append(("read_execution_binding", (vm_attempt_id,), {}))
+        if "read_execution_binding" in self.failures:
+            raise self.failures["read_execution_binding"]
+        if self.read_override is not _NO_OVERRIDE:
+            return self.read_override
         digest = self.persisted.get(vm_attempt_id)
         return None if digest is None else {"binding_digest": digest}
 
@@ -205,6 +213,11 @@ def run_request(request_id="run-1", **binding_overrides) -> RunOnceRequest:
     placement, lease, pool = assignment()
     return RunOnceRequest(request_id, TaskExecutionBinding(**binding_fields(**binding_overrides)),
                           placement, lease, pool)
+
+
+def find_contract(name: str) -> Path | None:
+    matches = sorted((ROOT / "contracts").glob(f"**/{name}")) if (ROOT / "contracts").is_dir() else []
+    return matches[0] if matches else None
 
 
 class SurfaceTests(unittest.TestCase):
@@ -216,7 +229,8 @@ class SurfaceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parameter_names("self, a='unclosed, b")
 
-    @unittest.skipUnless((ROOT / "contracts/upstream/vm-public-surface.json").is_file(), "declared surface absent")
+    @unittest.skipUnless((ROOT / "contracts/upstream/vm-public-surface.json").is_file(),
+                         "NOT_RUN: contracts/upstream/vm-public-surface.json is absent")
     def test_declared_vm_public_surface_satisfies_every_bridge_command(self) -> None:
         surface = load_surface(ROOT / "contracts/upstream/vm-public-surface.json")
         self.assertEqual(surface.revision, PINNED_SURFACE_REVISION)
@@ -263,6 +277,29 @@ class SurfaceTests(unittest.TestCase):
         self.assertIs(raised.exception.code, BridgeCode.INVALID_RESPONSE)
 
 
+class ContractDriftTests(unittest.TestCase):
+    """F13: compare fixed constants with contract files when they exist."""
+
+    def test_binding_fields_match_the_schema_file_when_present(self) -> None:
+        path = find_contract("task-execution-binding.schema.json")
+        if path is None:
+            self.skipTest("NOT_RUN: task-execution-binding.schema.json is absent")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertIsInstance(data.get("properties"), dict, "schema has no top-level properties")
+        self.assertEqual(set(data["properties"]), set(BINDING_FIELDS))
+        self.assertEqual(set(data.get("required", ())), set(BINDING_FIELDS))
+        self.assertIs(data.get("additionalProperties"), False)
+
+    def test_blocking_gates_appear_in_the_integration_contract_when_present(self) -> None:
+        path = find_contract("integration-contract.json")
+        if path is None:
+            self.skipTest("NOT_RUN: integration-contract.json is absent")
+        text = path.read_text(encoding="utf-8")
+        for gate in BLOCKING_GATES:
+            with self.subTest(gate=gate):
+                self.assertIn(gate, text)
+
+
 class CommandQueryTests(unittest.TestCase):
     def test_public_commands_pass_exact_arguments_and_preserve_vm_identifiers(self) -> None:
         vm = FakeVm()
@@ -292,6 +329,22 @@ class CommandQueryTests(unittest.TestCase):
         self.assertEqual(receipt.payload["phase"], "ready")
         with self.assertRaises(TypeError):
             receipt.payload["phase"] = "x"  # type: ignore[index]
+
+    def test_f7_nested_payload_values_are_read_only_and_still_equal_plain_values(self) -> None:
+        vm = FakeVm()
+        vm.responses["status"] = {"project_id": "project-1", "nested": {"k": [1]}, "items": [{"a": 1}]}
+        payload = VmBridge(vm, surface_dict()).status(ProjectQuery("req-1", "project-1")).payload
+        self.assertEqual(payload["nested"], {"k": [1]})
+        self.assertEqual(payload["items"], [{"a": 1}])
+        with self.assertRaises(TypeError):
+            payload["nested"]["k"].append(2)
+        with self.assertRaises(TypeError):
+            payload["nested"]["x"] = 1
+        with self.assertRaises(TypeError):
+            payload["items"][0]["a"] = 2
+        with self.assertRaises(TypeError):
+            payload["items"].extend([3])
+        self.assertEqual(payload["nested"], {"k": [1]})
 
     def test_bridge_sources_do_not_import_vm_internals_or_sqlite(self) -> None:
         for path in (ROOT / "src/aik_vm_bridge").glob("*.py"):
@@ -337,6 +390,20 @@ class CommandQueryTests(unittest.TestCase):
                          (BridgeCode.QUERY_FAILED, EffectOutcome.KNOWN_FAILURE))
         self.assertEqual(vm.names().count("replan"), 1)
 
+    def test_f6_coded_failures_of_effects_are_unknown_unless_known_pre_effect(self) -> None:
+        vm = FakeVm()
+        vm.failures["pause"] = CodedError("INDETERMINATE_RESULT", SECRET_MARKER)
+        vm.failures["status"] = CodedError("TIMEOUT", SECRET_MARKER)
+        bridge = VmBridge(vm, surface_dict())
+        with self.assertRaises(VmBridgeError) as effect:
+            bridge.pause(PauseRequest("req-1", "project-1", "stop"))
+        self.assertEqual((effect.exception.code, effect.exception.vm_code, effect.exception.outcome),
+                         (BridgeCode.VM_REJECTED, "INDETERMINATE_RESULT", EffectOutcome.UNKNOWN))
+        self.assertIn("project-1", bridge.unresolved_projects)
+        with self.assertRaises(VmBridgeError) as query:
+            bridge.status(ProjectQuery("req-2", "project-1"))
+        self.assertEqual(query.exception.outcome, EffectOutcome.KNOWN_FAILURE)
+
     def test_malformed_responses_and_foreign_project_are_rejected(self) -> None:
         vm = FakeVm()
         vm.responses["status"] = ["not", "mapping"]
@@ -350,6 +417,22 @@ class CommandQueryTests(unittest.TestCase):
             bridge.prepare(GoalRequest("req-2", "project-1", "goal"))
         self.assertEqual((command.exception.code, command.exception.outcome),
                          (BridgeCode.CONTRACT_MISMATCH, EffectOutcome.UNKNOWN))
+
+    def test_malformed_history_cursor_or_digest_responses_are_rejected(self) -> None:
+        for cursor in (-1, "11", True):
+            with self.subTest(cursor=cursor):
+                vm = FakeVm()
+                vm.responses["status"] = {"project_id": "project-1", "history_cursor": cursor}
+                with self.assertRaises(VmBridgeError) as raised:
+                    VmBridge(vm, surface_dict()).status(ProjectQuery("req-1", "project-1"))
+                self.assertEqual((raised.exception.code, raised.exception.subject),
+                                 (BridgeCode.INVALID_RESPONSE, "history_cursor"))
+        vm = FakeVm()
+        vm.responses["attempt_detail"] = {"attempt_id": "attempt-1", "execution_spec_digest": "sha256:bad"}
+        with self.assertRaises(VmBridgeError) as raised:
+            VmBridge(vm, surface_dict()).attempt_detail(AttemptQuery("req-1", "attempt-1"))
+        self.assertEqual((raised.exception.code, raised.exception.subject),
+                         (BridgeCode.INVALID_RESPONSE, "execution_spec_digest"))
 
     def test_duplicate_request_id_and_invalid_requests_are_refused_locally(self) -> None:
         vm = FakeVm()
@@ -423,6 +506,14 @@ class BindingTests(unittest.TestCase):
             verify_assignment(TaskExecutionBinding(**binding_fields(vm_attempt_id="attempt-2")),
                               placement=placement, lease=lease, pool=pool, now=lambda: NOW)
 
+    def test_assignment_attempt_mismatch_reports_code_and_subject(self) -> None:
+        placement, lease, pool = assignment()
+        with self.assertRaises(VmBridgeError) as raised:
+            verify_assignment(TaskExecutionBinding(**binding_fields(vm_attempt_id="attempt-2")),
+                              placement=placement, lease=lease, pool=pool, now=lambda: NOW)
+        self.assertEqual((raised.exception.code, raised.exception.subject, raised.exception.outcome),
+                         (BridgeCode.BINDING_MISMATCH, "vm_attempt_id", EffectOutcome.KNOWN_FAILURE))
+
 
 class BoundExecutionTests(unittest.TestCase):
     def test_run_once_is_refused_when_vm_lacks_the_binding_seam(self) -> None:
@@ -433,12 +524,20 @@ class BoundExecutionTests(unittest.TestCase):
                          (BridgeCode.SEAM_UNAVAILABLE, "aik-bound-runtime"))
         self.assertEqual(vm.names(), ["handshake"])
 
+    def test_declared_extension_without_port_methods_is_seam_unavailable(self) -> None:
+        vm = FakeVm(extensions=(BINDING_EXTENSION,))
+        with self.assertRaises(VmBridgeError) as raised:
+            VmBridge(vm, surface_dict(), now=lambda: NOW).run_once(run_request())
+        self.assertIs(raised.exception.code, BridgeCode.SEAM_UNAVAILABLE)
+        self.assertEqual(vm.names(), ["handshake"])
+
     def test_run_once_queries_owner_binds_then_reserves_and_returns_job_reference(self) -> None:
         vm = BoundFakeVm()
         receipt = VmBridge(vm, surface_dict(), now=lambda: NOW).run_once(run_request())
-        self.assertEqual(vm.names(), ["handshake", "attempt_detail", "bind_execution", "run_once"])
-        self.assertEqual(vm.calls[3], ("run_once", ("project-1",), {"resume": False}))
-        self.assertEqual(vm.calls[2][1][0], binding_fields())
+        self.assertEqual(vm.names(), ["handshake", "attempt_detail", "read_execution_binding",
+                                      "bind_execution", "run_once"])
+        self.assertEqual(vm.calls[4], ("run_once", ("project-1",), {"resume": False}))
+        self.assertEqual(vm.calls[3][1][0], binding_fields())
         self.assertEqual((receipt.refs.task_id, receipt.refs.attempt_id), ("task-1", "attempt-1"))
         self.assertEqual((receipt.job.phase, receipt.job.vm_status, receipt.job.job_id),
                          (JobPhase.RUNNING, "running", "job-1"))
@@ -458,6 +557,117 @@ class BoundExecutionTests(unittest.TestCase):
         with self.assertRaises(VmBridgeError) as expired:
             late.run_once(run_request())
         self.assertIs(expired.exception.code, BridgeCode.LEASE_NOT_USABLE)
+
+    def test_f1_owner_query_with_missing_binding_fields_stops_before_any_effect(self) -> None:
+        full = BoundFakeVm().responses["attempt_detail"]
+        for field in ("project_id", "goal_revision_id", "plan_revision_id", "execution_spec_digest"):
+            with self.subTest(missing=field):
+                vm = BoundFakeVm()
+                vm.responses["attempt_detail"] = {k: v for k, v in full.items() if k != field}
+                with self.assertRaises(VmBridgeError) as raised:
+                    VmBridge(vm, surface_dict(), now=lambda: NOW).run_once(run_request())
+                self.assertEqual((raised.exception.code, raised.exception.subject, raised.exception.outcome),
+                                 (BridgeCode.INVALID_RESPONSE, field, EffectOutcome.KNOWN_FAILURE))
+                self.assertEqual(vm.names(), ["handshake", "attempt_detail"])
+        vm = BoundFakeVm()
+        vm.responses["attempt_detail"] = {"attempt_id": "attempt-1", "task_id": "task-1"}
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        with self.assertRaises(VmBridgeError) as raised:
+            bridge.run_once(run_request())
+        self.assertIs(raised.exception.code, BridgeCode.INVALID_RESPONSE)
+        self.assertNotIn("bind_execution", vm.names())
+        self.assertNotIn("run_once", vm.names())
+        self.assertEqual(bridge.unresolved_attempts, frozenset())
+
+    def test_f2_run_once_response_without_task_or_attempt_is_unknown_and_blocks_relaunch(self) -> None:
+        responses = (
+            {"project_id": "project-1", "job": {"job_id": "job-7", "status": "running"}},
+            {"project_id": "project-1", "attempt_id": "attempt-1", "job": {"job_id": "job-7", "status": "running"}},
+            {"project_id": "project-1", "task_id": "task-1", "job": {"job_id": "job-7", "status": "running"}},
+        )
+        for response in responses:
+            with self.subTest(keys=sorted(response)):
+                vm = BoundFakeVm()
+                vm.responses["run_once"] = response
+                bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+                with self.assertRaises(VmBridgeError) as raised:
+                    bridge.run_once(run_request("run-1"))
+                self.assertEqual((raised.exception.code, raised.exception.outcome),
+                                 (BridgeCode.INVALID_RESPONSE, EffectOutcome.UNKNOWN))
+                self.assertIn("attempt-1", bridge.unresolved_attempts)
+                with self.assertRaises(VmBridgeError) as blocked:
+                    bridge.run_once(run_request("run-2"))
+                self.assertIs(blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
+                self.assertEqual(vm.names().count("run_once"), 1)
+
+    def test_f3_rotated_binding_cannot_rebind_or_relaunch_a_bound_attempt(self) -> None:
+        vm = BoundFakeVm()
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        bridge.run_once(run_request("run-1"))
+        with self.assertRaises(VmBridgeError) as raised:
+            bridge.run_once(run_request("run-2", connection_revision="8"))
+        self.assertEqual((raised.exception.code, raised.exception.subject, raised.exception.outcome),
+                         (BridgeCode.BINDING_MISMATCH, "persisted_binding", EffectOutcome.KNOWN_FAILURE))
+        self.assertEqual(vm.names().count("bind_execution"), 1)
+        self.assertEqual(vm.names().count("run_once"), 1)
+        self.assertEqual(vm.persisted["attempt-1"], canonical_digest(binding_fields()))
+        original = TaskExecutionBinding(**binding_fields())
+        cancelled = bridge.cancel(CancelRequest("cancel-1", "project-1", "stop", original))
+        self.assertEqual(cancelled.binding_digest, original.digest())
+
+    def test_f3_same_binding_requires_a_terminal_observation_before_relaunch(self) -> None:
+        vm = BoundFakeVm()
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        bridge.run_once(run_request("run-1"))
+        for resume in (False, True):
+            with self.subTest(resume=resume):
+                placement, lease, pool = assignment()
+                request = RunOnceRequest(f"run-again-{resume}", TaskExecutionBinding(**binding_fields()),
+                                         placement, lease, pool, resume=resume)
+                with self.assertRaises(VmBridgeError) as raised:
+                    bridge.run_once(request)
+                self.assertEqual((raised.exception.code, raised.exception.subject, raised.exception.outcome),
+                                 (BridgeCode.RECONCILIATION_REQUIRED, "attempt_bound", EffectOutcome.KNOWN_FAILURE))
+        self.assertEqual(vm.names().count("run_once"), 1)
+        self.assertEqual(vm.names().count("bind_execution"), 1)
+        bridge.observe(ObserveRequest("observe-1", "project-1", TaskExecutionBinding(**binding_fields())))
+        bridge.run_once(run_request("run-3"))
+        self.assertEqual(vm.names().count("run_once"), 2)
+        self.assertEqual(vm.names().count("bind_execution"), 1)
+
+    def test_read_execution_binding_failure_or_malformed_stops_before_binding(self) -> None:
+        cases = (
+            ("raise", OSError(SECRET_MARKER), BridgeCode.QUERY_FAILED),
+            ("non-mapping", ["not", "mapping"], BridgeCode.INVALID_RESPONSE),
+            ("bad-digest", {"binding_digest": "sha256:bad"}, BridgeCode.INVALID_RESPONSE),
+        )
+        for label, value, code in cases:
+            with self.subTest(case=label):
+                vm = BoundFakeVm()
+                if label == "raise":
+                    vm.failures["read_execution_binding"] = value
+                else:
+                    vm.read_override = value
+                bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+                with self.assertRaises(VmBridgeError) as raised:
+                    bridge.run_once(run_request())
+                self.assertEqual((raised.exception.code, raised.exception.outcome),
+                                 (code, EffectOutcome.KNOWN_FAILURE))
+                self.assertNotIn(SECRET_MARKER, str(raised.exception))
+                self.assertNotIn("bind_execution", vm.names())
+                self.assertNotIn("run_once", vm.names())
+                self.assertEqual(bridge.unresolved_attempts, frozenset())
+
+    def test_bind_execution_echo_mismatch_is_unknown_and_blocks_relaunch(self) -> None:
+        vm = BoundFakeVm()
+        vm.bind_echo = DIGEST_A
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        with self.assertRaises(VmBridgeError) as raised:
+            bridge.run_once(run_request())
+        self.assertEqual((raised.exception.code, raised.exception.subject, raised.exception.outcome),
+                         (BridgeCode.BINDING_MISMATCH, "bind_execution", EffectOutcome.UNKNOWN))
+        self.assertNotIn("run_once", vm.names())
+        self.assertIn("attempt-1", bridge.unresolved_attempts)
 
     def test_unclear_run_once_is_unknown_never_relaunched_until_observed(self) -> None:
         vm = BoundFakeVm()
@@ -481,9 +691,141 @@ class BoundExecutionTests(unittest.TestCase):
         bridge.run_once(run_request("run-3"))
         self.assertEqual(vm.names().count("run_once"), 2)
 
+    def test_f5_running_observation_keeps_the_attempt_unresolved(self) -> None:
+        vm = BoundFakeVm()
+        vm.failures["run_once"] = ConnectionResetError(SECRET_MARKER)
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        with self.assertRaises(VmBridgeError):
+            bridge.run_once(run_request("run-1"))
+        del vm.failures["run_once"]
+        vm.responses["observe"] = {"project_id": "project-1", "attempt_id": "attempt-1",
+                                   "job": {"job_id": "job-1", "status": "running"}}
+        binding = TaskExecutionBinding(**binding_fields())
+        observed = bridge.observe(ObserveRequest("observe-1", "project-1", binding))
+        self.assertEqual(observed.job.phase, JobPhase.RUNNING)
+        self.assertIn("attempt-1", bridge.unresolved_attempts)
+        with self.assertRaises(VmBridgeError) as blocked:
+            bridge.run_once(run_request("run-2"))
+        self.assertIs(blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
+        self.assertEqual(vm.names().count("run_once"), 1)
+        vm.responses["observe"] = {"project_id": "project-1", "attempt_id": "attempt-1",
+                                   "job": {"job_id": "job-1", "status": "failed"}}
+        bridge.observe(ObserveRequest("observe-2", "project-1", binding))
+        self.assertEqual(bridge.unresolved_attempts, frozenset())
+        bridge.run_once(run_request("run-3"))
+        self.assertEqual(vm.names().count("run_once"), 2)
+
+    def test_f6_coded_transport_error_from_run_once_is_unknown_and_blocks_relaunch(self) -> None:
+        vm = BoundFakeVm()
+        vm.failures["run_once"] = CodedError("ECONNRESET", SECRET_MARKER)
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        with self.assertRaises(VmBridgeError) as raised:
+            bridge.run_once(run_request("run-1"))
+        self.assertEqual((raised.exception.code, raised.exception.vm_code, raised.exception.outcome),
+                         (BridgeCode.VM_REJECTED, "ECONNRESET", EffectOutcome.UNKNOWN))
+        self.assertNotIn(SECRET_MARKER, str(raised.exception))
+        self.assertIn("attempt-1", bridge.unresolved_attempts)
+        del vm.failures["run_once"]
+        with self.assertRaises(VmBridgeError) as blocked:
+            bridge.run_once(run_request("run-2"))
+        self.assertIs(blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
+        self.assertEqual(vm.names().count("run_once"), 1)
+
+    def test_f4_project_level_unknown_blocks_run_once_until_terminal_observation(self) -> None:
+        vm = BoundFakeVm()
+        vm.failures["pause"] = CodedError("EXTERNAL_UNKNOWN", SECRET_MARKER)
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        with self.assertRaises(VmBridgeError):
+            bridge.pause(PauseRequest("pause-1", "project-1", "stop"))
+        self.assertEqual(bridge.unresolved_projects, frozenset({"project-1"}))
+        with self.assertRaises(VmBridgeError) as blocked:
+            bridge.run_once(run_request("run-1"))
+        self.assertEqual((blocked.exception.code, blocked.exception.subject),
+                         (BridgeCode.RECONCILIATION_REQUIRED, "vm_project_id"))
+        self.assertEqual(vm.names(), ["handshake", "pause"])
+        bridge.observe(ObserveRequest("observe-1", "project-1"))
+        self.assertEqual(bridge.unresolved_projects, frozenset())
+        bridge.run_once(run_request("run-1"))
+        self.assertEqual(vm.names().count("run_once"), 1)
+
+    def test_f4_unbound_cancel_unknown_after_bound_run_blocks_run_once(self) -> None:
+        vm = BoundFakeVm()
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        bridge.run_once(run_request("run-1"))
+        vm.failures["cancel"] = CodedError("EXTERNAL_UNKNOWN", SECRET_MARKER)
+        with self.assertRaises(VmBridgeError) as raised:
+            bridge.cancel(CancelRequest("cancel-1", "project-1", "stop"))
+        self.assertEqual(raised.exception.outcome, EffectOutcome.UNKNOWN)
+        self.assertIn("project-1", bridge.unresolved_projects)
+        with self.assertRaises(VmBridgeError) as blocked:
+            bridge.run_once(run_request("run-2"))
+        self.assertEqual((blocked.exception.code, blocked.exception.subject),
+                         (BridgeCode.RECONCILIATION_REQUIRED, "vm_project_id"))
+        self.assertEqual(vm.names().count("run_once"), 1)
+
+    def test_f8_local_pre_rejection_does_not_consume_the_request_id(self) -> None:
+        # Pins the documented behavior: rejections before the first port call
+        # of the operation leave the local request ID available.
+        vm = BoundFakeVm()
+        clock = [datetime(2031, 1, 1, tzinfo=timezone.utc)]
+        bridge = VmBridge(vm, surface_dict(), now=lambda: clock[0])
+        with self.assertRaises(VmBridgeError) as rejected:
+            bridge.run_once(run_request("run-1"))
+        self.assertIs(rejected.exception.code, BridgeCode.LEASE_NOT_USABLE)
+        self.assertEqual(vm.names(), ["handshake"])
+        clock[0] = NOW
+        bridge.run_once(run_request("run-1"))
+        self.assertEqual(vm.names().count("run_once"), 1)
+        with self.assertRaises(VmBridgeError) as duplicate:
+            bridge.status(ProjectQuery("run-1", "project-1"))
+        self.assertIs(duplicate.exception.code, BridgeCode.DUPLICATE_REQUEST)
+
+    def test_f10_concurrent_run_once_for_the_same_attempt_is_refused(self) -> None:
+        class BlockingVm(BoundFakeVm):
+            def __init__(self):
+                super().__init__()
+                self.entered = threading.Event()
+                self.release = threading.Event()
+                self.block = True
+
+            def attempt_detail(self, attempt_id):
+                if self.block:
+                    self.block = False
+                    self.entered.set()
+                    self.release.wait(5)
+                return super().attempt_detail(attempt_id)
+
+        vm = BlockingVm()
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        bridge.handshake()
+        outcome: list = []
+
+        def first():
+            try:
+                outcome.append(bridge.run_once(run_request("run-1")))
+            except Exception as error:  # pragma: no cover - reported below
+                outcome.append(error)
+
+        thread = threading.Thread(target=first)
+        thread.start()
+        try:
+            self.assertTrue(vm.entered.wait(5), "first run_once did not reach the owner query")
+            with self.assertRaises(VmBridgeError) as raised:
+                bridge.run_once(run_request("run-2"))
+            self.assertEqual((raised.exception.code, raised.exception.subject),
+                             (BridgeCode.RECONCILIATION_REQUIRED, "attempt_in_flight"))
+        finally:
+            vm.release.set()
+            thread.join(5)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(len(outcome), 1)
+        self.assertNotIsInstance(outcome[0], Exception)
+        self.assertEqual(vm.names().count("run_once"), 1)
+        self.assertEqual(vm.names().count("bind_execution"), 1)
+
     def test_unrecognized_job_status_is_unknown(self) -> None:
         vm = BoundFakeVm()
-        vm.responses["run_once"] = {"project_id": "project-1", "attempt_id": "attempt-1",
+        vm.responses["run_once"] = {"project_id": "project-1", "task_id": "task-1", "attempt_id": "attempt-1",
                                     "job": {"job_id": "job-1", "status": "mystery_state"}}
         bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
         receipt = bridge.run_once(run_request())
