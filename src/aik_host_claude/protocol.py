@@ -113,7 +113,10 @@ def version_tuple(version: str) -> tuple[int, int, int]:
 
 
 def parse_status(stdout: bytes):
-    """Return ``(AuthState, AuthMethod, account_id | None, reasons)`` or None if unrecognized."""
+    """Return ``(AuthState, AuthMethod, account_id | None, reasons)`` or None if unrecognized.
+
+    The process exit code is checked by the caller; this parser sees stdout only.
+    """
     payload = _json_object(stdout)
     if payload is None:
         return None
@@ -124,6 +127,9 @@ def parse_status(stdout: bytes):
         if payload.get("expired") is True:
             return AuthState.EXPIRED, AuthMethod.NONE, None, ("AUTH_EXPIRED",)
         return AuthState.UNAUTHENTICATED, AuthMethod.NONE, None, ("AUTH_REQUIRED",)
+    if payload.get("expired") is True:
+        # "Logged in" and "expired" at once is contradictory: never treat it as usable.
+        return AuthState.UNKNOWN, AuthMethod.UNKNOWN, None, ("AUTH_STATUS_CONTRADICTORY",)
     method = payload.get("authMethod")
     if type(method) is str and method in API_KEY_METHODS:
         # The host is using an API key, not a subscription login: never run on it.
@@ -168,6 +174,10 @@ def parse_job(result: CommandResult) -> JobOutput | None:
         return None
     if result.exit_code != 0 and not is_error:
         return None  # inconsistent: a failing process that claims success
+    if not is_error and subtype != "success":
+        # No error reported, but no recognized success either: the host may have
+        # acted, so this is not a known failure.
+        return None
     model = payload.get("model")
     if not (type(model) is str and _MODEL.fullmatch(model) and redactor.redact_text(model) == model):
         model = None

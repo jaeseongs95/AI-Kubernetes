@@ -15,8 +15,10 @@ The bridge stores only the following:
 - the observed capability
 
 It never stores login secrets. A login change observed outside the bridge
-marks the handle ``reconnect_required``. Fixture results are never live
-evidence. Every capability keeps ``qualification_status=NOT_RUN``.
+marks the handle ``reconnect_required``. Only ``reconnect()`` or an official
+login that this bridge launched for the binding (with no other account
+observed in between) clears it. Fixture results are never live evidence.
+Every capability keeps ``qualification_status=NOT_RUN``.
 """
 
 from __future__ import annotations
@@ -59,6 +61,10 @@ STATUS_OUTPUT_LIMIT = 65536
 EXEC_OUTPUT_LIMIT = 4 * 1024 * 1024
 MAX_PROMPT_CHARS = 1_000_000
 MAX_PREPARED = 1024
+# Upper bound for prepared + consumed request IDs (receipts and results are
+# subsets of consumed IDs). Entries are never evicted: eviction would drop
+# duplicate protection, so new requests are refused instead (fail-closed).
+MAX_REQUEST_RECORDS = 65536
 _MAX_REVISION = 2**63 - 1
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
@@ -141,6 +147,9 @@ class _Handle:
     account_fingerprint: str
     reconnect_required: bool = False
     login_pending: bool = False
+    selection_verified: bool = False
+    in_flight: int = 0
+    closing: bool = False
 
 
 class ClaudeHostBridge:
@@ -196,7 +205,8 @@ class ClaudeHostBridge:
         self._consumed: set[str] = set()
         self._receipts: dict[str, JobReceipt] = {}
         self._results: dict[str, HostResult] = {}
-        self._observed_models: list[str] = []
+        # Runtime observations are kept per bound account fingerprint.
+        self._observed_models: dict[str, list[str]] = {}
         self._audit: deque = deque(maxlen=256)
 
     def __repr__(self) -> str:
@@ -273,6 +283,11 @@ class ClaudeHostBridge:
                 return HostStatus.unobserved(HostState.UNSUPPORTED, source, ("AUTH_STATUS_UNSUPPORTED",), version)
             return HostStatus.unobserved(HostState.PRESENT, source, ("AUTH_STATUS_UNRECOGNIZED",), version)
         state, method, account, reasons = parsed
+        if result.exit_code != 0 and state not in (AuthState.UNAUTHENTICATED, AuthState.EXPIRED):
+            # A failing status command is never trusted to prove a usable login.
+            # Signed-out/expired output remains usable: it can only block execution.
+            del account
+            return HostStatus.unobserved(HostState.PRESENT, source, ("AUTH_STATUS_UNRECOGNIZED",), version)
         fingerprint = None if account is None else account_fingerprint(account)
         del account
         return HostStatus(HostState.PRESENT, state, method, fingerprint, version, source, reasons)
@@ -318,6 +333,9 @@ class ClaudeHostBridge:
                         handle.reconnect_required = False
                     return "matched"
                 handle.reconnect_required = True
+                # Another account was observed after the launched login: that
+                # login can no longer prove a revalidation of this binding.
+                handle.login_pending = False
                 return "mismatched"
             if status.auth_state in (AuthState.UNAUTHENTICATED, AuthState.EXPIRED):
                 handle.reconnect_required = True
@@ -378,6 +396,8 @@ class ClaudeHostBridge:
 
         ``expected_account_fingerprint`` is the selected account binding. The
         host must report exactly that account, or ``ACCOUNT_CHANGED`` is raised.
+        Without it, whichever account the host reports is bound and the
+        capability carries ``SELECTED_ACCOUNT_UNVERIFIED``.
         """
         if type(connection_id) is not str or _ID.fullmatch(connection_id) is None:
             raise ValueError("INVALID_CONNECTION_ID")
@@ -386,13 +406,14 @@ class ClaudeHostBridge:
             or _FINGERPRINT.fullmatch(expected_account_fingerprint) is None
         ):
             raise ValueError("INVALID_ACCOUNT_FINGERPRINT")
+        verified = expected_account_fingerprint is not None
         try:
             with self._lock:
                 if any(handle.connection_id == connection_id for handle in self._handles.values()):
                     raise _failure(FaultKind.INVALID_CONTRACT, native="connection_exists")
             status = self.probe()
             fingerprint = self._require_authenticated(status)
-            if expected_account_fingerprint is not None and fingerprint != expected_account_fingerprint:
+            if verified and fingerprint != expected_account_fingerprint:
                 raise _failure(FaultKind.ACCOUNT_CHANGED, native="selected_account_mismatch")
             reference = f"host-session://{HANDLE_NAMESPACE}/{secrets.token_hex(16)}"
             binding = ConnectionBinding(PROVIDER, RUNTIME, connection_id, 1, AuthKind.NATIVE_SUBSCRIPTION,
@@ -400,11 +421,11 @@ class ClaudeHostBridge:
             with self._lock:
                 if any(handle.connection_id == connection_id for handle in self._handles.values()):
                     raise _failure(FaultKind.INVALID_CONTRACT, native="connection_exists")
-                self._handles[reference] = _Handle(connection_id, 1, fingerprint)
+                self._handles[reference] = _Handle(connection_id, 1, fingerprint, selection_verified=verified)
         except AdapterFailure as error:
             self._record("connect", None, fault=error.fault, extra={"connection_id": connection_id})
             raise
-        self._record("connect", binding)
+        self._record("connect", binding, extra={"account_selection": "verified" if verified else "unverified"})
         return binding
 
     def reconnect(self, binding: ConnectionBinding) -> ConnectionBinding:
@@ -422,6 +443,10 @@ class ClaudeHostBridge:
             with self._lock:
                 if self._handles.get(binding.credential_ref) is not handle or handle.revision != binding.revision:
                     raise _failure(FaultKind.STALE_CONNECTION)
+                if handle.closing:
+                    raise _failure(FaultKind.STALE_CONNECTION, native="release_in_progress")
+                if handle.in_flight:
+                    raise _failure(FaultKind.STALE_CONNECTION, native="job_in_flight")
                 handle.revision = binding.revision + 1
                 handle.reconnect_required = False
                 handle.login_pending = False
@@ -433,16 +458,36 @@ class ClaudeHostBridge:
         return rebound
 
     def release(self, binding: ConnectionBinding, *, host_logout: bool = False) -> AuthObservation:
-        """Forget the AIK handle. Official host logout runs only when requested."""
+        """Forget the AIK handle. Official host logout runs only when requested.
+
+        A handle with a host run in flight cannot be released; a handle whose
+        host logout is in progress refuses new runs.
+        """
         handle = self._check_binding(binding)
         try:
             if type(host_logout) is not bool:
                 raise _failure(FaultKind.INVALID_CONTRACT)
-            if host_logout:
-                self._host_logout()
             with self._lock:
-                if self._handles.get(binding.credential_ref) is handle:
+                if self._handles.get(binding.credential_ref) is not handle or handle.revision != binding.revision:
+                    raise _failure(FaultKind.STALE_CONNECTION)
+                if handle.closing:
+                    raise _failure(FaultKind.STALE_CONNECTION, native="release_in_progress")
+                if handle.in_flight:
+                    raise _failure(FaultKind.STALE_CONNECTION, native="job_in_flight")
+                if host_logout:
+                    handle.closing = True
+                else:
                     del self._handles[binding.credential_ref]
+            if host_logout:
+                try:
+                    self._host_logout()
+                except BaseException:
+                    with self._lock:
+                        handle.closing = False
+                    raise
+                with self._lock:
+                    if self._handles.get(binding.credential_ref) is handle:
+                        del self._handles[binding.credential_ref]
         except AdapterFailure as error:
             self._record("release", binding, fault=error.fault)
             raise
@@ -468,6 +513,7 @@ class ClaudeHostBridge:
             status = self._last_status
         blocked = status is not None and status.host_state in (HostState.ABSENT, HostState.UNSUPPORTED)
         run = Support.UNSUPPORTED if blocked else Support.SUPPORTED
+        # ``isolation`` is reported in its own field; job_start does not fold it in.
         return AdapterCapabilities(
             provider=PROVIDER, runtime=RUNTIME, auth_kind=AuthKind.NATIVE_SUBSCRIPTION,
             isolation=self._isolation, auth_status=Support.SUPPORTED, sign_in=run,
@@ -495,17 +541,21 @@ class ClaudeHostBridge:
                                status.account_fingerprint if state is AuthState.AUTHENTICATED else None, state)
 
     def begin_sign_in(self, binding: ConnectionBinding) -> AuthObservation:
-        """Launch the official login for this binding; completion is observed later."""
+        """Launch the official login for this binding; completion is observed later.
+
+        Observing the bound account does not clear ``reconnect_required``: an
+        external login change still needs ``reconnect()``.
+        """
         handle = self._check_binding(binding)
         try:
             status = self.probe()
             self._require_host(status)
             relation = self._apply(handle, status)
             if relation == "matched":
-                # An explicit sign-in request that observes the bound account is a revalidation.
                 with self._lock:
-                    handle.reconnect_required = False
-                    handle.login_pending = False
+                    stale = handle.reconnect_required
+                if stale:
+                    raise _failure(FaultKind.STALE_CONNECTION, native="reconnect_required")
                 observation = AuthObservation(binding.connection_id, binding.revision,
                                               handle.account_fingerprint, AuthState.AUTHENTICATED)
             else:
@@ -531,6 +581,8 @@ class ClaudeHostBridge:
                 raise _failure(FaultKind.DUPLICATE_REQUEST)
             if len(self._prepared) >= MAX_PREPARED:
                 raise _failure(FaultKind.PROVIDER_FAILURE, native="prepared_capacity")
+            if len(self._prepared) + len(self._consumed) >= MAX_REQUEST_RECORDS:
+                raise _failure(FaultKind.PROVIDER_FAILURE, native="request_record_capacity")
             self._prepared[request_id] = call
 
     def cancel_prepared(self, request_id: str) -> bool:
@@ -554,54 +606,66 @@ class ClaudeHostBridge:
         binding = request.binding
         handle = self._check_binding(binding)
         with self._lock:
+            if self._handles.get(binding.credential_ref) is not handle or handle.revision != binding.revision:
+                raise _failure(FaultKind.STALE_CONNECTION)
+            if handle.closing:
+                raise _failure(FaultKind.STALE_CONNECTION, native="release_in_progress")
             if request.request_id in self._receipts or request.request_id in self._consumed:
                 raise _failure(FaultKind.DUPLICATE_REQUEST)
             call = self._prepared.pop(request.request_id, None)  # never replayed
             if call is not None:
                 self._consumed.add(request.request_id)
+            # release()/reconnect() refuse this handle until the run is recorded.
+            handle.in_flight += 1
         try:
-            if call is None:
-                raise _failure(FaultKind.INVALID_CONTRACT, native="call_not_prepared")
-            if request.model not in self._catalog:
-                raise _failure(FaultKind.INVALID_CONTRACT, native="model_not_configured")
-            if self._isolation is AccountIsolation.UNKNOWN:
-                raise _failure(FaultKind.ACCOUNT_CONFLICT, native="isolation_unknown")
-            # Re-observe immediately before the effect: external login changes are fenced.
-            self._require_bound(handle, self.probe())
-            spec = self._spec("execute", self._exec_timeout, EXEC_OUTPUT_LIMIT, model=request.model,
-                              stdin=call.prompt.encode("utf-8"))
-            del call
-            kind, result = self._run(spec)
-            del spec
-            if kind == "absent":
-                raise _failure(FaultKind.PROVIDER_FAILURE, native="host_absent")
-            if kind == "timeout":
-                raise _failure(FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN, native="timeout")
-            if kind != "ok":
-                raise _failure(FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN, native="malformed_output")
-            output = parse_job(result)
-            if output is None:
-                raise _failure(FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN, native="malformed_output")
-        except AdapterFailure as error:
-            self._record("start_job", binding, request_id=request.request_id, fault=error.fault)
-            raise
-        state = JobState.SUCCEEDED if output.succeeded else JobState.FAILED
-        if state is not JobState.SUCCEEDED:
-            # A failed run may be caused by expiry or an account change; re-observe.
-            self._apply(handle, self.probe())
-        receipt = JobReceipt(request.request_id, output.session_id, binding.connection_id,
-                             binding.revision, binding.account_fingerprint, state)
-        result_record = HostResult(request.request_id, output.session_id, output.model, state,
-                                   output.text, self._runner.source)
-        with self._lock:
-            self._receipts[request.request_id] = receipt
-            self._results[request.request_id] = result_record
-            if output.model is not None and output.model not in self._observed_models:
-                self._observed_models.append(output.model)
-        self._record("start_job", binding, request_id=request.request_id, extra={
-            "provider_job_id": output.session_id, "model": output.model, "job_state": state.value,
-        })
-        return receipt
+            try:
+                if call is None:
+                    raise _failure(FaultKind.INVALID_CONTRACT, native="call_not_prepared")
+                if request.model not in self._catalog:
+                    raise _failure(FaultKind.INVALID_CONTRACT, native="model_not_configured")
+                if self._isolation is AccountIsolation.UNKNOWN:
+                    raise _failure(FaultKind.ACCOUNT_CONFLICT, native="isolation_unknown")
+                # Re-observe immediately before the effect: external login changes are fenced.
+                self._require_bound(handle, self.probe())
+                spec = self._spec("execute", self._exec_timeout, EXEC_OUTPUT_LIMIT, model=request.model,
+                                  stdin=call.prompt.encode("utf-8"))
+                del call
+                kind, result = self._run(spec)
+                del spec
+                if kind == "absent":
+                    raise _failure(FaultKind.PROVIDER_FAILURE, native="host_absent")
+                if kind == "timeout":
+                    raise _failure(FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN, native="timeout")
+                if kind != "ok":
+                    raise _failure(FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN, native="malformed_output")
+                output = parse_job(result)
+                if output is None:
+                    raise _failure(FaultKind.UNKNOWN_OUTCOME, Outcome.UNKNOWN, native="malformed_output")
+            except AdapterFailure as error:
+                self._record("start_job", binding, request_id=request.request_id, fault=error.fault)
+                raise
+            state = JobState.SUCCEEDED if output.succeeded else JobState.FAILED
+            if state is not JobState.SUCCEEDED:
+                # A failed run may be caused by expiry or an account change; re-observe.
+                self._apply(handle, self.probe())
+            receipt = JobReceipt(request.request_id, output.session_id, binding.connection_id,
+                                 binding.revision, binding.account_fingerprint, state)
+            result_record = HostResult(request.request_id, output.session_id, output.model, state,
+                                       output.text, self._runner.source)
+            with self._lock:
+                self._receipts[request.request_id] = receipt
+                self._results[request.request_id] = result_record
+                if output.model is not None:
+                    observed = self._observed_models.setdefault(binding.account_fingerprint, [])
+                    if output.model not in observed:
+                        observed.append(output.model)
+            self._record("start_job", binding, request_id=request.request_id, extra={
+                "provider_job_id": output.session_id, "model": output.model, "job_state": state.value,
+            })
+            return receipt
+        finally:
+            with self._lock:
+                handle.in_flight -= 1
 
     def observe_job(self, request: JobRequest, receipt: JobReceipt) -> JobReceipt:
         """Host runs are synchronous and terminal at start; return the local record."""
@@ -646,7 +710,10 @@ class ClaudeHostBridge:
         with self._lock:
             reconnect = handle.reconnect_required
             pending = handle.login_pending
-            observed = tuple(self._observed_models)
+            verified = handle.selection_verified
+            observed = tuple(self._observed_models.get(handle.account_fingerprint, ()))
+        if not verified:
+            reasons.append("SELECTED_ACCOUNT_UNVERIFIED")
         if reconnect:
             reasons.append("RECONNECT_REQUIRED")
         if pending:

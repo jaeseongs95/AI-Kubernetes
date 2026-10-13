@@ -4,7 +4,8 @@ Tests inject a synthetic runner. ``SubprocessRunner`` is the standard-library
 live runner. Its real use against the Claude Code host is NOT_RUN.
 
 Every command carries the following:
-- an absolute timeout
+- an absolute timeout (``run`` waits for it; ``launch`` kills the direct
+  child process when it expires)
 - a stdout size limit
 - an explicit environment
 
@@ -22,6 +23,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 from typing import Protocol, runtime_checkable
 
 SOURCES = ("synthetic_fixture", "live")
@@ -142,12 +144,24 @@ def _bounded(stream, limit: int) -> tuple[bytes, bool]:
     return data[:limit], len(data) > limit
 
 
+def _terminate_after_deadline(process) -> None:
+    """Kill a launched process that outlived its absolute deadline."""
+    try:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 class SubprocessRunner:
     """Live runner (standard library). Real Claude Code use is NOT_RUN.
 
     ``run`` spools output to private temporary files and reads at most the
     limit back. On timeout, ``subprocess.run`` kills the direct child process.
-    Grandchildren of a host CLI are not guaranteed to be terminated.
+    ``launch`` arms a daemon timer that kills the direct child when
+    ``spec.timeout`` expires. Grandchildren of a host CLI are not guaranteed
+    to be terminated in either case.
     """
 
     source = "live"
@@ -188,7 +202,10 @@ class SubprocessRunner:
         return CommandResult(completed.returncode, stdout, stderr, truncated)
 
     def launch(self, spec: CommandSpec) -> None:
-        """Start the official interactive login without capturing its I/O."""
+        """Start the official interactive login without capturing its I/O.
+
+        The direct child is killed when ``spec.timeout`` expires.
+        """
         if type(spec) is not CommandSpec:
             raise TypeError("CommandSpec required")
         argv, env = self._resolve(spec)
@@ -197,6 +214,9 @@ class SubprocessRunner:
             process = subprocess.Popen(argv, env=env, shell=False, close_fds=True, creationflags=flags)
         except OSError:
             raise RunnerNotStarted() from None
+        timer = threading.Timer(spec.timeout, _terminate_after_deadline, (process,))
+        timer.daemon = True
+        timer.start()
         self._launched = [p for p in self._launched if p.poll() is None][-15:] + [process]
 
 

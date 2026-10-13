@@ -1,17 +1,23 @@
 """AIK-015 host protocol fixtures for the Claude Code subscription bridge.
 
-Every host response is synthetic. No real CLI, process, provider, credential
-or network is used. A fixture pass is not a live host round trip (NOT_RUN).
-Linux execution of this suite is development verification, not Windows
-support.
+Every host response is synthetic. No real CLI, provider, credential or
+network is used. One test launches a local Python child process (not the
+host) only to check the live runner's launch deadline. A fixture pass is not
+a live host round trip (NOT_RUN). Linux execution of this suite is
+development verification, not Windows support.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
+import threading
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -25,6 +31,7 @@ from aik_host_claude import (  # noqa: E402
     HostCall, HostCommands, HostState, RunnerNotStarted, RunnerTimeout, SubprocessRunner,
     account_fingerprint, build_environment,
 )
+import aik_host_claude.bridge as bridge_module  # noqa: E402
 
 SECRET_MARKER = "SYNTHETIC_SECRET_MUST_NOT_LEAK_0001"
 MODEL = "synthetic-model"
@@ -106,6 +113,22 @@ class FakeRunner:
 
     def specs(self, key):
         return [spec for spec in self.calls if self.key(spec.argv) == key]
+
+
+class BlockingRunner(FakeRunner):
+    """Synthetic fixture whose host run blocks until the test releases it."""
+
+    def __init__(self):
+        super().__init__()
+        self.execute_started = threading.Event()
+        self.execute_release = threading.Event()
+
+    def run(self, spec):
+        if self.key(spec.argv) == "execute":
+            self.execute_started.set()
+            if not self.execute_release.wait(10):
+                raise RunnerTimeout()
+        return super().run(spec)
 
 
 def allow(_request):
@@ -499,6 +522,238 @@ class ClaudeHostBridgeTests(unittest.TestCase):
                 runner.launch(spec)
         with self.assertRaises(TypeError):
             SubprocessRunner().run(("claude",))
+
+    # -- review regressions (F1, F2, F3, F4, F5, F6, F7, F9, F10) -----------------
+
+    def test_f1_begin_sign_in_does_not_clear_reconnect_after_external_account_round_trip(self) -> None:
+        runner, bridge, binding = self.connected()
+        runner.set("status", status(account=ACCOUNT_B))
+        bridge.auth_status(binding)  # observes the external switch to another account
+        runner.set("status", status(account=ACCOUNT_A))
+        self.assert_fault(FaultKind.STALE_CONNECTION, bridge.begin_sign_in, binding,
+                          native="reconnect_required")
+        self.assertEqual(runner.launches, [])
+        self.assertTrue(bridge.capability(binding).reconnect_required)
+        bridge.prepare("request-1", HostCall(PROMPT))
+        self.assert_fault(FaultKind.STALE_CONNECTION, bridge.start_job,
+                          JobRequest(binding, "request-1", "route-1", "vm-attempt-1", MODEL),
+                          native="reconnect_required")
+        self.assertEqual(runner.count("execute"), 0)
+        self.assertEqual(bridge.reconnect(binding).revision, 2)
+
+    def test_f1_pending_login_is_cancelled_when_another_account_is_observed(self) -> None:
+        runner, bridge, binding = self.connected()
+        runner.set("status", status(logged_in=False))
+        self.assertIs(bridge.begin_sign_in(binding).state, AuthState.PENDING)
+        self.assertEqual(len(runner.launches), 1)
+        runner.set("status", status(account=ACCOUNT_B))
+        bridge.auth_status(binding)
+        runner.set("status", status(account=ACCOUNT_A))
+        self.assert_fault(FaultKind.STALE_CONNECTION, bridge.auth_status, binding, native="reconnect_required")
+        cap = bridge.capability(binding)
+        self.assertTrue(cap.reconnect_required)
+        self.assertNotIn("LOGIN_PENDING", cap.reasons)
+
+    def test_f2_bridge_login_launch_carries_the_login_deadline(self) -> None:
+        runner, bridge = self.make()
+        runner.set("status", status(logged_in=False))
+        bridge.start_login()
+        self.assertEqual(runner.launches[0].timeout, bridge_module.LOGIN_TIMEOUT)
+
+    def test_f2_live_runner_kills_a_launched_process_after_its_deadline(self) -> None:
+        # A local Python child stands in for the login window; it is not the host.
+        runner = SubprocessRunner()
+        spec = CommandSpec((sys.executable, "-c", "import time; time.sleep(30)"), 0.3, 16,
+                           build_environment(os.environ))
+        runner.launch(spec)
+        process = runner._launched[-1]
+
+        def cleanup():
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+        self.addCleanup(cleanup)
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            self.fail("The launched process outlived its absolute deadline.")
+
+    def test_f3_failing_status_command_or_contradictory_status_is_never_authenticated(self) -> None:
+        cases = (
+            ("nonzero-exit-claims-login", status(exit_code=1), "AUTH_STATUS_UNRECOGNIZED"),
+            ("logged-in-and-expired", status(expired=True), "AUTH_STATUS_CONTRADICTORY"),
+        )
+        for name, outcome, reason in cases:
+            with self.subTest(case=name):
+                runner, bridge = self.make()
+                runner.set("status", outcome)
+                observed = bridge.probe()
+                self.assertIs(observed.host_state, HostState.PRESENT)
+                self.assertIs(observed.auth_state, AuthState.UNKNOWN)
+                self.assertIsNone(observed.account_fingerprint)
+                self.assertIn(reason, observed.reasons)
+                self.assert_fault(FaultKind.AUTH_REQUIRED, bridge.connect, "connection-1",
+                                  native="account_not_observed")
+        runner, bridge = self.make()
+        runner.set("status", status(logged_in=False, exit_code=1))
+        observed = bridge.probe()
+        self.assertIs(observed.auth_state, AuthState.UNAUTHENTICATED)
+        self.assertIn("AUTH_REQUIRED", observed.reasons)
+
+    def test_f4_no_error_without_success_subtype_is_unknown_outcome(self) -> None:
+        for subtype in (None, "synthetic-unrecognized-subtype"):
+            with self.subTest(subtype=subtype):
+                runner, bridge, binding = self.connected()
+                runner.set("execute", job(subtype=subtype))
+                bridge.prepare("request-1", HostCall(PROMPT))
+                self.assert_fault(FaultKind.UNKNOWN_OUTCOME, bridge.start_job,
+                                  JobRequest(binding, "request-1", "route-1", "vm-attempt-1", MODEL),
+                                  native="malformed_output", outcome=Outcome.UNKNOWN)
+                self.assert_fault(FaultKind.INVALID_CONTRACT, bridge.result, "request-1")
+
+    def test_f5_release_and_reconnect_are_refused_while_a_job_is_in_flight(self) -> None:
+        runner = BlockingRunner()
+        bridge = ClaudeHostBridge(runner, catalog=(MODEL,),
+                                  environ={"PATH": "/synthetic/bin", "HOME": "/synthetic/home"})
+        binding = bridge.connect("connection-1")
+        bridge.prepare("request-1", HostCall(PROMPT))
+        request = JobRequest(binding, "request-1", "route-1", "vm-attempt-1", MODEL)
+        outcome: dict = {}
+
+        def worker():
+            try:
+                outcome["receipt"] = bridge.start_job(request)
+            except BaseException as error:  # recorded for the assertion below
+                outcome["error"] = error
+
+        thread = threading.Thread(target=worker, daemon=True)
+        self.addCleanup(runner.execute_release.set)
+        thread.start()
+        self.assertTrue(runner.execute_started.wait(10))
+        try:
+            self.assert_fault(FaultKind.STALE_CONNECTION, bridge.release, binding, native="job_in_flight")
+            self.assert_fault(FaultKind.STALE_CONNECTION, bridge.reconnect, binding, native="job_in_flight")
+        finally:
+            runner.execute_release.set()
+            thread.join(10)
+        self.assertNotIn("error", outcome)
+        receipt = outcome["receipt"]
+        self.assertIs(receipt.state, JobState.SUCCEEDED)
+        self.assertEqual(receipt.revision, 1)
+        self.assertEqual(bridge.observe_job(request, receipt), receipt)
+        self.assertIs(bridge.release(binding).state, AuthState.UNAUTHENTICATED)
+
+    def test_f6_start_login_launches_only_when_not_signed_in_and_classifies_failures(self) -> None:
+        runner, bridge = self.make()
+        self.assertIs(bridge.start_login().auth_state, AuthState.AUTHENTICATED)
+        self.assertEqual(runner.launches, [])
+        runner.set("status", status(logged_in=False, expired=True))
+        self.assertIs(bridge.start_login().auth_state, AuthState.EXPIRED)
+        self.assertEqual(len(runner.launches), 1)
+        self.assertEqual(runner.launches[0].argv, ("claude", "auth", "login"))
+        self.assertIsNone(runner.launches[0].stdin)
+        runner.launch_error = RuntimeError(SECRET_MARKER)
+        error = self.assert_fault(FaultKind.UNKNOWN_OUTCOME, bridge.start_login,
+                                  native="login_launch_unknown", outcome=Outcome.UNKNOWN)
+        self.assertIsNone(error.__context__)
+        runner.launch_error = RunnerNotStarted()
+        self.assert_fault(FaultKind.UNSUPPORTED, bridge.start_login, native="host_absent")
+        self.assertNotIn(SECRET_MARKER, json.dumps(bridge.audit_log()))
+        for outcome, native in ((RunnerNotStarted, "host_absent"),
+                                (CommandResult(0, b"0.1.0"), "host_unsupported")):
+            with self.subTest(native=native):
+                runner, bridge = self.make()
+                runner.set("version", outcome)
+                self.assert_fault(FaultKind.UNSUPPORTED, bridge.start_login, native=native)
+                self.assertEqual(runner.launches, [])
+
+    def test_f6_host_logout_failure_and_absence_keep_the_handle_usable(self) -> None:
+        cases = ((CommandResult(1, b""), FaultKind.PROVIDER_FAILURE, "logout_failed"),
+                 (RunnerNotStarted, FaultKind.UNSUPPORTED, "host_absent"))
+        for outcome, kind, native in cases:
+            with self.subTest(native=native):
+                runner, bridge, binding = self.connected()
+                runner.set("logout", outcome)
+                self.assert_fault(kind, bridge.release, binding, host_logout=True, native=native)
+                self.assertIs(bridge.auth_status(binding).state, AuthState.AUTHENTICATED)
+                bridge.prepare("request-1", HostCall(PROMPT))
+                receipt = bridge.start_job(JobRequest(binding, "request-1", "route-1", "vm-attempt-1", MODEL))
+                self.assertIs(receipt.state, JobState.SUCCEEDED)
+                self.assertIs(bridge.release(binding).state, AuthState.UNAUTHENTICATED)
+
+    def test_f6_prepared_capacity_cancel_and_result_discard(self) -> None:
+        runner, bridge, binding = self.connected()
+        for number in range(bridge_module.MAX_PREPARED):
+            bridge.prepare(f"request-{number}", HostCall(PROMPT))
+        self.assert_fault(FaultKind.PROVIDER_FAILURE, bridge.prepare, "request-overflow", HostCall(PROMPT),
+                          native="prepared_capacity")
+        self.assertTrue(bridge.cancel_prepared("request-0"))
+        self.assertFalse(bridge.cancel_prepared("request-0"))
+        self.assert_fault(FaultKind.INVALID_CONTRACT, bridge.cancel_prepared, "invalid id!")
+        self.assert_fault(FaultKind.INVALID_CONTRACT, bridge.start_job,
+                          JobRequest(binding, "request-0", "route-1", "vm-attempt-1", MODEL),
+                          native="call_not_prepared")
+        bridge.prepare("request-0", HostCall(PROMPT))
+        receipt = bridge.start_job(JobRequest(binding, "request-1", "route-1", "vm-attempt-1", MODEL))
+        self.assertIs(receipt.state, JobState.SUCCEEDED)
+        self.assertEqual(bridge.result("request-1").provider_job_id, "session-synthetic-1")
+        self.assertTrue(bridge.discard_result("request-1"))
+        self.assert_fault(FaultKind.INVALID_CONTRACT, bridge.result, "request-1")
+        self.assertFalse(bridge.discard_result("request-1"))
+        self.assert_fault(FaultKind.INVALID_CONTRACT, bridge.discard_result, "invalid id!")
+        self.assertEqual(runner.count("execute"), 1)
+
+    def test_f6_reconnect_refuses_the_maximum_revision_without_probing(self) -> None:
+        runner, bridge, binding = self.connected()
+        maximum = 2**63 - 1
+        bridge._handles[binding.credential_ref].revision = maximum
+        maxed = replace(binding, revision=maximum)
+        before = runner.count("status")
+        self.assert_fault(FaultKind.INVALID_CONTRACT, bridge.reconnect, maxed)
+        self.assertEqual(runner.count("status"), before)
+
+    def test_f6_bridge_alone_consumes_the_request_on_pre_execution_rejection(self) -> None:
+        # Without GuardedAdapter, a rejected start still consumes the prepared call.
+        runner, bridge, binding = self.connected()
+        runner.set("status", status(logged_in=False, expired=True))
+        bridge.prepare("request-1", HostCall(PROMPT))
+        request = JobRequest(binding, "request-1", "route-1", "vm-attempt-1", MODEL)
+        self.assert_fault(FaultKind.AUTH_REQUIRED, bridge.start_job, request, native="auth_expired")
+        self.assert_fault(FaultKind.DUPLICATE_REQUEST, bridge.start_job, request)
+        self.assert_fault(FaultKind.DUPLICATE_REQUEST, bridge.prepare, "request-1", HostCall(PROMPT))
+        self.assertEqual(runner.count("execute"), 0)
+
+    def test_f7_unverified_account_selection_is_reported_in_capability(self) -> None:
+        runner, bridge, binding = self.connected()
+        self.assertIn("SELECTED_ACCOUNT_UNVERIFIED", bridge.capability(binding).reasons)
+        runner, bridge = self.make()
+        verified = bridge.connect("connection-1", expected_account_fingerprint=account_fingerprint(ACCOUNT_A))
+        self.assertNotIn("SELECTED_ACCOUNT_UNVERIFIED", bridge.capability(verified).reasons)
+
+    def test_f9_request_records_are_bounded_without_evicting_duplicate_protection(self) -> None:
+        runner, bridge, binding = self.connected()
+        with mock.patch.object(bridge_module, "MAX_REQUEST_RECORDS", 2):
+            bridge.prepare("request-1", HostCall(PROMPT))
+            bridge.start_job(JobRequest(binding, "request-1", "route-1", "vm-attempt-1", MODEL))
+            bridge.prepare("request-2", HostCall(PROMPT))
+            self.assert_fault(FaultKind.PROVIDER_FAILURE, bridge.prepare, "request-3", HostCall(PROMPT),
+                              native="request_record_capacity")
+            self.assertTrue(bridge.discard_result("request-1"))
+            self.assert_fault(FaultKind.DUPLICATE_REQUEST, bridge.prepare, "request-1", HostCall(PROMPT))
+            self.assertTrue(bridge.cancel_prepared("request-2"))
+            bridge.prepare("request-3", HostCall(PROMPT))
+
+    def test_f10_observed_models_are_separated_by_bound_account(self) -> None:
+        runner, bridge = self.make()
+        first = bridge.connect("connection-1")
+        bridge.prepare("request-1", HostCall(PROMPT))
+        bridge.start_job(JobRequest(first, "request-1", "route-1", "vm-attempt-1", MODEL))
+        self.assertEqual(bridge.capability(first).observed_models, (OBSERVED_MODEL,))
+        runner.set("status", status(account=ACCOUNT_B))
+        second = bridge.connect("connection-2")
+        self.assertEqual(bridge.capability(second).observed_models, ())
+        self.assertEqual(bridge.capability(first, refresh=False).observed_models, (OBSERVED_MODEL,))
 
 
 if __name__ == "__main__":
