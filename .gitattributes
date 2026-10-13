@@ -4,5 +4,9 @@
 *.sqlite3 binary
 # This workflow is included in the storage validation source hashes.
 .github/workflows/runtime-storage.yml text eol=lf
+# Keep the fixed AIK-083 acceptance/matrix fixture bytes identical on Windows.
+contracts/upstream/support-matrix.json text eol=lf
+contracts/product-acceptance/** text eol=lf
+.github/workflows/product-acceptance.yml text eol=lf
 # Archived execution evidence is bound by raw-byte hashes. Never normalize it.
 evidence/** -text

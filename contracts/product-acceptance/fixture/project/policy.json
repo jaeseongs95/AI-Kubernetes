@@ -1,0 +1,5 @@
+{
+  "vat_rate_bps": 1000,
+  "rounding": "ROUND_HALF_UP_PER_LINE",
+  "output_file": "settlement.json"
+}
