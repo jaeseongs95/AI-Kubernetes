@@ -1003,3 +1003,59 @@
   - 설치형 VM
   - Windows
   - 실제 외부 서비스
+
+## 보충 근거: M2 결합 시험과 recovery 실제 adapter
+
+PR #15(commit `004ae1f`·`5953027`)는 상태를 바꾸지 않고 아래 태스크에 근거를 보충한다. 근거 ID는 `EV-<태스크>-SUPP-M2INT-20261013`이다.
+
+- 시험: `tests/test_m2_integration.py`(6개 시나리오), `tests/test_recovery_adapter.py`(8개). 세션 Linux 전체 회귀가 통과했고, GitHub Actions Ubuntu·Windows도 통과했다.
+- 상세: [M2 결합 시험](../../../docs/m2-integration.ko.md), [recovery 문서](../../../docs/recovery.ko.md)의 "API 경로 effect port" 절.
+
+| 태스크 | 주제 | 보충 내용 |
+|---|---|---|
+| AIK-039 | ToolEffectAdapter | 보충: aik_recovery.ToolEffectAdapter가 RecoveryReconciler의 effect port(inflight·mark_unknown·resend_result)를 실제 aik_dispatch.DispatchJournal tool event 위에 구현했다(commit 5953027, tests/test_recovery_adapter.py 8개, M2 결합 시험 시나리오 4). 기존 근거의 'fake port 시험뿐'을 API 경로에 한해 정정한다. hosted runtime 경로(AikEffectJournal) adapter와 실제 ApiAgentLoop.resume 재전송 결합은 NOT_RUN. 상태 변경 없음. |
+| AIK-035 | open_tool_requests | 보충: DispatchJournal.open_tool_requests() 읽기 전용 조회 추가(commit 5953027). API 경로 등록은 dispatch 이벤트가 없어 recovery가 이 조회로 미반환 tool call을 찾는다. M2 결합 시험에서 실제 NativeDispatcher+GuardedAdapter의 known/unknown 분류, 재시작 뒤 recover()·중복 dispatch 무호출을 확인했다. 상태 변경 없음. |
+| AIK-033 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-034 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-036 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-037 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-041 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-042 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-043 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+
+## 보충 근거: AGS PEER bridge
+
+`src/aik_ags_peer`는 상태를 바꾸지 않고 아래 태스크에 근거를 보충한다. 근거 ID는 `EV-<태스크>-SUPP-AGSPEER-20261013`이다.
+
+- 시험: `tests/test_ags_peer.py`(17개). 실제 AGS 2.9.0(`56fef8bd`) CLI 계약 시험을 포함하며, 세션 Linux에서 통과했다. CI에는 AGS checkout이 없어 실제 CLI 시험은 skip된다.
+- 상세: [AGS PEER bridge 문서](../../../docs/ags-peer.ko.md).
+
+| 태스크 | 주제 | 보충 내용 |
+|---|---|---|
+| AIK-043 | AGS PEER bridge | 보충: src/aik_ags_peer(AGS 2.9.0 세션 메시징 공개 CLI 계약 adapter)가 AIK worker 주소(aik-worker:<id>)와 AGS {host, sessionId}를 append-only AddressBook으로 연결하고 delivered/claimed/acked/result 단계를 from_peer_message 입력으로 내보낸다. tests/test_ags_peer.py 17개 PASS이며, 그중 실제 AGS 2.9.0(56fef8bd) CLI·node v24로 task→claim·ack→result 왕복과 실제 ReadModel peer_view를 확인했다. result는 AGS 유형이 아니라 AIK 규약 aik.peer.v1이다. 실제 worker 호스트 세션·Windows·OS principal 확인은 NOT_RUN. 상태 변경 없음. |
+| AIK-025 | AGS PEER bridge | 보충: src/aik_ags_peer가 AGS 세션 메시징으로 총괄↔worker 메시지를 보내고 result를 claim한다(전달 불명은 send_unknown, 자동 재전송 없음, ACK는 완료 아님). 실제 AGS 2.9.0 CLI 계약 시험 PASS. aik_inbox 큐·wake와의 연결은 아직 없어 NOT_RUN. 상태 변경 없음. |
+
+## AIK-086
+
+- 구현: src/aik_governance_env가 VM(vibemarshal 32bb0f9) governance gate 입력 세 가지를 VM 계약 형식대로 만들고 검사한다. (1) model class 대응표(flowmarshal-governance-model-classes-v1)는 capability inventory의 관측 모델 이름만 허용해 생성·검사한다. (2) A2 profile 설정(flowmarshal-governance-a2-profile-v1)은 key/pin/state 위치로 resourceBindingDigest·pinSetDigest·freezeIdentity를 AGS canonicalJson과 같은 방식으로 계산해 조립하고, VM과 같은 코드로 검사한다. 개인키는 생성·저장·반환하지 않는다. (3) plugin root host-integration.json 구조와 closure_tree_digest는 VM preflight 공식과 같게 계산한다. 셋이 모두 READY일 때만 FLOWMARSHAL_GOVERNANCE_* 환경을 내준다.
+- 검증: tests/test_governance_env.py 26개 PASS. 그중 실제 VM 계약 시험 3개가 있다: AIK가 조립한 A2 설정을 VM _load_a2_producer가 실제 Ed25519 임시 키쌍으로 수용하고 freezeIdentity 변조는 VM·AIK가 같은 코드로 거절함, AIK model 표를 VM load_model_classes가 같은 digest로 수용함, closure_tree_digest가 VM preflight 공식(sha256_bytes·_sha256_file)과 같음. 세션 Linux에서 VM 소스와 cryptography로 실행했으며 CI modules job에는 VM이 없어 skip(NOT_RUN)된다.
+- 커밋: `PR #16 aik_governance_env`
+- 시험: `tests/test_governance_env.py` (26개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | AIK가 VM gate에 공급할 governance 입력을 VM 계약대로 만들고 VM 수용을 실측했다. 고정 test-only route의 실제 governed 실행, 사용자 인가·budget/lease·AGS A2 서버 연결은 NOT_RUN이다. |
+| 2 | 이 환경 검증 불가 | 필수 runtime·역할의 실제 model/effort·connection·provider job 대조에는 설치형 AGS·VM과 실계정이 필요하다. |
+| 3 | 부분 | 도구 intent/receipt/결과 반환 경계의 재시작 판단은 aik_recovery.ToolEffectAdapter와 M2 결합 시험으로 저장소 안에서 검증했다. 실제 설치본에서의 crash 실측은 NOT_RUN이다. |
+| 4 | 이 환경 검증 불가 | 역할별 계약 coverage와 대표 합성 목표 044의 구분은 실제 qualification 실행에서 판정한다. |
+
+차단 사유:
+- AIK-022 Windows 멀티벤더 인증 qualification 미완료
+- AIK-081 AGS A2 plugin 미확보(host-integration.json·A2는 AGS 3.x 미병합)
+- 실제 governed 실행·실계정 미실행
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 AGS A2 서버·적합성 16검사
+- steward 실행
+- 설치형 route·역할·도구 실측
+- Windows 실행
