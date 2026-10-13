@@ -1376,6 +1376,7 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 **기록된 증거**
 
 - `EV-AIK-033-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-033` · 부분 구현: commit 8f4b942, tests/test_placement.py 15개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 4(부분); 차단: 선행 AIK-019·020·023·031·032·040 미완료; AGS 역할 계약의 host·전문역량·데이터 범위 입력 부재; 실제 qualified route 없음(AIK-086 미실행); A2 gate 미연결(AIK-032). 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T14:31:27Z`
+- `EV-AIK-033-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-034
 
@@ -1409,6 +1410,7 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 **기록된 증거**
 
 - `EV-AIK-034-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-034` · 부분 구현: commit 8f4b942, tests/test_lease.py 16개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분); 차단: 선행 AIK-005·033·040 미완료; 실제 provider job 시작·관측 연결 없음(dispatch 의도 순서는 호출자 책임); 다중 프로세스·Windows 잠금 경합 미검증. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T14:31:27Z`
+- `EV-AIK-034-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-035
 
@@ -1444,6 +1446,7 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 **기록된 증거**
 
 - `EV-AIK-035-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-035` · 부분 구현: commit c393880, tests/test_dispatch.py 18개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 3(부분), 4(부분), 5(부분); 차단: 선행 AIK-029·031·032·084·085의 실제 결합과 AIK-018 미완료; 실제 provider adapter·API 모델 호출 코드 없음(fake port); native 경로의 VM runtime·hosted runtime 결합과 권한/same-user 관측 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:13:34Z`
+- `EV-AIK-035-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: DispatchJournal.open_tool_requests() 읽기 전용 조회 추가(commit 5953027). API 경로 등록은 dispatch 이벤트가 없어 recovery가 이 조회로 미반환 tool call을 찾는다. M2 결합 시험에서 실제 NativeDispatcher+GuardedAdapter의 known/unknown 분류, 재시작 뒤 recover()·중복 dispatch 무호출을 확인했다. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-036
 
@@ -1477,6 +1480,7 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 **기록된 증거**
 
 - `EV-AIK-036-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-036` · 부분 구현: commit 74adac1, tests/test_observer.py 14개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 없음(단위 범위); 차단: 선행 AIK-035·082 미완료; 실제 provider stream·receipt adapter(OpenAI·Anthropic·native host) 연결 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T14:36:19Z`
+- `EV-AIK-036-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-037
 
@@ -1511,6 +1515,7 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 **기록된 증거**
 
 - `EV-AIK-037-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-037` · 부분 구현: commit 74adac1, tests/test_evidence.py 10개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 3(부분), 4(부분); 차단: 선행 AIK-017·036·084 미완료; GUI 열기·저장 연결 없음; 보관 범위·기간 정책 미정; 후속 Task 입력 binding 미연결. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T14:36:19Z`
+- `EV-AIK-037-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-038
 
@@ -1579,6 +1584,7 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 **기록된 증거**
 
 - `EV-AIK-039-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-039` · 부분 구현: commit 080d185, tests/test_recovery.py 11개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 4(부분); 차단: 선행 AIK-035 dispatch 미완료(골격만); VM attempt_state·effect port의 실제 adapter 없음; 실제 provider 재관측 미실행. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:13:34Z`
+- `EV-AIK-039-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: aik_recovery.ToolEffectAdapter가 RecoveryReconciler의 effect port(inflight·mark_unknown·resend_result)를 실제 aik_dispatch.DispatchJournal tool event 위에 구현했다(commit 5953027, tests/test_recovery_adapter.py 8개, M2 결합 시험 시나리오 4). 기존 근거의 'fake port 시험뿐'을 API 경로에 한해 정정한다. hosted runtime 경로(AikEffectJournal) adapter와 실제 ApiAgentLoop.resume 재전송 결합은 NOT_RUN. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-086
 
@@ -1646,6 +1652,7 @@ ready 작업과 검증된 용량에 맞춰 worker 수를 늘리고 유휴 사용
 **기록된 증거**
 
 - `EV-AIK-041-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-041` · 부분 구현: commit 4f85cf0, tests/test_elastic.py 7개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분); 차단: 실제 provider·worker 프로세스로 복수 worker 동시 실행 미검증; planner와 reserve 사이 pause·경합 시 해당 Attempt는 VM이 새 Attempt를 줄 때까지 재배치 불가; 선행 AIK-003 Windows 실기 검증 미완료. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:34:20Z`
+- `EV-AIK-041-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-042
 
@@ -1680,6 +1687,7 @@ ready 작업과 검증된 용량에 맞춰 worker 수를 늘리고 유휴 사용
 **기록된 증거**
 
 - `EV-AIK-042-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-042` · 부분 구현: commit dd7899e/739deb9, tests/test_validation.py 9개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 4(부분); 차단: 실제 VM Goal Test·재작업 루프와의 결합 미검증; AIK-081 A2 호환 AGS plugin 미확보로 AGS 독립검토 실행 불가; 선행 AIK-031 hosted 경로의 실제 governed 실행 미검증. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:34:20Z`
+- `EV-AIK-042-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-043
 
@@ -1713,6 +1721,7 @@ GUI가 상태를 통합해서 읽도록 각 권위 원장을 ID·revision·curso
 **기록된 증거**
 
 - `EV-AIK-043-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-043` · 부분 구현: commit dd7899e/739deb9, tests/test_readmodel.py 10개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 3(부분); 차단: 실제 VM History·AGS PEER 수집기 없음; VM history_cursor처럼 receipt 사이에 cursor가 비는 source는 영구 gap(stale)으로 남음; AIK-081 A2 호환 AGS plugin 미확보. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:34:20Z`
+- `EV-AIK-043-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. · `2026-10-13T16:31:55Z`
 
 ### AIK-044
 

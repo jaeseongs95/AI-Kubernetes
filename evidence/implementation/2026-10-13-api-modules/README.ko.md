@@ -1003,3 +1003,22 @@
   - 설치형 VM
   - Windows
   - 실제 외부 서비스
+
+## 보충 근거: M2 결합 시험과 recovery 실제 adapter
+
+PR #15(commit `004ae1f`·`5953027`)는 상태를 바꾸지 않고 아래 태스크에 근거를 보충한다. 근거 ID는 `EV-<태스크>-SUPP-M2INT-20261013`이다.
+
+- 시험: `tests/test_m2_integration.py`(6개 시나리오), `tests/test_recovery_adapter.py`(8개). 세션 Linux 전체 회귀가 통과했고, GitHub Actions Ubuntu·Windows도 통과했다.
+- 상세: [M2 결합 시험](../../../docs/m2-integration.ko.md), [recovery 문서](../../../docs/recovery.ko.md)의 "API 경로 effect port" 절.
+
+| 태스크 | 주제 | 보충 내용 |
+|---|---|---|
+| AIK-039 | ToolEffectAdapter | 보충: aik_recovery.ToolEffectAdapter가 RecoveryReconciler의 effect port(inflight·mark_unknown·resend_result)를 실제 aik_dispatch.DispatchJournal tool event 위에 구현했다(commit 5953027, tests/test_recovery_adapter.py 8개, M2 결합 시험 시나리오 4). 기존 근거의 'fake port 시험뿐'을 API 경로에 한해 정정한다. hosted runtime 경로(AikEffectJournal) adapter와 실제 ApiAgentLoop.resume 재전송 결합은 NOT_RUN. 상태 변경 없음. |
+| AIK-035 | open_tool_requests | 보충: DispatchJournal.open_tool_requests() 읽기 전용 조회 추가(commit 5953027). API 경로 등록은 dispatch 이벤트가 없어 recovery가 이 조회로 미반환 tool call을 찾는다. M2 결합 시험에서 실제 NativeDispatcher+GuardedAdapter의 known/unknown 분류, 재시작 뒤 recover()·중복 dispatch 무호출을 확인했다. 상태 변경 없음. |
+| AIK-033 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-034 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-036 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-037 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-041 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-042 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
+| AIK-043 | M2 결합 시험 | 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. |
