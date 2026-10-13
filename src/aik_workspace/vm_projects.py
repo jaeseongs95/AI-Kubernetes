@@ -3,14 +3,18 @@
 The declared EngineApplication surface has ``status(project_id)`` but no
 project creation command. Lookup therefore goes through ``VmBridge.status``;
 creation requires an explicitly injected seam and otherwise fails closed.
-A status response must report the ProjectMap root (``project_root``) and, if
-it names a project, the requested one; otherwise the state is unconfirmed.
+
+The upstream (32bb0f9) status reports the project as ``status["project"]``
+with ``id`` and ``root``. ``aik_vm_bridge.EngineApplicationPort`` lifts these
+to ``project_id``/``project_root``. This port reads either form; when both are
+present they must agree. A missing root or a different project is
+unconfirmed, never executable.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Protocol
+from typing import Any, Callable, Mapping, Protocol
 import uuid
 
 from aik_runtime.errors import InvalidRecord
@@ -20,7 +24,9 @@ from aik_vm_bridge import BridgeCode, ProjectQuery, VmBridge, VmBridgeError
 from .errors import VmProjectUnavailable
 
 
-# Assumed VM codes for an absent project; not verified against an installed VM.
+# Codes for an absent project. Upstream raises EngineLedgerError without a code;
+# EngineApplicationPort classifies only the exact observed "project not found"
+# message as PROJECT_NOT_FOUND. The other codes remain for other adapters.
 NOT_FOUND_CODES = frozenset({"PROJECT_NOT_FOUND", "NOT_FOUND", "UNKNOWN_PROJECT"})
 
 
@@ -44,6 +50,14 @@ class ProjectInfo:
 class VmProjectPort(Protocol):
     def create_project(self, workspace_id: str, canonical_root: str, name: str) -> str: ...
     def lookup_project(self, project_id: str) -> ProjectInfo | None: ...
+
+
+def _merge(top: Any, nested: Any) -> Any:
+    if top is None:
+        return nested
+    if nested is not None and nested != top:
+        raise VmProjectUnavailable("The VM project response is inconsistent.")
+    return top
 
 
 class BridgeProjectPort:
@@ -71,6 +85,10 @@ class BridgeProjectPort:
             payload = receipt.payload
             reported_id = payload.get("project_id")
             root = payload.get("project_root")
+            project = payload.get("project")
+            if isinstance(project, Mapping):
+                reported_id = _merge(reported_id, project.get("id"))
+                root = _merge(root, project.get("root"))
         except (AttributeError, TypeError):
             raise VmProjectUnavailable("The VM project response is malformed.") from None
         if reported_id is not None and reported_id != project_id:

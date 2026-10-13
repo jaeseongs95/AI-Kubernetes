@@ -1,15 +1,30 @@
 # AIK-031 — VM EngineApplication command/query bridge (부분 구현)
 
-`src/aik_vm_bridge/`는 GUI·총괄이 VM의 공개 façade(`EngineApplication`)에 Goal 준비·수정·인가·실행·관측·일시정지·취소·상태·재계획·최종 보고를 요청할 때 쓰는 AIK 쪽 typed bridge다. Python 표준 라이브러리와 저장소의 `aik_runtime`(식별자 규칙·Pool/Placement/Lease 모델), `aik_provider.contracts`(인증 종류)만 사용한다.
+`src/aik_vm_bridge/`는 GUI와 총괄이 VM의 공개 façade(`EngineApplication`)를 호출할 때 쓰는 AIK 쪽 typed bridge다. 호출 대상은 Goal 준비·수정·인가·실행·관측·일시정지·취소·상태·재계획·최종 보고다. 의존성은 Python 표준 라이브러리, 저장소의 `aik_runtime`(식별자 규칙·Pool/Placement/Lease 모델), `aik_provider.contracts`(인증 종류)뿐이다.
 
-**현재 상태: 구현·fake port 단위시험까지.** 실제 VM 설치물 호출, Windows 실행, provider 연동은 모두 **NOT_RUN**이다. 이 문서와 테스트 통과를 qualified·완료 판정으로 해석하지 않는다. 장부 상태는 변경하지 않는다.
+**현재 상태: 구현, fake port 단위시험, 실제 upstream 소스(고정 revision `32bb0f9`) 대조 어댑터까지 완료.** 다음 항목은 모두 **NOT_RUN**이다.
+
+- 설치형 VM wheel 호출
+- Windows 실행
+- provider 연동
+- durable binding extension
+
+이 문서와 테스트 통과는 통합 완료나 qualified 판정이 아니다. 장부 상태는 변경하지 않는다.
 
 ## 경계와 소유권
 
-- VM 내부 모듈·SQLite 저장 형식을 import·복제하지 않는다. 사용하는 근거는 `contracts/upstream/vm-public-surface.json`(AIK-001 소스 projection)과 `integration-contract.json`, `task-execution-binding.schema.json`의 선언된 표면뿐이다.
-- 모든 Goal/Plan/Task 변경은 주입된 port의 공개 command 호출로만 한다. bridge 소스에는 SQL·DB 연결이 없다(테스트로 확인).
-- VM의 Task/Attempt/verdict를 복제하지 않는다. 응답의 ID(project/goal/goal revision/plan revision/task/attempt/job/authorization), execution spec digest, `history_cursor`는 `VmRefs`에 그대로 복사한다. 응답 전체는 VM 원본과 분리된 snapshot(`BridgeReceipt.payload`)으로 보존한다. 중첩 mapping은 `MappingProxyType`, 중첩 list는 일반 list와 같다고 비교되지만 `append`·항목 대입 등 일반 변경 메서드를 거절하는 읽기 전용 list다. `list.append(x, …)`처럼 기반 타입 메서드를 직접 부르는 우회까지 막지는 않는다. `copy.copy`·pickle 결과는 일반 list다.
-- job의 `terminal` 단계는 provider/job 종료일 뿐 VM 완료 판정이 아니다.
+- **VM 내부 접근:** VM 내부 모듈과 SQLite 저장 형식을 모듈 import 시점에 import하거나 복제하지 않는다. 근거로 쓰는 것은 다음 선언 표면과 공개 façade 호출뿐이다.
+  - `contracts/upstream/vm-public-surface.json`(AIK-001 소스 projection)
+  - `integration-contract.json`
+  - `task-execution-binding.schema.json`
+- **실제 어댑터:** `engine_port.EngineApplicationPort`는 주입된 `EngineApplication` 인스턴스의 공개 메서드만 호출한다. upstream 예외 클래스는 호출이 실패했을 때만 `importlib`로 지연 조회한다.
+- **상태 변경 경로:** 모든 Goal/Plan/Task 변경은 port의 공개 command로만 한다. bridge 소스에는 SQL과 DB 연결이 없다(테스트로 확인).
+- **VM 기록 복제 금지:** VM의 Task/Attempt/verdict를 복제하지 않는다. 응답에서 다음 값만 `VmRefs`에 그대로 복사한다.
+  - ID: project, goal, goal revision, plan revision, task, attempt, job, authorization
+  - execution spec digest
+  - `history_cursor`
+- **응답 snapshot:** 응답 전체는 VM 원본과 분리된 snapshot(`BridgeReceipt.payload`)으로 보존한다. 중첩 mapping은 `MappingProxyType`이다. 중첩 list는 일반 list와 같다고 비교되지만, `append`·항목 대입 같은 일반 변경 메서드는 거절한다.
+- **job 종료의 의미:** job의 `terminal` 단계는 provider/job 종료일 뿐 VM 완료 판정이 아니다.
 
 ## 구성
 
@@ -17,75 +32,145 @@
 |---|---|
 | `surface.py` | 선언 표면 로딩, capability preflight, 버전 handshake |
 | `binding.py` | `TaskExecutionBinding`(schema v1 24개 필드), 정규 digest, AIK Placement/Lease/Pool 대조 |
-| `bridge.py` | typed request/receipt, port Protocol, `VmBridge` |
+| `bridge.py` | typed request/receipt, port Protocol, `VmBridge`, `JOB_STATUS_PHASES` |
+| `engine_port.py` | 실제 upstream `EngineApplication` → `VmApplicationPort` 어댑터(정규화·오류 분류) |
 | `errors.py` | `BridgeCode`, `EffectOutcome`, `VmBridgeError` |
 
-## Port
+## 실제 upstream(32bb0f9) 대조 결과
 
-`VmApplicationPort`는 설치된 `EngineApplication`을 감싸 **평범한 mapping**을 반환하는 adapter의 계약이다. 메서드 이름과 인자는 공개 façade와 같다(`prepare/revise/authorize/run_once/observe/pause/cancel/status/replan/final_report/attempt_detail/model_binding_status`). 추가로 `handshake()`가 설치물의 `surface_revision`, `engine_schema_revision`, 메서드 signature, 선언 extension을 설명해야 한다. 실제 VM에는 `handshake`가 없으므로 adapter가 설치물 introspection으로 만들어야 하며, 그 adapter는 아직 구현·검증되지 않았다(NOT_RUN).
+고정 revision 소스를 PYTHONPATH로 import하고 합성 임시 프로젝트로 관측한 사실을 기존 가정과 비교한 결과다.
 
-`VmBindingExtensionPort`(`bind_execution`, `read_execution_binding`)는 효과 전 binding을 VM 쪽에 내구적으로 결속·조회하는 **upstream extension 가정**이다. 현재 VM 공개 표면에는 없다.
+| 항목 | 기존 가정 | 실제(32bb0f9) | 조치 |
+|---|---|---|---|
+| job 상태 값 | `queued/pending/reserved/prepared`, `started/in_progress`, `succeeded/completed/failed/interrupted/proven_no_effect/expired` 등 | `RuntimeJobStatus`: `scheduled, running, interrupting, provider_terminal, collector_lost, consumed, cancelled` 7개 | **수정**: `JOB_STATUS_PHASES`로 교체. 예전 가정 문자열은 이제 `unknown` |
+| 응답 타입 | 모두 mapping | `status/observe/pause/cancel/replan`은 dict. `run_once`(RunOnceResult), `attempt_detail`(AttemptDetail), `final_report`(FinalReport), `prepare/revise/authorize/model_binding_status`는 pydantic | **수정**: 어댑터가 `model_dump(mode="json")` 뒤 JSON 형태 builtins로 변환 |
+| 프로젝트 root/ID | 최상위 `project_root`/`project_id` | `status()["project"]["root"]`/`["id"]`. 최상위 키 없음 | **수정**: 어댑터가 `project_id`/`project_root`로 승격. `BridgeProjectPort`는 중첩 형식도 읽음(둘 다 있으면 일치 필수) |
+| 없는 project | `PROJECT_NOT_FOUND` 코드 | `EngineLedgerError("프로젝트를 찾을 수 없습니다.")`, 코드 없음 | **수정**: 어댑터가 이 정확한 메시지만 `PROJECT_NOT_FOUND`로 분류. 다른 ledger 오류는 `ENGINE_LEDGER_ERROR`(부재로 간주하지 않음) |
+| 없는 attempt | 미정 | `EngineApplicationError("ATTEMPT_NOT_FOUND")` | 코드 보존(조회: known failure) |
+| runtime 없음 | 미정 | `observe()`/`run_once()`가 `EngineApplicationError("RUNTIME_REQUIRED")` | 코드 보존. 효과성 호출(`run_once`)에서는 효과 전 거절 목록에 없어 outcome `unknown`(보수적) |
+| `history_cursor` | 정수 | `HistoryCursor` mapping(`sequence` 등) | **수정**: 어댑터가 `sequence`로 평탄화. 원본은 `vm_history_cursor`에 보존 |
+| attempt_detail 필드 | 최상위 attempt_id/task_id/goal_revision_id/execution_spec_digest | `attempt.{attempt_id, task_id, execution_spec_digest, …}`. `goal_revision_id` 없음 | **수정**: 어댑터가 승격. `goal_revision_id`가 없으므로 run_once owner query는 `INVALID_RESPONSE`로 효과 전에 멈춤(fail-closed, 미해결) |
+| run_once job | `job{job_id,status}` | `runtime_job_id/kind/status` 평면 필드 | **수정**: 어댑터가 `job`으로 정규화. bridge도 평면 필드를 직접 읽음 |
+| observe job | `job` | `runtime_job`(= `job.model_dump(mode="json")`) | **수정**: `job` 정규화와 attempt/task ID 승격 |
+| handshake | port가 제공 | upstream에 없음 | 어댑터가 `inspect.signature`로 메서드 인자 이름을 만든다. surface revision과 engine schema revision은 public façade로 알 수 없어 **호출자가 주입**해야 한다 |
+| durable binding (`bind_execution`/`read_execution_binding`) | upstream extension 가정 | **없음** | 변경 없음. 어댑터는 extension을 선언하지도 흉내 내지도 않으며 `run_once`는 `SEAM_UNAVAILABLE` |
+| status → controller 형식 | `goal_state`, `tasks[{task_id,state,…}]`, `goal_verdict_id` | `current_stage/control_state/authorization_state`, `tasks`(행 형식이 다름) | **부분 수정**: `control_state`가 paused/cancelled면 그대로, `authorization_state=required`면 `awaiting_authorization`, `plan_revision_id`는 `project.active_plan_revision_id`에서 파생. 실제 `tasks`는 `vm_tasks`로 옮긴다. 실제 task 상태 어휘는 미확인이라 controller task로 매핑하지 않는다 |
+| final_report → controller | `goal_verdict{verdict_id,outcome}`, `evidence` | `verdict: GoalVerdict`, `usage`, `execution_summary` 등 | 변경 없음. controller는 `report_unverified`로 판정(완료로 간주하지 않음) |
+| VM ID 형식 | AIK identifier 규칙(`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`) | upstream `_ENTITY_ID_PATTERN`(미확인) | 적합성 시험이 검사한다. 불일치하면 시험이 `CONFORMANCE_FINDING`으로 실패하며 bridge는 해당 요청을 `INVALID_REQUEST`로 거절한다 |
+
+## Job 상태 해석 (`JOB_STATUS_PHASES`)
+
+| RuntimeJobStatus | JobPhase | 의미 |
+|---|---|---|
+| `scheduled` | pending | 예약됨 |
+| `running`, `interrupting` | running | provider가 아직 효과를 낼 수 있음 |
+| `provider_terminal` | terminal | provider turn 종료. Core가 소비하지 않았고 **외부 효과 완료·확정이 아니다**(`core_consumed=False`) |
+| `consumed` | terminal | Core가 결과를 소비함(`core_consumed=True`) |
+| `collector_lost` | unknown | collector가 turn을 잃음. provider가 여전히 동작할 수 있음 |
+| `cancelled` | unknown | Core가 아직 settle하지 않은 취소일 수 있음(`unsettled_cancelled_runtime_job`). guard를 해제하지 않음 |
+| 그 밖의 값 | unknown | 알 수 없는 값 |
+
+미해결 attempt/project는 `terminal` 관측에서만 해제된다. `terminal` 관측은 외부 효과의 확정이 아니며, 효과 판정은 계속 VM Core 소유다.
+
+## Port와 어댑터 사용법
+
+`VmApplicationPort`는 설치된 `EngineApplication`을 감싸 평범한 mapping을 반환하는 adapter의 계약이다. 메서드 이름과 인자는 공개 façade와 같다. `handshake()`는 surface revision, engine schema revision, 메서드 signature, extension 선언을 설명해야 한다.
+
+```python
+from aik_vm_bridge import (EngineApplicationPort, VmBridge, PINNED_SURFACE_REVISION,
+                           SUPPORTED_ENGINE_SCHEMA_REVISIONS, ProjectQuery)
+from aik_workspace.vm_projects import BridgeProjectPort
+
+# app: 호출자가 만든 upstream EngineApplication 인스턴스 (EngineApplication(service))
+port = EngineApplicationPort(
+    app,
+    surface_revision=PINNED_SURFACE_REVISION,                    # 설치물 revision 선언(호출자 책임)
+    engine_schema_revision=SUPPORTED_ENGINE_SCHEMA_REVISIONS[0], # 원장 schema revision 선언(호출자 책임)
+)
+bridge = VmBridge(port, "contracts/upstream/vm-public-surface.json")
+info = BridgeProjectPort(bridge).lookup_project(project_id)   # status()["project"]의 id/root 대조
+project = port.lookup_project(project_id)                      # EngineProject 또는 None(PROJECT_NOT_FOUND)
+```
+
+- revision 두 값을 생략하면 handshake 형식이 불완전해 bridge가 모든 호출을 `INVALID_RESPONSE`로 거절한다. 선언값이 실제 설치물과 맞는지는 어댑터가 검증할 수 없다(한계).
+- 어댑터 오류는 `EnginePortError(code, category)`다. 원문 메시지와 체인은 포함하지 않는다.
+  - `EngineApplicationError`는 선행 코드를 보존한다(예: `GOAL_REVISION_ACTIVE_PLAN: …` → `GOAL_REVISION_ACTIVE_PLAN`).
+  - 코드가 없으면 `ENGINE_APPLICATION_ERROR`다.
+  - 분류할 수 없는 예외는 `code=None`이며, bridge에서 조회는 `QUERY_FAILED`, 명령은 `OUTCOME_UNKNOWN`이 된다.
+  - JSON 형태로 바꿀 수 없는 응답은 `INVALID_ENGINE_RESPONSE`다.
+- `port.calls`는 호출한 façade 메서드 이름만 기록한다(진단용).
+- `port.upstream_binding_methods_present`는 upstream에 durable binding 메서드가 있는지 보고한다(현재 False).
+- **메시지 기반 분류 한계:** `PROJECT_NOT_FOUND` 분류는 upstream 메시지 문자열 일치에 의존한다. upstream 문구가 바뀌면 `ENGINE_LEDGER_ERROR`(조회 불가)로 떨어진다. 이는 fail-closed 방향이지만 "없음"을 인식하지 못하게 된다.
 
 ## Capability preflight와 handshake
 
-- 생성 시 선택한 command마다 선언 표면에 메서드와 bridge가 사용하는 인자(예: `run_once`의 `resume`, `cancel`의 `reason`)가 있는지 확인한다. 없으면 `CAPABILITY_MISSING`(details에 `명령:사유`)으로 port 호출 전에 실패한다. port에 해당 메서드가 없어도 같은 오류다.
-- 첫 호출 때 handshake를 한 번 수행한다. surface revision 불일치·지원하지 않는 engine schema revision(현재 `4`만)은 `VERSION_MISMATCH`, 메서드의 인자 이름 목록 불일치는 `CONTRACT_MISMATCH`, 형식 오류는 `INVALID_RESPONSE`다. 타입 annotation은 비교하지 않는다(한계).
-- **한계:** handshake 결과는 bridge 인스턴스 수명 동안 캐시한다. 실행 중 VM 설치물이 교체·업그레이드되면 새 bridge 인스턴스를 만들어야 다시 검증된다. extension 메서드(`bind_execution`/`read_execution_binding`)는 handshake의 extension 선언과 callable 여부만 확인하며 signature·버전은 비교하지 않는다. 이 extension의 signature는 선언된 공개 표면에 아직 없기 때문이다.
+- **preflight:** 생성 시 선택한 command마다 선언 표면에 메서드와 bridge가 쓰는 인자가 있는지 확인한다. 없으면 port 호출 전에 `CAPABILITY_MISSING`으로 실패한다.
+- **handshake:** 첫 호출 때 한 번 수행하고 결과를 bridge 인스턴스 수명 동안 캐시한다.
+
+| handshake 결과 | 오류 |
+|---|---|
+| surface revision 불일치, 지원하지 않는 engine schema revision(현재 `4`만) | `VERSION_MISMATCH` |
+| 인자 이름 목록 불일치 | `CONTRACT_MISMATCH` |
+| 형식 오류 | `INVALID_RESPONSE` |
+
+- **실제 대조 결과:** 적합성 시험은 12개 command에서 실제 `inspect.signature`, 선언 표면, `REQUIRED_PARAMETERS`가 일치하는지 대조한다. 타입 annotation은 비교하지 않는다.
 
 ## 효과 전 binding (run_once)
 
-`RunOnceRequest`는 binding과 AIK `Placement`·`Lease`·`Pool`을 함께 받는다. 순서는 다음과 같다.
+순서는 다음과 같다.
 
-1. handshake가 `aik-task-execution-binding-v1` extension을 선언하지 않거나 port에 extension 메서드가 없으면 `SEAM_UNAVAILABLE`로 **handshake 외 호출 없이** 거절한다(fail-closed). 현재 VM 배포물에서는 이 경로로 차단된다.
-2. `verify_assignment`로 placement/lease/pool과 binding의 VM ID·pool·connection·provider·fencing token을 대조하고, lease 상태(`reserved/active`)·만료·pool 사용 설정을 확인한다. 이 검사는 로컬 사전 검사이며 내구적 fencing 전이나 실행 인가가 아니다.
-3. 이 bridge의 미해결 attempt·미해결 project·같은 attempt의 진행 중 run_once가 있으면 `RECONCILIATION_REQUIRED`로 거절한다(subject `vm_attempt_id`/`vm_project_id`/`attempt_in_flight`).
-4. owner query `attempt_detail(vm_attempt_id)`로 정확한 Attempt와 Task를 읽는다. project/task/attempt/goal revision/plan revision/execution spec digest **6개 필드가 모두 있어야** 하며, 하나라도 없으면 `INVALID_RESPONSE`, 다르면 `BINDING_MISMATCH`(둘 다 known failure)로 효과 전에 멈춘다. 필드 부재를 일치로 간주하지 않는다.
-5. `read_execution_binding(vm_attempt_id)`로 기존 결속을 조회한다.
-   - 결속이 없으면 `bind_execution`을 호출하고, 같은 binding digest가 돌아와야 한다(다르면 `BINDING_MISMATCH`, outcome `unknown`).
-   - 다른 digest로 이미 결속돼 있으면 `BINDING_MISMATCH`(subject `persisted_binding`, known failure)로 거절하며 재결속·재실행하지 않는다.
-   - 같은 digest로 이미 결속돼 있으면, 이 bridge가 그 binding으로 해당 attempt의 `terminal` job을 관측한 경우에만 재결속 없이 진행한다. 그렇지 않으면 `RECONCILIATION_REQUIRED`(subject `attempt_bound`)다. `resume=True`도 이 조건을 우회하지 않는다.
-   - 조회 실패는 `QUERY_FAILED`, 형식 오류는 `INVALID_RESPONSE`이며 효과 전에 멈춘다.
-6. `run_once(project_id, resume=…)`는 job 예약·관측 후 신속히 반환한다고 가정한다. 응답에 `task_id`·`attempt_id`가 **반드시 있어야** 하며, 없으면 `INVALID_RESPONSE`, binding과 다르면 `BINDING_MISMATCH`이다. 두 경우 모두 outcome은 `unknown`이고 해당 attempt를 미해결로 기록한다.
+1. **extension 확인:** handshake가 `aik-task-execution-binding-v1` extension을 선언하지 않거나 port에 extension 메서드가 없으면 `SEAM_UNAVAILABLE`로 거절한다. handshake 외에는 아무것도 호출하지 않는다. **실제 upstream 어댑터는 항상 이 경로로 차단된다**(적합성 시험 (e)).
+2. **assignment 대조:** `verify_assignment`로 placement/lease/pool을 binding과 대조한다. 이는 로컬 사전 검사이며 내구적 fencing 전이나 실행 인가가 아니다.
+3. **로컬 guard:** 미해결 attempt, 미해결 project, 진행 중 run_once가 있으면 `RECONCILIATION_REQUIRED`로 거절한다.
+4. **owner query:** `attempt_detail`로 6개 필드(project/task/attempt/goal revision/plan revision/execution spec digest)가 모두 있고 일치해야 한다. 실제 `AttemptDetail`에는 `goal_revision_id`가 없어, extension이 생겨도 이 단계에서 `INVALID_RESPONSE`로 멈춘다. upstream 응답 확장 또는 별도 조회가 필요하다(미해결).
+5. **기존 결속 조회:** `read_execution_binding`/`bind_execution`으로 결속을 조회·생성한다.
+6. **실행:** `run_once` 응답에 `task_id`·`attempt_id`가 반드시 있어야 하며, 없거나 다르면 outcome `unknown`이다.
 
-관측·취소·inventory(`model_binding_status`)는 VM에 보존된 **원래 binding digest**와 요청 binding이 같아야 한다. connection revision 회전 등으로 다르면 port의 관측·취소를 호출하지 않는다. binding 없는 project 단위 관측·취소(준비 단계)도 허용하며, 가짜 Task/Attempt를 만들지 않는다. binding 없는 취소의 결과가 불명확하면 아래처럼 project 전체의 run_once를 막는다.
+관측·취소·inventory는 VM에 보존된 원래 binding digest와 같아야 한다. binding 없는 project 단위 관측·취소도 허용한다.
 
-**인가 결속 한계:** `authorize`는 `source`, `selected_plan_revision_id`만 전달한다. 선언 signature의 `operating_policy`·`capability`·`authorization_target`은 표현할 수 없어 VM 기본값이 적용되며, 그 의미는 확인하지 않았다. `run_once`는 authorization ID나 인가된 plan revision을 별도로 대조하지 않는다. 기존 인가의 보존은 VM의 판정에 위임된다.
+**인가 결속 한계:** `authorize`는 `source`와 `selected_plan_revision_id`만 전달한다. `operating_policy`·`capability`·`authorization_target`은 VM 기본값이 적용되며, 그 의미는 확인하지 않았다.
 
 ## 오류 의미 보존
 
 | 상황 | 결과 |
 |---|---|
-| port 예외에 안전한 `code` 속성(대문자·숫자·`_`) | `VM_REJECTED`, `vm_code`에 원래 코드 그대로 |
-| 효과성 호출(명령·`bind_execution`·`run_once`·`cancel`)의 코드가 `STALE_EXECUTION_INPUT`·`CORE_CAPABILITY_DENIED`·`MODEL_BINDING_CHANGED` | outcome `known_failure`(효과 전 거절로 **가정**, 실제 VM 오류 목록과 대조하지 않음) |
-| 효과성 호출의 그 밖의 모든 코드(`EXTERNAL_UNKNOWN`, `ECONNRESET`, `TIMEOUT` 등) | outcome `unknown` |
-| 조회의 코드 | `UNKNOWN` 토큰이 있으면 `unknown`, 아니면 `known_failure`(조회는 효과가 없음) |
-| 코드 없는 예외, 명령 | `OUTCOME_UNKNOWN`(outcome `unknown`) |
-| 코드 없는 예외, 조회 | `QUERY_FAILED`(known failure) |
-| mapping이 아닌 응답 | `INVALID_RESPONSE`(명령은 `unknown`) |
+| port 예외에 안전한 `code` 속성 | `VM_REJECTED`, `vm_code`에 원래 코드 |
+| 효과성 호출의 코드가 `STALE_EXECUTION_INPUT`·`CORE_CAPABILITY_DENIED`·`MODEL_BINDING_CHANGED` | `known_failure`(**가정**, 실제 오류 목록과 미대조) |
+| 효과성 호출의 그 밖의 코드(`RUNTIME_REQUIRED` 포함) | `unknown` |
+| 조회의 코드 | `UNKNOWN` 토큰이 있으면 `unknown`, 아니면 `known_failure` |
+| 코드 없는 예외 | 명령은 `OUTCOME_UNKNOWN`, 조회는 `QUERY_FAILED` |
+| mapping이 아닌 응답 | `INVALID_RESPONSE` |
 
-원시 예외 메시지·traceback은 오류 문자열에 넣지 않고 체인도 끊는다(`from None`). 단, 형식(대문자·숫자·`_`, 64자 이내)에 맞는 `code` 값은 그대로 `vm_code`와 오류 문자열에 들어간다. adapter는 이 속성에 VM 오류 코드만 넣어야 한다(한계).
+## request ID와 UNKNOWN
 
-## request ID
+- **request ID 범위:** request ID는 bridge 로컬 식별자이며 VM에 전달되지 않는다.
+- **request ID 소비:** 첫 port 호출 직전에 소비한다. 그보다 앞선 로컬 사전 거절은 소비하지 않는다.
+- **자동 재시도 없음:** bridge는 어떤 실패도 자동 재시도하지 않는다.
+- **attempt guard:** 결과가 불명확하거나 job 상태가 `unknown`(위 표의 `collector_lost`, `cancelled` 포함)이면 attempt를 미해결로 기록한다. `terminal` 관측 전까지 재실행을 거절한다.
+- **project guard:** project 단위 효과가 불명확하면 해당 project의 run_once를 막는다.
+- **guard의 범위:** 모든 guard는 bridge 인스턴스 단위 프로세스 메모리이며 내구성이나 exactly-once 보장이 아니다.
+- **job ID:** 실제 job ID가 AIK identifier 규칙에 맞지 않으면 `job_id=None`으로 기록된다. 관측된 job이 처음 예약한 job과 같은지는 대조하지 않는다(한계).
 
-- request ID는 **bridge 로컬 식별자**이며 VM port에 전달되지 않는다. 따라서 VM 쪽 상관관계·중복 방지에는 쓰이지 않는다(완료 기준 2의 "request ID 보존"은 로컬 범위로만 충족).
-- 작업의 첫 port 호출 직전(handshake 제외)에 request ID를 소비한다. 소비 후에는 실패해도 재사용할 수 없다(`DUPLICATE_REQUEST`). 그보다 앞선 로컬 사전 거절(handshake 실패, `SEAM_UNAVAILABLE`, assignment 대조 실패, `RECONCILIATION_REQUIRED`)은 request ID를 소비하지 않는다.
+## 여전히 남은 차단 사유
 
-## UNKNOWN과 재발사 금지
-
-- bridge는 어떤 실패도 자동 재시도하지 않는다.
-- run_once·binding·취소 결과가 불명확하거나 job 상태를 인식할 수 없으면 해당 attempt를 `unresolved_attempts`에 넣는다. 이후 `run_once`는 `RECONCILIATION_REQUIRED`로 거절한다. 원래 binding으로 `observe`해 해당 attempt의 **`terminal`** job을 받은 뒤에만 해제한다. `pending`/`running` 관측은 job이 아직 효과를 낼 수 있으므로 해제하지 않는다. 관측된 job ID가 처음 예약한 job과 같은지는 대조하지 않는다(한계).
-- project 단위 효과(prepare/revise/authorize/pause/replan/cancel)의 결과가 불명확하면 project를 `unresolved_projects`에 넣는다. 해당 project의 `run_once`는 `RECONCILIATION_REQUIRED`(subject `vm_project_id`)로 거절된다. 해당 project의 `observe`가 `terminal` job을 보고할 때만 해제한다. job이 없는 project(예: prepare 불명확)는 이 bridge 인스턴스에서 해제되지 않는다. 그 job이 원래 효과와 관련된 것인지는 확인하지 않는다(한계).
-- 인식하는 job 상태 문자열(`queued/pending/reserved/prepared`, `running/started/in_progress`, `succeeded/completed/failed/cancelled/interrupted/proven_no_effect/expired`)은 실제 `RuntimeJobStatus` 값과 대조하지 않은 **가정**이다. 모르는 값은 `unknown`이다.
-- 중복·미해결·진행 중 guard는 **bridge 인스턴스 단위 프로세스 메모리**이며 다른 인스턴스(예: GUI와 총괄이 각자 만든 bridge)와 공유되지 않는다. 같은 인스턴스 안에서는 잠금으로 request 소비와 미해결·진행 중 검사를 원자화하고, 같은 attempt의 동시 `run_once`를 거절한다. 재시작 내구성이나 exactly-once 보장이 아니며, 내구 기록은 VM 원장과 extension의 책임이다. 인스턴스 간 중복 실행 방지는 VM에 보존된 binding 조회(위 5단계)에만 의존한다.
-
-## 완료를 막는 조건
-
-`integration-contract.json`의 미해결 gate `AGS_HOST_INTEGRATION_MANIFEST_MISSING`, `AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED`(`BLOCKING_GATES`)가 AIK-031을 차단한다. 완료 기준 4의 효과 전 내구 binding과 원래 계정 기반 관측·취소·재시작은 공개 seam만으로 보장되지 않는다. upstream extension과 호환 설치물, 실제 owner query adapter, 설치형 호출 검증(Windows 포함)이 필요하다. AIK가 VM SQL을 직접 수정하거나 별도 재시도 권위를 만들어 우회하지 않는다.
+1. **durable binding extension 부재**(`AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED`): 실제 `EngineApplication`에는 `bind_execution`/`read_execution_binding`이 없다. 따라서 bound `run_once`, 원래 binding 기반 관측·취소·inventory는 모두 fail-closed다. 우회나 가짜 구현은 하지 않는다.
+2. **owner query 정보 부족:** 실제 `AttemptDetail`에 `goal_revision_id`가 없다.
+3. **AGS manifest 부재**(`AGS_HOST_INTEGRATION_MANIFEST_MISSING`).
+4. **설치형 검증 NOT_RUN:**
+   - 설치형 wheel·Windows 호출 검증이 없다. 적합성 시험은 소스 import 기반이며 Linux 결과는 개발 검증이다.
+   - surface/schema revision 선언값을 설치물에서 확인하는 절차가 없다.
+5. **controller 연동 미완:** 실제 status의 task/stage 어휘, final report의 verdict 구조와 controller 형식 사이의 매핑이 미확정이다. 실제 VM에 대해 controller는 task 실행이나 완료 판정에 도달하지 않는다(fail-closed).
+6. **ID 형식 미확인:** 실제 VM ID 형식과 AIK identifier 규칙의 호환성은 upstream 설치 환경의 적합성 시험 결과로만 확인된다.
 
 ## 검증
 
 ```bash
 python -m unittest discover -s tests -p 'test_vm_bridge.py' -v
+python -m unittest discover -s tests -p 'test_vm_real_conformance.py' -v
 ```
 
-fake VM port와 합성 데이터만 사용한다. 선언 표면·binding schema·integration contract 파일이 저장소에 없으면 해당 대조 시험은 `NOT_RUN` 사유와 함께 skip되며, 통과로 간주하지 않는다. Linux 통과는 개발 검증이며 Windows 지원·설치형 호출의 증거가 아니다. 실제 VM 설치·호출, AGS 연동, provider 실행은 **NOT_RUN**이다.
+- **`test_vm_bridge.py`:** fake VM port와 합성 데이터만 쓴다. job 상태는 실제 `RuntimeJobStatus` 값이다.
+- **`test_vm_real_conformance.py` — `EnginePortAdapterTests`:** 항상 실행한다. fake 앱으로 정규화와 오류 분류를 확인한다.
+- **`test_vm_real_conformance.py` — `RealUpstreamConformanceTests`:** `flowmarshal.engine`이 import 가능할 때만 실행한다. 임시 원장과 합성 프로젝트로 실제 façade를 호출하며 runtime·provider·네트워크는 쓰지 않는다. import할 수 없으면 `NOT_RUN` 사유로 skip되며, skip은 통과가 아니다.
+
+선언 표면 파일이 없으면 해당 대조도 `NOT_RUN`으로 skip된다. Linux 통과는 Windows 지원이나 설치형 호출의 증거가 아니다.

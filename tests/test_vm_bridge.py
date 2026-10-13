@@ -1,8 +1,9 @@
 """AIK-031 bridge tests against a fake VM port only.
 
 No VM installation, provider, credential, network or subprocess is used. The
-fake port returns synthetic mappings. Passing on Linux is development
-verification; installed VM calls remain NOT_RUN.
+fake port returns synthetic mappings. Job statuses use the real upstream
+RuntimeJobStatus values (vibemarshal 32bb0f9). Passing on Linux is
+development verification; installed VM calls remain NOT_RUN.
 """
 from __future__ import annotations
 
@@ -20,11 +21,11 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from aik_runtime import Lease, Placement, Pool  # noqa: E402
 from aik_vm_bridge import (  # noqa: E402
-    BINDING_EXTENSION, BINDING_FIELDS, BLOCKING_GATES, PINNED_SURFACE_REVISION, AttemptQuery,
-    AuthorizeRequest, BridgeCode, CancelRequest, Command, EffectOutcome, FinalReportRequest,
-    GoalRequest, InventoryRequest, JobPhase, ObserveRequest, PauseRequest, ProjectQuery,
-    ReplanRequest, RunOnceRequest, TaskExecutionBinding, VmBridge, VmBridgeError, load_surface,
-    parameter_names, preflight, verify_assignment,
+    BINDING_EXTENSION, BINDING_FIELDS, BLOCKING_GATES, JOB_STATUS_PHASES, PINNED_SURFACE_REVISION,
+    AttemptQuery, AuthorizeRequest, BridgeCode, CancelRequest, Command, EffectOutcome,
+    FinalReportRequest, GoalRequest, InventoryRequest, JobPhase, ObserveRequest, PauseRequest,
+    ProjectQuery, ReplanRequest, RunOnceRequest, TaskExecutionBinding, VmBridge, VmBridgeError,
+    load_surface, parameter_names, preflight, verify_assignment,
 )
 
 
@@ -51,6 +52,8 @@ SIGNATURES = {
     "attempt_detail": "self, attempt_id: str",
     "model_binding_status": "self, project_id: str, *, inventory: ModelInventory | None=None",
 }
+REAL_JOB_STATUSES = ("scheduled", "running", "interrupting", "provider_terminal", "collector_lost",
+                     "consumed", "cancelled")
 _NO_OVERRIDE = object()
 
 
@@ -128,7 +131,7 @@ class FakeVm:
             "run_once": {"project_id": "project-1", "task_id": "task-1", "attempt_id": "attempt-1",
                          "job": {"job_id": "job-1", "status": "running"}},
             "observe": {"project_id": "project-1", "attempt_id": "attempt-1",
-                        "job": {"job_id": "job-1", "status": "succeeded"}},
+                        "job": {"job_id": "job-1", "status": "consumed"}},
             "model_binding_status": {"project_id": "project-1", "models": ["synthetic-model"]},
         }
 
@@ -457,6 +460,76 @@ class CommandQueryTests(unittest.TestCase):
         self.assertIs(raised.exception.code, BridgeCode.CONTRACT_MISMATCH)
 
 
+class JobStatusTests(unittest.TestCase):
+    """Job phases follow the real upstream RuntimeJobStatus values (32bb0f9)."""
+
+    EXPECTED = {
+        "scheduled": JobPhase.PENDING, "running": JobPhase.RUNNING, "interrupting": JobPhase.RUNNING,
+        "provider_terminal": JobPhase.TERMINAL, "collector_lost": JobPhase.UNKNOWN,
+        "consumed": JobPhase.TERMINAL, "cancelled": JobPhase.UNKNOWN,
+    }
+
+    def observe_with(self, job: dict):
+        vm = FakeVm()
+        vm.responses["observe"] = {"project_id": "project-1", **job}
+        return VmBridge(vm, surface_dict()).observe(ObserveRequest("observe-1", "project-1"))
+
+    def test_every_real_runtime_job_status_is_classified(self) -> None:
+        self.assertEqual(set(JOB_STATUS_PHASES), set(REAL_JOB_STATUSES))
+        self.assertEqual(dict(JOB_STATUS_PHASES), self.EXPECTED)
+        for status, phase in self.EXPECTED.items():
+            with self.subTest(status=status):
+                receipt = self.observe_with({"job": {"job_id": "job-1", "status": status}})
+                self.assertEqual((receipt.job.phase, receipt.job.vm_status), (phase, status))
+
+    def test_previously_assumed_status_strings_are_now_unknown(self) -> None:
+        for status in ("queued", "pending", "reserved", "prepared", "started", "in_progress", "succeeded",
+                       "completed", "failed", "interrupted", "proven_no_effect", "expired"):
+            with self.subTest(status=status):
+                receipt = self.observe_with({"job": {"job_id": "job-1", "status": status}})
+                self.assertEqual(receipt.job.phase, JobPhase.UNKNOWN)
+
+    def test_provider_terminal_is_terminal_but_not_core_consumption(self) -> None:
+        terminal = self.observe_with({"job": {"job_id": "job-1", "status": "provider_terminal"}})
+        self.assertEqual(terminal.job.phase, JobPhase.TERMINAL)
+        self.assertFalse(terminal.job.core_consumed)
+        consumed = self.observe_with({"job": {"job_id": "job-1", "status": "consumed"}})
+        self.assertTrue(consumed.job.core_consumed)
+
+    def test_runtime_job_dump_and_flat_run_once_fields_are_read(self) -> None:
+        receipt = self.observe_with({"runtime_job": {"job_id": "job-3", "status": "interrupting"}})
+        self.assertEqual((receipt.job.phase, receipt.job.job_id), (JobPhase.RUNNING, "job-3"))
+        vm = BoundFakeVm()
+        vm.responses["run_once"] = {"project_id": "project-1", "task_id": "task-1", "attempt_id": "attempt-1",
+                                    "runtime_job_id": "job-2", "runtime_job_kind": "worker_turn",
+                                    "runtime_job_status": "scheduled"}
+        bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+        run = bridge.run_once(run_request())
+        self.assertEqual((run.job.phase, run.job.vm_status, run.job.job_id),
+                         (JobPhase.PENDING, "scheduled", "job-2"))
+        self.assertEqual(bridge.unresolved_attempts, frozenset())
+
+    def test_cancelled_or_collector_lost_observation_keeps_the_attempt_unresolved(self) -> None:
+        for status in ("cancelled", "collector_lost"):
+            with self.subTest(status=status):
+                vm = BoundFakeVm()
+                vm.failures["run_once"] = ConnectionResetError(SECRET_MARKER)
+                bridge = VmBridge(vm, surface_dict(), now=lambda: NOW)
+                with self.assertRaises(VmBridgeError):
+                    bridge.run_once(run_request("run-1"))
+                del vm.failures["run_once"]
+                vm.responses["observe"] = {"project_id": "project-1", "attempt_id": "attempt-1",
+                                           "job": {"job_id": "job-1", "status": status}}
+                binding = TaskExecutionBinding(**binding_fields())
+                observed = bridge.observe(ObserveRequest("observe-1", "project-1", binding))
+                self.assertEqual(observed.job.phase, JobPhase.UNKNOWN)
+                self.assertIn("attempt-1", bridge.unresolved_attempts)
+                with self.assertRaises(VmBridgeError) as blocked:
+                    bridge.run_once(run_request("run-2"))
+                self.assertIs(blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
+                self.assertEqual(vm.names().count("run_once"), 1)
+
+
 class BindingTests(unittest.TestCase):
     def test_binding_matches_schema_fields_and_has_a_stable_digest(self) -> None:
         binding = TaskExecutionBinding.from_mapping(binding_fields())
@@ -709,7 +782,7 @@ class BoundExecutionTests(unittest.TestCase):
         self.assertIs(blocked.exception.code, BridgeCode.RECONCILIATION_REQUIRED)
         self.assertEqual(vm.names().count("run_once"), 1)
         vm.responses["observe"] = {"project_id": "project-1", "attempt_id": "attempt-1",
-                                   "job": {"job_id": "job-1", "status": "failed"}}
+                                   "job": {"job_id": "job-1", "status": "provider_terminal"}}
         bridge.observe(ObserveRequest("observe-2", "project-1", binding))
         self.assertEqual(bridge.unresolved_attempts, frozenset())
         bridge.run_once(run_request("run-3"))

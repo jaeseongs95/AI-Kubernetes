@@ -6,6 +6,9 @@ are only referenced. ``run_once`` is treated as "reserve/observe then return";
 an unclear result is UNKNOWN and is never relaunched automatically.
 Duplicate-request, in-flight and reconciliation guards are per bridge
 instance and in memory only; they are not durable and not shared.
+
+Job states are interpreted against the upstream ``RuntimeJobStatus`` values of
+the pinned revision (``JOB_STATUS_PHASES``). Any other value is UNKNOWN.
 """
 
 from __future__ import annotations
@@ -219,9 +222,23 @@ class JobPhase(StrEnum):
     UNKNOWN = "unknown"
 
 
-_PENDING = frozenset({"queued", "pending", "reserved", "prepared"})
-_RUNNING = frozenset({"running", "started", "in_progress"})
-_TERMINAL = frozenset({"succeeded", "completed", "failed", "cancelled", "interrupted", "proven_no_effect", "expired"})
+# Upstream RuntimeJobStatus (vibemarshal 32bb0f9, domain.py) -> bridge phase.
+# - provider_terminal: the provider turn ended. Core has not consumed it, and
+#   it is not proof of a completed or confirmed external effect.
+# - consumed: Core consumed the job result (core_consumed=True).
+# - collector_lost: the collector lost the provider turn; it may still act.
+# - cancelled: Core may still have to settle a cancelled job
+#   (unsettled_cancelled_runtime_job), so the effect state is not settled.
+# Both of the latter are UNKNOWN on purpose: they never release a guard.
+JOB_STATUS_PHASES = MappingProxyType({
+    "scheduled": JobPhase.PENDING,
+    "running": JobPhase.RUNNING,
+    "interrupting": JobPhase.RUNNING,
+    "provider_terminal": JobPhase.TERMINAL,
+    "collector_lost": JobPhase.UNKNOWN,
+    "consumed": JobPhase.TERMINAL,
+    "cancelled": JobPhase.UNKNOWN,
+})
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +246,11 @@ class JobObservation:
     phase: JobPhase
     vm_status: str | None = None
     job_id: str | None = None
+
+    @property
+    def core_consumed(self) -> bool:
+        """True only when VM reports ``consumed``; ``provider_terminal`` is not consumption."""
+        return self.vm_status == "consumed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -316,9 +338,15 @@ def _extract_refs(response: Mapping[str, Any], outcome: EffectOutcome) -> VmRefs
 
 
 def _parse_job(response: Mapping[str, Any]) -> JobObservation:
+    """Read ``job``, the upstream ``runtime_job`` dump, or RunOnceResult fields."""
     job = response.get("job")
-    if isinstance(job, Mapping):
+    if not isinstance(job, Mapping):
+        runtime = response.get("runtime_job")
+        job = runtime if isinstance(runtime, Mapping) else None
+    if job is not None:
         status, job_id = job.get("status"), job.get("job_id")
+    elif response.get("runtime_job_status") is not None or response.get("runtime_job_id") is not None:
+        status, job_id = response.get("runtime_job_status"), response.get("runtime_job_id")
     else:
         status, job_id = response.get("job_status"), response.get("job_id")
     try:
@@ -327,9 +355,7 @@ def _parse_job(response: Mapping[str, Any]) -> JobObservation:
         job_id = None
     if type(status) is not str or _STATUS.fullmatch(status) is None:
         return JobObservation(JobPhase.UNKNOWN, None, job_id)
-    phase = (JobPhase.PENDING if status in _PENDING else JobPhase.RUNNING if status in _RUNNING
-             else JobPhase.TERMINAL if status in _TERMINAL else JobPhase.UNKNOWN)
-    return JobObservation(phase, status, job_id)
+    return JobObservation(JOB_STATUS_PHASES.get(status, JobPhase.UNKNOWN), status, job_id)
 
 
 def _same_execution(refs: VmRefs, binding: TaskExecutionBinding, outcome: EffectOutcome,
@@ -374,6 +400,8 @@ class VmApplicationPort(Protocol):
 
     ``handshake`` describes the installed façade (surface revision, engine
     schema revision, method signatures, declared extensions).
+    ``engine_port.EngineApplicationPort`` implements this contract for the
+    pinned upstream revision.
     """
 
     def handshake(self) -> Mapping[str, Any]: ...
@@ -687,7 +715,7 @@ class VmBridge:
         if binding is not None and receipt.refs.attempt_id == binding.vm_attempt_id:
             _same_execution(receipt.refs, binding, _KNOWN)
             if terminal:
-                # Pending/running keeps the guard: the job may still act.
+                # Pending/running/unknown keeps the guard: the job may still act.
                 with self._lock:
                     self._unresolved.discard(binding.vm_attempt_id)
                     self._terminal_observed.add(binding.vm_attempt_id)
