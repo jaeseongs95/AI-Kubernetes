@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-13T06:24:36Z`
+- 수정일 (UTC): `2026-10-13T09:24:29Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 82개 · 진행 중 0개 · 진행 차단 6개 · 완료 2개 · 취소 0개
+- 상태: 미착수 66개 · 진행 중 0개 · 진행 차단 22개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -32,9 +32,9 @@ python tools/backlog.py report
 
 | 단계 | 범위 | 태스크 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 착수 가능 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 3 | 0 | 4 | 2 | 0 | 0 |
-| M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 12 | 0 | 2 | 0 | 0 | 0 |
-| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 27 | 0 | 0 | 0 | 0 | 0 |
+| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 0 | 0 | 7 | 2 | 0 | 0 |
+| M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 3 | 0 | 11 | 0 | 0 | 0 |
+| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 23 | 0 | 4 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
 | M4 · Windows 첫 배포 검증 | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
@@ -268,13 +268,13 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Supervisor |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 7 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:27Z` |
 
 GUI 창과 런타임 수명을 분리하고 사용자 세션 내에서 총괄·sidecar 중복 기동을 막는다.
 
@@ -293,7 +293,7 @@ GUI 창과 런타임 수명을 분리하고 사용자 세션 내에서 총괄·s
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-006-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-006` · 부분 구현: commit de78cdd/38b1e5a, tests/test_supervisor.py 16개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 3(부분); 차단: 선행 AIK-004(blocked)·AIK-005 장부상 미완료; endpoint 서버·instance_id handshake 미구현으로 잔여 경쟁 창 존재; Windows 공유 위반 시 PermissionError 미처리; Electron GUI 실제 연결 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-007
 
@@ -301,13 +301,13 @@ GUI 창과 런타임 수명을 분리하고 사용자 세션 내에서 총괄·s
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Configuration |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 8 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:27Z` |
 
 workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한다.
 
@@ -327,7 +327,7 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-007-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-007` · 부분 구현: commit df8af3d/ab61cb3, tests/test_config.py 20개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 4(부분); 차단: AIK-084 aik_workspace가 WorkspaceBindingAuthority를 구현했으나 AIK-084 자체가 미완료이고 GUI·실제 VM 결속 검증 없음; 선행 AIK-004·AIK-005 장부상 미완료; AIK-010 연결 CRUD·GUI 연결 미연동. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-008
 
@@ -335,13 +335,13 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Integration |
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E05 · AGS·VM 통합 |
 | 실행 순서 | 9 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:27Z` |
 
 기준선 문서에 남은 A2 gate·관측·freeze 상태를 설치형 진단으로 확인하고 필요한 upstream 작업을 분리한다.
 
@@ -360,7 +360,7 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-008-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-008` · 부분 구현: commit eb51d14/d3dae47, tests/test_upstream_defects.py 22개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분); 차단: 선행 AIK-083 미완료; 설치형 conformance 미실행; A2 호환 AGS 배포물 부재; AIK-081/082 live probe 근거 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ## M1 · 인증 보관·멀티벤더 자원 연결
 
@@ -374,13 +374,13 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Credential broker |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 10 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:27Z` |
 
 API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaque credential_ref로 접근한다.
 
@@ -399,7 +399,7 @@ API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaq
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-009-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-009` · 부분 구현: commit 36f7e69/72a9d33, tests/test_vault.py 26개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분); 차단: 실제 Windows DPAPI 실행 근거 부재; 선행 AIK-004·AIK-005 장부상 미완료; Credential Manager 정책 근거 자료 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-010
 
@@ -407,13 +407,13 @@ API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaq
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Connections |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 11 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:27Z` |
 
 같은 벤더의 여러 계정과 구독/API 실행 경로를 별도 connection으로 등록하고 resource와 연결한다.
 
@@ -432,7 +432,7 @@ API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaq
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-010-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-010` · 부분 구현: commit ded0b64/9dd4dc2, tests/test_connection.py 27개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분); 차단: 선행 AIK-007·AIK-009 장부상 미완료; 공식 호스트 인증 문맥 관측 어댑터 미구현; 외부 참조 조회와 삭제가 비원자적이며 tombstone 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-011
 
@@ -473,13 +473,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | OpenAI API adapter |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 13 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
 
 공식 API 키 연결을 공통 자원·usage·실행 관측 계약으로 변환하는 adapter 코드를 구현하고 기존 구현 재사용 범위를 확인한다. 이 태스크의 구현 완료와 실제 계정 qualification을 구분한다.
 
@@ -498,7 +498,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-012-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-012` · 부분 구현: commit da6e014/6a80c64, tests/test_adapter_openai.py 32개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분); 차단: 선행 AIK-009·AIK-011 장부상 미완료; 엔드포인트·응답 형식이 vendor 문서로 미확인; AIK-022/082/086 단계별 근거 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-013
 
@@ -506,13 +506,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Anthropic API adapter |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 14 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
 
 공식 API 키 연결을 공통 자원·usage·실행 관측 계약으로 변환하는 adapter 코드를 구현한다. 실제 계정 지원 여부는 별도 qualification으로 판정한다.
 
@@ -531,7 +531,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-013-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-013` · 부분 구현: commit 42c5a12/00ed825, tests/test_adapter_anthropic.py 42개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분); 차단: 선행 AIK-009·AIK-011 장부상 미완료; API 엔드포인트·헤더·응답 형식 미검증 가정; AIK-022/082/086 단계별 근거 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-014
 
@@ -605,13 +605,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Credential broker |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 17 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
 
 연결 자격이 바뀌었을 때 신규 배치와 진행 중 작업을 구분해 처리한다.
 
@@ -630,7 +630,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-016-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-016` · 부분 구현: commit 5d4fc7f/8e4a5bb, tests/test_auth_lifecycle.py 27개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분); 차단: 선행 AIK-009·AIK-010·AIK-011 장부상 미완료; 연동하는 AIK-019(aik_pool) 장부상 미완료; 상태·회수 목록 영속화와 레지스트리 비활성화 hook 미구현. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-017
 
@@ -671,13 +671,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Credential broker |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 19 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
 
 어댑터가 인가된 연결에 한해 호출 시점에 필요한 비밀을 해석하도록 한다.
 
@@ -696,7 +696,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-018-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-018` · 부분 구현: commit d25aa52/e6617d5, tests/test_broker.py 34개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분); 차단: 선행 AIK-004·009·010·017 미완료 부분; 실제 ConnectionStore·DPAPI vault 연동 없음(fake로 대체); Windows 손자 프로세스 정리(Job Object) 미구현; broker의 grant task와 lease 결속 대조를 발급자 책임에 의존. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-019
 
@@ -704,13 +704,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Resource registry |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 20 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:49:10Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
 
 공통 연결·capability 계약에 따라 모델/host/tools와 현재 실행 가능 상태를 광고한다. 공통 registry 개발은 모든 후보 adapter의 완성을 기다리지 않으며 구현 여부와 실제 qualification을 분리한다.
 
@@ -730,7 +730,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-019-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-019` · 부분 구현: commit 0389216/e8357f6, tests/test_pool.py 37개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 4(부분); 차단: 실제 live qualification 근거 부재(AIK-086); AIK-022 인증·AIK-082 사전 probe 근거와의 대조 미구현; inventory 비영속, 실제 provider probe 연결 없음; 선행 AIK-011·016이 장부상 미완료. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-020
 
@@ -738,13 +738,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Model inventory |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 21 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
 
 계정별 이용 가능한 모델과 runtime 옵션을 조회하여 총괄·worker 설정의 유효 조합을 만든다.
 
@@ -763,7 +763,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-020-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-020` · 부분 구현: commit 857c60a/1c1dcd6, tests/test_capability.py 26개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 없음(단위 범위); 차단: 실제 provider 모델 목록 조회 adapter 부재(공통 계약에 목록·도구 probe 없음); catalog_ref가 가리키는 검토 기록의 실재 미검증; 선행 AIK-019 장부상 미완료. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-021
 
@@ -771,13 +771,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Connections |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 22 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
 
 여러 프로젝트가 연결을 공유하는 범위와 설정의 import/export 정책을 구현한다.
 
@@ -797,7 +797,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-021-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-021` · 부분 구현: commit 88ca5fc/805633c, tests/test_scope.py 19개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 4(부분); 차단: 선행 AIK-010·018 미완료; 직접 저장 경로 미차단, broker·orchestrator guard 미연결; 재결속 AIK-084·전체 복원 AIK-058·GUI AIK-088 미구현; 다중 파일 import 원자성 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-022
 
@@ -844,13 +844,13 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Director |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E04 · 총괄 에이전트 |
 | 실행 순서 | 24 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:29Z` |
 
 총괄의 connection/model/effort/tool/budget/fallback을 설정하고 worker/검토 역할과 독립 유지한다.
 
@@ -869,7 +869,7 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-023-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-023` · 부분 구현: commit 7178e4c/afaebcd, tests/test_profiles.py 29개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 3(부분); 차단: 선행 AIK-007·020 미완료; 실행 경로에서 prepare_execution/require를 호출하는 통합 코드 없음; FallbackApproval.approval_ref 실재·승인자 미검증; settings와 분리돼 connection 삭제를 DB 수준에서 막지 못함. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-024
 
@@ -877,13 +877,13 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Director |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E04 · 총괄 에이전트 |
 | 실행 순서 | 25 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:29Z` |
 
 사용자가 지정한 자원으로 총괄을 실행하고 미설정 상태에서 로그인·모델 선택으로 이어지는 초기 흐름을 만든다.
 
@@ -902,7 +902,7 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-024-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-024` · 부분 구현: commit 51365a6/314e107, tests/test_director.py 33개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 3(부분); 차단: 선행 AIK-006·018·023 부분 구현; 실제 provider runner·모델 호출 미구현; health endpoint 서버·GUI 로그인/모델 선택 연결 없음; grant 갱신 미구현, director 종료 후 runner 이중 실행 방지 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-025
 
@@ -910,13 +910,13 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Director event loop |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E04 · 총괄 에이전트 |
 | 실행 순서 | 26 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:29Z` |
 
 사용자 지시와 AGS/VM 이벤트를 영속 수신하고 필요한 때 총괄을 깨운다.
 
@@ -935,7 +935,7 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-025-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-025` · 부분 구현: commit 353581a/9caa99f, tests/test_inbox.py 24개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분); 차단: 선행 AIK-005·024 미완료; AGS/VM 이벤트 수신기·GUI 지시 입력·outbox transport 미연결; 총괄 model 호출 루프와 wake callback 결합 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-031
 
@@ -1179,13 +1179,13 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Admission and usage |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E07 · 관측·감사·비용 |
 | 실행 순서 | 34 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:29Z` |
 
 총괄과 worker 전체 사용량을 추적하고 신규 실행 전 한도를 예약한다.
 
@@ -1204,7 +1204,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-040-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-040` · 부분 구현: commit 47f3018/b08454a, tests/test_budget.py 28개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분); 차단: 선행 AIK-005·019·020·023 미완료; 실제 provider 사용량·청구·429·quota 응답 연결 없음; quota 잔여량 검사가 호출당 최소 1단위 하한 가정에 의존. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
 ### AIK-081
 
@@ -3735,7 +3735,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-13T06:24:36Z |
+| `updated_at` | 2026-10-13T09:24:29Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

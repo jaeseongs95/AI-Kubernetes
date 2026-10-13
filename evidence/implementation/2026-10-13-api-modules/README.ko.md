@@ -1,0 +1,392 @@
+# 부분 구현 기록 — 2026-10-13 모듈 구현
+
+이 기록은 [개발 태스크 정본](../../../planning/backlog.sqlite3)에 부분 구현·검증 범위·남은 완료 기준·차단 사유를 반영한 근거다. **어느 태스크도 완료(`done`)로 처리하지 않았다.** 상태는 `todo`에서 `blocked`로만 바꿨다. 선행 작업(특히 AIK-003·004·005·011·083)이 완료되지 않았고, 실제 Windows·provider·VM/AGS 설치형 검증이 실행되지 않았기 때문이다.
+
+## 검증 범위와 한계
+
+- 모든 시험은 표준 라이브러리 `unittest`와 합성 데이터·fake port만 쓴다. 이 세션의 Linux(Python 3.13)에서 `python -m unittest discover -s tests`로 전체 회귀를 실행해 통과했다(각 commit 직전).
+- 독립 CI는 `.github/workflows/aik-modules.yml`(Ubuntu·Windows, Python 3.14.8)로 연결했다. 그 실행 결과는 이 기록에 포함하지 않으며, CI 통과도 제품 qualification이 아니다.
+- 구현 초안과 독립 검토·수정은 Claude API(Opus) 호출로 만들었다. 적용·시험·판정·commit은 세션 총괄이 수행했다. 각 태스크는 독립 검토 finding을 반영한 수정 commit을 포함한다(일부는 검토 진행 중).
+- VM 인터페이스 중 일부(실행 binding extension, 효과 intent/receipt port)는 현재 upstream에 없는 **가정 확장**이다. 실제 설치형 upstream에 연결하기 전에는 통합 완료로 처리하지 않는다.
+- 각 태스크의 완료 기준 판정은 API가 장부 명세와 구현 문서를 대조해 만든 초안이다. 세션 총괄이 현재 코드와 대조해 일부를 정정했다. `단위 범위 충족`은 합성 시험 범위에서의 판단이며 완료 판정이 아니다.
+
+## AIK-006
+
+- 구현: src/aik_supervisor/에 사용자·workspace·component별 OS 파일 잠금, 원자적 endpoint 게시와 attach, 창·수명 상태 분리, 종료 시 진행 중 lease 보존 보고를 구현했다.
+- 검증: Linux에서 합성 데이터로 실제 자식 프로세스 동시 기동·attach·kill 후 재기동, 일시정지/종료 배치 거절, mock 저장소 오류, msvcrt 분기를 단위 시험으로 검사했다.
+- 커밋: `de78cdd`, `38b1e5a`
+- 시험: `tests/test_supervisor.py` (16개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | 잠금과 endpoint attach는 단위 범위에서 동작한다. 그러나 named pipe/socket 서버·handshake와 Electron GUI 연결이 없다. |
+| 2 | 단위 범위 충족 | 창 축과 수명 축(RUNNING/PAUSED/SHUTTING_DOWN/STOPPED)을 분리했다. 다만 일시정지는 메모리에만 있고 GUI 이벤트와 연결되지 않았다. |
+| 3 | 부분 | 종료 시 배치 거절·lease 보존·재시작 observation_targets를 구현했다. 단, 거절은 admit_placement 경로에만 적용되고 스캔은 store 전체 대상이다. |
+
+차단 사유:
+- 선행 AIK-004(blocked)·AIK-005 장부상 미완료
+- endpoint 서버·instance_id handshake 미구현으로 잔여 경쟁 창 존재
+- Windows 공유 위반 시 PermissionError 미처리
+- Electron GUI 실제 연결 없음
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 11 msvcrt 잠금·LOCALAPPDATA·강제 종료 후 잠금 해제·NTFS 대소문자
+- named pipe 서버·사용자별 ACL·재연결 handshake
+- 다른 Windows 사용자·RDP 세션 격리
+
+## AIK-007
+
+- 구현: aik_config SettingsStore를 구현했다. workspace·연결·총괄/worker 프로필·한도·권한 기본값의 별도 모델, 참조 검증, revision, 비밀 제외 export/import, AIK-084 결속 authority 인터페이스를 포함한다.
+- 검증: Linux 임시 폴더의 합성 데이터로 재시작 유지, 잘못된 참조·교차 workspace, revision 충돌·rollback, export/import, 결속 일치/불일치를 단위 시험으로 검사했다.
+- 커밋: `df8af3d`, `ab61cb3`
+- 시험: `tests/test_config.py` (20개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | workspace·연결·agent 프로필·한도·권한을 별도 테이블과 frozen dataclass로 구분 저장한다. 연결 상세는 AIK-010 범위다. |
+| 2 | 단위 범위 충족 | InvalidReference·CrossWorkspaceReference를 검증 단계에서 발생시키고, composite FK로 다른 workspace 연결 참조를 차단한다. |
+| 3 | 단위 범위 충족 | export에서 비밀·credential을 제외하고, import 시 needs_authentication과 connections_requiring_authentication을 표시한다. |
+| 4 | 부분 | 결속 authority 인터페이스와 fail-closed 검증만 구현했다. AIK-084는 미구현이고 ExecutionTarget의 선택 변경 fencing이 없다. |
+
+차단 사유:
+- AIK-084 aik_workspace가 WorkspaceBindingAuthority를 구현했으나 AIK-084 자체가 미완료이고 GUI·실제 VM 결속 검증 없음
+- 선행 AIK-004·AIK-005 장부상 미완료
+- AIK-010 연결 CRUD·GUI 연결 미연동
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 기본 경로·잠금·journal 사본 검사
+- AIK-084 실제 구현과의 연동
+- GUI·admission 연결
+
+## AIK-008
+
+- 구현: aik_compat.upstream_defects로 진단 결과를 결함 목록으로 변환한다. baseline 기대 identity·상태·결함 소유자, AIK-081/082 연결, 경로별 상태, GUI 사유와 저장 진단 재계산 결속을 포함한다.
+- 검증: 저장소의 고정 계약 JSON과 메모리 내 변조 입력으로 결함 목록 생성과 위조·불일치 입력 거절을 Linux 단위 시험으로 검사했다.
+- 커밋: `eb51d14`, `d3dae47`
+- 시험: `tests/test_upstream_defects.py` (22개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | 상태·manifest·digest를 기록하지만 identity는 baseline 계약 기대값이다. 설치물 관측이 아니며 MATCH·compatible을 출력하지 않는다. |
+| 2 | 부분 | linkage와 route_states로 경로별 상태를 분리 연결한다. 그러나 model/effort 관측은 live probe가 없어 NOT_RUN이다. |
+| 3 | 단위 범위 충족 | PASS·qualified를 발행하지 않고, 실행불가 원인을 고정 코드·메시지 키로 gui.reasons에 반환한다. |
+
+차단 사유:
+- 선행 AIK-083 미완료
+- 설치형 conformance 미실행
+- A2 호환 AGS 배포물 부재
+- AIK-081/082 live probe 근거 없음
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 AGS/VM 설치형 conformance(--live)
+- Windows 11 실기
+- 벤더별 model/effort live probe와 AIK-086 governed qualification
+- 실제 live 진단 파일 재계산 대조
+
+## AIK-009
+
+- 구현: 사용자 범위 DPAPI와 암호문 파일 backend, put/replace/delete/resolve, LOCAL_MACHINE 플래그 거절, 고정 오류 코드, 경계 ADR을 src/aik_vault/와 문서로 구현했다.
+- 검증: FakeVaultBackend·mock binding으로 저장·교체·삭제·재시작 회수·손상·잠금·경로 거절·평문 비검출 단위 시험을 작성했다. 문서에는 실행 결과 기록이 없다.
+- 커밋: `36f7e69`, `72a9d33`
+- 시험: `tests/test_vault.py` (26개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | DPAPI 선택과 머신 범위 금지, 동일 사용자 접근 범위를 ADR에 명시했다. Credential Manager 실기 비교와 Windows 검증은 NOT_RUN이다. |
+| 2 | 부분 | fake 백엔드로 CRUD와 프로세스 재시작 후 회수를 시험하도록 작성했다. 실제 DPAPI 왕복·재시작 시험은 Linux에서 skip된다. |
+| 3 | 부분 | 시험 산출물 범위의 평문 비검출과 오류 코드 매핑을 작성했다. Windows ACL 거부 분류와 DPAPI 오류 매핑은 NOT_RUN이다. |
+
+차단 사유:
+- 실제 Windows DPAPI 실행 근거 부재
+- 선행 AIK-004·AIK-005 장부상 미완료
+- Credential Manager 정책 근거 자료 없음
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 Windows DPAPI 왕복·프로세스 재시작 회수
+- 다른 Windows 사용자·다른 PC 복호화
+- LOCALAPPDATA·사용자 지정 디렉터리 ACL과 ACL 거부 분류
+- Credential Manager 실기 비교
+
+## AIK-010
+
+- 구현: aik_connection ConnectionStore를 구현했다. 상세 metadata 별도 DB, 실행 경로별 규칙, 중복 판정, 인증 문맥 검증, label 제외 provenance, 삭제 영향 범위와 강제 삭제를 포함한다.
+- 검증: OS 임시 폴더의 합성 데이터와 FakeVaultBackend로 다중 계정, 중복, 인증 문맥, 이름 변경, 삭제 영향 범위, 모의 부분 게시를 Linux 단위 시험으로 검사했다.
+- 커밋: `ded0b64`, `9dd4dc2`
+- 시험: `tests/test_connection.py` (27개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | provider·account label·auth_kind·execution_kind·credential_ref·verified_at을 연결 상세 DB에 저장한다. |
+| 2 | 부분 | 구독/API 별도 등록, binding_revision, verify_auth_context 대조를 구현했다. 실제 공식 호스트의 AuthContext 관측 어댑터는 없다. |
+| 3 | 단위 범위 충족 | rename 후에도 ConnectionProvenance가 불변이고 impact로 영향 범위를 표시한다. 외부 참조 검사는 원천을 주입해야 한다. |
+
+차단 사유:
+- 선행 AIK-007·AIK-009 장부상 미완료
+- 공식 호스트 인증 문맥 관측 어댑터 미구현
+- 외부 참조 조회와 삭제가 비원자적이며 tombstone 없음
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 기본 경로·잠금·실제 DPAPI vault 연동
+- 실제 디스크 full·I/O 오류·전원 차단
+- 실제 공식 호스트 인증 관측
+
+## AIK-012
+
+- 구현: OpenAIApiAdapter를 구현했다. 키 등록·인증 확인·모델 확인·호출·관측·중단·교체·해제, 공통 turn/tool 계약 변환, 실행 가능 모델 광고 제한, 구현/qualification 상태 분리를 포함한다.
+- 검증: 합성 fake transport와 FakeVaultBackend로 성공/실패 fixture·GuardedAdapter 결합·평문 비검출 단위 시험을 작성했다. 문서에는 실행 결과 기록이 없다.
+- 커밋: `da6e014`, `6a80c64`
+- 시험: `tests/test_adapter_openai.py` (32개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | 수명주기 코드 경로와 성공/실패 fixture 시험을 작성했다. 문서에 시험 실행 결과 기록이 없다. |
+| 2 | 부분 | request/job·model·usage·도구 메시지를 공통 계약으로 변환한다. AIK-035 실제 결합은 없고 엔드포인트 형식은 미검증 가정이다. |
+| 3 | 부분 | 검증된 모델만 광고하고 api_key_metered로 과금을 구분하며, status는 NOT_RUN으로 분리한다. 시험 실행 기록은 없다. |
+
+차단 사유:
+- 선행 AIK-009·AIK-011 장부상 미완료
+- 엔드포인트·응답 형식이 vendor 문서로 미확인
+- AIK-022/082/086 단계별 근거 없음
+
+실행하지 않은 검증(NOT_RUN):
+- UrllibTransport 실제 vendor 왕복
+- 실제 키 인증(AIK-022)
+- runtime·도구 실행(AIK-082/086/044)
+- Windows DPAPI vault 결합 실행
+
+## AIK-013
+
+- 구현: AnthropicAdapter를 구현했다. 키 등록·인증 확인·Messages 호출·교체·해제, model·usage·cache·도구 변환, 잘림 비승격, 공통 오류 매핑, qualification NOT_RUN 분리를 포함한다.
+- 검증: 합성 fake transport와 fake vault로 인증·호출·usage/cache·도구 loop·잘림·401/429/404/timeout·교체·해제 fixture 시험을 작성했다. 문서에는 실행 결과 기록이 없다.
+- 커밋: `42c5a12`, `00ed825`
+- 시험: `tests/test_adapter_anthropic.py` (42개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | 수명주기 코드 경로와 성공/실패 fixture 시험을 작성했다. 문서에 실행 결과 기록이 없다. |
+| 2 | 부분 | usage·cache·도구 변환을 구현하고 max_tokens는 truncated/failed로 처리한다. 단, source 선언을 검증하지 못하고 AIK-035 실제 결합이 없다. |
+| 3 | 부분 | 401/429/timeout/404를 공통 FaultKind로 매핑하고 qualification NOT_RUN을 분리했다. 시험 실행 기록은 없다. |
+
+차단 사유:
+- 선행 AIK-009·AIK-011 장부상 미완료
+- API 엔드포인트·헤더·응답 형식 미검증 가정
+- AIK-022/082/086 단계별 근거 없음
+
+실행하지 않은 검증(NOT_RUN):
+- UrllibTransport 실제 vendor 왕복
+- 실제 키 인증(AIK-022)
+- runtime·도구 실행과 제품 통합(AIK-082/086/044)
+- Windows 실행(DPAPI vault 포함)
+
+## AIK-016
+
+- 구현: aik_auth_lifecycle 인증 상태 기계를 구현했다. begin_run/placement_candidates 배치 제외, 키 회전·회수 표시, 잠금 정책·신호원, 강제 로그아웃, 삭제 tombstone, 이벤트를 포함한다.
+- 검증: 합성 binding·주입 시계·fake adapter·FakeVaultBackend로 만료, 회전, 스레드 경합, 잠금 정책, 강제 로그아웃의 비완료 처리를 Linux 단위 시험으로 검사했다.
+- 커밋: `5d4fc7f`, `8e4a5bb`
+- 시험: `tests/test_auth_lifecycle.py` (27개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | 이 API를 경유하면 비valid 자원을 제외하고 재인증 후 재검증을 요구한다. 그러나 레지스트리를 직접 조회하면 우회된다. |
+| 2 | 부분 | 새 실행은 새 credential_version을 받는다. 이전 실행 회수는 외부 record_observation에 의존하며 관측 루프와 영속화가 없다. |
+| 3 | 부분 | 잠금 정책과 강제 로그아웃의 비완료·비환불 처리를 구현했다. Windows 세션 신호는 NOT_RUN이고 폴링 사이 잠금을 놓친다. |
+
+차단 사유:
+- 선행 AIK-009·AIK-010·AIK-011 장부상 미완료
+- 연동하는 AIK-019(aik_pool) 장부상 미완료
+- 상태·회수 목록 영속화와 레지스트리 비활성화 hook 미구현
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 Windows 세션 잠금 신호
+- 실제 공식 호스트·provider 만료/잠금 관측
+- 실제 DPAPI vault와의 회전 연동
+
+## AIK-018
+
+- 구현: src/aik_broker에 grant 기반 scoped secret 해석(inject/run_with_credential)을 구현했다. adapter identity·workspace·task·lease·connection 재확인과 stdin/env 자식 주입·정리를 포함한다.
+- 검증: tests/test_broker.py는 fake vault·fake 연결 원천·합성 lease로 거절 경로, 평문 비노출, 자식 주입·POSIX 정리를 검사하도록 작성됐다. 문서에 실행 결과 기록은 없다.
+- 커밋: `d25aa52`, `e6617d5`
+- 시험: `tests/test_broker.py` (34개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | worker에는 connection_id와 grant_id만 전달하도록 설계했다. 그러나 grant_id는 별도 bearer capability이고, 실제 총괄·worker 경로와 연결되지 않았다. |
+| 2 | 부분 | broker 경로에서 adapter·workspace·task·lease·connection 일치를 검사한다. 동일 사용자 native 경로는 vault ADR trust profile로 링크했으나 그 문서는 확인하지 않았다. |
+| 3 | 부분 | argv·env 비밀 차단, 파일 비기록, POSIX process group 정리를 구현했다. Windows는 직계 자식만 종료하고 Job Object는 미구현이며 NOT_RUN이다. |
+
+차단 사유:
+- 선행 AIK-004·009·010·017 미완료 부분
+- 실제 ConnectionStore·DPAPI vault 연동 없음(fake로 대체)
+- Windows 손자 프로세스 정리(Job Object) 미구현
+- broker의 grant task와 lease 결속 대조를 발급자 책임에 의존
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 자식 프로세스 정리·취소·환경 허용 목록·환경 블록 노출
+- 실제 ConnectionStore·DPAPI vault 연동
+- 실제 provider adapter·Electron main 연결
+
+## AIK-019
+
+- 구현: src/aik_pool에 (Pool, model) 경로별 메모리 inventory를 구현했다. 구현·계정·runtime·governance·시각·matrix 필드, TTL stale, 용량 unknown, 4단계 qualification을 포함한다.
+- 검증: tests/test_pool.py는 공통 fake adapter·fake clock으로 다중 계정, 상태 전이, stale, 용량 unknown, qualification 무효화를 검사하도록 작성됐다. 합성 verifier는 로직 검증용이다.
+- 커밋: `0389216`, `e8357f6`
+- 시험: `tests/test_pool.py` (37개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | pool_id·connection_id를 분리하고, 같은 모델의 구독/API 경로를 model·pool_id·connection_id로 각각 조회한다. |
+| 2 | 단위 범위 충족 | 별도 필드를 노출한다. 계정 변경 probe 시 qualification을 폐기하고 경로별로 독립 계산하며, 구현만으로 executable_now를 만들지 않는다. 다만 감지는 probe 시점에만 이뤄진다. |
+| 3 | 단위 범위 충족 | TTL 초과·시계 역행은 stale로 처리한다. 용량 probe 부재·이상값은 unknown/None으로 두고 0이나 무제한으로 바꾸지 않는다. |
+| 4 | 부분 | 단계 구분과 verifier 없는 qualified 거절을 구현했다. 086용 test-only candidate binding, AGS A2/VM gate 적용, 실제 qualification PASS는 없다. |
+
+차단 사유:
+- 실제 live qualification 근거 부재(AIK-086)
+- AIK-022 인증·AIK-082 사전 probe 근거와의 대조 미구현
+- inventory 비영속, 실제 provider probe 연결 없음
+- 선행 AIK-011·016이 장부상 미완료
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 provider·공식 호스트 로그인 probe
+- 실제 live qualification
+- Windows 11 동작
+
+## AIK-020
+
+- 구현: src/aik_capability에 connection별 목록 로드·검증된 수동 등록, provenance 필수 snapshot을 구현했다. (model, effort, tools, context) validator와 revision·stale 판정도 포함한다.
+- 검증: tests/test_capability.py는 합성 모델명으로 거절 규칙, resource별 분리, provenance 비승격, 미지원 조합, TTL·binding 변경 전이를 검사하도록 작성됐다. 실행 결과 기록은 없다.
+- 커밋: `857c60a`, `1c1dcd6`
+- 시험: `tests/test_capability.py` (26개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | 제품 코드에 모델명이 없다. load_list와 catalog_ref가 필요한 register_manual로 resource별로 등록한다. |
+| 2 | 단위 범위 충족 | snapshot 단위로 source_ref·observed_at·loaded_at을 기록한다. 출처와 시각의 실제 정확성은 형식만 검사한다. |
+| 3 | 단위 범위 충족 | 4개 provenance를 필수 구분한다. requested·local_derived는 지원 근거로 쓰지 않고, 같은 이름도 connection별로 분리 판정한다. |
+
+차단 사유:
+- 실제 provider 모델 목록 조회 adapter 부재(공통 계약에 목록·도구 probe 없음)
+- catalog_ref가 가리키는 검토 기록의 실재 미검증
+- 선행 AIK-019 장부상 미완료
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 provider·실계정 모델 목록 조회
+- Windows 11 동작
+
+## AIK-021
+
+- 구현: src/aik_scope에 workspace별 명시 allowlist·공유 규칙 ScopeStore와 guard 경유 프로필 저장을 구현했다. 비밀 제외 설정 export/import와 재연결 대기 복원도 포함한다.
+- 검증: tests/test_scope.py는 임시 폴더·합성 ID·FakeVault로 범위 판정, export 비밀 비포함, 빈 vault의 다른 사용자 모사 복원, 충돌·부분 실패를 검사하도록 작성됐다.
+- 커밋: `88ca5fc`, `805633c`
+- 시험: `tests/test_scope.py` (19개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | guard는 미허용 참조를 차단한다. 그러나 SettingsStore/ProfileStore 직접 저장은 막지 못해 violations로만 드러나고, broker·orchestrator와 연결되지 않았다. |
+| 2 | 단위 범위 충족 | 정확한 키 allowlist로 검사하고, API 키·호스트 토큰·검증 시각·결속을 제외한다. 예상 밖 필드가 있으면 export를 거절한다. |
+| 3 | 단위 범위 충족 | 해석 불가 vault 참조는 등록하지 않고 pending_restores 재연결 필요 상태로 복원한다. 실제 DPAPI 타 사용자 확인은 NOT_RUN이다. |
+| 4 | 부분 | execution_ready·goals_and_evidence_restored는 항상 False이고 workspace는 미결속으로 복원한다. 같은 vault 경로는 재연결을 강제하지 않으며, 재결속은 AIK-084에 의존한다. |
+
+차단 사유:
+- 선행 AIK-010·018 미완료
+- 직접 저장 경로 미차단, broker·orchestrator guard 미연결
+- 재결속 AIK-084·전체 복원 AIK-058·GUI AIK-088 미구현
+- 다중 파일 import 원자성 없음
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 다른 Windows 사용자/기기의 DPAPI 참조 비해석 복원
+- Windows 기본 경로·잠금
+- 실제 aik_vault·공식 호스트 어댑터 연동
+
+## AIK-023
+
+- 구현: src/aik_profiles에 DirectorProfile·RoleProfile schema, 역할별 독립 revision 저장소, 승인 fallback만 허용하는 prepare_execution을 구현했다. provenance 기록과 validate CLI도 포함한다.
+- 검증: tests/test_profiles.py는 임시 폴더·합성 모델·주입 시계로 저장, 역할 분리, 옵션 불일치, fallback 승인, 기록 조회를 검사하도록 작성됐다. inventory 등록은 harness로 넣는다.
+- 커밋: `7178e4c`, `afaebcd`
+- 시험: `tests/test_profiles.py` (29개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | connection·model·effort·tools·max_calls·budget과 순서 있는 fallback(최대 8)을 저장하고 settings 참조를 확인한다. |
+| 2 | 단위 범위 충족 | 프로필별 행·revision을 두고 role·workspace 변경을 거절해, 총괄 변경이 worker·검토자 행을 덮어쓰지 않는다. |
+| 3 | 부분 | prepare_execution이 capability를 검증하고 요청과 binding·provenance를 execution_records에 남긴다. 실행 경로 통합과 실제 ConnectionBinding 경로는 미검증이다. |
+
+차단 사유:
+- 선행 AIK-007·020 미완료
+- 실행 경로에서 prepare_execution/require를 호출하는 통합 코드 없음
+- FallbackApproval.approval_ref 실재·승인자 미검증
+- settings와 분리돼 connection 삭제를 DB 수준에서 막지 못함
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 기본 경로·잠금·CLI 정규 파일 판정
+- 실제 provider·실계정 capability 조회
+- 실제 aik_provider.ConnectionBinding 경로
+
+## AIK-024
+
+- 구현: src/aik_director에 supervisor 단일 owner·프로필 검증·probe·broker grant를 거치는 총괄 check/start/stop을 구현했다. SetupIssue 반환, 관측 비교, 이벤트 기록, health payload도 포함한다.
+- 검증: tests/test_director.py는 실제 supervisor·inbox와 fake profile gate·runner·broker로 설정 문제, 중복 시작(별도 프로세스 포함), 관측 불일치, 정지 실패, 유휴 wake 0회를 검사하도록 작성됐다.
+- 커밋: `51365a6`, `314e107`
+- 시험: `tests/test_director.py` (33개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | worker 프로필·pool·placement 없이 check()와 start()로 총괄 연결을 검증·시작한다. runner는 fake다. |
+| 2 | 단위 범위 충족 | 미설정·로그인·연결·capability·fallback 등을 field·code·action을 담은 SetupIssue로 반환한다. |
+| 3 | 부분 | 중복 시작을 차단하고 시작·정지·실패·관측 이벤트를 기록한다. 기록은 event_sink 없으면 비영속이고, 관측값은 runner 보고에 의존한다. |
+
+차단 사유:
+- 선행 AIK-006·018·023 부분 구현
+- 실제 provider runner·모델 호출 미구현
+- health endpoint 서버·GUI 로그인/모델 선택 연결 없음
+- grant 갱신 미구현, director 종료 후 runner 이중 실행 방지 없음
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 11 msvcrt 잠금 중복 시작 차단·%LOCALAPPDATA% 경로
+- 실제 ProfileStore·CapabilityInventory·CredentialBroker 결합
+- 실제 모델·effort 관측
+
+## AIK-025
+
+- 구현: src/aik_inbox에 별도 SQLite inbox를 구현했다. message_id·goal_id·source cursor 기록, 중복·순서 역전 처리, lease·ack·fail, outbox, 재시작 회수, 상태 변화 시에만 깨우는 WakePolicy를 포함한다.
+- 검증: tests/test_inbox.py는 임시 합성 DB로 중복, 순서 역전, 실제 자식 강제 종료 후 회수, hot journal rollback, 빈 큐 1000회 poll wake 0회를 검사하도록 작성됐다. 실행 결과 기록은 없다.
+- 커밋: `353581a`, `9caa99f`
+- 시험: `tests/test_inbox.py` (24개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | message_id·goal_id·source·event_cursor를 저장한다. 같은 message_id와 같은 cursor·내용의 재전송은 duplicate로 처리한다. |
+| 2 | 부분 | 종류별 WakeSignal을 만들고 같은 상태로는 재호출하지 않아 유휴 무한 호출을 막는다. 실제 총괄 model 호출 루프와는 결합하지 않았다. |
+| 3 | 단위 범위 충족 | 열 때 recover로 만료 lease를 회수한다. AckResult.goal_completion은 항상 not_determined이고, ACK와 작업 완료를 분리한다. |
+
+차단 사유:
+- 선행 AIK-005·024 미완료
+- AGS/VM 이벤트 수신기·GUI 지시 입력·outbox transport 미연결
+- 총괄 model 호출 루프와 wake callback 결합 없음
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 11 msvcrt 잠금·%LOCALAPPDATA%·강제 종료 후 회수·hot journal 복구
+- 실제 AGS/VM 이벤트 연결과 상류 재시도 계약 확인
+- 대규모 큐 처리량·전원 차단
+
+## AIK-040
+
+- 구현: src/aik_budget에 locked 트랜잭션 admission guard를 구현했다. 호출 수·deadline·동시성·비용 hold·token stop·429·quota, basis 구분 append-only 정산, quota 상태 조회를 포함한다.
+- 검증: tests/test_budget.py는 합성 profile·RouteStatus·주입 시계로 스레드·두 프로세스 경합, 429, quota 미확인, 지연 청구 대체, append-only를 검사하도록 작성됐다.
+- 커밋: `47f3018`, `b08454a`
+- 시험: `tests/test_budget.py` (28개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | profile max_calls로 총괄 호출을 포함해 pool·profile·목표별 상한을 검사한다. 목표 scope는 호출자가 넣지 않으면 검사되지 않는다. |
+| 2 | 단위 범위 충족 | api_cost_cents·토큰·quota_used+단위를 환산 없이 분리하고, confirmed/estimated/unknown basis를 구분한다. unknown을 0으로 채우지 않는다. |
+| 3 | 단위 범위 충족 | rejected로 신규 배치를 멈추고 late 보고를 정산해 over_limit로 표시한다. 문서는 외부 청구 절대 상한 비보장을 명시한다. |
+
+차단 사유:
+- 선행 AIK-005·019·020·023 미완료
+- 실제 provider 사용량·청구·429·quota 응답 연결 없음
+- quota 잔여량 검사가 호출당 최소 1단위 하한 가정에 의존
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 기본 경로·msvcrt 잠금·두 프로세스 경합
+- 실제 provider·실계정 사용량·청구 검증
+- 대규모 처리량
