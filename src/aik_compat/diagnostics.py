@@ -34,6 +34,7 @@ KNOWN_CODES = frozenset((
     "INCOMPLETE_PROVENANCE", "UPSTREAM_GATE_BLOCKED",
 ))
 HEX = re.compile(r"^[0-9a-f]{64}$")
+COMMIT = re.compile(r"^[0-9a-f]{40}$")
 SCOPE = {"openai", "anthropic"}
 ROLES = {"director", "developer", "reviewer"}
 AUTHS = {"api_key", "native_subscription"}
@@ -78,6 +79,10 @@ def _listed(value: Any) -> list[Any]:
 
 def _sha(value: Any) -> bool:
     return type(value) is str and HEX.fullmatch(value) is not None
+
+
+def _git_commit(value: Any) -> bool:
+    return type(value) is str and COMMIT.fullmatch(value) is not None
 
 
 def _observed_at(value: Any) -> str | None:
@@ -146,7 +151,7 @@ def inspect(
     installed = _mapping(inspection.get("vm_installed"))
     ags = _mapping(baseline.get("ags"))
     vm = _mapping(baseline.get("vm"))
-    if not (_sha(ags.get("revision")) and _sha(vm.get("revision"))
+    if not (_git_commit(ags.get("revision")) and _git_commit(vm.get("revision"))
             and _sha(ags.get("archive_sha256")) and _sha(vm.get("wheel_sha256"))):
         raise DiagnosticError("INVALID_UPSTREAM_LOCK")
     routes = _listed(matrix.get("routes"))
