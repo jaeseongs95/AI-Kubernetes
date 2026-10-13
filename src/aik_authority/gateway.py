@@ -44,11 +44,21 @@ _STATE = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
 
 
 class VmEffectAuthorityPort(Protocol):
-    """Assumed VM public effect-authority extension (not in the pinned VM surface).
+    """Tool-call effect journal port. This is not a VM public extension.
+
+    The VM design has no tool-call-level intent, receipt or ``read_effect``
+    API; VM validates local tool effects with its own diff/hash evidence and
+    governance-gate snapshots. ``aik_authority.effect_journal.AikEffectJournal``
+    implements this port as an AIK-owned durable journal. Its records are AIK
+    observations, never VM authority, VM evidence or a completion verdict.
+    External effects are submitted separately, per Task, through
+    ``aik_authority.effect_journal.ExternalEffectSubmitter``.
 
     ``record_intent`` must echo ``effect_id`` and ``request_digest``;
     ``record_receipt`` and ``read_effect`` return ``{"effect_id", "state"}``
-    (``read_effect`` returns None when VM has no intent for the effect).
+    (``read_effect`` returns None when the journal has no intent for the effect).
+    A refusal carries a ``code`` attribute; codes without an ``UNKNOWN`` token
+    are treated as known refusals (``VM_REJECTED``) by this gateway.
     """
 
     def record_intent(self, intent: Mapping[str, Any]) -> Mapping[str, Any]: ...

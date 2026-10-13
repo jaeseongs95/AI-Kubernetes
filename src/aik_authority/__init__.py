@@ -14,8 +14,18 @@ deny). A tool call is permitted only inside the intersection of:
 The gateway never creates approval evidence, never approves on a user's behalf,
 and never records its own permission as an effect completion. Workers and
 reviewers receive only an opaque ToolSession handle, never authority objects.
+
+Tool-call intents and receipts are recorded in the AIK-owned
+``AikEffectJournal`` (not a VM API and not VM evidence). Task-level external
+effects are submitted to VM through ``ExternalEffectSubmitter``; VM confirms
+them only after a later target re-observation.
 """
 
+from .effect_journal import (
+    CHECKPOINT_POLICIES, INTENT_RECORDED, JOURNAL_ERROR_CODES, JOURNAL_STATES, TARGET_REOBSERVATION_REQUIRED,
+    AikEffectJournal, EffectIdentity, EffectJournalError, ExternalEffectError, ExternalEffectReceipt,
+    ExternalEffectSubmission, ExternalEffectSubmitter,
+)
 from .errors import (
     ESCALATION_CODES, VM_CONTRACT, AuthorityCode, AuthorityDenied, AuthorityError,
     EffectOutcomeUnknown, InvalidPolicy,
@@ -37,4 +47,7 @@ __all__ = [
     "map_vm_authorization", "canonical_arguments", "is_reserved_tool",
     "AuthorityCode", "AuthorityError", "AuthorityDenied", "EffectOutcomeUnknown", "InvalidPolicy",
     "ESCALATION_CODES", "VM_CONTRACT",
+    "AikEffectJournal", "EffectJournalError", "JOURNAL_STATES", "JOURNAL_ERROR_CODES", "INTENT_RECORDED",
+    "ExternalEffectSubmitter", "ExternalEffectReceipt", "ExternalEffectSubmission", "ExternalEffectError",
+    "EffectIdentity", "CHECKPOINT_POLICIES", "TARGET_REOBSERVATION_REQUIRED",
 ]

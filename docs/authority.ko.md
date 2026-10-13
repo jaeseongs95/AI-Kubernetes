@@ -100,9 +100,9 @@
 
 재요청도 인가 revision·만료·lease 검사를 다시 통과해야 한다. lease fencing이나 인가 revision이 바뀌면 digest가 달라진다. 따라서 같은 effect_id는 `EFFECT_ID_CONFLICT`로 막힌다(fail-closed).
 
-### VM 효과 권위 연결 (가정된 extension)
+### 효과 journal port (`VmEffectAuthorityPort`)
 
-`VmEffectAuthorityPort`(`record_intent`, `record_receipt`, `read_effect`)는 VM 공개 권위 계약을 감싸는 **upstream extension 가정**이다. 현재 고정된 VM 공개 표면에는 없다. port가 없으면 효과가 있는 도구는 `SEAM_UNAVAILABLE`로 거절되고 `read_only`만 동작한다.
+`VmEffectAuthorityPort`(`record_intent`, `record_receipt`, `read_effect`)는 처음에 VM 공개 확장으로 가정했다. 그러나 VM 설계(vibemarshal 32bb0f9 코드와 설계 문서)에는 tool call 단위 intent API나 `read_effect` 조회가 없다. VM은 로컬 도구 효과를 diff/hash evidence와 governance gate의 C0/C1 스냅샷으로 검증한다. 그래서 이 port는 AIK 소유 durable journal인 `AikEffectJournal`(아래 절)이 구현한다. port가 없으면 효과가 있는 도구는 `SEAM_UNAVAILABLE`로 거절되고 `read_only`만 동작한다. 아래 목록의 "VM"은 이 port 구현을 뜻한다.
 
 - **intent 기록**: VM은 effect_id·digest를 그대로 echo해야 한다.
   - 안전한 VM 코드가 있는 예외는 `VM_REJECTED`이며 `vm_code`를 보존한다.
@@ -119,6 +119,33 @@
   - 이 intent의 취소나 실행 여부는 **VM 쪽 판단**이다. gateway에는 취소 API가 없고, receipt 전달 대상도 아니다(`TOOL_CALL_UNKNOWN`).
   - 이후 VM이 intent를 없애 `read_effect`가 None을 반환하면 로컬 기록을 지우고 새 요청을 허용한다.
 - 취소·unknown의 판단은 VM 상태를 따른다. 자동 재시도는 하지 않는다.
+
+### AIK 효과 journal과 VM 외부 효과 제출 (`effect_journal.py`)
+
+VM 설계는 효과 기록을 두 갈래로 나눈다. AIK도 그 경계를 따른다.
+
+- **tool call 효과: `AikEffectJournal(path, *, binding_reader, attempt_reader=None)`**
+  - `VmEffectAuthorityPort`를 구현하는 stdlib SQLite journal이다. 전용 application ID(`AIKE`)를 쓰고, 개발 원장·Git 내부 경로를 거절하는 `aik_runtime.paths` 규칙을 따른다. 재시작 뒤에도 같은 상태를 읽는다.
+  - `record_intent`는 다음 조건을 모두 만족할 때만 기록한다.
+    - `binding_reader(vm_attempt_id)`가 확인된 execution binding(`{"binding_digest"}`)을 돌려준다.
+    - 그 digest가 intent의 `binding_digest`와 같다.
+    - `attempt_reader`가 주어졌다면 Attempt 상태가 `running`이다.
+
+    hosted 경로에서는 `ExecutionBindingStore.read_execution_binding`이 reader다. 조건을 어기면 `code`가 있는 `EffectJournalError`(`BINDING_NOT_CONFIRMED`, `BINDING_MISMATCH`, `ATTEMPT_NOT_RUNNING` 등)를 낸다. gateway는 이를 `VM_REJECTED`로 처리한다.
+  - 같은 intent·receipt를 다시 기록하면 같은 결과를 돌려준다(멱등). 내용이 다르면 `INTENT_CONFLICT`/`RECEIPT_CONFLICT`로 거절한다.
+  - `read_effect`는 `intent_recorded` 또는 receipt 상태(`succeeded/failed/cancelled/unknown`)를 돌려준다.
+  - journal 상태는 **AIK 관측**이다. VM 권위, VM evidence, 완료 판정이 아니다. Task 완료는 VM Core가 자기 evidence로 판정한다.
+- **외부 효과: `ExternalEffectSubmitter(service, *, approved_identities)`**
+  - VM `EngineService.record_effect_receipt(...)`에 Task 단위 typed receipt(`ExternalEffectReceipt`, `EffectIdentity`)를 그대로 넘긴다.
+    - `EffectIdentity`는 provider, system, target, account, operation, scope, `idempotency_key`(16자 이상), `checkpoint_policy`(`none`/`before_irreversible`/`always`)로 이루어진다.
+  - 그 Task에 승인된 identity가 아니면 제출 전에 거절한다.
+  - 같은 `(provider, system, provider_operation_id)`를 다른 Attempt로 제출하려 하면 로컬에서도 거절한다.
+  - VM 거절 코드(`EFFECT_ADAPTER_OPERATION_REPLAY_CONFLICT`, `EFFECT_ADAPTER_RECEIPT_CONFLICT` 등)는 그대로 보존한다. 코드 없는 예외나 이상 응답은 결과 불명으로 분류하고 자동 재시도하지 않는다.
+  - 제출 결과는 `target_reobservation_required` 상태다. 외부 효과는 VM이 대상 재관측(`ExternalValidationObservation`)을 받은 뒤에만 확정된다. provider terminal이나 receipt만으로는 완료가 아니다.
+- 1.0 VM 설계에서는 내부 파일·명령 효과와 외부 효과를 같은 Task에 섞지 않는다. 외부 효과 Task는 별도 Task와 dependency로 둔다.
+- **남은 한계**
+  - VM `EngineApplication`에는 receipt 제출 wrapper가 없어 `EngineService`를 주입해야 한다.
+  - 실제 VM service 연결, 설치형 VM, Windows, 실제 외부 서비스 호출은 NOT_RUN이다. 시험(`tests/test_effect_journal.py`)은 fake service·reader로 VM 설계 계약을 흉내 낸다.
 
 ## 메모리·감사 한계
 
