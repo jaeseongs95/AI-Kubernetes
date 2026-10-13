@@ -6,12 +6,14 @@ Linux success is development verification, not Windows support evidence.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 import sys
 import tempfile
 import traceback
 import unittest
+from unittest import mock
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,14 +24,17 @@ from aik_adapter_anthropic import (  # noqa: E402
     Message, MessagesCall, TextPart, ToolCall, ToolResult, ToolSpec, TransportNotSent,
     TransportTimeout, Usage, assistant_message, tool_results_message,
 )
+from aik_adapter_anthropic.adapter import _fingerprint  # noqa: E402
 from aik_provider import (  # noqa: E402
     AdapterFailure, AuthKind, AuthState, ConnectionBinding, FaultKind, GuardedAdapter,
     JobRequest, JobState, Outcome, ProviderAdapter, Support,
 )
-from aik_vault import CredentialNotFound, FakeVaultBackend  # noqa: E402
+from aik_security.redaction import OutputRedactor, RedactionError  # noqa: E402
+from aik_vault import CredentialNotFound, FakeVaultBackend, VaultAccessDenied  # noqa: E402
 
 SECRET = "sk-ant-SYNTHETIC-FAKE-KEY-0001-abcdefghijklmnop"
 ROTATED = "sk-ant-SYNTHETIC-FAKE-KEY-0002-qrstuvwxyzabcd"
+LONG_KEY = "sk-ant-SYNTHETIC-LONG-KEY-" + "x" * 300
 MODEL = "synthetic-model-a"
 HOST = ("anthropic", "messages-api")
 
@@ -65,6 +70,14 @@ def error_response(status: int, error_type: str, headers=()) -> HttpResponse:
         "type": error_type, "message": f"synthetic failure echoing {SECRET}"}}, headers)
 
 
+def make_error(cls) -> BaseException:
+    """Build a vault exception regardless of whether it takes a message."""
+    try:
+        return cls()
+    except TypeError:
+        return cls("synthetic vault failure")
+
+
 class FakeTransport:
     source = "synthetic_fixture"
 
@@ -89,6 +102,35 @@ class FakeTransport:
         return sum(1 for r in self.requests if r.method == method and urlsplit(r.url).path == path)
 
 
+class FlakyVault:
+    """Delegates to the test vault; a configured exception replaces the call."""
+
+    def __init__(self, inner) -> None:
+        self.inner = inner
+        self.fail: dict = {}
+
+    def _check(self, name: str) -> None:
+        error = self.fail.get(name)
+        if error is not None:
+            raise error
+
+    def put(self, secret):
+        self._check("put")
+        return self.inner.put(secret)
+
+    def replace(self, reference, secret):
+        self._check("replace")
+        return self.inner.replace(reference, secret)
+
+    def delete(self, reference):
+        self._check("delete")
+        return self.inner.delete(reference)
+
+    def resolve(self, reference):
+        self._check("resolve")
+        return self.inner.resolve(reference)
+
+
 def simple_call(text: str = "synthetic prompt") -> MessagesCall:
     return MessagesCall((Message("user", (TextPart(text),)),), max_tokens=64)
 
@@ -99,9 +141,10 @@ class AnthropicAdapterTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.vault_dir = Path(self.temporary.name) / "vault"
         self.vault = FakeVaultBackend(self.vault_dir, key=bytes(range(32)))
+        self.flaky = FlakyVault(self.vault)
         self.transport = FakeTransport()
         self.transport.routes[("GET", MODELS_PATH)] = MODELS_OK
-        self.adapter = AnthropicAdapter(self.vault, self.transport)
+        self.adapter = AnthropicAdapter(self.flaky, self.transport)
         self.guard = GuardedAdapter(self.adapter, authorize_dispatch=lambda request: True)
         self.binding = self.adapter.register_key(SECRET, connection_id="connection-synthetic")
 
@@ -438,6 +481,298 @@ class AnthropicAdapterTests(unittest.TestCase):
         request = HttpRequest("GET", "https://api.example.invalid/v1/models", (("x-api-key", SECRET),), None, 5.0)
         self.assertNotIn(SECRET, repr(request))
         self.assertNotIn(SECRET, repr(self.adapter))
+
+    # -- review regressions (F1-F8) --------------------------------------------------
+    def test_consumed_request_id_cannot_be_prepared_or_started_again_after_timeout(self) -> None:
+        # F1: a timed-out (unknown outcome) request must never be re-sent under its id.
+        self.transport.routes[("POST", MESSAGES_PATH)] = [TransportTimeout(), json_response(200, message_payload())]
+        self.adapter.prepare("req-consumed", simple_call())
+        with self.assertRaises(AdapterFailure) as first:
+            self.adapter.start_job(self.job("req-consumed"))
+        self.assertIs(first.exception.fault.kind, FaultKind.UNKNOWN_OUTCOME)
+        with self.assertRaises(AdapterFailure) as again:
+            self.adapter.prepare("req-consumed", simple_call())
+        self.assertIs(again.exception.fault.kind, FaultKind.DUPLICATE_REQUEST)
+        with self.assertRaises(AdapterFailure) as restart:
+            self.adapter.start_job(self.job("req-consumed"))
+        self.assertIs(restart.exception.fault.kind, FaultKind.DUPLICATE_REQUEST)
+        self.assertEqual(self.transport.count("POST", MESSAGES_PATH), 1)
+
+    def test_in_flight_request_id_cannot_be_prepared_concurrently(self) -> None:
+        # F1: while the POST is outstanding, the same id cannot be prepared again.
+        observed = []
+
+        def respond(request):
+            try:
+                self.adapter.prepare("req-inflight", simple_call())
+            except AdapterFailure as error:
+                observed.append(error.fault.kind)
+            else:
+                observed.append("prepared")
+            return json_response(200, message_payload())
+
+        self.transport.routes[("POST", MESSAGES_PATH)] = respond
+        self.adapter.prepare("req-inflight", simple_call())
+        self.adapter.start_job(self.job("req-inflight"))
+        self.assertEqual(observed, [FaultKind.DUPLICATE_REQUEST])
+        self.assertEqual(self.transport.count("POST", MESSAGES_PATH), 1)
+
+    def test_result_id_rejected_by_contract_becomes_unknown_outcome_not_value_error(self) -> None:
+        # F2: an id accepted by the redactor but not by ModelResult must not leak ValueError.
+        def permissive_safe_id(redactor, value):
+            return value if type(value) is str else None
+
+        with mock.patch.object(OutputRedactor, "safe_id", permissive_safe_id):
+            error = self.direct_failure("req-bad-id", json_response(200, message_payload(
+                message_id="_synthetic_leading_underscore")))
+        self.assertIs(error.fault.kind, FaultKind.UNKNOWN_OUTCOME)
+        self.assertIs(error.fault.outcome, Outcome.UNKNOWN)
+        self.assertEqual(error.fault.native_code, "malformed_response")
+        self.assertIn("req-bad-id", json.dumps(self.adapter.audit_log()))
+
+    def test_unregistrable_key_is_rejected_and_resolution_fails_closed(self) -> None:
+        # F3: a key the redactor cannot register must not run with an empty redactor.
+        try:
+            OutputRedactor([LONG_KEY])
+        except RedactionError:
+            pass
+        else:
+            self.skipTest("OutputRedactor registers this length; F3 precondition absent.")
+        with self.assertRaises(ValueError) as raised:
+            self.adapter.register_key(LONG_KEY, connection_id="connection-long")
+        self.assertNotIn(LONG_KEY, str(raised.exception))
+        with self.assertRaises(ValueError):
+            self.adapter.rotate_key(self.binding, LONG_KEY)
+        self.assertEqual(self.vault.resolve(self.binding.credential_ref), SECRET)
+        # A key already stored by another writer is refused before any request.
+        reference = self.vault.put(LONG_KEY)
+        binding = ConnectionBinding("anthropic", "messages-api", "connection-long", 1, AuthKind.API_KEY,
+                                    reference, _fingerprint(LONG_KEY))
+        self.transport.routes[("POST", MESSAGES_PATH)] = json_response(200, message_payload())
+        self.adapter.prepare("req-long", simple_call())
+        with self.assertRaises(AdapterFailure) as blocked:
+            self.adapter.start_job(self.job("req-long", binding))
+        self.assertIs(blocked.exception.fault.kind, FaultKind.INVALID_CONTRACT)
+        self.assertEqual(blocked.exception.fault.native_code, "unredactable_credential")
+        before = len(self.transport.requests)
+        with self.assertRaises(AdapterFailure) as auth:
+            self.adapter.auth_status(binding)
+        self.assertIs(auth.exception.fault.kind, FaultKind.INVALID_CONTRACT)
+        self.assertEqual(len(self.transport.requests), before)
+        self.assertEqual(self.transport.count("POST", MESSAGES_PATH), 0)
+        # Local release remains possible.
+        self.assertIs(self.adapter.sign_out(binding).state, AuthState.UNAUTHENTICATED)
+        self.assertNotIn(LONG_KEY, json.dumps(self.adapter.audit_log()))
+
+    def test_rotation_back_to_an_earlier_key_keeps_old_revisions_stale(self) -> None:
+        # F4: A -> B -> A restores the fingerprint but not the old revision's validity.
+        second = self.adapter.rotate_key(self.binding, ROTATED)
+        third = self.adapter.rotate_key(second, SECRET)
+        self.assertEqual(third.account_fingerprint, self.binding.account_fingerprint)
+        for stale in (self.binding, second):
+            with self.subTest(revision=stale.revision):
+                with self.assertRaises(AdapterFailure) as raised:
+                    self.adapter.auth_status(stale)
+                self.assertIs(raised.exception.fault.kind, FaultKind.ACCOUNT_CHANGED)
+        self.transport.routes[("POST", MESSAGES_PATH)] = json_response(200, message_payload())
+        self.adapter.prepare("req-aba", simple_call())
+        with self.assertRaises(AdapterFailure) as blocked:
+            self.adapter.start_job(self.job("req-aba", self.binding))
+        self.assertIs(blocked.exception.fault.kind, FaultKind.ACCOUNT_CHANGED)
+        with self.assertRaises(AdapterFailure) as release:
+            self.adapter.sign_out(self.binding)
+        self.assertIs(release.exception.fault.kind, FaultKind.ACCOUNT_CHANGED)
+        self.assertEqual(self.vault.resolve(self.binding.credential_ref), SECRET)
+        self.assertEqual(self.transport.count("POST", MESSAGES_PATH), 0)
+        self.assertIs(self.adapter.auth_status(third).state, AuthState.AUTHENTICATED)
+        # Rotation to the identical key also supersedes the previous revision.
+        fourth = self.adapter.rotate_key(third, SECRET)
+        with self.assertRaises(AdapterFailure) as same_key:
+            self.adapter.auth_status(third)
+        self.assertIs(same_key.exception.fault.kind, FaultKind.ACCOUNT_CHANGED)
+        self.assertIs(self.adapter.auth_status(fourth).state, AuthState.AUTHENTICATED)
+
+    def test_observe_job_rejects_receipt_for_a_different_binding(self) -> None:
+        # F6: request_id + provider_job_id alone must not return another binding's receipt.
+        job = self.guarded_turn("req-observe", json_response(200, message_payload()))
+        other_connection = ConnectionBinding("anthropic", "messages-api", "connection-other", 1, AuthKind.API_KEY,
+                                             self.binding.credential_ref, self.binding.account_fingerprint)
+        other_revision = replace(self.binding, revision=self.binding.revision + 1)
+        for binding in (other_connection, other_revision):
+            with self.subTest(connection=binding.connection_id, revision=binding.revision):
+                with self.assertRaises(AdapterFailure) as raised:
+                    self.adapter.observe_job(self.job("req-observe", binding), job.receipt)
+                self.assertIs(raised.exception.fault.kind, FaultKind.INVALID_RECEIPT)
+        self.assertEqual(self.adapter.observe_job(job.request, job.receipt), job.receipt)
+
+    def test_prepared_capacity_is_classified_and_cancellable(self) -> None:
+        # F7: saturation is a local capacity fault, and cancel frees a slot.
+        call = simple_call()
+        for number in range(1024):
+            self.adapter.prepare(f"req-cap-{number:04d}", call)
+        with self.assertRaises(AdapterFailure) as full:
+            self.adapter.prepare("req-cap-overflow", call)
+        self.assertIs(full.exception.fault.kind, FaultKind.PROVIDER_FAILURE)
+        self.assertIs(full.exception.fault.outcome, Outcome.KNOWN_FAILURE)
+        self.assertEqual(full.exception.fault.native_code, "prepared_capacity")
+        self.assertTrue(self.adapter.cancel_prepared("req-cap-0000"))
+        self.assertFalse(self.adapter.cancel_prepared("req-cap-0000"))
+        self.adapter.prepare("req-cap-overflow", call)
+        with self.assertRaises(AdapterFailure) as cancelled:
+            self.adapter.start_job(self.job("req-cap-0000"))
+        self.assertIs(cancelled.exception.fault.kind, FaultKind.INVALID_CONTRACT)
+        self.assertEqual(self.transport.count("POST", MESSAGES_PATH), 0)
+
+    def test_discard_result_releases_raw_output_but_keeps_the_fence(self) -> None:
+        # F7: RAW output can be released without reopening the request_id.
+        job = self.guarded_turn("req-discard", json_response(200, message_payload()))
+        self.assertTrue(self.adapter.discard_result("req-discard"))
+        self.assertFalse(self.adapter.discard_result("req-discard"))
+        with self.assertRaises(AdapterFailure) as gone:
+            self.adapter.result("req-discard")
+        self.assertIs(gone.exception.fault.kind, FaultKind.INVALID_CONTRACT)
+        self.assertEqual(self.adapter.observe_job(job.request, job.receipt), job.receipt)
+        with self.assertRaises(AdapterFailure) as duplicate:
+            self.adapter.prepare("req-discard", simple_call())
+        self.assertIs(duplicate.exception.fault.kind, FaultKind.DUPLICATE_REQUEST)
+
+    def test_403_maps_to_access_denied(self) -> None:
+        # F8: documented 403 row.
+        error = self.direct_failure("req-403", error_response(403, "permission_error"))
+        self.assertIs(error.fault.kind, FaultKind.ACCESS_DENIED)
+        self.assertIs(error.fault.outcome, Outcome.KNOWN_FAILURE)
+        self.assertEqual(error.fault.native_code, "permission_error")
+        self.assertEqual(error.fault.http_status, 403)
+        self.assert_secret_free(error)
+
+    def test_vault_resolution_failures_map_to_vault_error_without_network(self) -> None:
+        # F8: VaultAccessDenied and other vault errors during resolution.
+        cases = ((make_error(VaultAccessDenied), FaultKind.ACCESS_DENIED),
+                 (RuntimeError(f"synthetic vault crash {SECRET}"), FaultKind.PROVIDER_FAILURE))
+        for number, (raised_error, kind) in enumerate(cases):
+            with self.subTest(kind=kind):
+                self.flaky.fail["resolve"] = raised_error
+                before = len(self.transport.requests)
+                with self.assertRaises(AdapterFailure) as auth:
+                    self.adapter.auth_status(self.binding)
+                self.assertIs(auth.exception.fault.kind, kind)
+                self.assertEqual(auth.exception.fault.native_code, "vault_error")
+                self.assert_secret_free(auth.exception)
+                self.flaky.fail.pop("resolve")
+                self.adapter.prepare(f"req-vault-{number}", simple_call())
+                self.flaky.fail["resolve"] = raised_error
+                with self.assertRaises(AdapterFailure) as call:
+                    self.adapter.start_job(self.job(f"req-vault-{number}"))
+                self.assertIs(call.exception.fault.kind, kind)
+                self.assertEqual(call.exception.fault.native_code, "vault_error")
+                self.assertEqual(len(self.transport.requests), before)
+                self.flaky.fail.pop("resolve")
+
+    def test_register_and_rotate_vault_write_failures_are_classified(self) -> None:
+        # F8 + reference finding: vault.put/replace exceptions become vault_error faults.
+        for raised_error, kind in ((RuntimeError(f"synthetic vault crash {SECRET}"), FaultKind.PROVIDER_FAILURE),
+                                   (make_error(VaultAccessDenied), FaultKind.ACCESS_DENIED)):
+            with self.subTest(operation="put", kind=kind):
+                self.flaky.fail["put"] = raised_error
+                with self.assertRaises(AdapterFailure) as raised:
+                    self.adapter.register_key(ROTATED, connection_id="connection-put")
+                self.assertIs(raised.exception.fault.kind, kind)
+                self.assertEqual(raised.exception.fault.native_code, "vault_error")
+                self.assert_secret_free(raised.exception)
+                self.flaky.fail.pop("put")
+            with self.subTest(operation="replace", kind=kind):
+                self.flaky.fail["replace"] = raised_error
+                with self.assertRaises(AdapterFailure) as raised:
+                    self.adapter.rotate_key(self.binding, ROTATED)
+                self.assertIs(raised.exception.fault.kind, kind)
+                self.assertEqual(raised.exception.fault.native_code, "vault_error")
+                self.assert_secret_free(raised.exception)
+                self.flaky.fail.pop("replace")
+        # A failed rotation leaves the original key and binding usable.
+        self.assertEqual(self.vault.resolve(self.binding.credential_ref), SECRET)
+        self.assertIs(self.adapter.auth_status(self.binding).state, AuthState.AUTHENTICATED)
+        log = json.dumps(self.adapter.audit_log())
+        self.assertNotIn(SECRET, log)
+        self.assertNotIn(ROTATED, log)
+
+    def test_rotate_rejects_invalid_new_key_without_vault_change(self) -> None:
+        # F8: malformed replacement key.
+        with self.assertRaises(ValueError) as raised:
+            self.adapter.rotate_key(self.binding, "bad replacement key 0123456789")
+        self.assertNotIn("bad replacement", str(raised.exception))
+        self.assertEqual(self.vault.resolve(self.binding.credential_ref), SECRET)
+        self.assertIs(self.adapter.auth_status(self.binding).state, AuthState.AUTHENTICATED)
+
+    def test_sign_out_vault_failure_keeps_the_key(self) -> None:
+        # F8: release failure is surfaced and the key remains.
+        for raised_error, kind in ((make_error(VaultAccessDenied), FaultKind.ACCESS_DENIED),
+                                   (RuntimeError(f"synthetic vault crash {SECRET}"), FaultKind.PROVIDER_FAILURE)):
+            with self.subTest(kind=kind):
+                self.flaky.fail["delete"] = raised_error
+                with self.assertRaises(AdapterFailure) as raised:
+                    self.adapter.sign_out(self.binding)
+                self.assertIs(raised.exception.fault.kind, kind)
+                self.assertEqual(raised.exception.fault.native_code, "vault_error")
+                self.assert_secret_free(raised.exception)
+                self.flaky.fail.pop("delete")
+                self.assertEqual(self.vault.resolve(self.binding.credential_ref), SECRET)
+
+    def test_check_model_timeout_and_401(self) -> None:
+        # F8: read-only model lookup failures.
+        path = ("GET", f"{MODELS_PATH}/{MODEL}")
+        self.transport.routes[path] = TransportTimeout()
+        with self.assertRaises(AdapterFailure) as timeout:
+            self.adapter.check_model(self.binding, MODEL)
+        self.assertIs(timeout.exception.fault.kind, FaultKind.PROVIDER_FAILURE)
+        self.assertIs(timeout.exception.fault.outcome, Outcome.KNOWN_FAILURE)
+        self.assertEqual(timeout.exception.fault.native_code, "timeout")
+        self.transport.routes[path] = error_response(401, "authentication_error")
+        with self.assertRaises(AdapterFailure) as unauthorized:
+            self.adapter.check_model(self.binding, MODEL)
+        self.assertIs(unauthorized.exception.fault.kind, FaultKind.AUTH_REQUIRED)
+        self.assert_secret_free(unauthorized.exception)
+
+    def test_auth_status_rate_limit_and_server_error(self) -> None:
+        # F8: auth check 429/5xx are faults, not authentication states.
+        self.transport.routes[("GET", MODELS_PATH)] = error_response(429, "rate_limit_error", (("retry-after", "3"),))
+        with self.assertRaises(AdapterFailure) as limited:
+            self.adapter.auth_status(self.binding)
+        self.assertIs(limited.exception.fault.kind, FaultKind.RATE_LIMITED)
+        self.assertEqual(limited.exception.fault.retry_after_ms, 3000)
+        self.transport.routes[("GET", MODELS_PATH)] = error_response(500, "api_error")
+        with self.assertRaises(AdapterFailure) as server:
+            self.adapter.auth_status(self.binding)
+        self.assertIs(server.exception.fault.kind, FaultKind.PROVIDER_FAILURE)
+        self.assertIs(server.exception.fault.outcome, Outcome.KNOWN_FAILURE)
+
+    def test_max_tokens_with_tool_use_is_not_promoted_and_incomplete_input_is_unknown(self) -> None:
+        # F8: truncated tool turns stay unfinished; incomplete tool input is malformed.
+        job = self.guarded_turn("req-trunc-tool", json_response(200, message_payload(
+            message_id="msg_synthetic_trunc", stop_reason="max_tokens", content=[
+                {"type": "tool_use", "id": "toolu_synthetic_t", "name": "read_file", "input": {"path": "a"}}])))
+        result = self.adapter.result("req-trunc-tool")
+        self.assertIs(job.receipt.state, JobState.FAILED)
+        self.assertIs(result.completion, Completion.TRUNCATED)
+        self.assertFalse(result.is_final)
+        with self.assertRaises(ValueError):
+            assistant_message(result)
+        error = self.direct_failure("req-partial-tool", json_response(200, message_payload(
+            message_id="msg_synthetic_partial", stop_reason="max_tokens", content=[
+                {"type": "tool_use", "id": "toolu_synthetic_p", "name": "read_file", "input": '{"path": "a'}])))
+        self.assertIs(error.fault.kind, FaultKind.UNKNOWN_OUTCOME)
+        self.assertEqual(error.fault.native_code, "malformed_response")
+
+    def test_tool_result_error_flag_is_serialized(self) -> None:
+        # F8: ToolResult(is_error=True) reaches the request body.
+        call = MessagesCall((
+            Message("user", (TextPart("synthetic task"),)),
+            Message("assistant", (ToolCall.create("toolu_synthetic_e", "read_file", {"path": "a"}),)),
+            tool_results_message([ToolResult("toolu_synthetic_e", "synthetic failure", is_error=True)]),
+        ), max_tokens=64)
+        self.guarded_turn("req-tool-error", json_response(200, message_payload()), call)
+        body = json.loads([r for r in self.transport.requests if r.method == "POST"][-1].body)
+        self.assertEqual(body["messages"][2]["content"][0], {
+            "type": "tool_result", "tool_use_id": "toolu_synthetic_e", "content": "synthetic failure", "is_error": True})
 
 
 if __name__ == "__main__":

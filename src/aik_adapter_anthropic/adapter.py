@@ -80,11 +80,33 @@ def _fingerprint(secret: str) -> str:
     return digest.hexdigest()
 
 
-def _redactor_for(secret: str) -> OutputRedactor:
+def _registrable(secret: str) -> bool:
+    """Whether OutputRedactor can register this exact key for echo detection."""
+    try:
+        OutputRedactor([secret])
+    except RedactionError:
+        return False
+    return True
+
+
+def _valid_key(secret: object) -> bool:
+    return type(secret) is str and _KEY_CHARS.fullmatch(secret) is not None and _registrable(secret)
+
+
+def _redactor_for(secret: str, *, strict: bool = True) -> OutputRedactor:
+    """A redactor that knows the key; fail closed when it cannot be registered.
+
+    ``strict=False`` is used only where no provider-derived data is recorded
+    (local vault deletion), so releasing such a key stays possible.
+    """
     try:
         return OutputRedactor([secret])
     except RedactionError:
+        pass
+    if not strict:
         return OutputRedactor()
+    # Raised after the handler ended so no redaction exception is chained.
+    raise _failure(FaultKind.INVALID_CONTRACT, native="unredactable_credential")
 
 
 def _load_json(body: bytes) -> object:
@@ -172,6 +194,9 @@ class AnthropicAdapter:
     Key lifecycle: ``register_key`` (vault put) -> ``auth_status`` (vendor
     check) -> ``prepare`` + ``start_job`` (model call) -> ``rotate_key``
     (vault replace, new binding revision) -> ``sign_out`` (vault delete).
+
+    A request_id is consumed once ``start_job`` takes its prepared call, even
+    if the call then fails; it can never be prepared or dispatched again.
     """
 
     def __init__(self, vault, transport, *, runtime: str = DEFAULT_RUNTIME,
@@ -206,8 +231,12 @@ class AnthropicAdapter:
         self._timeout = float(timeout)
         self._lock = RLock()
         self._prepared: dict[str, MessagesCall] = {}
+        # Never evicted: a consumed request_id must stay fenced for this process.
+        self._consumed: set[str] = set()
         self._receipts: dict[str, JobReceipt] = {}
         self._results: dict[str, ModelResult] = {}
+        # credential_ref -> revision issued by this process (register/rotate).
+        self._revisions: dict[str, int] = {}
         self._audit_log: deque = deque(maxlen=256)
 
     def __repr__(self) -> str:
@@ -222,6 +251,12 @@ class AnthropicAdapter:
 
     def _secret_for(self, binding: ConnectionBinding) -> str | None:
         """Resolve at call time. None: the vault holds no such credential."""
+        with self._lock:
+            known = self._revisions.get(binding.credential_ref)
+        # A rotation back to an earlier key (A->B->A) restores its fingerprint;
+        # the revision issued by this process still marks older bindings stale.
+        if known is not None and binding.revision != known:
+            raise _failure(FaultKind.ACCOUNT_CHANGED)
         failure = None
         secret = None
         try:
@@ -320,11 +355,26 @@ class AnthropicAdapter:
         """Store a key in the vault and return a binding holding only its reference."""
         ConnectionBinding(PROVIDER, self.runtime, connection_id, revision, AuthKind.API_KEY,
                           "secret://aik-vault/" + "0" * 32, "0" * 64)
-        if type(secret) is not str or _KEY_CHARS.fullmatch(secret) is None:
+        if not _valid_key(secret):
             raise ValueError("INVALID_API_KEY_FORMAT")
-        reference = self._vault.put(secret)
+        problem = None
+        reference = None
+        try:
+            reference = self._vault.put(secret)
+        except VaultAccessDenied:
+            problem = FaultKind.ACCESS_DENIED
+        except Exception:
+            problem = FaultKind.PROVIDER_FAILURE
+        # Raised outside the handler so no vault exception becomes __context__.
+        if problem is not None:
+            error = _failure(problem, native="vault_error")
+            self._record(OutputRedactor(), "register_key", None, fault=error.fault,
+                         extra={"connection_id": connection_id, "revision": revision})
+            raise error
         binding = ConnectionBinding(PROVIDER, self.runtime, connection_id, revision, AuthKind.API_KEY,
                                     reference, _fingerprint(secret))
+        with self._lock:
+            self._revisions[binding.credential_ref] = binding.revision
         self._record(OutputRedactor(), "register_key", binding)
         return binding
 
@@ -333,14 +383,29 @@ class AnthropicAdapter:
         self._check_binding(binding)
         if binding.revision >= _MAX_REVISION:
             raise _failure(FaultKind.INVALID_CONTRACT)
-        if type(secret) is not str or _KEY_CHARS.fullmatch(secret) is None:
+        if not _valid_key(secret):
             raise ValueError("INVALID_API_KEY_FORMAT")
         current = self._secret_for(binding)  # a stale binding cannot rotate
         if current is None:
             raise _failure(FaultKind.AUTH_REQUIRED, native="credential_missing")
         del current
-        self._vault.replace(binding.credential_ref, secret)
+        problem = None
+        native = "vault_error"
+        try:
+            self._vault.replace(binding.credential_ref, secret)
+        except (CredentialNotFound, InvalidCredentialRef):
+            problem, native = FaultKind.AUTH_REQUIRED, "credential_missing"
+        except VaultAccessDenied:
+            problem = FaultKind.ACCESS_DENIED
+        except Exception:
+            problem = FaultKind.PROVIDER_FAILURE
+        if problem is not None:
+            error = _failure(problem, native=native)
+            self._record(OutputRedactor(), "rotate_key", binding, fault=error.fault)
+            raise error
         rotated = replace(binding, revision=binding.revision + 1, account_fingerprint=_fingerprint(secret))
+        with self._lock:
+            self._revisions[rotated.credential_ref] = rotated.revision
         self._record(OutputRedactor(), "rotate_key", rotated)
         return rotated
 
@@ -382,7 +447,8 @@ class AnthropicAdapter:
         try:
             secret = self._secret_for(binding)
             if secret is not None:
-                redactor = _redactor_for(secret)
+                # No provider data is recorded here, so an unregistrable key may still be released.
+                redactor = _redactor_for(secret, strict=False)
                 del secret
                 problem = None
                 try:
@@ -406,11 +472,19 @@ class AnthropicAdapter:
         if type(request_id) is not str or _ID.fullmatch(request_id) is None or type(call) is not MessagesCall:
             raise _failure(FaultKind.INVALID_CONTRACT)
         with self._lock:
-            if request_id in self._prepared or request_id in self._receipts:
+            if request_id in self._prepared or request_id in self._receipts or request_id in self._consumed:
                 raise _failure(FaultKind.DUPLICATE_REQUEST)
             if len(self._prepared) >= _MAX_PREPARED:
-                raise _failure(FaultKind.INVALID_CONTRACT)
+                # Local saturation, not a contract violation; cancel_prepared frees slots.
+                raise _failure(FaultKind.PROVIDER_FAILURE, native="prepared_capacity")
             self._prepared[request_id] = call
+
+    def cancel_prepared(self, request_id: str) -> bool:
+        """Drop a prepared call that was never dispatched. Returns whether one was removed."""
+        if type(request_id) is not str or _ID.fullmatch(request_id) is None:
+            raise _failure(FaultKind.INVALID_CONTRACT)
+        with self._lock:
+            return self._prepared.pop(request_id, None) is not None
 
     def start_job(self, request: JobRequest) -> JobReceipt:
         if type(request) is not JobRequest:
@@ -418,9 +492,11 @@ class AnthropicAdapter:
         binding = request.binding
         self._check_binding(binding)
         with self._lock:
-            if request.request_id in self._receipts:
+            if request.request_id in self._receipts or request.request_id in self._consumed:
                 raise _failure(FaultKind.DUPLICATE_REQUEST)
             call = self._prepared.pop(request.request_id, None)  # never replayed
+            if call is not None:
+                self._consumed.add(request.request_id)
         redactor = OutputRedactor()
         try:
             if call is None:
@@ -467,7 +543,9 @@ class AnthropicAdapter:
             return None
         job_id = redactor.safe_id(payload.get("id"))
         content = payload.get("content")
-        if job_id is None or type(content) is not list or len(content) > _MAX_BLOCKS:
+        if type(job_id) is not str or _ID.fullmatch(job_id) is None:
+            return None
+        if type(content) is not list or len(content) > _MAX_BLOCKS:
             return None
         parts = []
         unrecognized = False
@@ -505,21 +583,34 @@ class AnthropicAdapter:
             completion, state = Completion.UNKNOWN, JobState.FAILED
         if completion is Completion.TOOL_USE and not any(type(p) is ToolCall for p in parts):
             completion, state = Completion.UNKNOWN, JobState.FAILED
-        result = ModelResult(
-            request_id=request.request_id, provider_job_id=job_id, model=model, stop_reason=stop,
-            completion=completion, parts=tuple(parts), usage=_usage(payload.get("usage")),
-            source=self._transport.source,
-        )
+        try:
+            result = ModelResult(
+                request_id=request.request_id, provider_job_id=job_id, model=model, stop_reason=stop,
+                completion=completion, parts=tuple(parts), usage=_usage(payload.get("usage")),
+                source=self._transport.source,
+            )
+        except ValueError:
+            # Any contract mismatch after an effectful call is an unknown outcome.
+            return None
         return result, state
 
     def observe_job(self, request: JobRequest, receipt: JobReceipt) -> JobReceipt:
-        """Synchronous turns are terminal at start; this returns the local record."""
+        """Synchronous turns are terminal at start; this returns the local record.
+
+        The stored receipt is returned only for the exact receipt and the same
+        connection/revision/fingerprint that started the turn.
+        """
         if type(request) is not JobRequest or type(receipt) is not JobReceipt:
             raise _failure(FaultKind.INVALID_CONTRACT)
-        self._check_binding(request.binding)
+        binding = request.binding
+        self._check_binding(binding)
         with self._lock:
             stored = self._receipts.get(request.request_id)
-        if stored is None or stored.provider_job_id != receipt.provider_job_id:
+        if stored is None or receipt != stored:
+            raise _failure(FaultKind.INVALID_RECEIPT, Outcome.UNKNOWN)
+        expected = JobReceipt(request.request_id, stored.provider_job_id, binding.connection_id,
+                              binding.revision, binding.account_fingerprint, stored.state)
+        if expected != stored:
             raise _failure(FaultKind.INVALID_RECEIPT, Outcome.UNKNOWN)
         return stored
 
@@ -563,6 +654,13 @@ class AnthropicAdapter:
                 return self._results[request_id]
             except (KeyError, TypeError):
                 raise _failure(FaultKind.INVALID_CONTRACT) from None
+
+    def discard_result(self, request_id: str) -> bool:
+        """Release the RAW model output; the receipt and request_id fence remain."""
+        if type(request_id) is not str or _ID.fullmatch(request_id) is None:
+            raise _failure(FaultKind.INVALID_CONTRACT)
+        with self._lock:
+            return self._results.pop(request_id, None) is not None
 
     def audit_log(self) -> tuple:
         """Redacted, detached audit events (AIK-017 output kind ``log``)."""
