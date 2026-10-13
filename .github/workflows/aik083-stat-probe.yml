@@ -1,0 +1,39 @@
+# Temporary read-only diagnostic; removed before merge.
+name: AIK-083 Windows stat probe
+on:
+  push:
+    branches: [work/aik083-file-snapshots-20261013]
+permissions:
+  contents: read
+jobs:
+  stat-probe:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.14.8'
+      - name: Compare metadata of repo and copied synthetic files without reading credentials
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, shutil, tempfile
+          names = ('st_dev','st_ino','st_size','st_mode','st_mtime_ns','st_ctime_ns','st_file_attributes')
+          source = pathlib.Path('contracts/product-acceptance/fixture/project/policy.json').resolve()
+          with tempfile.TemporaryDirectory() as temporary:
+              copied = pathlib.Path(temporary).resolve() / 'policy.json'
+              shutil.copy2(source, copied)
+              written = copied.with_name('fresh.json')
+              written.write_bytes(source.read_bytes())
+              for label, path in [('repository', source), ('copied', copied), ('fresh', written)]:
+                  before = path.lstat()
+                  fd = os.open(path, os.O_RDONLY | os.O_BINARY)
+                  try:
+                      opened = os.fstat(fd)
+                      print(json.dumps({'kind':label, 'differences':{n:[getattr(before,n,None),getattr(opened,n,None)] for n in names if getattr(before,n,None)!=getattr(opened,n,None)}, 'path_stat':{n:getattr(before,n,None) for n in names}, 'fd_stat':{n:getattr(opened,n,None) for n in names}}))
+                  finally:
+                      os.close(fd)
+          PY
