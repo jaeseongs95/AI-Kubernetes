@@ -149,7 +149,11 @@ def _number(value: object, maximum: float, code: str) -> float:
 
 
 def _fingerprint(account_id: object) -> str | None:
-    """Hash a validated host-provided ID to the contract's 64-hex format."""
+    """Hash a validated host-provided ID to the contract's 64-hex format.
+
+    This is pseudonymization, not anonymization: without a secret key a
+    candidate identifier (for example an e-mail address) can be confirmed.
+    """
     if type(account_id) is not str or _ACCOUNT_ID.fullmatch(account_id) is None:
         return None
     if _TOKEN_LIKE.search(account_id) is not None:
@@ -216,6 +220,9 @@ class CodexHostBridge:
         self._login: _Login | None = None
         self._bindings: dict[str, tuple[int, str]] = {}
         self._stale: set[str] = set()
+        # Bindings presented without being issued/confirmed by this process
+        # (e.g. after restart). They stay stale until connect()/reconnect().
+        self._adopted: set[str] = set()
         self._attempted: set[str] = set()
         self._jobs: dict[str, JobReceipt] = {}
 
@@ -244,6 +251,27 @@ class CodexHostBridge:
             return "host_output_limit", None
         return None, result
 
+    def _version_check(self) -> tuple[str | None, bool]:
+        """Run ``--version``; return (runner error code, protocol supported)."""
+        error, result = self._run(self._protocol.version_args)
+        if error is not None:
+            return error, False
+        try:
+            supported = self._protocol.version_supported(result.exit_code, result.output) is True
+        except Exception:
+            supported = False
+        return None, supported
+
+    def _require_supported(self) -> None:
+        """Fail closed on the ProviderAdapter path when the host version is not supported."""
+        error, supported = self._version_check()
+        if error == "host_absent":
+            raise _failure(FaultKind.UNSUPPORTED, native="host_absent")
+        if error is not None:
+            raise _failure(FaultKind.PROVIDER_FAILURE, native=error)
+        if not supported:
+            raise _failure(FaultKind.UNSUPPORTED, native="host_unsupported")
+
     def _parse(self, result: RunResult) -> tuple[LoginState, LoginMethod, str | None]:
         try:
             parsed = self._protocol.parse_status(result.exit_code, result.output)
@@ -271,30 +299,41 @@ class CodexHostBridge:
                 if not (confirmed and fingerprint == known):
                     self._stale.add(connection_id)
         # A login started by this bridge for exactly this binding, observed to
-        # finish with the same account, re-validates it without a new revision.
+        # *succeed* with the same account, re-validates it without a new
+        # revision. Adopted (not issued here) bindings never qualify.
         if (revalidate is not None and confirmed and fingerprint == revalidate.account_fingerprint
+                and revalidate.connection_id not in self._adopted
                 and self._bindings.get(revalidate.connection_id) == (
                     revalidate.revision, revalidate.account_fingerprint)):
             self._stale.discard(revalidate.connection_id)
         return None, login, method, fingerprint
 
-    def _poll_login(self) -> tuple[str, _Login | None]:
+    def _poll_login(self) -> tuple[str, _Login | None, bool]:
+        """Return (state, login, succeeded). Only an exit code 0 counts as success.
+
+        The deadline is enforced lazily: only when a bridge call polls.
+        """
         login = self._login
         if login is None:
-            return "none", None
+            return "none", None, False
         try:
             code = login.handle.poll()
         except Exception:
             code = -1
         if code is None and self._clock() < login.deadline:
-            return "running", login
+            return "running", login, False
+        self._login = None
         if code is None:
             try:
                 login.handle.terminate()
             except Exception:
                 pass
-        self._login = None
-        return "finished", login
+            return "finished", login, False
+        return "finished", login, type(code) is int and code == 0
+
+    @staticmethod
+    def _revalidation(login: _Login | None, succeeded: bool) -> ConnectionBinding | None:
+        return login.binding if login is not None and succeeded else None
 
     def _check_binding(self, binding: object) -> None:
         if type(binding) is not ConnectionBinding:
@@ -308,9 +347,12 @@ class CodexHostBridge:
         with self._lock:
             known = self._bindings.get(binding.connection_id)
             if known is None:
-                # Adopt a persisted binding (e.g. after restart); the account
-                # fingerprint is still compared with the host on every check.
+                # A persisted binding (e.g. after restart) may already have been
+                # fenced by a newer revision. Adopt it only as stale: execution
+                # requires reconnect(), which always issues a newer revision.
                 self._bindings[binding.connection_id] = (binding.revision, binding.account_fingerprint)
+                self._stale.add(binding.connection_id)
+                self._adopted.add(binding.connection_id)
             elif known != (binding.revision, binding.account_fingerprint):
                 raise _failure(FaultKind.STALE_CONNECTION, native="reconnect_required")
 
@@ -341,11 +383,12 @@ class CodexHostBridge:
             raise _failure(FaultKind.AUTH_REQUIRED, native="account_unknown")
 
     def _start_login(self, connection_id: str, binding: ConnectionBinding | None) -> None:
-        state, login = self._poll_login()
+        state, login, _ = self._poll_login()
         if state == "running":
             if login.connection_id == connection_id and login.binding == binding:
                 return
             raise _failure(FaultKind.ACCOUNT_CONFLICT, native="auth_pending")
+        self._require_supported()
         problem = None
         handle = None
         try:
@@ -376,7 +419,7 @@ class CodexHostBridge:
             reasons: list[str] = []
             login, method = LoginState.UNKNOWN, LoginMethod.UNKNOWN
             binding_state = BindingState.UNBOUND if binding is None else BindingState.UNKNOWN
-            error, result = self._run(self._protocol.version_args)
+            error, supported = self._version_check()
             if error == "host_absent":
                 presence, protocol = HostPresence.ABSENT, ProtocolSupport.UNKNOWN
                 reasons.append("host_absent")
@@ -385,22 +428,18 @@ class CodexHostBridge:
                 reasons.append("host_state_unknown")
             else:
                 presence = HostPresence.PRESENT
-                try:
-                    supported = self._protocol.version_supported(result.exit_code, result.output) is True
-                except Exception:
-                    supported = False
                 protocol = ProtocolSupport.SUPPORTED if supported else ProtocolSupport.UNSUPPORTED
                 if not supported:
                     reasons.append("host_unsupported")
-            del result
+            # Enforce the login deadline on every probe, even when the version
+            # check fails; a finished login is then not re-validated.
+            state, pending, succeeded = self._poll_login()
             if protocol is ProtocolSupport.SUPPORTED:
-                state, pending = self._poll_login()
                 if state == "running":
                     login = LoginState.PENDING
                     reasons.append("auth_pending")
                 else:
-                    error, login, method, fingerprint = self._status(
-                        pending.binding if pending is not None else None)
+                    error, login, method, fingerprint = self._status(self._revalidation(pending, succeeded))
                     if error == "host_absent":
                         presence = HostPresence.ABSENT
                         reasons.append("host_absent")
@@ -419,8 +458,9 @@ class CodexHostBridge:
                         if fingerprint != binding.account_fingerprint:
                             binding_state = BindingState.CHANGED
                             reasons.append("account_changed")
-                        elif binding.connection_id in self._stale or (
-                                known is not None and known != (binding.revision, binding.account_fingerprint)):
+                        elif binding.connection_id in self._stale or known is None or (
+                                known != (binding.revision, binding.account_fingerprint)):
+                            # An unseen binding needs reconnect() before execution.
                             binding_state = BindingState.CHANGED
                             reasons.append("connection_stale")
                         else:
@@ -464,24 +504,24 @@ class CodexHostBridge:
             if previous.connection_id != connection_id:
                 raise _failure(FaultKind.INVALID_CONTRACT)
         with self._lock:
-            state, login = self._poll_login()
+            state, login, succeeded = self._poll_login()
             if state == "running":
                 raise _failure(FaultKind.AUTH_REQUIRED, native="auth_pending")
-            error, status, method, fingerprint = self._status(login.binding if login is not None else None)
+            self._require_supported()
+            error, status, method, fingerprint = self._status(self._revalidation(login, succeeded))
             self._raise_unusable(error, status, method, fingerprint)
             known = self._bindings.get(connection_id)
             if known is not None and known[1] == fingerprint and connection_id not in self._stale:
                 return self._binding(connection_id, known[0], fingerprint)
-            if known is None and previous is not None and previous.account_fingerprint == fingerprint:
-                self._bindings[connection_id] = (previous.revision, fingerprint)
-                self._stale.discard(connection_id)
-                return previous
+            # Always issue a revision newer than every one presented or known,
+            # so a restored older binding cannot outrank a newer one.
             base = max(known[0] if known is not None else 0, previous.revision if previous is not None else 0)
             if base >= _MAX_REVISION:
                 raise _failure(FaultKind.INVALID_CONTRACT)
             binding = self._binding(connection_id, base + 1, fingerprint)
             self._bindings[connection_id] = (binding.revision, fingerprint)
             self._stale.discard(connection_id)
+            self._adopted.discard(connection_id)
             return binding
 
     def reconnect(self, binding: ConnectionBinding) -> ConnectionBinding:
@@ -497,12 +537,13 @@ class CodexHostBridge:
     def auth_status(self, binding: ConnectionBinding) -> AuthObservation:
         self._check_current(binding)
         with self._lock:
-            state, login = self._poll_login()
+            state, login, succeeded = self._poll_login()
             if state == "running":
                 if login.connection_id == binding.connection_id:
                     return self._observation(binding, AuthState.PENDING)
                 raise _failure(FaultKind.ACCOUNT_CONFLICT, native="auth_pending")
-            error, status, method, fingerprint = self._status(login.binding if login is not None else None)
+            self._require_supported()
+            error, status, method, fingerprint = self._status(self._revalidation(login, succeeded))
             if error == "host_absent":
                 raise _failure(FaultKind.UNSUPPORTED, native="host_absent")
             if error is not None:
@@ -530,12 +571,29 @@ class CodexHostBridge:
         return self._observation(binding, AuthState.PENDING)
 
     def sign_out(self, binding: ConnectionBinding) -> AuthObservation:
-        """Ask the official host to log out, then confirm by observing status."""
+        """Ask the official host to log out, then confirm by observing status.
+
+        The host is single-active: logout is only requested when the host does
+        not currently show a different (or unidentifiable) logged-in account.
+        """
         self._check_current(binding)
         with self._lock:
-            state, _ = self._poll_login()
+            state, _, _ = self._poll_login()
             if state == "running":
                 raise _failure(FaultKind.ACCOUNT_CONFLICT, native="auth_pending")
+            self._require_supported()
+            error, status, method, fingerprint = self._status(None)
+            if error == "host_absent":
+                raise _failure(FaultKind.UNSUPPORTED, native="host_absent")
+            if error is not None:
+                raise _failure(FaultKind.PROVIDER_FAILURE, native=error)
+            if status is LoginState.LOGGED_IN:
+                if method is not LoginMethod.SUBSCRIPTION:
+                    raise _failure(FaultKind.UNSUPPORTED, native="non_subscription_login")
+                if fingerprint is None:
+                    raise _failure(FaultKind.PROVIDER_FAILURE, native="account_unknown")
+                if fingerprint != binding.account_fingerprint:
+                    raise _failure(FaultKind.ACCOUNT_CHANGED, native="account_changed")
             error, result = self._run(self._protocol.logout_args)
             if error == "host_absent":
                 raise _failure(FaultKind.UNSUPPORTED, native="host_absent")
@@ -565,6 +623,7 @@ class CodexHostBridge:
         with self._lock:
             if request.request_id in self._attempted:
                 raise _failure(FaultKind.DUPLICATE_REQUEST)
+            # auth_status also verifies the host version (fail-closed).
             require_auth(self.auth_status(binding), binding)
             handle = self._handle(binding)
             self._attempted.add(request.request_id)
@@ -616,6 +675,11 @@ class CodexHostBridge:
         updated = JobReceipt(stored.request_id, stored.provider_job_id, stored.connection_id,
                              stored.revision, stored.account_fingerprint, state)
         with self._lock:
+            # Compare-and-set: a concurrent observe/interrupt may already have
+            # stored a newer (possibly terminal) receipt; never overwrite it.
+            current = self._jobs.get(request.request_id)
+            if current is not None and current is not stored:
+                return current
             self._jobs[request.request_id] = updated
         return updated
 

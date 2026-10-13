@@ -1,17 +1,21 @@
 """AIK-014 host protocol fixture tests for the Codex host-auth bridge.
 
 Only synthetic runners, synthetic host outputs and a synthetic VM runtime are
-used. No Codex CLI, provider, credential, network or real process is touched.
-Passing on Linux is development verification, not Windows support evidence,
-and fixture success is not a real login success.
+used for the bridge. No Codex CLI, provider, credential or network is touched.
+The SubprocessRunner bound tests start only a local ``sys.executable -c``
+process with synthetic code. Passing on Linux is development verification,
+not Windows support evidence, and fixture success is not a real login success.
 """
 from __future__ import annotations
 
 from dataclasses import replace
+import os
 from pathlib import Path
 import re
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from unittest import mock
 
@@ -20,8 +24,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from aik_host_codex import (  # noqa: E402
     ENV_ALLOWLIST, GUI_COMMANDS, BindingState, CodexHostBridge, HostNotFound, HostPresence,
-    LoginMethod, LoginState, OutputLimitExceeded, ProtocolSupport, RunnerTimeout, RunResult,
-    SubprocessRunner, build_environment, validate_invocation,
+    LoginMethod, LoginState, OutputLimitExceeded, ProtocolSupport, RunnerError, RunnerTimeout,
+    RunResult, SubprocessRunner, build_environment, validate_invocation,
 )
 from aik_host_codex import runner as runner_module  # noqa: E402
 from aik_provider import (  # noqa: E402
@@ -138,6 +142,20 @@ class FakeVm:
         return JobState.CANCELLED
 
 
+class BlockingObserveVm(FakeVm):
+    """observe() blocks until released, to interleave a concurrent interrupt."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def observe(self, handle, request, job_id):
+        self.entered.set()
+        self.release.wait(10)
+        return JobState.RUNNING
+
+
 def job(binding: ConnectionBinding, request_id: str) -> JobRequest:
     return JobRequest(binding, request_id, "route-1", "vm-attempt-1", "synthetic-model")
 
@@ -173,6 +191,13 @@ class HostCodexTests(unittest.TestCase):
             self.assertNotIn(text, str(caught.exception))
             self.assertNotIn(text, repr(caught.exception.fault))
         return caught.exception
+
+    @staticmethod
+    def local_process_env() -> dict[str, str]:
+        env = {"PATH": os.path.dirname(sys.executable)}
+        if "SYSTEMROOT" in os.environ:
+            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        return env
 
     def test_absent_host_is_registered_but_not_executable(self) -> None:
         self.host.present = False
@@ -448,6 +473,200 @@ class HostCodexTests(unittest.TestCase):
             with self.subTest(field=name), self.assertRaises(ValueError):
                 replace(capability, **{name: "PASS"})
         self.assertIsNone(re.search(ACCOUNT_A, repr(capability)))
+
+    # -- regression tests for the independent review (AIK-014) -----------------
+    def test_f1_failed_or_expired_sign_in_does_not_clear_a_stale_binding(self) -> None:
+        for ending in ("deadline", "failed_exit", "poll_error"):
+            with self.subTest(ending=ending):
+                self.host.status = ("chatgpt", ACCOUNT_A)
+                bridge = self.make_bridge(self.vm)
+                binding = bridge.connect("connection-1")
+                self.host.status = ("chatgpt", ACCOUNT_B)
+                bridge.auth_status(binding)  # marks the binding stale
+                self.host.status = ("chatgpt", ACCOUNT_A)
+                self.assertIs(bridge.begin_sign_in(binding).state, AuthState.PENDING)
+                handle = self.host.handles[-1]
+                if ending == "deadline":
+                    self.now[0] += 601
+                elif ending == "failed_exit":
+                    handle.code = 1
+                else:
+                    handle.poll = mock.Mock(side_effect=RuntimeError(SECRET))
+                self.assertFault(FaultKind.STALE_CONNECTION, bridge.auth_status, binding,
+                                 native="reconnect_required")
+                self.assertFault(FaultKind.STALE_CONNECTION, bridge.start_job,
+                                 job(binding, f"request-{ending}"), native="reconnect_required")
+                if ending == "deadline":
+                    self.assertTrue(handle.terminated)
+        self.assertEqual(self.vm.started, [])
+
+    def test_f2_unsupported_host_version_blocks_every_adapter_path(self) -> None:
+        binding = self.bridge.connect("connection-1")
+        self.host.version_output = b"unrelated tool 1\n"
+        self.assertFault(FaultKind.UNSUPPORTED, self.bridge.start_job, job(binding, "request-1"),
+                         native="host_unsupported")
+        self.assertFault(FaultKind.UNSUPPORTED, self.bridge.auth_status, binding, native="host_unsupported")
+        self.assertFault(FaultKind.UNSUPPORTED, self.bridge.connect, "connection-2", native="host_unsupported")
+        self.assertFault(FaultKind.UNSUPPORTED, self.bridge.begin_sign_in, binding, native="host_unsupported")
+        self.assertFault(FaultKind.UNSUPPORTED, self.bridge.sign_out, binding, native="host_unsupported")
+        self.assertEqual(self.vm.started, [])
+        self.assertEqual(self.host.handles, [])
+        self.assertEqual(self.host.status, ("chatgpt", ACCOUNT_A))
+        self.assertNotIn(("logout",), [call[0][1:] for call in self.runner.calls])
+
+        # The rejected request ID was not consumed; a running job then cannot
+        # be interrupted through an unsupported host either.
+        self.host.version_output = b"codex-cli 0.40.0\n"
+        self.vm.state = JobState.RUNNING
+        started = self.bridge.start_job(job(binding, "request-1"))
+        self.assertIs(started.state, JobState.RUNNING)
+        self.host.version_output = b"unrelated tool 1\n"
+        self.assertFault(FaultKind.UNSUPPORTED, self.bridge.interrupt_job, job(binding, "request-1"), started,
+                         native="host_unsupported")
+        self.assertEqual(self.vm.interrupted, [])
+
+    def test_f3_concurrent_observe_cannot_revert_an_interrupted_terminal_receipt(self) -> None:
+        vm = BlockingObserveVm()
+        vm.state = JobState.RUNNING
+        bridge = self.make_bridge(vm)
+        binding = bridge.connect("connection-1")
+        request = job(binding, "request-1")
+        started = bridge.start_job(request)
+        results: list = []
+
+        def observe() -> None:
+            try:
+                results.append(bridge.observe_job(request, started))
+            except Exception as error:  # surfaced through the assertions below
+                results.append(error)
+
+        thread = threading.Thread(target=observe, daemon=True)
+        thread.start()
+        self.assertTrue(vm.entered.wait(5))
+        interrupted = bridge.interrupt_job(request, started)
+        self.assertIs(interrupted.state, JobState.CANCELLED)
+        vm.release.set()
+        thread.join(5)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], interrupted)
+        self.assertEqual(bridge.observe_job(request, interrupted), interrupted)
+
+    def test_f4_interrupt_requires_current_auth_and_does_not_reach_vm_after_logout(self) -> None:
+        # Documented limitation (kept by design): interrupt is not a
+        # credential-free path; after a host logout it is refused.
+        self.vm.state = JobState.RUNNING
+        binding = self.bridge.connect("connection-1")
+        request = job(binding, "request-1")
+        started = self.bridge.start_job(request)
+        self.host.status = ("logged_out", None)
+        with self.assertRaises(AdapterFailure):
+            self.bridge.interrupt_job(request, started)
+        self.assertEqual(self.vm.interrupted, [])
+
+    def test_f5_sign_out_refuses_to_log_out_a_different_host_account(self) -> None:
+        first = self.bridge.connect("connection-1")
+        self.host.status = ("chatgpt", ACCOUNT_B)
+        second = self.bridge.connect("connection-2")
+        self.runner.calls.clear()
+        self.assertFault(FaultKind.ACCOUNT_CHANGED, self.bridge.sign_out, first, native="account_changed")
+        self.assertEqual(self.host.status, ("chatgpt", ACCOUNT_B))
+        self.assertNotIn(("logout",), [call[0][1:] for call in self.runner.calls])
+        self.assertIs(self.bridge.auth_status(second).state, AuthState.AUTHENTICATED)
+
+    def test_f6_restart_cannot_revive_a_fenced_revision_over_a_newer_one(self) -> None:
+        binding = self.bridge.connect("connection-1")
+        self.host.status = ("chatgpt", ACCOUNT_B)
+        self.bridge.auth_status(binding)
+        self.host.status = ("chatgpt", ACCOUNT_A)
+        renewed = self.bridge.reconnect(binding)
+        self.assertEqual(renewed.revision, 2)
+
+        restarted = self.make_bridge(self.vm)
+        capability = restarted.probe(renewed)
+        self.assertIs(capability.binding, BindingState.CHANGED)
+        self.assertIn("connection_stale", capability.reasons)
+        self.assertFalse(capability.execution_ready)
+        self.assertFault(FaultKind.STALE_CONNECTION, restarted.start_job, job(binding, "request-1"),
+                         native="reconnect_required")
+        self.assertFault(FaultKind.STALE_CONNECTION, restarted.start_job, job(renewed, "request-2"),
+                         native="reconnect_required")
+        self.assertEqual(self.vm.started, [])
+        latest = restarted.reconnect(renewed)
+        self.assertEqual(latest.revision, 3)
+        restarted.start_job(job(latest, "request-3"))
+        self.assertEqual(self.vm.started[0][0].revision, 3)
+        self.assertFault(FaultKind.STALE_CONNECTION, restarted.start_job, job(binding, "request-4"))
+
+        # reconnect(previous) right after restart issues a newer revision.
+        self.assertEqual(self.make_bridge(self.vm).reconnect(renewed).revision, 3)
+        # A bridge-started sign-in cannot re-validate an adopted binding.
+        third = self.make_bridge(self.vm)
+        self.assertIs(third.begin_sign_in(renewed).state, AuthState.PENDING)
+        self.host.handles[-1].complete(ACCOUNT_A)
+        self.assertFault(FaultKind.STALE_CONNECTION, third.auth_status, renewed, native="reconnect_required")
+
+    def test_f7_live_runner_resolves_only_through_the_allowlisted_path(self) -> None:
+        live = SubprocessRunner()
+        root = Path(self.temporary.name)
+        outside = str(root / "elsewhere" / "codex")
+        with mock.patch.object(runner_module.shutil, "which", return_value=outside), \
+                mock.patch.object(runner_module.subprocess, "Popen",
+                                  side_effect=AssertionError("must not spawn")) as popen:
+            with self.assertRaises(HostNotFound):
+                live.run(("codex", "--version"), env={}, timeout=1.0, max_output=16)
+            with self.assertRaises(HostNotFound):
+                live.spawn(("codex", "login"), env={})
+            with self.assertRaises(HostNotFound):
+                live.run(("codex", "--version"), env={"PATH": str(root / "synthetic-bin")},
+                         timeout=1.0, max_output=16)
+            with self.assertRaises(HostNotFound):
+                live.spawn(("relative/codex", "login"), env={"PATH": str(root / "synthetic-bin")})
+            popen.assert_not_called()
+        inside = root / "synthetic-bin"
+        with mock.patch.object(runner_module.shutil, "which", return_value=str(inside / "codex")), \
+                mock.patch.object(runner_module.subprocess, "Popen", side_effect=OSError()) as popen:
+            with self.assertRaises(RunnerError) as caught:
+                live.run(("codex", "--version"), env={"PATH": str(inside)}, timeout=1.0, max_output=16)
+            self.assertIs(type(caught.exception), RunnerError)
+            popen.assert_called_once()
+
+    def test_f8_probe_enforces_login_deadline_even_when_host_is_unsupported(self) -> None:
+        self.host.status = ("logged_out", None)
+        self.bridge.start_login("connection-1")
+        self.host.version_output = b"unrelated tool 1\n"
+        self.now[0] += 601
+        capability = self.bridge.probe()
+        self.assertIs(capability.protocol, ProtocolSupport.UNSUPPORTED)
+        self.assertTrue(self.host.handles[0].terminated)
+
+    def test_f9_subprocess_runner_bounds_with_a_local_synthetic_process(self) -> None:
+        live = SubprocessRunner()
+        env = self.local_process_env()
+        result = live.run((sys.executable, "-c", "print('ok')"), env=env, timeout=30.0, max_output=1024)
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.output.strip(), b"ok")
+        failed = live.run((sys.executable, "-c", "import sys; sys.exit(3)"), env=env, timeout=30.0,
+                          max_output=1024)
+        self.assertEqual(failed.exit_code, 3)
+        began = time.monotonic()
+        with self.assertRaises(RunnerTimeout):
+            live.run((sys.executable, "-c", "import time; time.sleep(30)"), env=env, timeout=0.5,
+                     max_output=1024)
+        self.assertLess(time.monotonic() - began, 15)
+        with self.assertRaises(OutputLimitExceeded):
+            live.run((sys.executable, "-c", "import sys; sys.stdout.write('x' * 100000); sys.stdout.flush()"),
+                     env=env, timeout=30.0, max_output=1024)
+
+    def test_f9_connect_and_reconnect_failure_paths_are_classified(self) -> None:
+        binding = self.bridge.connect("connection-1")
+        self.host.status = ("expired", None)
+        self.assertFault(FaultKind.AUTH_REQUIRED, self.bridge.connect, "connection-2", native="auth_expired")
+        self.assertFault(FaultKind.AUTH_REQUIRED, self.bridge.reconnect, binding, native="auth_expired")
+        self.host.status = ("logged_out", None)
+        self.assertFault(FaultKind.AUTH_REQUIRED, self.bridge.reconnect, binding, native="auth_required")
+        self.host.present = False
+        self.assertFault(FaultKind.UNSUPPORTED, self.bridge.reconnect, binding, native="host_absent")
 
 
 if __name__ == "__main__":

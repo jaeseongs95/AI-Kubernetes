@@ -155,9 +155,28 @@ class SubprocessRunner:
 
     @staticmethod
     def _resolve(argv: tuple[str, ...], env: dict[str, str]) -> tuple[str, ...]:
-        located = shutil.which(argv[0], path=env.get("PATH"))
+        """Resolve only through the allowlisted PATH, never the parent's PATH or cwd.
+
+        A bare name must resolve to a file whose directory is one of the
+        absolute entries of ``env["PATH"]`` (Windows ``shutil.which`` may try
+        the current directory first). An explicit name must be absolute.
+        """
+        search = env.get("PATH")
+        if not search:
+            raise HostNotFound()
+        explicit = bool(os.path.dirname(argv[0]))
+        if explicit and not os.path.isabs(argv[0]):
+            raise HostNotFound()
+        located = shutil.which(argv[0], path=search)
         if located is None:
             raise HostNotFound()
+        if not explicit:
+            allowed = {
+                os.path.normcase(os.path.normpath(entry))
+                for entry in search.split(os.pathsep) if entry and os.path.isabs(entry)
+            }
+            if os.path.normcase(os.path.dirname(os.path.abspath(located))) not in allowed:
+                raise HostNotFound()
         return (located, *argv[1:])
 
     def run(self, argv, *, env, timeout, max_output) -> RunResult:
