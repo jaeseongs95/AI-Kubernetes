@@ -30,11 +30,17 @@ MAX_ARGUMENT_DEPTH = 16
 STATUS_AUTHORIZED = "authorized"  # gateway permission only, never effect completion
 _TARGET = re.compile(r"[a-z][a-z0-9+.-]{0,31}://[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\Z")
 # Tools that would let an agent grant authority or write VM verdicts are never
-# declarable: completion and authorization remain VM/user owned.
+# declarable: completion and authorization remain VM/user owned. This is a
+# best-effort name filter; VM authority is what actually prevents overwrites.
 _RESERVED_PREFIXES = ("authority.", "approval.", "verdict.", "vm.authorize", "vm.verdict",
                       "vm.final_report", "vm.goal_verdict")
 _RESERVED_NAMES = frozenset({"authorize", "approve", "grant", "grant_permission", "set_verdict",
                              "verdict", "complete_task", "mark_done"})
+# Any name token starting with one of these is reserved (e.g. vm.set_verdict,
+# goal.verdict, task.approve_plan, plan:approval).
+_RESERVED_TOKENS = ("verdict", "authoriz", "authority", "approv")
+_SEGMENT_SPLIT = re.compile(r"[.:/]")
+_TOKEN_SPLIT = re.compile(r"[._:/-]")
 
 
 class EffectKind(StrEnum):
@@ -45,7 +51,11 @@ class EffectKind(StrEnum):
 
 def is_reserved_tool(tool_id: str) -> bool:
     folded = tool_id.casefold()
-    return folded in _RESERVED_NAMES or folded.startswith(_RESERVED_PREFIXES)
+    if folded in _RESERVED_NAMES or folded.startswith(_RESERVED_PREFIXES):
+        return True
+    if any(segment in _RESERVED_NAMES for segment in _SEGMENT_SPLIT.split(folded)):
+        return True
+    return any(token.startswith(_RESERVED_TOKENS) for token in _TOKEN_SPLIT.split(folded))
 
 
 def _policy_id(value: object, field_name: str) -> None:

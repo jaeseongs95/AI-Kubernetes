@@ -99,13 +99,16 @@ class _Session:
 
 
 class _Effect:
-    __slots__ = ("tool_call_id", "digest", "kind", "state")
+    """Local effect guard. ``issued`` is True once a permission was returned for it."""
 
-    def __init__(self, tool_call_id: str, digest: str, kind: EffectKind, state: str):
+    __slots__ = ("tool_call_id", "digest", "kind", "state", "issued")
+
+    def __init__(self, tool_call_id: str, digest: str, kind: EffectKind, state: str, issued: bool = False):
         self.tool_call_id = tool_call_id
         self.digest = digest
         self.kind = kind
         self.state = state
+        self.issued = issued
 
 
 def _safe_id(value: object) -> str | None:
@@ -127,8 +130,8 @@ def _expected(value: object) -> int:
     return value
 
 
-def _profile_view(decision: object) -> tuple[str, str, frozenset]:
-    """(role, workspace, bound tools) of a bound aik_profiles decision."""
+def _profile_view(decision: object) -> tuple[str, str, frozenset, str]:
+    """(role, workspace, bound tools, bound connection) of a bound aik_profiles decision."""
     if type(decision) is not ExecutionDecision:
         raise AuthorityDenied(C.PROFILE_NOT_BOUND, subject="decision")
     try:
@@ -141,7 +144,7 @@ def _profile_view(decision: object) -> tuple[str, str, frozenset]:
             raise ValueError
     except Exception:
         raise AuthorityDenied(C.PROFILE_NOT_BOUND, subject="decision") from None
-    return profile.role, profile.workspace_id, frozenset(bound.tools)
+    return profile.role, profile.workspace_id, frozenset(bound.tools), bound.connection_id
 
 
 def _binding(value: object) -> TaskExecutionBinding:
@@ -174,6 +177,7 @@ class AuthorityGateway:
         self._effects: dict[str, _Effect] = {}
         self._unresolved: set[str] = set()
         self._audit = deque(maxlen=AUDIT_CAPACITY)
+        self._audit_dropped = 0
         self._sequence = 0
 
     def __repr__(self) -> str:
@@ -186,6 +190,9 @@ class AuthorityGateway:
     def _record(self, event: str, outcome: str, code=None, **ids) -> None:
         with self._lock:
             self._sequence += 1
+            if len(self._audit) >= AUDIT_CAPACITY:
+                # The bounded buffer drops its oldest entry; count it instead of losing it silently.
+                self._audit_dropped += 1
             self._audit.append(AuditRecord(
                 self._sequence, event, outcome, None if code is None else str(code),
                 ids.get("session_id"), ids.get("role"), ids.get("tool_call_id"), ids.get("effect_id"),
@@ -372,7 +379,7 @@ class AuthorityGateway:
         request_id(vm_authorization_id, "vm_authorization_id")
         if type(authorization_revision) is not int or not 1 <= authorization_revision <= MAX_INTEGER:
             raise AuthorityDenied(C.INVALID_REQUEST, subject="authorization_revision")
-        role, workspace_id, profile_tools = _profile_view(decision)
+        role, workspace_id, profile_tools, bound_connection = _profile_view(decision)
         if role != "director":
             raise AuthorityDenied(C.ROLE_MISMATCH, subject="decision")
         entry = self._authorizations.get(vm_authorization_id)
@@ -386,6 +393,9 @@ class AuthorityGateway:
             raise AuthorityDenied(C.POLICY_UNKNOWN)
         if scope.vm_project_id != binding.vm_project_id:
             raise AuthorityDenied(C.BINDING_MISMATCH, subject="vm_project_id")
+        if bound_connection != binding.connection_id:
+            # The profile-selected connection must be the Attempt binding's connection.
+            raise AuthorityDenied(C.BINDING_MISMATCH, subject="connection_id")
         if scope.input_revision != binding.vm_plan_revision_id:
             raise AuthorityDenied(C.STALE_INPUT_REVISION, subject="vm_plan_revision_id")
         connections = None
@@ -429,7 +439,7 @@ class AuthorityGateway:
         state = self._state(parent)
         if state.role != "director":
             raise AuthorityDenied(C.ROLE_CANNOT_DELEGATE)
-        role, workspace_id, profile_tools = _profile_view(decision)
+        role, workspace_id, profile_tools, _connection = _profile_view(decision)
         if role not in ("worker", "reviewer"):
             raise AuthorityDenied(C.ROLE_MISMATCH, subject="decision")
         if workspace_id != state.workspace_id:
@@ -461,21 +471,32 @@ class AuthorityGateway:
         return handle
 
     def close_session(self, session: ToolSession) -> bool:
-        """Close a session and every session delegated from it."""
+        """Close a session and every session delegated from it.
+
+        Read-only decisions of the closed sessions are pruned (they can no
+        longer be replayed). Effect-bearing decisions and effect guards are kept
+        so receipts can still be forwarded and identities stay fail-closed.
+        """
         with self._lock:
             try:
                 state = self._state(session)
             except AuthorityDenied:
                 return False
             pending = [state.handle.session_id]
+            closed_ids = set()
             while pending:
                 current = pending.pop()
+                closed_ids.add(current)
                 entry = self._sessions[current]
                 if not entry.closed:
                     entry.closed = True
                     self._record("session_closed", "info", session_id=current, role=entry.role)
                 pending.extend(key for key, child in self._sessions.items()
                                if child.parent_id == current and not child.closed)
+            stale = [key for key, decision in self._calls.items()
+                     if decision.effect_kind is EffectKind.READ_ONLY and decision.session_id in closed_ids]
+            for key in stale:
+                del self._calls[key]
             return True
 
     def allowed_tools(self, session: ToolSession) -> tuple:
@@ -546,12 +567,20 @@ class AuthorityGateway:
                 raise AuthorityDenied(C.RECONCILIATION_REQUIRED, subject="effect_id")
             effect = self._effects.get(effect_id)
             if effect is not None:
+                if kind is EffectKind.NON_IDEMPOTENT and not effect.issued \
+                        and effect.kind is kind and effect.digest == digest:
+                    # VM holds an intent for which the gateway never issued a
+                    # permission (unclear intent later reconciled). Issuing now
+                    # is not allowed; cancellation or execution is VM's decision.
+                    raise AuthorityDenied(C.EFFECT_NOT_ISSUED, subject="effect_id")
                 if kind is EffectKind.NON_IDEMPOTENT or effect.kind is not kind or effect.digest != digest:
                     raise AuthorityDenied(C.EFFECT_ID_CONFLICT, subject="effect_id")
                 # Idempotent duplicate of an intent VM already holds: no new intent.
             else:
                 self._record_intent(decision)
         self._calls[call.tool_call_id] = decision
+        if kind is not EffectKind.READ_ONLY:
+            self._effects[call.effect_id].issued = True
         self._record("tool_call_authorized", "allowed", session_id=state.handle.session_id, role=state.role,
                      tool_call_id=call.tool_call_id, effect_id=call.effect_id, request_digest=digest)
         return decision
@@ -568,14 +597,18 @@ class AuthorityGateway:
             "lease_fencing_token": decision.lease_fencing_token, "binding_digest": decision.binding_digest,
         }
         args = (decision.effect_id, decision.tool_call_id, decision.request_digest, decision.effect_kind)
+        # Raise outside the except block so the raw VM exception is not kept as
+        # __context__ (only its validated code is retained).
+        failed, code, response = False, None, None
         try:
             response = port.record_intent(dict(intent))
         except Exception as error:
-            code = _vm_code(error)
+            failed, code = True, _vm_code(error)
+        if failed:
             if code is not None and "UNKNOWN" not in code.split("_"):
-                raise AuthorityDenied(C.VM_REJECTED, vm_code=code, subject="record_intent") from None
+                raise AuthorityDenied(C.VM_REJECTED, vm_code=code, subject="record_intent")
             self._mark_unknown(*args, "intent_unknown")
-            raise EffectOutcomeUnknown(C.INTENT_UNKNOWN, vm_code=code, subject="record_intent") from None
+            raise EffectOutcomeUnknown(C.INTENT_UNKNOWN, vm_code=code, subject="record_intent")
         if not isinstance(response, Mapping) or response.get("effect_id") != decision.effect_id \
                 or response.get("request_digest") != decision.request_digest:
             self._mark_unknown(*args, "intent_unknown")
@@ -617,15 +650,17 @@ class AuthorityGateway:
             "lease_fencing_token": decision.lease_fencing_token, "reported_status": status,
             "receipt_ref": receipt_ref,
         }
+        failed, code, response = False, None, None
         try:
             response = port.record_receipt(dict(receipt))
         except Exception as error:
-            code = _vm_code(error)
+            failed, code = True, _vm_code(error)
+        if failed:
             if code is not None and "UNKNOWN" not in code.split("_"):
-                raise AuthorityDenied(C.VM_REJECTED, vm_code=code, subject="record_receipt") from None
+                raise AuthorityDenied(C.VM_REJECTED, vm_code=code, subject="record_receipt")
             effect.state = "outcome_unknown"
             self._unresolved.add(effect_id)
-            raise EffectOutcomeUnknown(C.RECEIPT_UNKNOWN, vm_code=code, subject="record_receipt") from None
+            raise EffectOutcomeUnknown(C.RECEIPT_UNKNOWN, vm_code=code, subject="record_receipt")
         vm_state = None
         if isinstance(response, Mapping) and response.get("effect_id") == effect_id:
             candidate = response.get("state")
@@ -644,8 +679,11 @@ class AuthorityGateway:
     def reconcile(self, effect_id: str) -> str | None:
         """Read VM's effect state. Clears the unresolved mark only on a recognizable answer.
 
-        Returns VM's state string, or None when VM has no intent for the effect
-        (the local record is dropped so a fresh request can record intent anew).
+        Returns VM's state string. None means VM has no intent for an effect the
+        gateway never issued a permission for; only then is the local record
+        dropped so a fresh request can record intent anew. If a permission was
+        already issued (intent echoed), a VM "no intent" answer contradicts local
+        evidence: the effect stays unresolved and RECONCILIATION_REQUIRED is raised.
         """
         request_id(effect_id, "effect_id")
         with self._lock:
@@ -653,11 +691,20 @@ class AuthorityGateway:
             if effect is None and effect_id not in self._unresolved:
                 raise AuthorityDenied(C.EFFECT_UNKNOWN, subject="effect_id")
             port = self._effect_port()
+            failed, response = False, None
             try:
                 response = port.read_effect(effect_id)
             except Exception:
-                raise AuthorityDenied(C.RECONCILIATION_REQUIRED, subject="read_effect") from None
+                failed = True
+            if failed:
+                raise AuthorityDenied(C.RECONCILIATION_REQUIRED, subject="read_effect")
             if response is None:
+                if effect is not None and effect.issued:
+                    # Never re-issue a permission the gateway already issued.
+                    self._unresolved.add(effect_id)
+                    self._record("effect_reconcile_blocked", "denied", C.RECONCILIATION_REQUIRED,
+                                 effect_id=effect_id)
+                    raise AuthorityDenied(C.RECONCILIATION_REQUIRED, subject="read_effect")
                 self._effects.pop(effect_id, None)
                 self._unresolved.discard(effect_id)
                 self._record("effect_reconciled", "info", effect_id=effect_id)
@@ -684,6 +731,12 @@ class AuthorityGateway:
     def unresolved_effects(self) -> frozenset:
         with self._lock:
             return frozenset(self._unresolved)
+
+    @property
+    def audit_dropped(self) -> int:
+        """Number of audit records evicted from the bounded buffer (AUDIT_CAPACITY)."""
+        with self._lock:
+            return self._audit_dropped
 
     def audit_records(self) -> tuple:
         with self._lock:

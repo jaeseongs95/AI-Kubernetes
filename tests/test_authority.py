@@ -12,6 +12,7 @@ import copy
 import json
 import pickle
 import sys
+import threading
 from types import MappingProxyType
 import unittest
 
@@ -20,8 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from aik_authority import (  # noqa: E402
-    AuthorityCode, AuthorityDenied, AuthorityGateway, EffectKind, EffectOutcomeUnknown, InvalidPolicy,
-    ToolCall, ToolDeclaration, ToolPolicy, ToolSession, map_vm_authorization,
+    AUDIT_CAPACITY, AuthorityCode, AuthorityDenied, AuthorityGateway, EffectKind, EffectOutcomeUnknown,
+    InvalidPolicy, ToolCall, ToolDeclaration, ToolPolicy, ToolSession, is_reserved_tool, map_vm_authorization,
 )
 from aik_broker import Grant  # noqa: E402
 from aik_profiles import DirectorProfile, ExecutionChoice, ExecutionDecision, RoleProfile  # noqa: E402
@@ -53,8 +54,9 @@ def make_binding(**overrides) -> TaskExecutionBinding:
     return TaskExecutionBinding(**values)
 
 
-def make_decision(role: str, tools, *, workspace: str = "ws-1", bound: bool = True) -> ExecutionDecision:
-    choice = ExecutionChoice("conn-1", "synthetic-model", None, tuple(tools))
+def make_decision(role: str, tools, *, workspace: str = "ws-1", bound: bool = True,
+                  connection: str = "conn-1") -> ExecutionDecision:
+    choice = ExecutionChoice(connection, "synthetic-model", None, tuple(tools))
     if role == "director":
         profile = DirectorProfile(f"profile-{role}", workspace, choice, 10)
     else:
@@ -63,7 +65,7 @@ def make_decision(role: str, tools, *, workspace: str = "ws-1", bound: bool = Tr
                              "primary" if bound else None, None, (), (), "2029-01-01T00:00:00Z")
 
 
-def make_policy(*, director_extra=()) -> ToolPolicy:
+def make_policy(*, director_extra=(), worker_extra=()) -> ToolPolicy:
     return ToolPolicy(
         "ws-1",
         (
@@ -75,7 +77,7 @@ def make_policy(*, director_extra=()) -> ToolPolicy:
             ToolDeclaration("call_provider", EffectKind.IDEMPOTENT, requires_credential=True),
         ),
         director_tools=("read_file", "search", "write_file", "deploy", "call_provider", *director_extra),
-        worker_tools=("read_file", "search", "write_file", "call_provider"),
+        worker_tools=("read_file", "search", "write_file", "call_provider", *worker_extra),
         reviewer_tools=("read_file", "search"),
     )
 
@@ -120,6 +122,9 @@ class FakeEffectPort:
     def __init__(self):
         self.intents, self.receipts, self.effects = [], [], {}
         self.intent_error = None
+        self.receipt_error = None
+        self.read_error = None
+        self.echo_digest = None
         self.receipt_state = "receipt_recorded"
 
     def record_intent(self, intent):
@@ -127,13 +132,17 @@ class FakeEffectPort:
         if self.intent_error is not None:
             raise self.intent_error
         self.effects[intent["effect_id"]] = {"effect_id": intent["effect_id"], "state": "intent_recorded"}
-        return {"effect_id": intent["effect_id"], "request_digest": intent["request_digest"]}
+        return {"effect_id": intent["effect_id"], "request_digest": self.echo_digest or intent["request_digest"]}
 
     def record_receipt(self, receipt):
         self.receipts.append(dict(receipt))
+        if self.receipt_error is not None:
+            raise self.receipt_error
         return {"effect_id": receipt["effect_id"], "state": self.receipt_state}
 
     def read_effect(self, effect_id):
+        if self.read_error is not None:
+            raise self.read_error
         return self.effects.get(effect_id)
 
 
@@ -444,6 +453,199 @@ class AuthorityGatewayTests(unittest.TestCase):
         self.denied(AuthorityCode.CLOCK_UNAVAILABLE, self.gateway.request, self.director, self.call())
         self.clock.value = datetime(2029, 6, 1, tzinfo=timezone(timedelta(hours=9)))
         self.gateway.request(self.director, self.call())
+
+    # ------------------------------------------- review findings (F-1..F-8)
+    def test_reconcile_without_vm_intent_never_reissues_an_issued_non_idempotent_effect(self) -> None:
+        # F-1: a permission was issued (intent echoed); VM later answers "no intent".
+        self.gateway.request(self.director, self.call("deploy", call_id="tc-n", effect_id="effect-n"))
+        self.port.receipt_error = RuntimeError("raw " + SECRET_MARKER)
+        with self.assertRaises(EffectOutcomeUnknown):
+            self.gateway.forward_receipt(self.director, "tc-n", "succeeded")
+        self.port.receipt_error = None
+        self.port.effects.pop("effect-n")  # e.g. VM restart or another instance was queried
+        self.denied(AuthorityCode.RECONCILIATION_REQUIRED, self.gateway.reconcile, "effect-n")
+        self.assertIn("effect-n", self.gateway.unresolved_effects)
+        self.assertEqual(self.gateway.effect_state("effect-n"), "outcome_unknown")
+        self.denied(AuthorityCode.RECONCILIATION_REQUIRED, self.gateway.request, self.director,
+                    self.call("deploy", call_id="tc-n2", effect_id="effect-n"))
+        self.assertEqual(len(self.port.intents), 1)
+        # Same path for an issued effect that was never marked unresolved.
+        self.gateway.request(self.director, self.call("deploy", call_id="tc-m", effect_id="effect-m"))
+        self.port.effects.pop("effect-m")
+        self.denied(AuthorityCode.RECONCILIATION_REQUIRED, self.gateway.reconcile, "effect-m")
+        self.denied(AuthorityCode.RECONCILIATION_REQUIRED, self.gateway.request, self.director,
+                    self.call("deploy", call_id="tc-m2", effect_id="effect-m"))
+        self.assertEqual(len(self.port.intents), 2)
+        self.assertTrue(any(record.event == "effect_reconcile_blocked" for record in self.gateway.audit_records()))
+
+    def test_unclear_intent_later_found_in_vm_is_marked_not_issued_for_vm_decision(self) -> None:
+        # F-2: VM holds an intent the gateway never issued a permission for.
+        self.port.intent_error = RuntimeError("raw " + SECRET_MARKER)
+        with self.assertRaises(EffectOutcomeUnknown):
+            self.gateway.request(self.director, self.call("deploy", call_id="tc-u", effect_id="effect-u"))
+        self.port.intent_error = None
+        self.port.effects["effect-u"] = {"effect_id": "effect-u", "state": "intent_recorded"}
+        self.assertEqual(self.gateway.reconcile("effect-u"), "intent_recorded")
+        self.assertEqual(self.gateway.effect_state("effect-u"), "vm:intent_recorded")
+        self.assertNotIn("effect-u", self.gateway.unresolved_effects)
+        error = self.denied(AuthorityCode.EFFECT_NOT_ISSUED, self.gateway.request, self.director,
+                            self.call("deploy", call_id="tc-u", effect_id="effect-u"))
+        self.assertFalse(error.escalation)
+        self.denied(AuthorityCode.TOOL_CALL_UNKNOWN, self.gateway.forward_receipt, self.director, "tc-u",
+                    "succeeded")
+        self.assertEqual(len(self.port.intents), 1)
+        # If VM later drops the never-issued intent, the record may be recreated.
+        self.port.effects.pop("effect-u")
+        self.assertIsNone(self.gateway.reconcile("effect-u"))
+        self.gateway.request(self.director, self.call("deploy", call_id="tc-u", effect_id="effect-u"))
+        self.assertEqual(self.gateway.effect_state("effect-u"), "intent_recorded")
+
+    def test_director_profile_connection_must_match_attempt_binding(self) -> None:
+        # F-4
+        self.denied(AuthorityCode.BINDING_MISMATCH, self.open,
+                    decision=make_decision("director", DIRECTOR_PROFILE_TOOLS, connection="conn-x"))
+        self.denied(AuthorityCode.BINDING_MISMATCH, self.open, binding=make_binding(connection_id="conn-2"))
+
+    def test_vm_errors_do_not_retain_raw_exception_context(self) -> None:
+        # F-5: neither __cause__ nor __context__ may keep the raw VM exception.
+        self.port.intent_error = CodedError("CORE_CAPABILITY_DENIED")
+        error = self.denied(AuthorityCode.VM_REJECTED, self.gateway.request, self.director,
+                            self.call("deploy", call_id="tc-v", effect_id="effect-v"))
+        self.assertIsNone(error.__cause__)
+        self.assertIsNone(error.__context__)
+        self.port.intent_error = CodedError("VM_STATE_UNKNOWN")
+        with self.assertRaises(EffectOutcomeUnknown) as context:
+            self.gateway.request(self.director, self.call("deploy", call_id="tc-k", effect_id="effect-k"))
+        self.assertIsNone(context.exception.__context__)
+        self.port.intent_error = None
+        self.gateway.request(self.director, self.call("write_file", call_id="tc-r", effect_id="effect-r"))
+        self.port.receipt_error = CodedError("CORE_CAPABILITY_DENIED")
+        error = self.denied(AuthorityCode.VM_REJECTED, self.gateway.forward_receipt, self.director, "tc-r",
+                            "succeeded")
+        self.assertIsNone(error.__context__)
+        self.port.receipt_error = RuntimeError("raw " + SECRET_MARKER)
+        with self.assertRaises(EffectOutcomeUnknown) as context:
+            self.gateway.forward_receipt(self.director, "tc-r", "succeeded")
+        self.assertIsNone(context.exception.__context__)
+        self.port.read_error = RuntimeError("raw " + SECRET_MARKER)
+        error = self.denied(AuthorityCode.RECONCILIATION_REQUIRED, self.gateway.reconcile, "effect-r")
+        self.assertIsNone(error.__context__)
+
+    def test_audit_overflow_is_counted_not_silent(self) -> None:
+        # F-6
+        self.assertEqual(self.gateway.audit_dropped, 0)
+        self.gateway.request(self.director, self.call(call_id="tc-audit"))
+        for _ in range(AUDIT_CAPACITY):
+            self.gateway.request(self.director, self.call(call_id="tc-audit"))
+        records = self.gateway.audit_records()
+        self.assertEqual(len(records), AUDIT_CAPACITY)
+        self.assertGreater(self.gateway.audit_dropped, 0)
+        self.assertEqual(records[0].sequence - 1, self.gateway.audit_dropped)
+
+    def test_closing_a_session_prunes_read_only_decisions_but_keeps_effect_records(self) -> None:
+        # F-6
+        self.gateway.request(self.director, self.call(call_id="tc-ro-prune"))
+        self.gateway.request(self.director, self.call("deploy", call_id="tc-keep", effect_id="effect-keep"))
+        self.assertTrue(self.gateway.close_session(self.director))
+        fresh = self.open()
+        self.gateway.request(fresh, self.call(call_id="tc-ro-prune"))
+        self.denied(AuthorityCode.TOOL_CALL_CONFLICT, self.gateway.request, fresh,
+                    self.call("deploy", call_id="tc-keep", effect_id="effect-keep"))
+        self.assertEqual(self.gateway.effect_state("effect-keep"), "intent_recorded")
+        receipt = self.gateway.forward_receipt(self.director, "tc-keep", "succeeded")
+        self.assertEqual(receipt.vm_state, "receipt_recorded")
+
+    def test_verdict_authorization_and_completion_tool_names_are_reserved(self) -> None:
+        # F-7
+        for tool in ("vm.set_verdict", "goal.verdict", "vm.complete_task", "task.approve_plan",
+                     "plan:approval", "broker.grant", "vm.authorization_request"):
+            with self.subTest(tool=tool):
+                self.assertTrue(is_reserved_tool(tool))
+                with self.assertRaises(InvalidPolicy) as context:
+                    ToolDeclaration(tool, EffectKind.NON_IDEMPOTENT)
+                self.assertEqual(context.exception.code, AuthorityCode.RESERVED_TOOL)
+        for tool in ("read_file", "write_file", "deploy", "publish", "call_provider", "search"):
+            with self.subTest(allowed=tool):
+                self.assertFalse(is_reserved_tool(tool))
+
+    # F-8 coverage of rejection and unclear paths.
+    def test_intent_echo_mismatch_unknown_token_and_receipt_exception_require_reconciliation(self) -> None:
+        self.port.echo_digest = "sha256:" + "0" * 64
+        with self.assertRaises(EffectOutcomeUnknown) as context:
+            self.gateway.request(self.director, self.call("deploy", call_id="tc-e", effect_id="effect-e"))
+        self.assertEqual(context.exception.code, AuthorityCode.INTENT_UNKNOWN)
+        self.assertIn("effect-e", self.gateway.unresolved_effects)
+        self.assertEqual(self.gateway.effect_state("effect-e"), "intent_unknown")
+        self.port.echo_digest = None
+        self.port.intent_error = CodedError("VM_STATE_UNKNOWN")
+        with self.assertRaises(EffectOutcomeUnknown) as context:
+            self.gateway.request(self.director, self.call("deploy", call_id="tc-k", effect_id="effect-k"))
+        self.assertEqual((context.exception.code, context.exception.vm_code),
+                         (AuthorityCode.INTENT_UNKNOWN, "VM_STATE_UNKNOWN"))
+        self.assertIn("effect-k", self.gateway.unresolved_effects)
+        self.port.intent_error = None
+        self.gateway.request(self.director, self.call("write_file", call_id="tc-w", effect_id="effect-w"))
+        self.port.receipt_error = RuntimeError("raw " + SECRET_MARKER)
+        with self.assertRaises(EffectOutcomeUnknown) as context:
+            self.gateway.forward_receipt(self.director, "tc-w", "succeeded")
+        self.assertEqual(context.exception.code, AuthorityCode.RECEIPT_UNKNOWN)
+        self.assertNotIn(SECRET_MARKER, str(context.exception))
+        self.assertEqual(self.gateway.effect_state("effect-w"), "outcome_unknown")
+        self.denied(AuthorityCode.RECONCILIATION_REQUIRED, self.gateway.request, self.director,
+                    self.call("write_file", call_id="tc-w", effect_id="effect-w"))
+
+    def test_withdrawn_authorization_blocks_sessions_calls_and_reregistration(self) -> None:
+        self.assertEqual(self.gateway.withdraw_authorization("vm-auth-1", expected_revision=1), 2)
+        self.denied(AuthorityCode.AUTHORIZATION_WITHDRAWN, self.open, revision=2)
+        self.denied(AuthorityCode.AUTHORIZATION_WITHDRAWN, self.gateway.register_authorization,
+                    make_scope(), expected_revision=2)
+        self.denied(AuthorityCode.AUTHORIZATION_WITHDRAWN, self.gateway.request, self.director, self.call())
+        self.assertEqual(self.gateway.authorization_revision("vm-auth-1"), 2)
+
+    def test_renewed_authorization_makes_delegated_sessions_stale(self) -> None:
+        worker = self.worker()
+        self.gateway.register_authorization(make_scope(), expected_revision=1)
+        self.denied(AuthorityCode.STALE_AUTHORIZATION_REVISION, self.gateway.request, worker,
+                    self.call("write_file", call_id="tc-ws", effect_id="effect-ws"))
+        self.denied(AuthorityCode.STALE_AUTHORIZATION_REVISION, self.gateway.delegate, self.director,
+                    decision=make_decision("worker", ("read_file",)), tools=("read_file",))
+        self.assertEqual(self.port.intents, [])
+
+    def test_worker_non_idempotent_effect_follows_the_same_identity_rules(self) -> None:
+        self.gateway.set_policy(make_policy(worker_extra=("deploy",)), expected_revision=1)
+        director = self.open()
+        worker = self.gateway.delegate(director, decision=make_decision("worker", ("deploy",)), tools=("deploy",))
+        self.gateway.request(worker, self.call("deploy", call_id="tc-wd", effect_id="effect-wd"))
+        self.denied(AuthorityCode.EFFECT_ALREADY_AUTHORIZED, self.gateway.request, worker,
+                    self.call("deploy", call_id="tc-wd", effect_id="effect-wd"))
+        self.denied(AuthorityCode.EFFECT_ID_CONFLICT, self.gateway.request, director,
+                    self.call("deploy", call_id="tc-wd2", effect_id="effect-wd"))
+        self.assertEqual(len(self.port.intents), 1)
+
+    def test_concurrent_requests_for_one_non_idempotent_effect_issue_once(self) -> None:
+        count = 8
+        barrier = threading.Barrier(count)
+        outcomes = []
+
+        def attempt(number: int) -> None:
+            barrier.wait(timeout=10)
+            try:
+                self.gateway.request(self.director, self.call("deploy", call_id=f"tc-race-{number}",
+                                                              effect_id="effect-race"))
+                outcomes.append("authorized")
+            except AuthorityDenied as error:
+                outcomes.append(error.code.value)
+
+        threads = [threading.Thread(target=attempt, args=(number,)) for number in range(count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+        self.assertEqual(len(outcomes), count)
+        self.assertEqual(outcomes.count("authorized"), 1)
+        self.assertEqual({outcome for outcome in outcomes if outcome != "authorized"},
+                         {AuthorityCode.EFFECT_ID_CONFLICT.value})
+        self.assertEqual(len(self.port.intents), 1)
 
 
 if __name__ == "__main__":
