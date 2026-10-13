@@ -647,6 +647,38 @@
   ]
  },
  {
+  "task_id": "AIK-028",
+  "implemented": "src/aik_switch/에 총괄 모델 교체 상태기계, 허용 fallback 판정, append-only 전환 journal과 handoff 연결을 구현했다.",
+  "verified": "tests/test_switch.py(32개) 합성·fake 단위 시험, 세션 Linux 전체 회귀 PASS.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "unit_scope_met",
+    "reason": "마지막 진행 중 호출의 terminal 관측에서만 적용, event 중복 무효과. 실제 runner NOT_RUN."
+   },
+   {
+    "ordinal": 2,
+    "status": "partial",
+    "reason": "정책 범위 판정은 구현. 품질·비용·데이터 label은 사용자 지정값이며 실제 측정·집행 없음."
+   },
+   {
+    "ordinal": 3,
+    "status": "partial",
+    "reason": "전환 기록·worker 프로필 유지 구현. 실제 effort 관측은 runner 미연결로 NOT_RUN."
+   }
+  ],
+  "blockers": [
+   "실제 runner·provider 미연결로 실제 모델 교체·인증 장애·관측 model/effort 미검증",
+   "진행 중 호출·대기 요청은 메모리 전용",
+   "선행 AIK-020/023/027 장부상 미완료"
+  ],
+  "not_run": [
+   "실제 모델 호출·runner 세션 교체",
+   "provider 인증 만료/잠금 신호",
+   "Windows 잠금·기본 경로·강제 종료"
+  ]
+ },
+ {
   "task_id": "AIK-029",
   "implemented": "aik_authority에 정책·프로필·VM 인가·위임·broker 범위의 교집합으로 허용하는 scoped tool gateway와 authorization mapper, effect identity·digest·효과 종류 규칙, 가정된 VM 효과 port 연결을 구현했다.",
   "verified": "fake 시계·lease checker·VM effect port와 합성 ID로 거부 경로, 동일 인가 재사용, 범위 확대, stale revision, 효과 종류 규칙을 단위시험 대상으로 작성했다. 문서에는 실행 결과 기록이 없다.",
@@ -709,23 +741,24 @@
    },
    {
     "ordinal": 4,
-    "status": "unmet",
-    "reason": "실제 EngineApplication에 bind_execution/read_execution_binding이 없어 bound run_once·관측·취소·inventory가 fail-closed로 차단된다."
+    "status": "partial",
+    "reason": "VM 설계 seam(주입형 runtime·trace scope·owner query) 위 hosted 경로로 효과 전 durable binding과 확인된 binding 기반 관측·취소·inventory를 구현했다(0b7960a, 1e3bbd6). 실제 설치형 VM의 Task 실행은 NOT_RUN."
    }
   ],
   "blockers": [
-   "upstream durable binding extension 부재(AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED)",
-   "실제 AttemptDetail에 goal_revision_id가 없어 owner query 정보 부족",
    "AGS manifest 부재(AGS_HOST_INTEGRATION_MANIFEST_MISSING)",
    "status는 engine_port 정규화로 구현·대조, final_report·run_once 실제 Goal 경로 미검증",
-   "선행 AIK-004 blocked 상태"
+   "선행 AIK-004 blocked 상태",
+   "hosted 경로의 실제 설치형 VM RuntimeJob 실행 검증 NOT_RUN(VM 1.0 RuntimeJob은 Windows 전용)",
+   "supervisor 스레드의 trace scope 존재는 VM 설계 가정(미실측)",
+   "AGS A2 전환 전이라 governed dispatch 불가(AIK-081)"
   ],
   "not_run": [
    "설치형 VM wheel 호출",
    "Windows 실행",
    "provider 연동",
-   "durable binding extension 검증",
-   "surface/schema revision 선언값의 설치물 확인"
+   "surface/schema revision 선언값의 설치물 확인",
+   "hosted runtime의 실제 Task 실행(설치형 VM·Windows)"
   ]
  },
  {
@@ -838,7 +871,8 @@
    "Windows 실행(프로세스 종료·os.link·권한 비트·reparse·링크 수)",
    "실제 worker native/API 연결",
    "실제 프로세스 kill 기반 crash 재현",
-   "AIK-086 live governed 경로"
+   "AIK-086 live governed 경로",
+   "AikEffectJournal·ExternalEffectSubmitter의 실제 VM EngineService 연결"
   ]
  }
 ]

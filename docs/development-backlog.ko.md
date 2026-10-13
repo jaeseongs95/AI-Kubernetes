@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-13T10:15:18Z`
+- 수정일 (UTC): `2026-10-13T12:39:44Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 57개 · 진행 중 0개 · 진행 차단 31개 · 완료 2개 · 취소 0개
+- 상태: 미착수 56개 · 진행 중 0개 · 진행 차단 32개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -34,7 +34,7 @@ python tools/backlog.py report
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 0 | 0 | 7 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 1 | 0 | 13 | 0 | 0 | 0 |
-| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 16 | 0 | 11 | 0 | 0 | 0 |
+| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 15 | 0 | 12 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
 | M4 · Windows 첫 배포 검증 | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
@@ -971,6 +971,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 **기록된 증거**
 
 - `EV-AIK-031-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · 부분 구현: commit 7136475/341e9f9/db4e7ec/81e98c0, tests/test_vm_bridge.py 55개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 3(부분), 4(미충족); 차단: upstream durable binding extension 부재(AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED); 실제 AttemptDetail에 goal_revision_id가 없어 owner query 정보 부족; AGS manifest 부재(AGS_HOST_INTEGRATION_MANIFEST_MISSING); status는 engine_port 정규화로 구현·대조, final_report·run_once 실제 Goal 경로 미검증; 선행 AIK-004 blocked 상태. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T10:15:05Z`
+- `EV-AIK-031-HOSTED-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · VM 설계 seam 기준 hosted 경로 부분 구현: commit 0b7960a/1e3bbd6. AikHostedRuntime(VM CodexRuntimePort)·AIK 소유 binding journal·run_once_hosted/confirm_attempt(attempt_detail+status join). tests/test_vm_hosted_runtime.py 39개·test_vm_hosted_runtime_review.py 24개 fake 시험과 실제 upstream 적합성 (f)(g)(h)(VM 32bb0f9 소스) 세션 Linux PASS. 완료 기준 4 미충족→부분. 차단: 실제 설치형 VM RuntimeJob 실행(Windows 전용) NOT_RUN, supervisor 스레드 trace scope는 설계 가정, AGS A2 전환 전(AIK-081). 통합 완료 아님. · `2026-10-13T12:39:44Z`
 
 ### AIK-084
 
@@ -1073,6 +1074,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 **기록된 증거**
 
 - `EV-AIK-085-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-085` · 부분 구현: commit f899a3e/1626974/42b7443, tests/test_devtools.py 28개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분), 4(부분); 차단: 실제 AuthorityGateway·VM 효과 권위 extension과 결합하지 않음; 선행 AIK-029·AIK-031·AIK-084 미완료(todo); 전체 live governed 경로는 AIK-086 범위; 실제 개발 worker(native/API) 연결 부재; 긴 검증 명령 중 lease 재확인 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T10:15:05Z`
+- `EV-AIK-085-JOURNAL-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-085` · VM 설계 기준 효과 journal 부분 구현: commit 4dd7041/2f7bf25. AikEffectJournal(AIK 소유, VM 판정 아님)·ExternalEffectSubmitter(VM record_effect_receipt, target 재관측 필요). tests/test_effect_journal.py 24개 fake 시험 세션 Linux PASS. 실제 VM EngineService 연결·설치형·Windows·외부 서비스 NOT_RUN. · `2026-10-13T12:39:44Z`
 
 ### AIK-026
 
@@ -1147,13 +1149,13 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Director |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E04 · 총괄 에이전트 |
 | 실행 순서 | 33 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T12:39:44Z` |
 
 모델을 바꾸거나 장애 시 허용된 대체 자원을 사용할 때 문맥·권한·실제 실행 이력을 보존한다.
 
@@ -1172,7 +1174,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-028-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-028` · 부분 구현: commit 15f2b5d/c22e265, tests/test_switch.py 32개 합성·fake 단위 시험이 세션 Linux 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 3(부분); 차단: 실제 runner·provider 미연결, 진행 중 호출·대기 요청 메모리 전용, 선행 AIK-020/023/027 미완료. 실제 모델 호출·Windows NOT_RUN. · `2026-10-13T12:39:44Z`
 
 ### AIK-040
 
@@ -3736,7 +3738,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-13T10:15:18Z |
+| `updated_at` | 2026-10-13T12:39:44Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

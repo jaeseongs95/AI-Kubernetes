@@ -471,6 +471,29 @@
 - 실제 총괄 모델의 문맥 축약
 - 강제 종료 후 hot journal 복구
 
+## AIK-028
+
+- 구현: src/aik_switch/에 총괄 모델 교체 상태기계(active/switch_pending/reauth_required/decision_required), 사용자 정책 범위의 허용 fallback 판정, append-only 전환 journal(SQLite, application ID AIKS), aik_continuity handoff 연결을 구현했다. worker·reviewer 프로필은 바꾸지 않는다.
+- 검증: tests/test_switch.py(32개) 합성·fake 단위 시험이 세션 Linux 전체 회귀에서 PASS. 독립 API 검토 finding을 수정했다(`c22e265`).
+- 커밋: `15f2b5d`, `c22e265`
+- 시험: `tests/test_switch.py` (32개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | 진행 중 호출이 있으면 switch_pending으로 두고 마지막 호출의 terminal(취소는 취소 완료) 관측에서만 적용한다. 같은 event 재전송은 duplicate로 효과가 없다. 실제 runner 세션 교체는 NOT_RUN. |
+| 2 | 부분 | 사용자 정책의 fallback 순서·품질·도구·데이터·예산 범위로 판정한다. 품질 등급·비용·데이터 label은 사용자 지정값이며 실제 측정·예산 차감·데이터 집행은 하지 않는다. |
+| 3 | 부분 | 이유·이전/새 binding·요청값·관측값(없으면 NOT_OBSERVED)·checkpoint·handoff 요약을 기록하고 worker 프로필은 유지한다. 실제 effort 관측은 runner 연결이 없어 NOT_RUN. |
+
+차단 사유:
+- 실제 runner·provider 연결이 없어 실제 모델 교체·인증 장애 신호·관측 model/effort가 미검증
+- 진행 중 호출·대기 요청은 프로세스 메모리에만 있음(재기동 시 대기 요청 유실 처리)
+- 선행 작업의 장부상 미완료(AIK-020/023/027)
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 모델 호출과 runner 세션 교체
+- provider 인증 만료/잠금 신호 연결
+- Windows 잠금·기본 경로, 강제 종료 시험
+
 ## AIK-029
 
 - 구현: aik_authority에 정책·프로필·VM 인가·위임·broker 범위의 교집합으로 허용하는 scoped tool gateway와 authorization mapper, effect identity·digest·효과 종류 규칙, 가정된 VM 효과 port 연결을 구현했다.
@@ -526,6 +549,37 @@
 - provider 연동
 - durable binding extension 검증
 - surface/schema revision 선언값의 설치물 확인
+
+### AIK-031 추가 기록 — VM 설계 seam 기준 hosted 경로 (사용자 지시: "VM 설계대로 구현되었다 가정")
+
+- **구현:** VM 설계에는 `bind_execution` 확장이 없다. 그래서 VM 설계 seam만 써서 효과 전 binding을 AIK 쪽에 durable하게 남기는 hosted 경로를 추가했다.
+  - VM seam: `EngineApplication(runtime=...)` 주입, `current_operation_trace_scope()`, owner query(`attempt_detail`·`status` join).
+  - 구성:
+    - `AikHostedRuntime`: VM `CodexRuntimePort` 구현
+    - `ExecutionBindingStore`: `aik_runtime.binding_journal`
+    - `VmBridge.run_once_hosted`/`confirm_attempt`
+    - `build_hosted_application`
+  - 동작:
+    - 원래 계정으로만 재개·중단한다.
+    - thread ID 충돌은 거절한다(fail-closed).
+    - write-ahead in-flight 행으로 실행 중 프로세스가 중단돼도 차단을 유지한다.
+    - 결과 불명이면 durable하게 기록하고 reconcile 전까지 막는다.
+  - 기존 확장 기반 경로는 바꾸지 않았다.
+- **검증:**
+  - `tests/test_vm_hosted_runtime.py`(39개)와 `tests/test_vm_hosted_runtime_review.py`(24개): fake VM 설계 계약 기준, 세션 Linux 전체 회귀 PASS.
+  - 실제 upstream 적합성 (f)(g)(h): VM 32bb0f9 소스(PYTHONPATH)에서 PASS.
+    - (f) `CodexRuntimePort` 9개 메서드 시그니처 일치
+    - (g) 실제 trace scope 읽기
+    - (h) 실제 `EngineApplication`이 hosted runtime을 받아들임. 생성만 하며 효과는 없다.
+  - 독립 API 검토 R1 finding 10건을 모두 수정했다(`1e3bbd6`).
+- **커밋:** `0b7960a`, `1e3bbd6`
+- **완료 기준 4 판정 변경:** 미충족 → **부분**. hosted 경로로 효과 전 durable binding과 원래 binding 기반 관측·취소·inventory를 구현했다. 그러나 실제 설치형 VM에서 Task를 실행하는 검증은 NOT_RUN이다.
+- **남은 차단:**
+  - 실제 RuntimeJob 실행 검증 NOT_RUN. VM 1.0 RuntimeJob은 Windows 전용이다.
+  - supervisor 스레드에서 trace scope가 존재한다는 점은 VM 설계 가정이며, 실측하지 않았다.
+  - AGS A2 전환 전이라 governed dispatch에 도달하지 못한다(AIK-081).
+  - `AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED`는 설치형 검증 전까지 유지한다.
+  - 통합 완료가 아니다.
 
 ## AIK-040
 
@@ -604,3 +658,22 @@
 - 실제 worker native/API 연결
 - 실제 프로세스 kill 기반 crash 재현
 - AIK-086 live governed 경로
+
+### AIK-085 추가 기록 — VM 설계 기준 효과 journal
+
+- **구현:** VM 설계에는 tool call 단위 intent API가 없다. 그래서 `VmEffectAuthorityPort`를 AIK 소유 SQLite journal(`AikEffectJournal`)로 구현했다.
+  - 확인된 execution binding과 running Attempt가 있을 때만 intent를 기록한다.
+  - journal의 상태는 VM 판정이 아니다.
+- **외부 효과:** `ExternalEffectSubmitter`가 Task 단위 typed `EffectIdentity` receipt를 VM `record_effect_receipt`에 제출한다.
+  - VM 거절 코드는 메시지 앞머리에서 읽어 보존한다.
+  - VM의 receipt ID(문자열) 응답을 받아들인다.
+  - 반환 상태는 `target_reobservation_required`다. 효과 완료로 판정하지 않는다.
+- **검증:**
+  - `tests/test_effect_journal.py`(24개)가 세션 Linux 전체 회귀에서 PASS.
+  - 독립 API 검토 R2 finding 중 F1~F5·F7·F8을 수정했다. F2는 문서로 명시했고, F6은 알려진 한계로 남겼다.
+- **커밋:** `4dd7041`, `2f7bf25`
+- **NOT_RUN:**
+  - 실제 VM `EngineService` 연결. `EngineApplication`에 receipt wrapper가 없다.
+  - 설치형 VM
+  - Windows
+  - 실제 외부 서비스

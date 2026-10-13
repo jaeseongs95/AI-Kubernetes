@@ -365,7 +365,7 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-13T10:15:18Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-13T12:39:44Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -1203,6 +1203,7 @@ INSERT INTO "task_events" VALUES(273,'AIK-031','status_change','todo','blocked',
 INSERT INTO "task_events" VALUES(274,'AIK-084','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-084-MODULE-20261013). 완료 아님. 차단: VM project 생성 공개 command·seam 부재; 진행 중 Goal의 VM revision·인가 연결 미구현; 선행 AIK-005(AIK-083 대기로 미승격)·AIK-031(todo) 미완료; 실패 시 생성된 VM project가 고아로 남음, GUI·native 미연결','2026-10-13T10:15:06Z');
 INSERT INTO "task_events" VALUES(275,'AIK-085','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-085-MODULE-20261013). 완료 아님. 차단: 실제 AuthorityGateway·VM 효과 권위 extension과 결합하지 않음; 선행 AIK-029·AIK-031·AIK-084 미완료(todo); 전체 live governed 경로는 AIK-086 범위; 실제 개발 worker(native/API) 연결 부재; 긴 검증 명령 중 lease 재확인 없음','2026-10-13T10:15:06Z');
 INSERT INTO "task_events" VALUES(276,'AIK-082','status_change','todo','blocked','Anthropic API 경로의 어댑터 wire 최소 진단만 기록(EV-AIK-082-ANTHROPIC-WIRE-20261013). 완료 아님. 차단: guard 경로 auth 사전 확인이 gateway에서 거절됨, OpenAI API·Codex·Claude Code 구독 경로 실제 probe 없음, Codex 관측 gap·GOVERNANCE_PROVIDER_UNSUPPORTED 등 upstream 조건 미해결.','2026-10-13T10:15:18Z');
+INSERT INTO "task_events" VALUES(277,'AIK-028','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-028-MODULE-20261013). 완료 아님. 차단: 실제 runner·provider 미연결; 진행 중 호출·대기 요청 메모리 전용; 선행 AIK-020/023/027 미완료','2026-10-13T12:39:44Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1257,6 +1258,9 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-084-MODULE-20261013','AIK-084','parti
 INSERT INTO "task_evidence" VALUES('EV-AIK-085-MODULE-20261013','AIK-085','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-085','부분 구현: commit f899a3e/1626974/42b7443, tests/test_devtools.py 28개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분), 4(부분); 차단: 실제 AuthorityGateway·VM 효과 권위 extension과 결합하지 않음; 선행 AIK-029·AIK-031·AIK-084 미완료(todo); 전체 live governed 경로는 AIK-086 범위; 실제 개발 worker(native/API) 연결 부재; 긴 검증 명령 중 lease 재확인 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T10:15:05Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-013-LIVE-PROBE-20261013','AIK-013','partial_live_probe','evidence/provider-adapter/2026-10-13-anthropic-live-probe/README.ko.md','commit 8d9cf5c: 실제 Messages API 최소 진단(credential 주입 gateway 경유)에서 어댑터 POST /v1/messages 요청·decoder가 200 응답을 해석(provider model claude-haiku-5-5, end_turn, usage). guard 경로는 gateway가 GET /v1/models 사전 확인을 거절해 NOT_RUN. 직접 x-api-key 인증·계정 binding 미검증. Cloudflare 1010(기본 Python UA 거절) 결함을 제품 user-agent로 수정.','2026-10-13T10:15:18Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-082-ANTHROPIC-WIRE-20261013','AIK-082','partial_live_probe','evidence/provider-adapter/2026-10-13-anthropic-live-probe/README.ko.md','Anthropic API 경로 하나만 partial_probe_verified_wire_only. guard 경로·/v1/models·직접 인증·계정 binding NOT_RUN. OpenAI API·Codex·Claude Code 구독 경로 probe 없음. probe_verified·운영 qualified 아님.','2026-10-13T10:15:18Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-031-HOSTED-20261013','AIK-031','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031','VM 설계 seam 기준 hosted 경로 부분 구현: commit 0b7960a/1e3bbd6. AikHostedRuntime(VM CodexRuntimePort)·AIK 소유 binding journal·run_once_hosted/confirm_attempt(attempt_detail+status join). tests/test_vm_hosted_runtime.py 39개·test_vm_hosted_runtime_review.py 24개 fake 시험과 실제 upstream 적합성 (f)(g)(h)(VM 32bb0f9 소스) 세션 Linux PASS. 완료 기준 4 미충족→부분. 차단: 실제 설치형 VM RuntimeJob 실행(Windows 전용) NOT_RUN, supervisor 스레드 trace scope는 설계 가정, AGS A2 전환 전(AIK-081). 통합 완료 아님.','2026-10-13T12:39:44Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-085-JOURNAL-20261013','AIK-085','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-085','VM 설계 기준 효과 journal 부분 구현: commit 4dd7041/2f7bf25. AikEffectJournal(AIK 소유, VM 판정 아님)·ExternalEffectSubmitter(VM record_effect_receipt, target 재관측 필요). tests/test_effect_journal.py 24개 fake 시험 세션 Linux PASS. 실제 VM EngineService 연결·설치형·Windows·외부 서비스 NOT_RUN.','2026-10-13T12:39:44Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-028-MODULE-20261013','AIK-028','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-028','부분 구현: commit 15f2b5d/c22e265, tests/test_switch.py 32개 합성·fake 단위 시험이 세션 Linux 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 3(부분); 차단: 실제 runner·provider 미연결, 진행 중 호출·대기 요청 메모리 전용, 선행 AIK-020/023/027 미완료. 실제 모델 호출·Windows NOT_RUN.','2026-10-13T12:39:44Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2081,7 +2085,7 @@ INSERT INTO "tasks" VALUES('AIK-031','VM EngineApplication command/query bridge'
 INSERT INTO "tasks" VALUES('AIK-029','총괄·worker 도구 권한과 실행 인가 연결','사용자→총괄→worker 위임에서 기존 인가 범위를 전달하고 범위 확대를 식별한다.','scoped tool gateway·authorization mapper','동일 인가 재사용·범위 확대·stale revision 검증','E07','M2','P0','blocked','feature','Authorization',29,'2026-10-12T05:36:30Z','2026-10-13T10:15:06Z');
 INSERT INTO "tasks" VALUES('AIK-026','총괄 Goal→위임→회수→보고 루프','총괄이 자연어 목표를 VM command에 연결하고 작업 결과·검증 상태를 보고하도록 한다.','controller command loop·bounded run policy','VM façade fixture와 이후 실제 E2E에서 상태별 행동 검증','E04','M2','P0','blocked','feature','Director',31,'2026-10-12T05:36:30Z','2026-10-13T10:15:06Z');
 INSERT INTO "tasks" VALUES('AIK-027','총괄 문맥·지시·작업 연속성','총괄 대화와 설정 revision을 영속 보존하고 VM/AGS 원장 참조로 작업 문맥을 복원한다.','director context/checkpoint·지시 참조·handoff','context 축약·재기동 후 동일 목표 복원 검증','E04','M2','P0','blocked','feature','Director continuity',32,'2026-10-12T05:36:30Z','2026-10-13T10:15:06Z');
-INSERT INTO "tasks" VALUES('AIK-028','총괄 모델 교체·허용 fallback·handoff','모델을 바꾸거나 장애 시 허용된 대체 자원을 사용할 때 문맥·권한·실제 실행 이력을 보존한다.','profile switch state machine·fallback policy','호출 중 변경·지원 도구 부족·인증 장애·handoff 검증','E04','M2','P1','todo','feature','Director',33,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
+INSERT INTO "tasks" VALUES('AIK-028','총괄 모델 교체·허용 fallback·handoff','모델을 바꾸거나 장애 시 허용된 대체 자원을 사용할 때 문맥·권한·실제 실행 이력을 보존한다.','profile switch state machine·fallback policy','호출 중 변경·지원 도구 부족·인증 장애·handoff 검증','E04','M2','P1','blocked','feature','Director',33,'2026-10-12T05:36:30Z','2026-10-13T12:39:44Z');
 INSERT INTO "tasks" VALUES('AIK-040','예산·쿼터·동시성 admission과 정산','총괄과 worker 전체 사용량을 추적하고 신규 실행 전 한도를 예약한다.','admission guard·usage reserve/settlement·quota status','경합 예약·429·잔여량 미확인·청구 지연 검증','E07','M2','P0','blocked','feature','Admission and usage',34,'2026-10-12T05:36:30Z','2026-10-13T09:24:29Z');
 INSERT INTO "tasks" VALUES('AIK-081','Upstream A2 호환 AGS plugin 확보·적합성 통과','기준선 VM 문서의 실제 gate 미개방 원인을 별도 upstream 선행 작업으로 추적한다. AIK에서 gate를 우회하지 않는다.','호환 AGS 설치 artifact·A2 conformance receipt·해결 변경 참조','실제 설치 plugin의 check-plugin·A2 계약 적합성 검사와 PASS receipt 확인','E05','M2','P0','todo','integration','Upstream AGS/VM coordination',35,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
 INSERT INTO "tasks" VALUES('AIK-082','필수 runtime의 실제 관측 사전 probe·준비 조건','필수 adapter/native runtime의 최소 실제 진단 probe로 model/effort 관측·계정 binding·receipt와 AGS/VM 계약 가능성을 확인한다. 완성된 035 agent loop의 운영 적합성은 구현 후 086에서 판정한다.','고정 matrix의 실제 preflight probe report·관측 receipt·upstream 준비 조건','실제 필수 adapter/native 최소 진단 호출과 설정/관측/receipt 대조; fixture-only 또는 전체 governed agent loop의 선행 요구 금지','E05','M2','P0','blocked','integration','Upstream runtime coordination',36,'2026-10-12T05:36:30Z','2026-10-13T10:15:18Z');
@@ -2183,6 +2187,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',276);
+INSERT INTO "sqlite_sequence" VALUES('task_events',277);
 COMMIT;
 PRAGMA foreign_keys = ON;
