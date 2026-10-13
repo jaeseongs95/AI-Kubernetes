@@ -3,7 +3,8 @@
 const VERSION = 1;
 const WORKSPACE = "foundation-spike";
 const CHANNEL = "aik:foundation-probe";
-const COMMANDS = new Set(["health", "worker_probe", "vault_probe"]);
+const COMMANDS = new Set(["health", "worker_probe", "vault_probe", "auth_vault_probe"]);
+const AUTH_VAULT_CASES = ["dpapi_round_trip", "lock_contention", "malformed_reference", "truncated_blob", "foreign_blob_simulated", "deleted_reference", "auth_clock_expiry", "credential_removed", "output_redaction", "other_user_profile"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function object(value) {
@@ -54,6 +55,14 @@ function validResult(command, value) {
       Number.isSafeInteger(value.pid) && value.pid > 0 && Number.isSafeInteger(value.parent_pid) && value.parent_pid > 0 &&
       Number.isSafeInteger(value.artifact_bytes) && value.artifact_bytes > 0 &&
       typeof value.artifact_sha256 === "string" && /^[0-9a-f]{64}$/.test(value.artifact_sha256) && value.temporary_artifact_removed === true;
+  }
+  if (command === "auth_vault_probe") {
+    // AIK-022 synthetic failure paths: fixed case codes only, never values or paths.
+    return exact(value, ["status", "backend", "code", "cases"]) && value.backend === "windows-user-dpapi" &&
+      /^[A-Z0-9_]{1,64}$/.test(value.code) && object(value.cases) &&
+      Object.keys(value.cases).every((name) => AUTH_VAULT_CASES.includes(name) && /^[A-Z0-9_]{1,64}$/.test(value.cases[name])) &&
+      (value.status === "NOT_RUN" ? Object.keys(value.cases).length === 0 : exact(value.cases, AUTH_VAULT_CASES)) &&
+      (value.status !== "PASS" || value.code === "AUTH_VAULT_FAILURE_PATHS_OK");
   }
   return exact(value, ["status", "backend", "code"]) && value.backend === "windows-user-dpapi" &&
     /^[A-Z0-9_]{1,64}$/.test(value.code) &&

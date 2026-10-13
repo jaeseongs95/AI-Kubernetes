@@ -21,7 +21,7 @@ from typing import Any
 PROTOCOL = 1
 WORKSPACE = "foundation-spike"
 MAX_FRAME = 65536
-COMMANDS = frozenset({"health", "worker_probe", "vault_probe"})
+COMMANDS = frozenset({"health", "worker_probe", "vault_probe", "auth_vault_probe"})
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 NONCE = re.compile(r"^[0-9a-f]{64}$")
 SAMPLE = b"AI-Kubernetes foundation synthetic worker\n"
@@ -172,6 +172,10 @@ def dispatch(request: dict[str, Any], nonce: str) -> dict[str, Any]:
             }
         elif request["command"] == "worker_probe":
             result = run_worker()
+        elif request["command"] == "auth_vault_probe":
+            from aik_spike.auth_vault import probe
+
+            result = probe()
         else:
             from aik_spike.vault import roundtrip
 

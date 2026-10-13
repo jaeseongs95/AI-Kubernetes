@@ -15,5 +15,6 @@ function request(command) {
 contextBridge.exposeInMainWorld("aik", Object.freeze({
   health: () => request("health"),
   runWorkerProbe: () => request("worker_probe"),
-  runVaultProbe: () => request("vault_probe")
+  runVaultProbe: () => request("vault_probe"),
+  runAuthVaultProbe: () => request("auth_vault_probe")
 }));

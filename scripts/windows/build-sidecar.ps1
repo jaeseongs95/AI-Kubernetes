@@ -16,6 +16,8 @@ if (-not [Environment]::Is64BitProcess) {
 
 $RepositoryRoot = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $SourceRoot = Join-Path $RepositoryRoot 'spikes/windows-foundation/python'
+# AIK-022 probe runs the product packages (aik_vault, aik_auth_lifecycle, ...) inside the engine.
+$ProductSourceRoot = Join-Path $RepositoryRoot 'src'
 $EntryPath = Join-Path $SourceRoot 'sidecar_entry.py'
 $BuildRoot = Join-Path $RepositoryRoot 'packaging/build'
 $EngineOutput = Join-Path $BuildRoot 'engine'
@@ -47,6 +49,14 @@ if ($LASTEXITCODE -ne 0) { throw 'The Windows build dependency lock is incomplet
     --noconfirm --clean --onedir --console --noupx `
     --name aik-engine `
     --paths $SourceRoot `
+    --paths $ProductSourceRoot `
+    --hidden-import aik_spike.auth_vault `
+    --hidden-import aik_vault `
+    --hidden-import aik_connection `
+    --hidden-import aik_auth_lifecycle `
+    --hidden-import aik_provider.contracts `
+    --hidden-import aik_runtime.paths `
+    --hidden-import aik_security `
     --distpath $EngineOutput `
     --workpath (Join-Path $BuildRoot 'pyinstaller-work') `
     --specpath (Join-Path $BuildRoot 'pyinstaller-spec') `

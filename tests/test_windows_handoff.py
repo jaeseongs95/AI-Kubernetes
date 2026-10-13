@@ -47,7 +47,8 @@ class WindowsHandoffRegressionTests(unittest.TestCase):
             "schema_version": 1, "status": "PASS", "platform": "win32", "packaged": True,
             "window_visible": True, "renderer_node_access": False, "product_integration": "NOT_RUN",
             "checks": {"health": {"status": "PASS", "frozen": True, "python_version": "3.14.8"},
-                       "worker": {"status": "PASS"}, "vault": {"status": "PASS"}},
+                       "worker": {"status": "PASS"}, "vault": {"status": "PASS"},
+                       "auth_vault": {"status": "PASS"}},
             "fixture_scope": "packaging regression only; no Windows execution",
         }
         self.screenshot = b"\x89PNG\r\n\x1a\nSYNTHETIC IMAGE HEADER; NO GUI EXECUTION"
@@ -129,6 +130,17 @@ class WindowsHandoffRegressionTests(unittest.TestCase):
         self.write_evidence()
         with self.assertRaisesRegex(handoff.HandoffError, "Actual packaged GUI"):
             self.package()
+
+    def test_new_packages_require_the_aik022_auth_vault_probe(self) -> None:
+        for broken in ({"status": "FAIL"}, None):
+            with self.subTest(auth_vault=broken):
+                if broken is None:
+                    del self.application["checks"]["auth_vault"]
+                else:
+                    self.application["checks"]["auth_vault"] = broken
+                self.write_evidence()
+                with self.assertRaisesRegex(handoff.HandoffError, "Actual packaged GUI"):
+                    self.package()
 
     def test_source_and_raw_gui_evidence_must_match(self) -> None:
         self.build["source_commit"] = "9" * 40

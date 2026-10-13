@@ -101,7 +101,7 @@ async function runSmoke() {
     "typeof window.require !== 'undefined' || typeof window.process !== 'undefined'"
   );
   const checks = {};
-  for (const [name, command] of [["health", "health"], ["worker", "worker_probe"], ["vault", "vault_probe"]]) {
+  for (const [name, command] of [["health", "health"], ["worker", "worker_probe"], ["vault", "vault_probe"], ["auth_vault", "auth_vault_probe"]]) {
     await window.webContents.executeJavaScript("document.getElementById('" + name + "-check').click()");
     await waitFor(() => observed.has(command));
     const response = observed.get(command);

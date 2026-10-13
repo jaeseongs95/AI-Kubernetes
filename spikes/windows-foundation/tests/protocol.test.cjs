@@ -45,6 +45,33 @@ test("response schema rejects secret fields and mismatched request identity", ()
   assert.equal(validateResponse(error, req), false);
 });
 
+test("AIK-022 auth/vault probe results carry only fixed case codes", () => {
+  const req = {...request(), command: "auth_vault_probe"};
+  const cases = {
+    dpapi_round_trip: "ROUND_TRIP_OK", lock_contention: "VAULT_BUSY", malformed_reference: "INVALID_REFERENCE",
+    truncated_blob: "VAULT_CORRUPT", foreign_blob_simulated: "ACCESS_DENIED", deleted_reference: "CREDENTIAL_NOT_FOUND",
+    auth_clock_expiry: "EXPIRED_NOT_PLACEABLE", credential_removed: "REFERENCE_UNAVAILABLE_NOT_PLACEABLE",
+    output_redaction: "REDACTED", other_user_profile: "NOT_RUN_SINGLE_USER_SESSION"
+  };
+  const result = {status: "PASS", backend: "windows-user-dpapi", code: "AUTH_VAULT_FAILURE_PATHS_OK", cases};
+  const response = {...req, ok: true, result};
+  delete response.payload;
+  assert.equal(validateRequest(req), null);
+  assert.equal(validateResponse(response, req), true);
+  const notRun = {status: "NOT_RUN", backend: "windows-user-dpapi", code: "WINDOWS_REQUIRED", cases: {}};
+  assert.equal(validateResponse({...response, result: notRun}, req), true);
+  const failed = {...result, status: "FAIL", code: "AUTH_VAULT_CASE_MISMATCH", cases: {...cases, lock_contention: "NOT_RAISED"}};
+  assert.equal(validateResponse({...response, result: failed}, req), true);
+  // A PASS needs the success code and every case; values, paths and extra fields are rejected.
+  assert.equal(validateResponse({...response, result: {...result, code: "OTHER"}}, req), false);
+  const {lock_contention: _omitted, ...missing} = cases;
+  assert.equal(validateResponse({...response, result: {...result, cases: missing}}, req), false);
+  assert.equal(validateResponse({...response, result: {...result, cases: {...cases, extra_case: "OK"}}}, req), false);
+  assert.equal(validateResponse({...response, result: {...result, cases: {...cases, dpapi_round_trip: "C:\\Users\\secret"}}}, req), false);
+  assert.equal(validateResponse({...response, result: {...result, secret: "canary"}}, req), false);
+  assert.equal(validateResponse({...response, result: {...notRun, cases: {dpapi_round_trip: "ROUND_TRIP_OK"}}}, req), false);
+});
+
 test("sanitized failures never echo arbitrary request values", () => {
   const response = failure({request_id: "secret-canary", command: "secret-canary"}, "INVALID_REQUEST");
   assert.equal(JSON.stringify(response).includes("secret-canary"), false);

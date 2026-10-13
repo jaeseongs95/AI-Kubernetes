@@ -195,7 +195,7 @@ try {
     if ($ApplicationReport.platform -ne 'win32' -or $ApplicationReport.window_visible -ne $true -or $ApplicationReport.renderer_node_access -ne $false) {
         throw 'The report did not prove a visible Windows GUI with renderer Node access disabled.'
     }
-    foreach ($RequiredCheck in @('health', 'worker', 'vault')) {
+    foreach ($RequiredCheck in @('health', 'worker', 'vault', 'auth_vault')) {
         if ($ApplicationReport.checks.$RequiredCheck.status -ne 'PASS') {
             throw "The installed GUI check did not pass: $RequiredCheck"
         }

@@ -200,6 +200,24 @@ class WindowsClientReviewTests(unittest.TestCase):
         self.assertEqual({entry["path"] for entry in result["files"]}, set(before))
         self.assertEqual(snapshot(self.fixture.root), before)
 
+    def test_aik022_auth_vault_probe_is_optional_but_must_fully_pass_when_reported(self) -> None:
+        # Packages built before the probe (AIK-003 handoffs) still review; the field says ABSENT.
+        self.assertEqual(self.fixture.review()["aik022_auth_vault"], "ABSENT")
+        passing = {"status": "PASS", "backend": "windows-user-dpapi", "code": "AUTH_VAULT_FAILURE_PATHS_OK",
+                   "cases": dict(reviewer.AUTH_VAULT_EXPECTED)}
+        self.fixture.application["checks"]["auth_vault"] = passing
+        self.fixture.write_fixture()
+        result = self.fixture.review()
+        self.assertEqual(result["status"], "READY_FOR_REVIEW", result)
+        self.assertEqual(result["aik022_auth_vault"], "PASS_SYNTHETIC_SINGLE_USER")
+        for broken in ({**passing, "status": "FAIL"},
+                       {**passing, "cases": {**passing["cases"], "lock_contention": "NOT_RAISED"}},
+                       {**passing, "cases": {**passing["cases"], "other_user_profile": "PASS"}}):
+            with self.subTest(broken=broken):
+                self.fixture.application["checks"]["auth_vault"] = broken
+                self.fixture.write_fixture()
+                self.assert_fail(self.fixture.review())
+
     def test_missing_preparation_cannot_be_replaced_by_an_empty_tool_inventory(self) -> None:
         (self.fixture.root / "client-preparation.json").unlink()
         self.assert_blocked(self.fixture.review(), "MISSING_CLEAN_PREPARATION_RECORD")
