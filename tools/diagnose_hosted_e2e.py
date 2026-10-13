@@ -310,13 +310,18 @@ def run(vm_repo: Path, work: Path) -> dict:
             goal_step = steps[0].model_copy(update={"validation_id": "validation_goal"})
         # Same driving pattern as VM's own product-path E2E: every tick carries the
         # Goal Test step, and the asynchronous RuntimeJobs get time between ticks.
+        # Once VM has bound the Goal Test, the stored binding is used: supplying a step that
+        # differs only by path normalization would make VM re-bind on every tick.
         deadline = time.monotonic() + 180
-        result, action = tick(goal_validation_step=goal_step)
+        supplied = goal_step
+        result, action = tick(goal_validation_step=supplied)
         while time.monotonic() < deadline:
             if _value(result, "goal_verdict_id") is not None or action.endswith("blocked"):
                 break
+            if action.endswith("materialized") and "validation_goal" in str(_value(result, "detail") or ""):
+                supplied = None
             time.sleep(0.25)
-            result, action = tick(goal_validation_step=goal_step)
+            result, action = tick(goal_validation_step=supplied)
         report["goal_verdict_id"] = _value(result, "goal_verdict_id")
         report["goal_final_action"] = action
     report["assignment_calls"] = assignment_calls
@@ -353,7 +358,10 @@ def main(argv=None) -> int:
     }
     with tempfile.TemporaryDirectory(prefix="aik-hosted-e2e-", ignore_cleanup_errors=True) as directory:
         try:
-            report.update(run(args.vm_repo.resolve(), Path(directory)))
+            # VM normalizes the Goal Test cwd with resolve(); on Windows a temp path can be an
+            # 8.3 short name (RUNNER~1) that resolves differently, so start from the resolved path.
+            report["work_path_resolved_differs"] = str(Path(directory)) != str(Path(directory).resolve())
+            report.update(run(args.vm_repo.resolve(), Path(directory).resolve()))
         except Exception as error:
             report["error"] = f"{type(error).__name__}: {str(error)[:500]}"
             report["traceback_tail"] = traceback.format_exc().splitlines()[-12:]
