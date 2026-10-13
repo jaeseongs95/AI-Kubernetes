@@ -1,0 +1,489 @@
+{
+  "format": "aik-product-acceptance-v1",
+  "version": 1,
+  "task_id": "AIK-083",
+  "decision_status": "proposed",
+  "authority": "candidate_not_qualified",
+  "provenance": {
+    "source": "planning/backlog.sqlite3",
+    "source_report": "docs/development-backlog.ko.md",
+    "source_report_git_blob": "27437d6d7577e1d912f751bceb240b764a4b0a94",
+    "decision_id": "DEC13",
+    "upstream_task": "AIK-001",
+    "prerequisites": [
+      "AIK-001",
+      "AIK-002",
+      "AIK-003"
+    ]
+  },
+  "matrix": {
+    "path": "contracts/upstream/support-matrix.json",
+    "revision": "1",
+    "git_blob_sha": "b563f9f63b88f2a6e52a77f3e67acc871a98b88e",
+    "decision_id": "DEC12",
+    "decision_status": "proposed",
+    "required_route_rule": "all_required_roles_tools_live_qualified"
+  },
+  "phases": {
+    "M4": {
+      "gate": "AIK-064",
+      "platform": "Windows 11 x64",
+      "journeys": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09",
+        "P10"
+      ],
+      "required_previous_gate": null
+    },
+    "M5": {
+      "gate": "AIK-089",
+      "platform": "Windows 11 x64",
+      "journeys": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09",
+        "P10",
+        "P11"
+      ],
+      "required_previous_gate": "AIK-064"
+    },
+    "M6": {
+      "gate": "AIK-090",
+      "platform": "Windows 11 x64",
+      "journeys": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09",
+        "P10",
+        "P11",
+        "P12"
+      ],
+      "required_previous_gate": "AIK-089"
+    }
+  },
+  "fixed_measurement_candidate": {
+    "status": "proposed_before_product_measurement",
+    "min_host": {
+      "logical_cpu": 2,
+      "ram_gib": 8,
+      "free_disk_gib": 2,
+      "screen_px": [
+        1280,
+        800
+      ]
+    },
+    "baseline_host": {
+      "logical_cpu": 4,
+      "ram_gib": 16,
+      "free_disk_gib": 4,
+      "screen_px": [
+        1920,
+        1080
+      ]
+    },
+    "supported_os_candidates": [
+      "Windows 11 25H2 x64",
+      "Windows 11 26H2 x64"
+    ],
+    "workloads": {
+      "startup_runs_each": 20,
+      "idle_minutes_each": 10,
+      "connected_metadata_cases": [
+        0,
+        3
+      ],
+      "visible_sessions": 20,
+      "active_workers": 4,
+      "ui_interactions": 100,
+      "soak_hours": 8
+    },
+    "thresholds": {
+      "cold_start_p95_ms_max": 15000,
+      "warm_start_p95_ms_max": 8000,
+      "control_input_p95_ms_max": 300,
+      "control_input_p99_ms_max": 750,
+      "idle_unrequested_model_calls_max": 0,
+      "soak_memory_growth_mib_max": 256,
+      "orphaned_owned_workers_max": 0,
+      "stale_or_unknown_effect_auto_retries_max": 0
+    },
+    "measurement_partition": "local_gui_control_excludes_external_provider_latency",
+    "freeze_rule": "approval_required_before_first_release_measurement; any threshold change requires signed decision and full requalification"
+  },
+  "oracle": {
+    "fixture_kind": "synthetic_representative_not_live_product",
+    "workspace_template": "contracts/product-acceptance/fixture/project",
+    "raw_goal": "선택한 한글·공백 프로젝트의 orders.csv와 policy.json을 읽고 settlement.py의 정산 오류를 고쳐 settlement.json을 생성하고 검증해줘. 기존 입력 파일과 정책은 바꾸지 마.",
+    "fixture_git_blobs": {
+      "orders.csv": "acbc1d16b2df062add56a235ab54c8bc07ee3f6d",
+      "policy.json": "f9c7fc2af333187aac01ef5f98486f30ced04a78",
+      "settlement.py": "b67a5951781a79cf37982b1624e7e56114e8c801"
+    },
+    "forbidden_bootstrap": [
+      "prebuilt_plan",
+      "prebuilt_task",
+      "prebuilt_settlement.json",
+      "self_graded_goal_verdict"
+    ],
+    "independent_check": "tools/product_acceptance.py oracle",
+    "artifact_name": "settlement.json",
+    "initial_expected": "FAIL",
+    "required_post_rework": "PASS",
+    "independence_note": "Independent check consumes file bytes, not model verdict. A/B→C and fail→rework must be proved separately via real VM/AGS receipts."
+  },
+  "gate_order": [
+    "AIK-001",
+    "AIK-031",
+    "AIK-085",
+    "AIK-082",
+    "AIK-035",
+    "AIK-086",
+    "AIK-044",
+    "AIK-059",
+    "AIK-064",
+    "AIK-089",
+    "AIK-090"
+  ],
+  "release_policy": {
+    "mandatory_status": "PASS",
+    "forbidden_statuses": [
+      "FAIL",
+      "NOT_RUN",
+      "BLOCKED",
+      "SKIP",
+      "UNKNOWN"
+    ],
+    "critical_or_high_defects_max": 0,
+    "require_same_build_and_installer_digest": true,
+    "require_matrix_bound_live_evidence": true,
+    "require_independent_oracle": true,
+    "no_cross_phase_evidence_reuse": true,
+    "selected_optional_capabilities_must_be_in_gate_dependencies": true
+  },
+  "journeys": [
+    {
+      "id": "P01",
+      "title": "Windows 설치 후 멀티벤더 인증 수명주기",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "GUI에서 두 벤더 API/지원 구독 연결을 만들고 만료·재인증·계정 교체·해제",
+      "observable_success": "실제 선택 connection·host account 바인딩과 다음 실행 계정이 관측값과 일치",
+      "blocking_failure": "필수 경로 NOT_RUN, 묵시적 계정 교체, 개발자 CLI 사전 설정, fixture-only 성공",
+      "owners": {
+        "implementation": [
+          "AIK-009",
+          "AIK-010",
+          "AIK-012",
+          "AIK-013",
+          "AIK-014",
+          "AIK-015"
+        ],
+        "gui": [
+          "AIK-046",
+          "AIK-047"
+        ],
+        "verification": [
+          "AIK-022",
+          "AIK-059",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P02",
+      "title": "사용자 프로젝트와 실제 실행 입력 결속",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "한글·공백 기존 폴더 선택·새 폴더 생성·전환 후 실제 파일 쓰기",
+      "observable_success": "UI·VM project/root·worker cwd와 입력 bytes/digest/revision, 재시작 참조가 일치",
+      "blocking_failure": "샘플 root로 대체, 다른 root 쓰기, 누락·변조·stale 입력",
+      "owners": {
+        "implementation": [
+          "AIK-031",
+          "AIK-084",
+          "AIK-085"
+        ],
+        "gui": [
+          "AIK-087"
+        ],
+        "verification": [
+          "AIK-044",
+          "AIK-059",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P03",
+      "title": "총괄·개발·검토 모델 지정 실효성",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "GUI에서 역할별 다른 connection/model/effort를 지정하고 목표 실행",
+      "observable_success": "요청 값과 실제 provider·attempt·lease·계정·모델 관측값 대조, 허용된 fallback만 실행",
+      "blocking_failure": "설정 값을 실측으로 주장, 계정/모델 묵시 변경, 미검증 qualified 광고",
+      "owners": {
+        "implementation": [
+          "AIK-020",
+          "AIK-023",
+          "AIK-033",
+          "AIK-086"
+        ],
+        "gui": [
+          "AIK-048",
+          "AIK-049"
+        ],
+        "verification": [
+          "AIK-086",
+          "AIK-059",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P04",
+      "title": "RAW Goal→독립 A/B→의존 C→실제 수정·검증·재작업",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "사용자가 선택한 실제 프로젝트에 RAW Goal을 제출, A/B 독립 분석 뒤 C가 실제 파일을 수정·검증",
+      "observable_success": "의도적인 독립 검증 첫 실패 후 VM 재작업, 사용 가능한 결과·GoalVerdict와 고정 oracle 통과",
+      "blocking_failure": "Plan/Task/완성 산출물 사전 주입, 후속 입력 미전달, 기준 변경, self-verdict 통과",
+      "owners": {
+        "implementation": [
+          "AIK-026",
+          "AIK-031",
+          "AIK-035",
+          "AIK-085"
+        ],
+        "gui": [
+          "AIK-050",
+          "AIK-051",
+          "AIK-054"
+        ],
+        "verification": [
+          "AIK-044",
+          "AIK-059",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P05",
+      "title": "인가·비밀·예산·동시성 경계",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "다른 workspace, 권한 확대, 예산 초과, 만료 인증 실행과 가짜 비밀 누출 시도",
+      "observable_success": "허용 기존 인가는 재사용하고 확대/stale만 차단; 실제 trust profile, usage unknown 구분",
+      "blocking_failure": "우회 실행·자가 인가·비밀 노출·unknown 사용량을 0으로 표시",
+      "owners": {
+        "implementation": [
+          "AIK-004",
+          "AIK-009",
+          "AIK-018",
+          "AIK-029",
+          "AIK-040"
+        ],
+        "gui": [
+          "AIK-053",
+          "AIK-055"
+        ],
+        "verification": [
+          "AIK-060",
+          "AIK-061",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P06",
+      "title": "tool effect·취소·중단과 안전 복구",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "파일 effect intent/receipt 전후, tool 결과 회수 전후에 중단·취소·늦은 응답 주입",
+      "observable_success": "effect identity·요청 digest·Attempt·lease·인가 일치, 중복 effect 없이 회수/reconciliation",
+      "blocking_failure": "provider job만 보고 effect 성공 간주, 불명확한 비멱등 effect 자동 재실행",
+      "owners": {
+        "implementation": [
+          "AIK-029",
+          "AIK-038",
+          "AIK-039",
+          "AIK-085"
+        ],
+        "gui": [
+          "AIK-052",
+          "AIK-056"
+        ],
+        "verification": [
+          "AIK-059",
+          "AIK-060",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P07",
+      "title": "완성 산출물의 인계·보존",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "최종 파일을 GUI에서 열기·내보내기·worker 반환과 재시작 후 다시 읽기",
+      "observable_success": "사용자 수신 bytes/digest·VM verdict 참조·검토 근거 일치, 보관기간 내 재접근",
+      "blocking_failure": "임시 worker 경로만 제공·잘못된 다운로드·unsafe 결과 자동 실행",
+      "owners": {
+        "implementation": [
+          "AIK-037",
+          "AIK-042",
+          "AIK-054"
+        ],
+        "gui": [
+          "AIK-054",
+          "AIK-063"
+        ],
+        "verification": [
+          "AIK-059",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P08",
+      "title": "GUI 감독·총괄 연속성·worker 반환",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "창 재열기, sidecar 재시작, 목표 일시정지·재개·취소·idle",
+      "observable_success": "동일 Goal·지시·인가·job·usage 복원, owned worker만 종료, borrowed host lease만 반환",
+      "blocking_failure": "새 Goal 중복, 미처리 지시 소실, idle 무한 호출, borrowed host 강제 종료",
+      "owners": {
+        "implementation": [
+          "AIK-006",
+          "AIK-025",
+          "AIK-027",
+          "AIK-041"
+        ],
+        "gui": [
+          "AIK-050",
+          "AIK-051",
+          "AIK-052",
+          "AIK-056"
+        ],
+        "verification": [
+          "AIK-059",
+          "AIK-062",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P09",
+      "title": "제품 상태 백업·복원·업데이트 실패",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "GUI 설정 이동과 전체 백업 구별, 새 Windows 사용자·업데이트 중단 복원",
+      "observable_success": "AIK·VM·AGS·artifact가 같은 checkpoint, 재인증과 미확인 job reconciliation, 독립 복구 화면",
+      "blocking_failure": "서로 다른 시점 DB 혼합, dangling evidence, CLI/checkout 필수",
+      "owners": {
+        "implementation": [
+          "AIK-005",
+          "AIK-058",
+          "AIK-088"
+        ],
+        "gui": [
+          "AIK-057",
+          "AIK-088"
+        ],
+        "verification": [
+          "AIK-059",
+          "AIK-061",
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P10",
+      "title": "단일 고정 Windows 설치본의 출시 판정",
+      "scope": "M4",
+      "gate": "AIK-064",
+      "input": "동일 installer/commit/matrix로 P01~09·설치·접근성·장애·서명·성능·장기 실행 검증",
+      "observable_success": "사전 동결한 하드웨어/부하/임계값 충족, 독립 자료·결함·릴리스노트 정합성",
+      "blocking_failure": "필수 FAIL/NOT_RUN, 중대 결함, 빌드 혼합, 측정 뒤 임계값 완화",
+      "owners": {
+        "implementation": [
+          "AIK-003",
+          "AIK-062",
+          "AIK-064"
+        ],
+        "gui": [
+          "AIK-063"
+        ],
+        "verification": [
+          "AIK-064"
+        ]
+      }
+    },
+    {
+      "id": "P11",
+      "title": "두 독립 클러스터의 연합 포함 후속 Windows 출시",
+      "scope": "M5",
+      "gate": "AIK-089",
+      "input": "새 설치본으로 업그레이드 후 2개 클러스터 PEER·실제 입력 전송·의존 쓰기/회수",
+      "observable_success": "권위/증거/효과/비용/재시작 복원, 동일 새 빌드에서 P01~10 회귀 통과",
+      "blocking_failure": "선행 입력 사전 복제, 개발 모드 E2E, 옛 M4 근거 재사용",
+      "owners": {
+        "implementation": [
+          "AIK-065",
+          "AIK-067",
+          "AIK-072",
+          "AIK-089"
+        ],
+        "gui": [
+          "AIK-071",
+          "AIK-075"
+        ],
+        "verification": [
+          "AIK-089"
+        ]
+      }
+    },
+    {
+      "id": "P12",
+      "title": "선택 확장 자원의 실제 Windows 출시",
+      "scope": "M6",
+      "gate": "AIK-090",
+      "input": "새 설치본에서 선언한 로컬 LLM/adapter/조직 정책 기능을 GUI로 실행·복구",
+      "observable_success": "해당 scope 실제 governed 작업, P01~11 회귀와 같은 빌드·matrix 근거",
+      "blocking_failure": "fixture-only adapter, 누락된 packaging, 옛 gate 결과 재사용, 미선택 done 전환",
+      "owners": {
+        "implementation": [
+          "AIK-076",
+          "AIK-077",
+          "AIK-078",
+          "AIK-079",
+          "AIK-090"
+        ],
+        "gui": [
+          "AIK-075"
+        ],
+        "verification": [
+          "AIK-090"
+        ]
+      }
+    }
+  ]
+}

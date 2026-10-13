@@ -1,0 +1,49 @@
+name: Product acceptance candidate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/product-acceptance/**'
+      - 'contracts/upstream/support-matrix.json'
+      - 'tools/product_acceptance.py'
+      - 'tests/test_product_acceptance.py'
+      - '.github/workflows/product-acceptance.yml'
+      - '.gitattributes'
+  pull_request:
+    paths:
+      - 'contracts/product-acceptance/**'
+      - 'contracts/upstream/support-matrix.json'
+      - 'tools/product_acceptance.py'
+      - 'tests/test_product_acceptance.py'
+      - '.github/workflows/product-acceptance.yml'
+      - '.gitattributes'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance-candidate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Pinned Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Validate pinned contract and fixed support matrix
+        run: python tools/product_acceptance.py validate
+      - name: Run independent oracle and adversarial release preflight regression
+        run: python -m unittest discover -s tests -p test_product_acceptance.py -v
