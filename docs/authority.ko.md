@@ -142,6 +142,18 @@ VM 설계는 효과 기록을 두 갈래로 나눈다. AIK도 그 경계를 따�
   - 같은 `(provider, system, provider_operation_id)`를 다른 Attempt로 제출하려 하면 로컬에서도 거절한다.
   - VM 거절 코드(`EFFECT_ADAPTER_OPERATION_REPLAY_CONFLICT`, `EFFECT_ADAPTER_RECEIPT_CONFLICT` 등)는 그대로 보존한다. 코드 없는 예외나 이상 응답은 결과 불명으로 분류하고 자동 재시도하지 않는다.
   - 제출 결과는 `target_reobservation_required` 상태다. 외부 효과는 VM이 대상 재관측(`ExternalValidationObservation`)을 받은 뒤에만 확정된다. provider terminal이나 receipt만으로는 완료가 아니다.
+- **gateway 필드 이름:** gateway의 `VM_REJECTED`/`vm_code`, `EffectReceipt.vm_state`, effect 상태의 `vm:<state>`는 기존 이름을 유지한다. 이 값들은 port의 응답을 뜻한다. `AikEffectJournal`을 쓰면 journal 코드와 journal 상태(실행자가 보고한 status를 되돌려 준 값)이며, VM의 판정이 아니다(검토 R2-F2).
+- **필수 주입과 VM 응답 형태**(검토 R2-F1·F3·F4)
+  - journal은 `attempt_reader`를 반드시 받는다. Attempt가 `running`일 때만 intent를 기록한다.
+  - submitter는 `identity_factory`를 반드시 받는다. VM이 자기 typed `EffectIdentity`를 받기 때문이다.
+  - VM은 receipt ID를 문자열로 돌려준다.
+  - VM 오류(`EngineServiceError`/`EngineApplicationError`)는 `code` 속성 없이 메시지 앞머리에 코드를 둔다. submitter는 이 두 VM 오류 클래스에서만 코드를 읽어 보존한다. 그 밖의 예외는 코드 없는 결과 불명으로 분류한다.
+- **operation claim**(검토 R2-F7): VM이 확정 거절했거나 호출이 VM에 닿지 않았으면, 그 호출이 만든 로컬 operation claim을 푼다. VM은 receipt를 받아들일 때만 operation을 결속하기 때문이다. 성공했거나 결과가 불명이면 claim을 유지한다.
+- **commit 뒤 실패**(검토 R2-F5): commit이 성공한 뒤 연결 정리나 잠금 해제에서 오류가 나도, 기록된 결과를 그대로 돌려준다.
+- **알려진 한계**(검토 R2-F6, 수정 안 함)
+  - `unknown` receipt는 같은 프로세스에서 해제 API가 없어 계속 `RECONCILIATION_REQUIRED`다.
+  - 재시작한 gateway는 같은 idempotent intent를 다시 허가할 수 있다. 다만 새 실행의 receipt는 `RECEIPT_CONFLICT`로 기록되지 않는다.
+  - 운영자 reconcile 기록은 후속 과제다.
 - 1.0 VM 설계에서는 내부 파일·명령 효과와 외부 효과를 같은 Task에 섞지 않는다. 외부 효과 Task는 별도 Task와 dependency로 둔다.
 - **남은 한계**
   - VM `EngineApplication`에는 receipt 제출 wrapper가 없어 `EngineService`를 주입해야 한다.

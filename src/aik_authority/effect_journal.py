@@ -254,12 +254,13 @@ class AikEffectJournal:
     """
 
     def __init__(self, path: Path | str, *, binding_reader: Callable[[str], Any],
-                 attempt_reader: Callable[[str], Any] | None = None,
+                 attempt_reader: Callable[[str], Any],
                  now: Callable[[], datetime] | None = None, timeout: float = 5.0):
         if not callable(binding_reader):
             raise TypeError("A binding reader callable is required.")
-        if attempt_reader is not None and not callable(attempt_reader):
-            raise TypeError("The attempt reader must be callable.")
+        # Required: an intent is recorded only while VM reports the Attempt running.
+        if not callable(attempt_reader):
+            raise TypeError("An attempt reader callable is required.")
         if now is not None and not callable(now):
             raise TypeError("The clock must be callable.")
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) \
@@ -351,6 +352,7 @@ class AikEffectJournal:
         code = None
         result = None
         committing = False
+        committed = False
         try:
             with database_lock(self._path, self._timeout):
                 with closing(self._connect()) as connection:
@@ -361,6 +363,7 @@ class AikEffectJournal:
                         committing = write
                         connection.commit()
                         committing = False
+                        committed = True
                     except BaseException:
                         if connection.in_transaction:
                             try:
@@ -373,7 +376,11 @@ class AikEffectJournal:
         except StorageBusy:
             code = "JOURNAL_BUSY"
         except (sqlite3.Error, StorageError, OSError, ValueError):
-            if committing:
+            if committed:
+                # Only closing the connection or releasing the lock failed;
+                # the transaction is durable, so its result stands.
+                code = None
+            elif committing:
                 code = "JOURNAL_OUTCOME_UNKNOWN"
             else:
                 code = "JOURNAL_WRITE_FAILED" if write else "JOURNAL_UNAVAILABLE"
@@ -414,8 +421,6 @@ class AikEffectJournal:
             raise EffectJournalError("BINDING_MISMATCH", subject="binding_digest")
 
     def _confirm_attempt(self, record: dict) -> None:
-        if self._attempt_reader is None:
-            return
         failed, detail = False, None
         status = attempt_id = task_id = project_id = None
         try:
@@ -689,23 +694,49 @@ class ExternalEffectSubmission:
         return False
 
 
+_RECEIPT_ID = re.compile(r"[\x21-\x7e]{1,500}\Z")
+# VM raises EngineServiceError("CODE") / EngineApplicationError("CODE: ...") with
+# no ``code`` attribute. Only these VM error classes (matched by name, without
+# importing VM) are parsed; any other exception without ``code`` stays uncoded.
+_VM_ERROR_CLASSES = frozenset({"EngineServiceError", "EngineApplicationError"})
+_LEADING_CODE = re.compile(r"([A-Z][A-Z0-9_]{1,63})(?=\Z|[:\s])")
+
+
+def _vm_error_code(error: BaseException) -> str | None:
+    try:
+        candidate = getattr(error, "code", None)
+        if type(candidate) is str and _CODE.fullmatch(candidate):
+            return candidate
+        if not any(kind.__name__ in _VM_ERROR_CLASSES for kind in type(error).__mro__):
+            return None
+        first = error.args[0] if error.args else None
+        if type(first) is not str:
+            return None
+        match = _LEADING_CODE.match(first)
+        return match.group(1) if match else None
+    except Exception:
+        return None
+
+
 class ExternalEffectSubmitter:
     """Submit Task-level external-effect receipts to an injected VM service.
 
     ``service`` must expose ``record_effect_receipt(**keywords)`` with the VM
     keyword names. ``approved_identities`` is either a mapping
     ``task_id -> identities`` (preferred) or an iterable of identities for a
-    submitter dedicated to one Task. ``identity_factory`` may convert the
-    identity mapping into the VM's own type. Local replay guards are in
-    process memory only; VM remains the authority that rejects replays.
+    submitter dedicated to one Task. ``identity_factory`` is required: VM's
+    ``record_effect_receipt`` takes its own typed ``EffectIdentity``, so the
+    caller supplies the conversion from the identity mapping (this module
+    never imports VM). VM returns the recorded receipt ID as a string.
+    Local replay guards are in process memory only; VM remains the authority
+    that rejects replays.
     """
 
-    def __init__(self, service: object, *, approved_identities,
-                 identity_factory: Callable[[dict], Any] | None = None):
+    def __init__(self, service: object, *, approved_identities, identity_factory: Callable[[dict], Any]):
         if not callable(getattr(service, "record_effect_receipt", None)):
             raise TypeError("A service with record_effect_receipt is required.")
-        if identity_factory is not None and not callable(identity_factory):
-            raise TypeError("The identity factory must be callable.")
+        if not callable(identity_factory):
+            raise TypeError("An identity factory callable is required.")
         self._service = service
         self._identity_factory = identity_factory
         self._per_task = isinstance(approved_identities, Mapping)
@@ -757,11 +788,20 @@ class ExternalEffectSubmitter:
                     raise ExternalEffectError("RECEIPT_CONFLICT", subject="provider_operation_id")
             if key in self._inflight:
                 raise ExternalEffectError("SUBMISSION_IN_FLIGHT", subject="provider_operation_id")
-            # The claim is kept after any outcome so another Attempt can never reuse it.
+            # The claim is kept after success or an unknown outcome so another
+            # Attempt can never reuse it. A known refusal (VM rejected it or the
+            # call never reached VM) releases a claim made by this call: VM binds
+            # the operation only when it accepts the receipt.
+            claimed = existing is None
             self._operations[key] = (receipt.attempt_id, content)
             self._inflight.add(key)
         try:
             response = self._call(receipt, key)
+        except ExternalEffectError as error:
+            if claimed and error.outcome is EffectOutcome.KNOWN_FAILURE:
+                with self._lock:
+                    self._operations.pop(key, None)
+            raise
         finally:
             with self._lock:
                 self._inflight.discard(key)
@@ -779,12 +819,11 @@ class ExternalEffectSubmitter:
     def _call(self, receipt: ExternalEffectReceipt, key: tuple) -> dict:
         identity_value = receipt.identity.to_mapping()
         failure = None
-        effect_identity = identity_value
-        if self._identity_factory is not None:
-            try:
-                effect_identity = self._identity_factory(dict(identity_value))
-            except Exception:
-                failure = ExternalEffectError("INVALID_REQUEST", subject="effect_identity")
+        effect_identity = None
+        try:
+            effect_identity = self._identity_factory(dict(identity_value))
+        except Exception:
+            failure = ExternalEffectError("INVALID_REQUEST", subject="effect_identity")
         if failure is not None:
             raise failure from None
         keywords = {
@@ -799,13 +838,7 @@ class ExternalEffectSubmitter:
         try:
             response = self._service.record_effect_receipt(**keywords)
         except Exception as error:
-            code = None
-            try:
-                candidate = getattr(error, "code", None)
-                if type(candidate) is str and _CODE.fullmatch(candidate):
-                    code = candidate
-            except Exception:
-                code = None
+            code = _vm_error_code(error)
             if code is None:
                 failure = ExternalEffectError("OUTCOME_UNKNOWN", EffectOutcome.UNKNOWN,
                                               subject="record_effect_receipt")
@@ -816,6 +849,12 @@ class ExternalEffectSubmitter:
             # Raised outside the handler: the VM exception and message are not retained.
             raise self._fail_unknown(key, failure) from None
         data = None
+        if type(response) is str:
+            # VM record_effect_receipt returns the recorded receipt ID.
+            if _RECEIPT_ID.fullmatch(response) is None:
+                raise self._fail_unknown(key, ExternalEffectError(
+                    "INVALID_RESPONSE", EffectOutcome.UNKNOWN, subject="record_effect_receipt")) from None
+            return {"receipt_id": response}
         try:
             dump = getattr(response, "model_dump", None)
             if callable(dump) and not isinstance(response, type):

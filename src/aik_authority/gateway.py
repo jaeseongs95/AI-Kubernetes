@@ -58,7 +58,11 @@ class VmEffectAuthorityPort(Protocol):
     ``record_receipt`` and ``read_effect`` return ``{"effect_id", "state"}``
     (``read_effect`` returns None when the journal has no intent for the effect).
     A refusal carries a ``code`` attribute; codes without an ``UNKNOWN`` token
-    are treated as known refusals (``VM_REJECTED``) by this gateway.
+    are treated as known refusals (``VM_REJECTED``) by this gateway. The
+    gateway's ``VM_REJECTED``/``vm_code``, ``EffectReceipt.vm_state`` and the
+    ``vm:<state>`` effect state keep their historical names: they report this
+    port's answer. With ``AikEffectJournal`` they are AIK journal codes and
+    states (an executor's reported status echoed back), not VM decisions.
     """
 
     def record_intent(self, intent: Mapping[str, Any]) -> Mapping[str, Any]: ...

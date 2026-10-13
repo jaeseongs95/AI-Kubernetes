@@ -29,6 +29,7 @@ from aik_authority import (  # noqa: E402
     ExternalEffectError, ExternalEffectReceipt, ExternalEffectSubmitter, ToolCall, ToolDeclaration, ToolPolicy,
 )
 from aik_authority import effect_journal, gateway as gateway_module  # noqa: E402
+from aik_authority.errors import EffectOutcomeUnknown  # noqa: E402
 from aik_runtime import InvalidDatabase, UnsafeStoragePath  # noqa: E402
 from aik_vm_bridge import EffectOutcome, TaskExecutionBinding  # noqa: E402
 
@@ -123,7 +124,11 @@ class JournalTestCase(unittest.TestCase):
             raise self.binding_answer
         return self.binding_answer
 
+    def read_attempt(self, vm_attempt_id):
+        return running_attempt()
+
     def journal(self, **kwargs) -> AikEffectJournal:
+        kwargs.setdefault("attempt_reader", self.read_attempt)
         return AikEffectJournal(self.path, binding_reader=self.read_binding, now=lambda: NOW, **kwargs)
 
     def gateway(self, journal):
@@ -207,6 +212,81 @@ class GatewayJournalIntegrationTests(JournalTestCase):
         again, third_session = self.gateway(self.journal())
         decision = again.request(third_session, tool_call("call-2", "fs.update", "effect-2"))
         self.assertEqual(decision.effect_id, "effect-2")
+
+    def _patched_connection(self, journal, *, fail_insert=False, fail_commit_after=False):
+        """Wrap the journal's sqlite connection to inject one storage failure."""
+        real_connect = journal._connect
+
+        class Proxy:
+            def __init__(self, inner):
+                self._inner = inner
+
+            def execute(self, sql, *args):
+                if fail_insert and sql.lstrip().upper().startswith("INSERT"):
+                    raise sqlite3.OperationalError("disk I/O error " + SECRET_MARKER)
+                return self._inner.execute(sql, *args)
+
+            def commit(self):
+                self._inner.commit()
+                if fail_commit_after:
+                    raise sqlite3.OperationalError("commit reply lost " + SECRET_MARKER)
+
+            def __getattr__(self, name):
+                return getattr(self._inner, name)
+
+        return mock.patch.object(journal, "_connect", lambda *a, **k: Proxy(real_connect(*a, **k)))
+
+    def test_review_r2_f8_storage_failures_are_classified_without_reissuing(self) -> None:
+        # Busy lock and a failure before commit: nothing recorded, a known refusal.
+        journal = self.journal()
+        gateway, session = self.gateway(journal)
+
+        def busy(*args, **kwargs):
+            raise effect_journal.StorageBusy("lock held")
+        with mock.patch.object(effect_journal, "database_lock", busy):
+            with self.assertRaises(AuthorityDenied) as raised:
+                gateway.request(session, tool_call())
+        self.assertEqual((raised.exception.code, raised.exception.vm_code),
+                         (AuthorityCode.VM_REJECTED, "JOURNAL_BUSY"))
+        with self._patched_connection(journal, fail_insert=True):
+            with self.assertRaises(AuthorityDenied) as raised:
+                gateway.request(session, tool_call())
+        self.assertEqual(raised.exception.vm_code, "JOURNAL_WRITE_FAILED")
+        self.assertNotIn(SECRET_MARKER, str(raised.exception))
+        self.assertIsNone(journal.read_effect("effect-1"))
+        # A failure during commit may have recorded the intent: unknown, never re-issued.
+        journal2 = AikEffectJournal(self.root / "second.sqlite3", binding_reader=self.read_binding,
+                                    attempt_reader=self.read_attempt, now=lambda: NOW)
+        gateway2, session2 = self.gateway(journal2)
+        with self._patched_connection(journal2, fail_commit_after=True):
+            with self.assertRaises(EffectOutcomeUnknown) as unknown:
+                gateway2.request(session2, tool_call())
+        self.assertEqual(unknown.exception.vm_code, "JOURNAL_OUTCOME_UNKNOWN")
+        self.assertEqual(journal2.read_effect("effect-1"), {"effect_id": "effect-1", "state": "intent_recorded"})
+        with self.assertRaises(AuthorityDenied):
+            gateway2.request(session2, tool_call())
+
+    def test_review_r2_f5_failure_after_a_successful_commit_keeps_the_result(self) -> None:
+        journal = self.journal()
+        gateway, session = self.gateway(journal)
+        real_lock = effect_journal.database_lock
+
+        class ReleaseFails:
+            def __init__(self, *args):
+                self._inner = real_lock(*args)
+
+            def __enter__(self):
+                return self._inner.__enter__()
+
+            def __exit__(self, *exc):
+                self._inner.__exit__(*exc)
+                if exc[0] is None:
+                    raise OSError("unlock failed")
+                return False
+        with mock.patch.object(effect_journal, "database_lock", ReleaseFails):
+            decision = gateway.request(session, tool_call())
+        self.assertEqual(decision.status, "authorized")
+        self.assertEqual(journal.read_effect("effect-1"), {"effect_id": "effect-1", "state": "intent_recorded"})
 
     def test_unknown_receipt_stays_unresolved_and_cannot_be_overwritten(self) -> None:
         journal = self.journal()
@@ -308,7 +388,8 @@ class JournalTests(JournalTestCase):
         self.assertNotIn(SECRET_MARKER.encode("ascii"), self.path.read_bytes())
 
     def test_naive_clock_is_refused_before_writing(self) -> None:
-        journal = AikEffectJournal(self.path, binding_reader=self.read_binding, now=lambda: datetime(2029, 1, 1))
+        journal = AikEffectJournal(self.path, binding_reader=self.read_binding, attempt_reader=self.read_attempt,
+                                   now=lambda: datetime(2029, 1, 1))
         with self.assertRaises(EffectJournalError) as raised:
             journal.record_intent(intent())
         self.assertEqual(raised.exception.code, "CLOCK_UNAVAILABLE")
@@ -322,20 +403,22 @@ class JournalTests(JournalTestCase):
             connection.commit()
         before = foreign.read_bytes()
         with self.assertRaises(InvalidDatabase):
-            AikEffectJournal(foreign, binding_reader=self.read_binding)
+            AikEffectJournal(foreign, binding_reader=self.read_binding, attempt_reader=self.read_attempt)
         self.assertEqual(foreign.read_bytes(), before)
         garbage = self.root / "garbage.sqlite3"
         garbage.write_bytes(b"not a database at all" * 10)
         with self.assertRaises(InvalidDatabase):
-            AikEffectJournal(garbage, binding_reader=self.read_binding)
+            AikEffectJournal(garbage, binding_reader=self.read_binding, attempt_reader=self.read_attempt)
         project = self.root / "source-project"
         (project / ".git").mkdir(parents=True)
         inside = project / "data" / "effects.sqlite3"
         with self.assertRaises(UnsafeStoragePath):
-            AikEffectJournal(inside, binding_reader=self.read_binding)
+            AikEffectJournal(inside, binding_reader=self.read_binding, attempt_reader=self.read_attempt)
         self.assertFalse(inside.parent.exists())
         with self.assertRaises(TypeError):
-            AikEffectJournal(self.path, binding_reader=None)
+            AikEffectJournal(self.path, binding_reader=None, attempt_reader=self.read_attempt)
+        with self.assertRaises(TypeError):  # review R2-F1: the running-Attempt check is not optional
+            AikEffectJournal(self.path, binding_reader=self.read_binding, attempt_reader=None)
 
 
 class FakeService:
@@ -351,8 +434,16 @@ class FakeService:
             raise self.failure
         if self.use_response:
             return self.response
-        return {"task_id": kwargs["task_id"], "attempt_id": kwargs["attempt_id"],
-                "provider_operation_id": kwargs["provider_operation_id"], "receipt_id": "effect-receipt-1"}
+        return "effect-receipt-1"  # VM record_effect_receipt returns the receipt ID (str)
+
+
+class EngineServiceError(RuntimeError):
+    """Same shape as VM's: the code is the message, there is no ``code`` attribute."""
+
+
+class FakeVmIdentity:
+    def __init__(self, value):
+        self.value = dict(value)
 
 
 class CodedError(Exception):
@@ -377,6 +468,7 @@ def external(**overrides) -> ExternalEffectReceipt:
 
 class ExternalEffectSubmitterTests(unittest.TestCase):
     def submitter(self, service, **kwargs):
+        kwargs.setdefault("identity_factory", FakeVmIdentity)
         return ExternalEffectSubmitter(service, approved_identities={"task-ext-1": (IDENTITY,)}, **kwargs)
 
     def test_approved_identity_is_submitted_with_exact_keywords_and_never_confirmed(self) -> None:
@@ -387,7 +479,8 @@ class ExternalEffectSubmitterTests(unittest.TestCase):
             "task_id", "attempt_id", "provider_call_id", "runtime_intent_id", "runtime_receipt_id", "thread_id",
             "turn_id", "effect_identity", "provider_operation_id", "response_digest", "target_observation_digest",
         })
-        self.assertEqual(service.calls[0]["effect_identity"], IDENTITY.to_mapping())
+        self.assertIsInstance(service.calls[0]["effect_identity"], FakeVmIdentity)
+        self.assertEqual(service.calls[0]["effect_identity"].value, IDENTITY.to_mapping())
         self.assertEqual(result.state, TARGET_REOBSERVATION_REQUIRED)
         self.assertFalse(result.effect_confirmed)
         self.assertEqual(result.vm_response["receipt_id"], "effect-receipt-1")
@@ -441,8 +534,29 @@ class ExternalEffectSubmitterTests(unittest.TestCase):
         submitter.submit(external())  # explicit identical resubmission
         self.assertEqual(submitter.unresolved_operations, frozenset())
 
+    def test_review_r2_f3_vm_error_code_is_read_from_the_vm_error_message(self) -> None:
+        for error, code in ((EngineServiceError("EFFECT_ADAPTER_RECEIPT_CONFLICT"), "EFFECT_ADAPTER_RECEIPT_CONFLICT"),
+                            (type("EngineApplicationError", (RuntimeError,), {})("ATTEMPT_NOT_FOUND: " + SECRET_MARKER),
+                             "ATTEMPT_NOT_FOUND")):
+            with self.subTest(code=code):
+                service = FakeService()
+                service.failure = error
+                submitter = self.submitter(service)
+                with self.assertRaises(ExternalEffectError) as raised:
+                    submitter.submit(external())
+                self.assertEqual((raised.exception.code, raised.exception.vm_code, raised.exception.outcome),
+                                 ("VM_REJECTED", code, EffectOutcome.KNOWN_FAILURE))
+                self.assertNotIn(SECRET_MARKER, str(raised.exception))
+                self.assertEqual(submitter.unresolved_operations, frozenset())
+        # A non-VM exception whose message looks like a code stays uncoded (unknown).
+        service = FakeService()
+        service.failure = ValueError("EFFECT_ADAPTER_RECEIPT_CONFLICT")
+        with self.assertRaises(ExternalEffectError) as raised:
+            self.submitter(service).submit(external())
+        self.assertEqual((raised.exception.code, raised.exception.outcome), ("OUTCOME_UNKNOWN", EffectOutcome.UNKNOWN))
+
     def test_malformed_or_mismatched_response_is_unknown(self) -> None:
-        for response in (["not", "mapping"], None, {"attempt_id": "attempt-other"}):
+        for response in (["not", "mapping"], None, {"attempt_id": "attempt-other"}, "", "has space"):
             with self.subTest(response=repr(response)):
                 service = FakeService()
                 service.use_response = True
@@ -465,12 +579,22 @@ class ExternalEffectSubmitterTests(unittest.TestCase):
         self.assertEqual(len(service.calls), 1)
         submitter.submit(external())  # identical, same attempt: idempotent resubmission
         self.assertEqual(len(service.calls), 2)
-        # A rejected claim still binds the operation to its first attempt.
-        service.failure = CodedError("PROVIDER_CALL_NOT_TERMINAL", "raw")
-        with self.assertRaises(ExternalEffectError):
+        # Review R2-F7: a known VM refusal releases the claim made by that call
+        # (VM binds the operation only when it accepts the receipt) ...
+        service.failure = EngineServiceError("EFFECT_ADAPTER_PROVIDER_CALL_NOT_TERMINAL")
+        with self.assertRaises(ExternalEffectError) as refused:
             submitter.submit(external(provider_operation_id="operation-2"))
+        self.assertEqual((refused.exception.vm_code, refused.exception.outcome),
+                         ("EFFECT_ADAPTER_PROVIDER_CALL_NOT_TERMINAL", EffectOutcome.KNOWN_FAILURE))
+        service.failure = None
+        submitter.submit(external(provider_operation_id="operation-2", attempt_id="attempt-ext-3"))
+        # ... but an unknown outcome keeps it bound to its Attempt.
+        service.failure = TimeoutError("raw")
+        with self.assertRaises(ExternalEffectError):
+            submitter.submit(external(provider_operation_id="operation-3"))
+        service.failure = None
         with self.assertRaises(ExternalEffectError) as rebound:
-            submitter.submit(external(provider_operation_id="operation-2", attempt_id="attempt-ext-3"))
+            submitter.submit(external(provider_operation_id="operation-3", attempt_id="attempt-ext-3"))
         self.assertEqual(rebound.exception.code, "OPERATION_REPLAY_CONFLICT")
 
     def test_identity_and_receipt_fields_are_validated(self) -> None:
@@ -499,11 +623,14 @@ class ExternalEffectSubmitterTests(unittest.TestCase):
         forged = external(identity=replace(IDENTITY))
         object.__setattr__(forged.identity, "checkpoint_policy", "sometimes")
         with self.assertRaises(ExternalEffectError) as raised:
-            ExternalEffectSubmitter(service, approved_identities=(IDENTITY,)).submit(forged)
+            ExternalEffectSubmitter(service, approved_identities=(IDENTITY,),
+                                    identity_factory=FakeVmIdentity).submit(forged)
         self.assertEqual(raised.exception.subject, "checkpoint_policy")
         self.assertEqual(service.calls, [])
         with self.assertRaises(TypeError):
-            ExternalEffectSubmitter(object(), approved_identities=())
+            ExternalEffectSubmitter(object(), approved_identities=(), identity_factory=FakeVmIdentity)
+        with self.assertRaises(TypeError):  # review R2-F4: VM takes its own typed EffectIdentity
+            ExternalEffectSubmitter(service, approved_identities=())
 
 
 if __name__ == "__main__":
