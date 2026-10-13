@@ -352,6 +352,24 @@ class ProviderContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "INVALID_RETRY_AFTER"):
             fault_from_provider(http_status=429, retry_after_ms=-1)
 
+    def test_token_shaped_native_error_codes_cannot_be_serialized(self):
+        for code_value in (
+            "ghp_" + "A" * 30,
+            "github_pat_" + "A" * 28,
+            "AIza" + "A" * 24,
+            "Q" * 40,
+        ):
+            with self.subTest(prefix=code_value[:8]):
+                converted = fault_from_provider(http_status=500, native_code=code_value)
+                self.assertIsNone(converted.native_code)
+                with self.assertRaisesRegex(ValueError, "UNSAFE_PROVIDER_CODE"):
+                    ProviderFault(FaultKind.PROVIDER_FAILURE, Outcome.KNOWN_FAILURE,
+                                  native_code=code_value)
+        self.assertEqual(
+            fault_from_provider(http_status=429, native_code="rate_limit_exceeded").native_code,
+            "rate_limit_exceeded"
+        )
+
     def test_observe_job_reuses_exact_original_route_and_account(self):
         adapter = FakeAdapter()
         guard = authorized(adapter)
