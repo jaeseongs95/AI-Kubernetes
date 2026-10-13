@@ -1,0 +1,48 @@
+# AIK-011 conformance is synthetic: no provider accounts, secrets or live endpoints.
+name: Provider adapter contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/aik_provider/**'
+      - 'contracts/provider-adapter/**'
+      - 'tests/test_provider_contract.py'
+      - '.github/workflows/provider-adapter-contract.yml'
+  pull_request:
+    paths:
+      - 'src/aik_provider/**'
+      - 'contracts/provider-adapter/**'
+      - 'tests/test_provider_contract.py'
+      - '.github/workflows/provider-adapter-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-adapter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provider-contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - name: Checkout the exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Use pinned Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Verify account and adapter conformance using synthetic fixtures
+        run: python -m unittest discover -s tests -p test_provider_contract.py -v

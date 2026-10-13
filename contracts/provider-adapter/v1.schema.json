@@ -1,0 +1,449 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:aik:provider-adapter:v1",
+  "title": "AIK-011 nonsecret provider boundary",
+  "description": "Draft/test-only common protocol. Never grants authorization, subscription-to-API conversion or live route qualification.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/capabilities"
+    },
+    {
+      "$ref": "#/$defs/auth_observation"
+    },
+    {
+      "$ref": "#/$defs/job_receipt"
+    },
+    {
+      "$ref": "#/$defs/provider_fault"
+    }
+  ],
+  "$defs": {
+    "connection_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+        },
+        "runtime": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "connection_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775000
+        },
+        "auth_kind": {
+          "enum": [
+            "api_key",
+            "native_subscription"
+          ]
+        },
+        "credential_ref": {
+          "type": "string",
+          "pattern": "^(secret|host-session)://[a-z0-9][a-z0-9_-]{0,63}/[A-Za-z0-9][A-Za-z0-9._/-]{0,191}$"
+        },
+        "account_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "provider",
+        "runtime",
+        "connection_id",
+        "revision",
+        "auth_kind",
+        "credential_ref",
+        "account_fingerprint"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "auth_kind": {
+                "const": "api_key"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "credential_ref": {
+                "pattern": "^secret://"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "auth_kind": {
+                "const": "native_subscription"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "credential_ref": {
+                "pattern": "^host-session://"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "capabilities"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+        },
+        "runtime": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "auth_kind": {
+          "enum": [
+            "api_key",
+            "native_subscription"
+          ]
+        },
+        "isolation": {
+          "enum": [
+            "isolated",
+            "single_active",
+            "unknown"
+          ]
+        },
+        "auth_status": {
+          "enum": [
+            "supported",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "sign_in": {
+          "enum": [
+            "supported",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "sign_out": {
+          "enum": [
+            "supported",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "job_start": {
+          "enum": [
+            "supported",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "job_observe": {
+          "enum": [
+            "supported",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "job_interrupt": {
+          "enum": [
+            "supported",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "implementation_state": {
+          "enum": [
+            "implemented",
+            "not_implemented"
+          ]
+        },
+        "qualification_status": {
+          "const": "NOT_RUN"
+        }
+      },
+      "required": [
+        "kind",
+        "schema_version",
+        "provider",
+        "runtime",
+        "auth_kind",
+        "isolation",
+        "auth_status",
+        "sign_in",
+        "sign_out",
+        "job_start",
+        "job_observe",
+        "job_interrupt",
+        "implementation_state",
+        "qualification_status"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "auth_kind": {
+                "const": "api_key"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sign_in": {
+                "enum": [
+                  "unsupported",
+                  "unknown"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "auth_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "auth_observation"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "connection_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "account_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "authenticated",
+            "unauthenticated",
+            "pending",
+            "expired",
+            "locked",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "schema_version",
+        "connection_id",
+        "revision",
+        "account_fingerprint",
+        "state"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "authenticated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "account_fingerprint": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "job_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "job_receipt"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "provider_job_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "connection_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "account_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "schema_version",
+        "request_id",
+        "provider_job_id",
+        "connection_id",
+        "revision",
+        "account_fingerprint",
+        "state"
+      ]
+    },
+    "provider_fault": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "provider_fault"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "code": {
+          "enum": [
+            "INVALID_CONTRACT",
+            "AUTH_REQUIRED",
+            "ACCESS_DENIED",
+            "RATE_LIMITED",
+            "UNSUPPORTED",
+            "STALE_CONNECTION",
+            "ACCOUNT_CHANGED",
+            "ACCOUNT_CONFLICT",
+            "DUPLICATE_REQUEST",
+            "UNKNOWN_OUTCOME",
+            "PROVIDER_FAILURE",
+            "INVALID_RECEIPT"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "known_failure",
+            "unknown"
+          ]
+        },
+        "native_code": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,63}$",
+              "not": {
+                "anyOf": [
+                  {
+                    "pattern": "^(?:gh[pousr]_|github_pat_|sk_|AIza)"
+                  },
+                  {
+                    "pattern": "[A-Za-z0-9]{30,}"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "http_status": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 599
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retry_after_ms": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 86400000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "schema_version",
+        "code",
+        "outcome",
+        "native_code",
+        "http_status",
+        "retry_after_ms"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "UNKNOWN_OUTCOME"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "const": "unknown"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
