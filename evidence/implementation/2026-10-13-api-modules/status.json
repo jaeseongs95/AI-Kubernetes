@@ -1428,5 +1428,43 @@
   "summary": "보충: src/aik_ags_peer가 AGS 세션 메시징으로 총괄↔worker 메시지를 보내고 result를 claim한다(전달 불명은 send_unknown, 자동 재전송 없음, ACK는 완료 아님). 실제 AGS 2.9.0 CLI 계약 시험 PASS. aik_inbox 큐·wake와의 연결은 아직 없어 NOT_RUN. 상태 변경 없음.",
   "commits": [],
   "status_change": false
+ },
+ {
+  "task_id": "AIK-086",
+  "implemented": "src/aik_governance_env가 VM(vibemarshal 32bb0f9) governance gate 입력 세 가지를 VM 계약 형식대로 만들고 검사한다. (1) model class 대응표(flowmarshal-governance-model-classes-v1)는 capability inventory의 관측 모델 이름만 허용해 생성·검사한다. (2) A2 profile 설정(flowmarshal-governance-a2-profile-v1)은 key/pin/state 위치로 resourceBindingDigest·pinSetDigest·freezeIdentity를 AGS canonicalJson과 같은 방식으로 계산해 조립하고, VM과 같은 코드로 검사한다. 개인키는 생성·저장·반환하지 않는다. (3) plugin root host-integration.json 구조와 closure_tree_digest는 VM preflight 공식과 같게 계산한다. 셋이 모두 READY일 때만 FLOWMARSHAL_GOVERNANCE_* 환경을 내준다.",
+  "verified": "tests/test_governance_env.py 26개 PASS. 그중 실제 VM 계약 시험 3개가 있다: AIK가 조립한 A2 설정을 VM _load_a2_producer가 실제 Ed25519 임시 키쌍으로 수용하고 freezeIdentity 변조는 VM·AIK가 같은 코드로 거절함, AIK model 표를 VM load_model_classes가 같은 digest로 수용함, closure_tree_digest가 VM preflight 공식(sha256_bytes·_sha256_file)과 같음. 세션 Linux에서 VM 소스와 cryptography로 실행했으며 CI modules job에는 VM이 없어 skip(NOT_RUN)된다.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "partial",
+    "reason": "AIK가 VM gate에 공급할 governance 입력을 VM 계약대로 만들고 VM 수용을 실측했다. 고정 test-only route의 실제 governed 실행, 사용자 인가·budget/lease·AGS A2 서버 연결은 NOT_RUN이다."
+   },
+   {
+    "ordinal": 2,
+    "status": "not_verifiable_here",
+    "reason": "필수 runtime·역할의 실제 model/effort·connection·provider job 대조에는 설치형 AGS·VM과 실계정이 필요하다."
+   },
+   {
+    "ordinal": 3,
+    "status": "partial",
+    "reason": "도구 intent/receipt/결과 반환 경계의 재시작 판단은 aik_recovery.ToolEffectAdapter와 M2 결합 시험으로 저장소 안에서 검증했다. 실제 설치본에서의 crash 실측은 NOT_RUN이다."
+   },
+   {
+    "ordinal": 4,
+    "status": "not_verifiable_here",
+    "reason": "역할별 계약 coverage와 대표 합성 목표 044의 구분은 실제 qualification 실행에서 판정한다."
+   }
+  ],
+  "blockers": [
+   "AIK-022 Windows 멀티벤더 인증 qualification 미완료",
+   "AIK-081 AGS A2 plugin 미확보(host-integration.json·A2는 AGS 3.x 미병합)",
+   "실제 governed 실행·실계정 미실행"
+  ],
+  "not_run": [
+   "실제 AGS A2 서버·적합성 16검사",
+   "steward 실행",
+   "설치형 route·역할·도구 실측",
+   "Windows 실행"
+  ]
  }
 ]
