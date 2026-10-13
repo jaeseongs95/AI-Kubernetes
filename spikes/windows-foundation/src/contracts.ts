@@ -1,5 +1,5 @@
 export type ProbeStatus = "PASS" | "FAIL" | "NOT_RUN";
-export type Command = "health" | "worker_probe" | "vault_probe";
+export type Command = "health" | "worker_probe" | "vault_probe" | "auth_vault_probe";
 export type ProbeResult = {
   status: ProbeStatus;
   code: string;
@@ -13,6 +13,7 @@ export type ProbeResult = {
   artifact_sha256?: string;
   temporary_artifact_removed?: boolean;
   product_integration?: "NOT_RUN";
+  cases?: Record<string, string>;
 };
 export type Response = {
   protocol_version: 1;
@@ -24,6 +25,7 @@ export interface FoundationClient {
   health(): Promise<Response>;
   runWorkerProbe(): Promise<Response>;
   runVaultProbe(): Promise<Response>;
+  runAuthVaultProbe(): Promise<Response>;
 }
 declare global {
   interface Window { aik: FoundationClient; }

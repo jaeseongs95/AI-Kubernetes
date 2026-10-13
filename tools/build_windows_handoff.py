@@ -159,7 +159,7 @@ def build_handoff(
             and application.get("packaged") is True
             and application.get("renderer_node_access") is False
             and application.get("product_integration") == "NOT_RUN"
-            and all(app_checks.get(key, {}).get("status") == "PASS" for key in ("health", "worker", "vault"))
+            and all(app_checks.get(key, {}).get("status") == "PASS" for key in ("health", "worker", "vault", "auth_vault"))
             and app_checks.get("health", {}).get("frozen") is True
             and app_checks.get("health", {}).get("python_version") == "3.14.8",
             "Actual packaged GUI, frozen sidecar, worker, and DPAPI evidence is incomplete.")

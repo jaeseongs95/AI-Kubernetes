@@ -9,7 +9,7 @@
 1. 신뢰하는 GitHub Actions 실행에서 `windows-client-handoff-package-...` 아티팩트를 받습니다. 아티팩트 안의 `AIK-Windows-Client-Handoff-....zip`과 `.sha256` 파일을 확인합니다. SHA-256은 전달 중 파일이 바뀌었는지 비교하는 값이며, 함께 바뀐 서명 없는 파일의 게시자 신뢰를 증명하지 않습니다. 신뢰하는 CI 실행의 다운로드 및 빌드 기록과 함께 확인합니다.
 2. ZIP을 쓰기 가능한 폴더에 **모두 압축 해제**합니다. 예: `다운로드\AIK 설치 검증`. 압축 폴더 안에서 바로 실행하지 않습니다. 한글과 공백이 있는 경로를 지원합니다.
 3. Windows x64의 **일반 사용자 세션**에서 `run-validation.cmd`를 실행합니다. 관리자 권한으로 실행할 필요가 없습니다. 이 파일은 Windows에 기본 포함된 x64 Windows PowerShell 5.1을 실행하며, 그 프로세스에서만 스크립트 실행 정책을 지정합니다. 시스템의 영구 정책이나 권한은 바꾸지 않습니다. 조직에서 강제한 정책이 실행을 막는다면 그 정책을 임의로 변경하지 말고 해당 차단 결과를 보존합니다.
-4. 잠시 표시되는 GUI의 세 검증 카드와 실행 결과를 확인합니다. 검증은 합성 테스트 데이터만 사용하며 실제 벤더 인증정보를 요청하지 않습니다. 앱 설치·GUI 실행·worker·DPAPI 검사 후 이번 실행이 설치한 앱만 제거합니다.
+4. 잠시 표시되는 GUI의 네 검증 카드와 실행 결과를 확인합니다. 검증은 합성 테스트 데이터만 사용하며 실제 벤더 인증정보를 요청하지 않습니다. 앱 설치·GUI 실행·worker·DPAPI·인증/보관 실패 경로 검사 후 이번 실행이 설치한 앱만 제거합니다.
 5. 창에 표시된 `Evidence:` 경로를 엽니다. 기본 위치는 현재 사용자의 `%LOCALAPPDATA%\AIK\ClientHandoffEvidence\<매번 새 ID>`입니다. 결과를 다른 사람에게 전달하려면 해당 ID 폴더 전체를 압축합니다. 스크립트는 이 증거 폴더를 자동으로 삭제하지 않습니다.
 
 출력 위치를 지정하려면 기본 **Windows PowerShell**에서 다음을 실행할 수 있습니다. 매번 지정한 상위 폴더 아래에 새 ID 폴더를 만들기 때문에 기존 증거를 덮어쓰지 않습니다.
@@ -30,12 +30,31 @@
 | `client-preparation.template.json` | 같은 실행에 연결된 환경 준비 기록의 빈 양식. 실행자가 실제 준비 근거를 기입해야 함 |
 | `verifier.stdout.log`, `verifier.stderr.log` | 기본 PowerShell 5.1이 실행한 설치 검증의 출력 |
 | `installed-check/packaging/evidence/installed-spike.json` | 실제 설치·GUI·runtime·제거와 환경 관측 결과 |
-| `installed-check/packaging/evidence/application-report.json` | 실제 앱이 기록한 GUI, frozen Python, 별도 worker, DPAPI 결과 |
+| `installed-check/packaging/evidence/application-report.json` | 실제 앱이 기록한 GUI, frozen Python, 별도 worker, DPAPI, AIK-022 인증/보관 실패 경로(`checks.auth_vault`) 결과 |
 | `installed-check/packaging/evidence/screenshot.png` | 실제 앱 화면. 파일 생성과 사람이 읽을 수 있는 올바른 화면인지에 대한 검토는 구분됩니다. |
 
 패키지 자체의 `provenance/`에는 **패키지를 만들기 전에 CI에서 검증했던 과거 증거**가 들어 있습니다. 새 PC에서 얻은 증거는 위의 새 ID 폴더에 생성됩니다. 두 실행의 시점과 환경을 혼동하지 않습니다. 로컬 실행에서 GitHub 실행 ID는 만들어 넣지 않으며, 실제 설치된 engine·Python DLL과 패키지 manifest의 hash를 대조해 전달본의 런타임을 식별합니다.
 
 Manifest의 `source_commit`은 이미 빌드된 설치 파일과 엔진의 출처입니다. `source_identity.files`는 패키징 시 현재 작업 폴더에서 읽은 도구·스크립트 입력의 hash이며, 과거 설치 파일을 새 도구로 감쌌다면 그 도구가 과거 commit에 포함됐다는 뜻은 아닙니다. 제공된 CI workflow는 새 소스를 checkout한 뒤 같은 실행에서 설치 파일을 빌드·검증하고 ZIP을 만듭니다.
+
+## AIK-022 인증/보관 실패 경로 검사
+
+네 번째 카드(`auth_vault`)는 설치된 엔진 안에서 제품 모듈 `aik_vault`(Windows 사용자 DPAPI), `aik_connection`, `aik_auth_lifecycle`, `aik_security`를 실행합니다. 이번 실행에서 만든 공개 합성 값만 사용하고 실제 벤더 인증정보나 네트워크는 쓰지 않습니다. 결과에는 고정 코드만 남고 값·경로·예외 원문은 남지 않습니다.
+
+| 경우 | 기대 코드 | 뜻 |
+|---|---|---|
+| `dpapi_round_trip` | `ROUND_TRIP_OK` | 보호·복원·교체·새 인스턴스 복원 |
+| `lock_contention` | `VAULT_BUSY` | 다른 보유자가 vault 잠금을 잡고 있으면 기다리거나 우회하지 않고 거절 |
+| `malformed_reference` | `INVALID_REFERENCE` | 잘못된 참조 거절 |
+| `truncated_blob` | `VAULT_CORRUPT` | 잘린 저장 파일 거절 |
+| `foreign_blob_simulated` | `ACCESS_DENIED` | 다른 사용자·손상 blob 모사. DPAPI는 둘을 구분하지 못함 |
+| `deleted_reference` | `CREDENTIAL_NOT_FOUND` | 삭제한 참조 거절 |
+| `auth_clock_expiry` | `EXPIRED_NOT_PLACEABLE` | 만료 뒤 배치 불가·새 실행 거절 |
+| `credential_removed` | `REFERENCE_UNAVAILABLE_NOT_PLACEABLE` | vault 참조가 사라지면 재검증 뒤 배치 불가 |
+| `output_redaction` | `REDACTED` | 출력에서 합성 값 가림 |
+| `other_user_profile` | `NOT_RUN_SINGLE_USER_SESSION` | 실제 다른 Windows 계정 거절은 두 번째 계정이 있어야 하므로 이 패키지는 실행하지 않음 |
+
+이 검사는 AIK-022의 합성 실패 경로 일부입니다. 실제 벤더 계정 등록·호출·회전·해제·재연결과 다른 사용자 계정 검증은 포함하지 않으며 qualification이 아닙니다. 검사기는 이 결과가 있으면 모든 경우가 기대 코드와 같아야 통과시키고(`aik022_auth_vault`), 이 검사가 없는 이전 패키지의 증거는 `ABSENT`로 표시합니다.
 
 ## Windows 지원 판정 범위
 

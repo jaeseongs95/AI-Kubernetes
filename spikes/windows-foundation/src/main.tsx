@@ -6,7 +6,8 @@ import "./style.css";
 const cards: {command: Command; id: string; label: string; title: string; description: string; button: string}[] = [
   {command: "health", id: "health", label: "01 / 연결", title: "앱과 엔진", description: "별도 Python 프로세스가 실행되어 앱의 요청을 받는지 확인합니다.", button: "엔진 연결 확인"},
   {command: "worker_probe", id: "worker", label: "02 / 실행", title: "테스트 워커", description: "별도 워커가 임시 파일을 만들고 다시 읽어 검증한 뒤 정리합니다.", button: "테스트 워커 실행"},
-  {command: "vault_probe", id: "vault", label: "03 / 보관", title: "Windows 시크릿 보관", description: "합성 시험 값을 현재 Windows 사용자 범위로 보호하고 복원한 뒤 삭제합니다.", button: "Windows 보관 확인"}
+  {command: "vault_probe", id: "vault", label: "03 / 보관", title: "Windows 시크릿 보관", description: "합성 시험 값을 현재 Windows 사용자 범위로 보호하고 복원한 뒤 삭제합니다.", button: "Windows 보관 확인"},
+  {command: "auth_vault_probe", id: "auth_vault", label: "04 / 인증 실패 경로", title: "보관·인증 실패 처리", description: "제품 vault와 인증 수명주기로 잠금·손상·만료·삭제·출력 가림을 합성 값으로 확인합니다.", button: "실패 경로 확인"}
 ];
 
 function App() {
@@ -16,7 +17,7 @@ function App() {
   async function run(command: Command) {
     setBusy(command);
     try {
-      const result = await ({health: window.aik.health, worker_probe: window.aik.runWorkerProbe, vault_probe: window.aik.runVaultProbe}[command])();
+      const result = await ({health: window.aik.health, worker_probe: window.aik.runWorkerProbe, vault_probe: window.aik.runVaultProbe, auth_vault_probe: window.aik.runAuthVaultProbe}[command])();
       setLastRequest(result.request_id);
       setResults((previous) => ({...previous, [command]: result.ok ? result.result : {status: "FAIL", code: result.error.code}}));
     } catch {
@@ -35,7 +36,7 @@ function App() {
       <span className="eyebrow">WINDOWS 기반 연결 검증</span>
       <h1>앱에서 실제 프로세스까지.</h1>
       <p>GUI, 엔진, 워커와 Windows 보관 기능의 연결을 직접 확인합니다.</p>
-      <div className="progress"><span>{passed} / 3 확인 완료</span><span>모든 시험은 합성 데이터로 실행됩니다.</span></div>
+      <div className="progress"><span>{passed} / {cards.length} 확인 완료</span><span>모든 시험은 합성 데이터로 실행됩니다.</span></div>
     </section>
     <section className="cards" aria-label="기반 기능 확인">
       {cards.map((card) => {
@@ -51,6 +52,7 @@ function App() {
             {result?.pid && <span>프로세스 {result.pid}</span>}
             {result?.python_version && <span>Python {result.python_version} · {result.frozen ? "번들 런타임" : "소스 런타임"}</span>}
             {result?.artifact_bytes && <span>{result.artifact_bytes} bytes 기록·검증·정리</span>}
+            {result?.cases && <span>{Object.keys(result.cases).length}개 경우 확인</span>}
           </div>
         </article>;
       })}

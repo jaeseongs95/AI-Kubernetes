@@ -27,6 +27,14 @@ HANDOFF_CHECKS = (
     "installed_engine_identity", "installed_python_dll_identity", "actual_gui_evidence",
 )
 PROBES = {"operating_system", "user_token", "hardware", "path_commands", "uninstall_registry", "known_locations"}
+# Fixed case codes of spikes/windows-foundation/python/aik_spike/auth_vault.py (AIK-022).
+AUTH_VAULT_EXPECTED = {
+    "dpapi_round_trip": "ROUND_TRIP_OK", "lock_contention": "VAULT_BUSY",
+    "malformed_reference": "INVALID_REFERENCE", "truncated_blob": "VAULT_CORRUPT",
+    "foreign_blob_simulated": "ACCESS_DENIED", "deleted_reference": "CREDENTIAL_NOT_FOUND",
+    "auth_clock_expiry": "EXPIRED_NOT_PLACEABLE", "credential_removed": "REFERENCE_UNAVAILABLE_NOT_PLACEABLE",
+    "output_redaction": "REDACTED", "other_user_profile": "NOT_RUN_SINGLE_USER_SESSION",
+}
 WINDOWS_CANDIDATES = {26200: "25H2", 26300: "26H2"}  # Pinned AIK-003 ADR, not an evergreen support claim.
 WINDOWS_EDITIONS = {"Core", "CoreN", "CoreSingleLanguage", "CoreCountrySpecific", "Professional", "ProfessionalN"}
 
@@ -205,6 +213,18 @@ def review_bundle(root: Path, expected_manifest_sha256: str, preparation: str = 
                 application["checks"]["health"]["frozen"] is True and
                 application["checks"]["health"]["python_version"] == manifest["runtime"]["python_version"],
                 "Incomplete actual GUI/worker/DPAPI evidence.")
+        # AIK-022 synthetic auth/vault failure paths: optional so packages built before the
+        # probe still review for AIK-003, but when reported it must be a complete PASS.
+        auth_vault = application["checks"].get("auth_vault")
+        if auth_vault is None:
+            result["aik022_auth_vault"] = "ABSENT"
+        else:
+            cases = auth_vault.get("cases") if isinstance(auth_vault, dict) else None
+            require(isinstance(cases, dict) and auth_vault.get("status") == "PASS"
+                    and auth_vault.get("code") == "AUTH_VAULT_FAILURE_PATHS_OK"
+                    and auth_vault.get("backend") == "windows-user-dpapi" and cases == AUTH_VAULT_EXPECTED,
+                    "The AIK-022 auth/vault failure-path probe did not pass every case.")
+            result["aik022_auth_vault"] = "PASS_SYNTHETIC_SINGLE_USER"
         start, end = timestamp(handoff["started_at"]), timestamp(handoff["completed_at"])
         install_start, install_end = timestamp(installed["started_at"]), timestamp(installed["completed_at"])
         require(start <= install_start < install_end <= end, "Installation timestamps fall outside this execution.")

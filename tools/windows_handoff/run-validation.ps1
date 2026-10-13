@@ -285,7 +285,7 @@ try {
         $Application.window_visible -eq $true -and $Application.renderer_node_access -eq $false -and
         $Application.checks.health.frozen -eq $true -and
         $Application.checks.health.python_version -ceq $Manifest.runtime.python_version) 'Actual visible GUI or frozen runtime evidence is incomplete.'
-    foreach ($Check in @('health', 'worker', 'vault')) {
+    foreach ($Check in @('health', 'worker', 'vault', 'auth_vault')) {
         Assert-Condition ($Application.checks.$Check.status -eq 'PASS') ('Actual GUI check failed: ' + $Check)
     }
     Assert-Condition ($Actual.product_integration -eq 'NOT_RUN' -and $Actual.support_qualification -eq 'NOT_RUN' -and
