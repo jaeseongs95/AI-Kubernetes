@@ -1410,5 +1410,23 @@
    "5953027"
   ],
   "status_change": false
+ },
+ {
+  "task_id": "AIK-043",
+  "supplement_id": "AGSPEER-20261013",
+  "kind": "supplementary_validation",
+  "topic": "AGS PEER bridge",
+  "summary": "보충: src/aik_ags_peer(AGS 2.9.0 세션 메시징 공개 CLI 계약 adapter)가 AIK worker 주소(aik-worker:<id>)와 AGS {host, sessionId}를 append-only AddressBook으로 연결하고 delivered/claimed/acked/result 단계를 from_peer_message 입력으로 내보낸다. tests/test_ags_peer.py 17개 PASS이며, 그중 실제 AGS 2.9.0(56fef8bd) CLI·node v24로 task→claim·ack→result 왕복과 실제 ReadModel peer_view를 확인했다. result는 AGS 유형이 아니라 AIK 규약 aik.peer.v1이다. 실제 worker 호스트 세션·Windows·OS principal 확인은 NOT_RUN. 상태 변경 없음.",
+  "commits": [],
+  "status_change": false
+ },
+ {
+  "task_id": "AIK-025",
+  "supplement_id": "AGSPEER-20261013",
+  "kind": "supplementary_validation",
+  "topic": "AGS PEER bridge",
+  "summary": "보충: src/aik_ags_peer가 AGS 세션 메시징으로 총괄↔worker 메시지를 보내고 result를 claim한다(전달 불명은 send_unknown, 자동 재전송 없음, ACK는 완료 아님). 실제 AGS 2.9.0 CLI 계약 시험 PASS. aik_inbox 큐·wake와의 연결은 아직 없어 NOT_RUN. 상태 변경 없음.",
+  "commits": [],
+  "status_change": false
  }
 ]

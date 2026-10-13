@@ -1225,6 +1225,8 @@ INSERT INTO "task_events" VALUES(295,'AIK-037','verification_progress','blocked'
 INSERT INTO "task_events" VALUES(296,'AIK-041','verification_progress','blocked','blocked','보충 근거 EV-AIK-041-SUPP-M2INT-20261013 기록. 완료 아님.','2026-10-13T16:31:55Z');
 INSERT INTO "task_events" VALUES(297,'AIK-042','verification_progress','blocked','blocked','보충 근거 EV-AIK-042-SUPP-M2INT-20261013 기록. 완료 아님.','2026-10-13T16:31:55Z');
 INSERT INTO "task_events" VALUES(298,'AIK-043','verification_progress','blocked','blocked','보충 근거 EV-AIK-043-SUPP-M2INT-20261013 기록. 완료 아님.','2026-10-13T16:31:55Z');
+INSERT INTO "task_events" VALUES(299,'AIK-043','verification_progress','blocked','blocked','보충 근거 EV-AIK-043-SUPP-AGSPEER-20261013 기록. 완료 아님.','2026-10-13T16:45:26Z');
+INSERT INTO "task_events" VALUES(300,'AIK-025','verification_progress','blocked','blocked','보충 근거 EV-AIK-025-SUPP-AGSPEER-20261013 기록. 완료 아님.','2026-10-13T16:45:26Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1305,6 +1307,8 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-037-SUPP-M2INT-20261013','AIK-037','p
 INSERT INTO "task_evidence" VALUES('EV-AIK-041-SUPP-M2INT-20261013','AIK-041','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter','보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음.','2026-10-13T16:31:55Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-042-SUPP-M2INT-20261013','AIK-042','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter','보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음.','2026-10-13T16:31:55Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-043-SUPP-M2INT-20261013','AIK-043','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter','보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음.','2026-10-13T16:31:55Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-043-SUPP-AGSPEER-20261013','AIK-043','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-ags-peer-bridge','보충: src/aik_ags_peer(AGS 2.9.0 세션 메시징 공개 CLI 계약 adapter)가 AIK worker 주소(aik-worker:<id>)와 AGS {host, sessionId}를 append-only AddressBook으로 연결하고 delivered/claimed/acked/result 단계를 from_peer_message 입력으로 내보낸다. tests/test_ags_peer.py 17개 PASS이며, 그중 실제 AGS 2.9.0(56fef8bd) CLI·node v24로 task→claim·ack→result 왕복과 실제 ReadModel peer_view를 확인했다. result는 AGS 유형이 아니라 AIK 규약 aik.peer.v1이다. 실제 worker 호스트 세션·Windows·OS principal 확인은 NOT_RUN. 상태 변경 없음.','2026-10-13T16:45:26Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-025-SUPP-AGSPEER-20261013','AIK-025','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-ags-peer-bridge','보충: src/aik_ags_peer가 AGS 세션 메시징으로 총괄↔worker 메시지를 보내고 result를 claim한다(전달 불명은 send_unknown, 자동 재전송 없음, ACK는 완료 아님). 실제 AGS 2.9.0 CLI 계약 시험 PASS. aik_inbox 큐·wake와의 연결은 아직 없어 NOT_RUN. 상태 변경 없음.','2026-10-13T16:45:26Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2231,6 +2235,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',298);
+INSERT INTO "sqlite_sequence" VALUES('task_events',300);
 COMMIT;
 PRAGMA foreign_keys = ON;

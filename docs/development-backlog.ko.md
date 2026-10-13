@@ -937,6 +937,7 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 **기록된 증거**
 
 - `EV-AIK-025-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-025` · 부분 구현: commit 353581a/9caa99f, tests/test_inbox.py 24개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분); 차단: 선행 AIK-005·024 미완료; AGS/VM 이벤트 수신기·GUI 지시 입력·outbox transport 미연결; 총괄 model 호출 루프와 wake callback 결합 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
+- `EV-AIK-025-SUPP-AGSPEER-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-ags-peer-bridge` · 보충: src/aik_ags_peer가 AGS 세션 메시징으로 총괄↔worker 메시지를 보내고 result를 claim한다(전달 불명은 send_unknown, 자동 재전송 없음, ACK는 완료 아님). 실제 AGS 2.9.0 CLI 계약 시험 PASS. aik_inbox 큐·wake와의 연결은 아직 없어 NOT_RUN. 상태 변경 없음. · `2026-10-13T16:45:26Z`
 
 ### AIK-031
 
@@ -1722,6 +1723,7 @@ GUI가 상태를 통합해서 읽도록 각 권위 원장을 ID·revision·curso
 
 - `EV-AIK-043-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-043` · 부분 구현: commit dd7899e/739deb9, tests/test_readmodel.py 10개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 3(부분); 차단: 실제 VM History·AGS PEER 수집기 없음; VM history_cursor처럼 receipt 사이에 cursor가 비는 source는 영구 gap(stale)으로 남음; AIK-081 A2 호환 AGS plugin 미확보. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:34:20Z`
 - `EV-AIK-043-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: commit 004ae1f·5953027(PR #15), tests/test_m2_integration.py 6개 시나리오가 이 모듈을 다른 M2 모듈의 실제 인스턴스와 한 흐름으로 연결해 PASS(세션 Linux 전체 회귀 OK). 외부 경계(provider·VM 응답·authority·worker port)만 fake이며 실제 provider·VM·AGS·Windows는 NOT_RUN. 모듈 사이 새 결함 없음. 상태 변경 없음. · `2026-10-13T16:31:55Z`
+- `EV-AIK-043-SUPP-AGSPEER-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-ags-peer-bridge` · 보충: src/aik_ags_peer(AGS 2.9.0 세션 메시징 공개 CLI 계약 adapter)가 AIK worker 주소(aik-worker:<id>)와 AGS {host, sessionId}를 append-only AddressBook으로 연결하고 delivered/claimed/acked/result 단계를 from_peer_message 입력으로 내보낸다. tests/test_ags_peer.py 17개 PASS이며, 그중 실제 AGS 2.9.0(56fef8bd) CLI·node v24로 task→claim·ack→result 왕복과 실제 ReadModel peer_view를 확인했다. result는 AGS 유형이 아니라 AIK 규약 aik.peer.v1이다. 실제 worker 호스트 세션·Windows·OS principal 확인은 NOT_RUN. 상태 변경 없음. · `2026-10-13T16:45:26Z`
 
 ### AIK-044
 
