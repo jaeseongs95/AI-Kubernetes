@@ -29,8 +29,7 @@ HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 
-class ContractError(ValueError):
-    pass
+from acceptance_io import ContractError, parse_json, read_snapshot
 
 
 def require(condition: bool, code: str) -> None:
@@ -47,15 +46,10 @@ def unique_pairs(items):
 
 
 def load_json(path: Path) -> dict:
-    raw = path.read_bytes()
-    require(len(raw) <= MAX_JSON_BYTES, "OVERSIZED_JSON")
-    try:
-        parsed = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs,
-                            parse_constant=lambda _: (_ for _ in ()).throw(ContractError("NONFINITE_JSON")))
-    except (UnicodeError, json.JSONDecodeError) as exc:
-        raise ContractError("INVALID_JSON") from exc
-    require(type(parsed) is dict, "JSON_OBJECT_REQUIRED")
-    return parsed
+    snapshot = read_snapshot(path, maximum=MAX_JSON_BYTES)
+    result = parse_json(snapshot.data, maximum=MAX_JSON_BYTES)
+    snapshot.require_unchanged()
+    return result
 
 
 def blob_sha(raw: bytes) -> str:
@@ -182,13 +176,12 @@ def validate_contract(root: Path = ROOT) -> dict:
     return contract
 
 
-def expected_settlement(folder: Path) -> dict:
-    inputs = folder / "orders.csv"
-    policy = load_json(folder / "policy.json")
+def _expected_settlement_from_bytes(inputs: bytes, policy: dict) -> dict:
+    # Only already captured, hash-checked bytes enter the independent calculation.
     require(policy.get("rounding") == "ROUND_HALF_UP_PER_LINE" and
             type(policy.get("vat_rate_bps")) is int and policy["vat_rate_bps"] == 1000 and
             policy.get("output_file") == "settlement.json", "FIXTURE_POLICY")
-    with inputs.open("r", newline="", encoding="utf-8") as stream:
+    with io.StringIO(inputs.decode("utf-8"), newline="") as stream:
         reader = csv.DictReader(stream)
         require(reader.fieldnames == ["order_id", "subtotal_krw", "discount_krw"], "FIXTURE_COLUMNS")
         rows = list(reader)
@@ -209,24 +202,39 @@ def expected_settlement(folder: Path) -> dict:
     return {"rows": expected_rows, "totals": total}
 
 
+def expected_settlement(folder: Path) -> dict:
+    inputs = read_snapshot(folder / "orders.csv")
+    policy = read_snapshot(folder / "policy.json")
+    result = _expected_settlement_from_bytes(inputs.data, parse_json(policy.data))
+    inputs.require_unchanged()
+    policy.require_unchanged()
+    return result
+
+
 def check_oracle(workspace: Path, root: Path = ROOT) -> dict:
     contract = validate_contract(root)
     fixture_spec = contract["oracle"]["fixture_git_blobs"]
     workspace = workspace.resolve(strict=True)
     require(workspace.is_dir(), "WORKSPACE_MISSING")
+    inputs = {}
     for name in ("orders.csv", "policy.json"):
         candidate = workspace / name
         require(candidate.is_file() and not candidate.is_symlink() and
                 candidate.resolve().parent == workspace, "FIXTURE_INPUT_UNSAFE")
-        require(blob_sha(candidate.read_bytes()) == fixture_spec[name], "FIXTURE_INPUT_CHANGED")
-    expected = expected_settlement(workspace)
+        snapshot = read_snapshot(candidate)
+        require(blob_sha(snapshot.data) == fixture_spec[name], "FIXTURE_INPUT_CHANGED")
+        inputs[name] = snapshot
+    expected = _expected_settlement_from_bytes(
+        inputs["orders.csv"].data, parse_json(inputs["policy.json"].data))
     actual_path = workspace / "settlement.json"
     require(actual_path.is_file() and not actual_path.is_symlink() and
             actual_path.resolve().parent == workspace, "ARTIFACT_MISSING")
-    actual = load_json(actual_path)
-    # Numeric JSON booleans are ints in Python: value equality alone would accept them.
+    artifact = read_snapshot(actual_path)
+    actual = parse_json(artifact.data)
+    # Object member order is not significant. Row order and exact integer types
+    # remain contractual: bool/float amounts, duplicate/extra fields are rejected.
     require(type(actual.get("rows")) is list and type(actual.get("totals")) is dict and
-            list(actual) == ["rows", "totals"], "ARTIFACT_SCHEMA")
+            set(actual) == {"rows", "totals"}, "ARTIFACT_SCHEMA")
     require(len(actual["rows"]) == len(expected["rows"]), "ARTIFACT_ROWS")
     for row, match in zip(actual["rows"], expected["rows"]):
         require(type(row) is dict and set(row) == set(match) and
@@ -235,7 +243,12 @@ def check_oracle(workspace: Path, root: Path = ROOT) -> dict:
     require(set(actual["totals"]) == set(expected["totals"]) and
             all(type(actual["totals"][k]) is int and actual["totals"][k] == v
                 for k, v in expected["totals"].items()), "ARTIFACT_TOTAL_MISMATCH")
-    return {"status": "PASS", "artifact_sha256": hashlib.sha256(actual_path.read_bytes()).hexdigest(),
+    # Do not reread any path to compute the receipt. Detect ordinary file edits
+    # during validation and bind the digest to exactly the parsed artifact bytes.
+    for snapshot in (*inputs.values(), artifact):
+        snapshot.require_unchanged()
+    return {"status": "PASS", "artifact_sha256": hashlib.sha256(artifact.data).hexdigest(),
+            "artifact_bytes": len(artifact.data),
             "net_krw": expected["totals"]["net_krw"],
             "vat_krw": expected["totals"]["vat_krw"],
             "gross_krw": expected["totals"]["gross_krw"],
