@@ -322,6 +322,11 @@ def _latest_summary(connection: sqlite3.Connection, project_id: str):
     return None if row is None else _decode_summary(row)
 
 
+def _latest_directive_seq(connection: sqlite3.Connection, project_id: str) -> int:
+    return connection.execute("SELECT coalesce(max(seq), 0) FROM directives WHERE project_id = ?",
+                              (project_id,)).fetchone()[0]
+
+
 class ContinuityStore:
     """Persist director continuity; never Goal/Task authority or secret values."""
 
@@ -435,7 +440,11 @@ class ContinuityStore:
     # -- directives ------------------------------------------------------------
 
     def append_directive(self, directive: Directive) -> Appended:
-        """Append a user directive or correction; order is the storage order (seq)."""
+        """Append a user directive or correction; order is the storage order (seq).
+
+        A correction must target an earlier directive of the same project that
+        is not already replaced or withdrawn; correct its current successor.
+        """
         if type(directive) is not Directive:
             raise InvalidContinuityRecord("Only Directive records can be appended.")
         directive = rebuild(directive)
@@ -454,6 +463,12 @@ class ContinuityStore:
                                             (directive.target_id,)).fetchone()
                 if target is None or target[0] != directive.project_id:
                     raise InvalidContinuityRecord("A correction must target an earlier directive of the same project.")
+                # Status "replaced"/"withdrawn" comes only from such corrections.
+                if connection.execute(
+                        "SELECT 1 FROM directives WHERE target_id = ? AND scope IN ('replace', 'withdraw') LIMIT 1",
+                        (directive.target_id,)).fetchone() is not None:
+                    raise InvalidContinuityRecord(
+                        "A replaced or withdrawn directive cannot be corrected again; correct its current successor.")
             cursor = connection.execute(
                 "INSERT INTO directives (directive_id, project_id, kind, text, target_id, scope, fingerprint, "
                 "recorded_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -497,8 +512,7 @@ class ContinuityStore:
                 if not _same(row[5], digest):
                     raise ContinuityConflict("A different summary already uses this summary_id.")
                 return Appended("duplicate", stored)
-            top = connection.execute("SELECT coalesce(max(seq), 0) FROM directives WHERE project_id = ?",
-                                     (summary.project_id,)).fetchone()[0]
+            top = _latest_directive_seq(connection, summary.project_id)
             if summary.covers_through_seq > top:
                 raise InvalidContinuityRecord("A summary cannot cover directives that were not stored.")
             cursor = connection.execute(
@@ -580,6 +594,12 @@ class ContinuityStore:
         check_id(project_id, "project_id")
         with self._transaction() as connection:
             return _latest_checkpoint(connection, project_id)
+
+    def resume_snapshot(self, project_id: str) -> tuple:
+        """(latest checkpoint or None, highest stored directive seq or 0) from one transaction."""
+        check_id(project_id, "project_id")
+        with self._transaction() as connection:
+            return _latest_checkpoint(connection, project_id), _latest_directive_seq(connection, project_id)
 
     def checkpoints(self, project_id: str, *, limit: int = 100, after_revision: int = 0) -> tuple:
         check_id(project_id, "project_id")

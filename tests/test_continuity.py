@@ -12,6 +12,7 @@ from dataclasses import fields, replace
 import json
 from pathlib import Path
 import sqlite3
+import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
@@ -24,11 +25,44 @@ sys.path.insert(0, str(ROOT / "src"))
 from aik_continuity import (  # noqa: E402
     BridgeStatusPort, Checkpoint, ConfigRevision, ContextSummary, ContinuityConflict, ContinuityStore,
     Directive, InvalidContinuityDatabase, InvalidContinuityRecord, Resumer, RevisionRegression, TaskRef,
+    verify_checkpoint,
 )
 from aik_runtime.errors import UnsafeStoragePath  # noqa: E402
 
 
 SECRET = "sk-SYNTHETICSECRETVALUE1234567890"
+RESTART_CHILD = r'''
+import json
+from pathlib import Path
+import sys
+sys.path.insert(0, sys.argv[1])
+from aik_continuity import ContinuityStore, Resumer
+
+
+class ReadOnlyVm:
+    def __init__(self, payload):
+        self.payload = payload
+        self.calls = []
+
+    def status(self, project_id):
+        self.calls.append(project_id)
+        return self.payload
+
+
+store = ContinuityStore(Path(sys.argv[2]))
+packet = store.handoff("project-1")
+vm = ReadOnlyVm(json.loads(sys.argv[3]))
+result = Resumer(store, vm).resume("project-1")
+print(json.dumps({
+    "active": list(packet.active_directive_ids),
+    "packet_goal_id": packet.checkpoint.checkpoint.goal_id,
+    "status": result.status,
+    "handoff": result.handoff,
+    "continuation": result.continuation,
+    "open": list(result.open_task_ids),
+    "calls": vm.calls,
+}, ensure_ascii=False))
+'''
 
 
 def vm_payload() -> dict:
@@ -163,6 +197,35 @@ class ContinuityTests(unittest.TestCase):
             store.append_directive(Directive("dir-1", "project-1", "instruction", "바뀐 내용"))
         self.assertEqual(len(store.directives("project-1")), 1)
 
+    def test_replaced_or_withdrawn_target_cannot_be_corrected_again(self) -> None:
+        # Regression for F3: a second replace of the same target left two active
+        # conflicting directives in the handoff.
+        store = self.store()
+        store.append_directive(Directive("dir-1", "project-1", "instruction", "보고서 A를 작성하라"))
+        first_fix = Directive("cor-1", "project-1", "correction", "보고서 B를 작성하라",
+                              target_id="dir-1", scope="replace")
+        store.append_directive(first_fix)
+        with self.assertRaises(InvalidContinuityRecord):
+            store.append_directive(Directive("cor-2", "project-1", "correction", "보고서 C를 작성하라",
+                                             target_id="dir-1", scope="replace"))
+        with self.assertRaises(InvalidContinuityRecord):
+            store.append_directive(Directive("cor-3", "project-1", "correction", "A에 표를 넣어라",
+                                             target_id="dir-1", scope="supplement"))
+        store.append_directive(Directive("dir-2", "project-1", "instruction", "CSV로 내보내라"))
+        store.append_directive(Directive("cor-4", "project-1", "correction", "CSV는 필요 없다",
+                                         target_id="dir-2", scope="withdraw"))
+        with self.assertRaises(InvalidContinuityRecord):
+            store.append_directive(Directive("cor-5", "project-1", "correction", "CSV 대신 JSON",
+                                             target_id="dir-2", scope="replace"))
+        # The current successor remains correctable; a retry of a stored correction is idempotent.
+        self.assertEqual(store.append_directive(Directive("cor-6", "project-1", "correction", "보고서 C를 작성하라",
+                                                          target_id="cor-1", scope="replace")).status, "accepted")
+        self.assertEqual(store.append_directive(first_fix).status, "duplicate")
+        packet = self.store().handoff("project-1")
+        self.assertEqual(packet.active_directive_ids, ("cor-6",))
+        self.assertEqual([item.directive.directive_id for item in store.directives("project-1")],
+                         ["dir-1", "cor-1", "dir-2", "cor-4", "cor-6"])
+
     def test_append_only_triggers_reject_raw_update_and_delete(self) -> None:
         store, _, _ = self.seeded_with_checkpoint()
         with closing(sqlite3.connect(store.path)) as connection:
@@ -186,6 +249,18 @@ class ContinuityTests(unittest.TestCase):
         packet = json.dumps(store.handoff("project-1").to_dict(), ensure_ascii=False)
         self.assertNotIn(SECRET, packet)
         self.assertNotIn(SECRET.encode("ascii"), store.path.read_bytes())
+
+    def test_summary_cannot_cover_directives_that_were_not_stored(self) -> None:
+        store = self.store()
+        d1 = store.append_directive(Directive("dir-1", "project-1", "instruction", "합성 지시")).record
+        other = store.append_directive(Directive("dir-o", "project-2", "instruction", "다른 프로젝트 지시")).record
+        for covers in (d1.seq + 1000, other.seq):
+            with self.subTest(covers=covers):
+                with self.assertRaises(InvalidContinuityRecord):
+                    store.record_summary(ContextSummary("summary-x", "project-1", "합성 요약", covers_through_seq=covers))
+        self.assertIsNone(store.latest_summary("project-1"))
+        accepted = store.record_summary(ContextSummary("summary-1", "project-1", "합성 요약", covers_through_seq=d1.seq))
+        self.assertEqual(accepted.status, "accepted")
 
     # ------------------------------------------------------------- revisions
     def test_config_revisions_reject_regression_and_conflicting_duplicates(self) -> None:
@@ -245,6 +320,15 @@ class ContinuityTests(unittest.TestCase):
         self.assertTrue(all(set(task) == {"task_id", "attempt_id", "evidence"} for task in body["tasks"]))
         self.assertEqual(saved.checkpoint.goal_id, "goal-1")
 
+    def test_docs_mark_ags_references_as_unimplemented(self) -> None:
+        # Regression for F4: no AGS reference field exists, so the document
+        # must call it unimplemented rather than merely unverified.
+        names = {field.name for field in fields(Checkpoint)} | {field.name for field in fields(TaskRef)}
+        self.assertFalse(any(name.startswith("ags") or "ags_" in name for name in names))
+        text = (ROOT / "docs" / "continuity.ko.md").read_text(encoding="utf-8")
+        self.assertIn("AGS 원장 참조는 **미구현**", text)
+        self.assertNotIn("실제 AGS 원장 연결", text)
+
     # ---------------------------------------------------------------- resume
     def test_context_compaction_and_restart_resume_same_goal_without_new_goal(self) -> None:
         store, records, saved = self.seeded_with_checkpoint()
@@ -280,6 +364,27 @@ class ContinuityTests(unittest.TestCase):
             saved.revision)
         self.assertEqual((progressed.revision, progressed.checkpoint.goal_id), (2, "goal-1"))
 
+    def test_separate_process_restart_restores_directives_and_resumes_same_goal(self) -> None:
+        store, _, saved = self.seeded_with_checkpoint()
+        del store
+        completed = subprocess.run(
+            [sys.executable, "-c", RESTART_CHILD, str(ROOT / "src"), str(self.path), json.dumps(vm_payload())],
+            cwd=self.root, capture_output=True, text=True, encoding="utf-8", timeout=60,
+        )
+        if completed.returncode != 0:
+            self.fail(f"Restart child failed: {completed.stderr}")
+        observed = json.loads(completed.stdout)
+        self.assertEqual(observed["active"], ["cor-1", "cor-2"])
+        self.assertEqual(observed["packet_goal_id"], "goal-1")
+        self.assertEqual((observed["status"], observed["handoff"]), ("continue", "continue_existing"))
+        self.assertEqual(observed["continuation"]["goal_id"], "goal-1")
+        self.assertEqual(observed["continuation"]["checkpoint_revision"], saved.revision)
+        self.assertEqual(observed["continuation"]["tasks"],
+                         [["task-a", "attempt-a1"], ["task-b", "attempt-b1"], ["task-c", None]])
+        self.assertEqual(observed["open"], ["task-b", "task-c"])
+        self.assertEqual(observed["calls"], ["project-1"])
+        self.assertEqual(self.store().latest_checkpoint("project-1").revision, saved.revision)
+
     def test_vm_progress_since_checkpoint_still_continues(self) -> None:
         store, _, _ = self.seeded_with_checkpoint()
         payload = vm_payload()
@@ -288,6 +393,44 @@ class ContinuityTests(unittest.TestCase):
         result = Resumer(store, FakeVm(payload)).resume("project-1")
         self.assertEqual(result.status, "continue")
         self.assertEqual(result.open_task_ids, ("task-c",))
+        # Regression for F2: continuation must carry VM's attempt, not the stale None.
+        self.assertEqual(result.continuation["tasks"],
+                         (("task-a", "attempt-a1"), ("task-b", "attempt-b1"), ("task-c", "attempt-c1")))
+        self.assertEqual(result.vm_task_attempts,
+                         (("task-a", "attempt-a1"), ("task-b", "attempt-b1"), ("task-c", "attempt-c1")))
+
+    def test_directive_after_checkpoint_requires_confirmation(self) -> None:
+        # Regression for F1: a withdrawal stored after the checkpoint was ignored.
+        store, _, saved = self.seeded_with_checkpoint()
+        later = store.append_directive(Directive("cor-9", "project-1", "correction", "이 목표는 중단하라",
+                                                 target_id="cor-1", scope="withdraw")).record
+        vm = FakeVm(vm_payload())
+        result = Resumer(store, vm).resume("project-1")
+        self.assertEqual((result.status, result.handoff), ("confirmation_required", "confirm_with_user"))
+        self.assertIn(("DIRECTIVES_AFTER_CHECKPOINT", None), result.mismatches)
+        self.assertIsNone(result.continuation)
+        self.assertEqual(vm.calls, [("status", "project-1")])
+        broken = Resumer(store, FakeVm(error=RuntimeError("synthetic outage"))).resume("project-1")
+        self.assertEqual(broken.status, "unavailable")
+        self.assertIn(("DIRECTIVES_AFTER_CHECKPOINT", None), broken.mismatches)
+        with self.assertRaises(InvalidContinuityRecord):
+            verify_checkpoint(saved, vm_payload(), latest_directive_seq=-1)
+        # Once a checkpoint covers the directive, and other projects' directives are ignored.
+        store.save_checkpoint(replace(saved.checkpoint, directive_seq=later.seq), saved.revision)
+        store.append_directive(Directive("dir-p2", "project-2", "instruction", "다른 프로젝트 지시"))
+        self.assertEqual(Resumer(store, FakeVm(vm_payload())).resume("project-1").status, "continue")
+
+    def test_resume_reports_vm_authorization_revision(self) -> None:
+        # Regression for F5: VM's current authorization revision was not exposed.
+        store, _, saved = self.seeded_with_checkpoint()
+        result = Resumer(store, FakeVm(vm_payload())).resume("project-1")
+        self.assertEqual(result.vm_authorization_revision_id, "auth-rev-1")
+        store.save_checkpoint(replace(saved.checkpoint, authorization_revision_id=None), saved.revision)
+        payload = dict(vm_payload(), authorization_revision_id="auth-rev-7")
+        unrecorded = Resumer(store, FakeVm(payload)).resume("project-1")
+        self.assertEqual(unrecorded.status, "continue")
+        self.assertEqual(unrecorded.vm_authorization_revision_id, "auth-rev-7")
+        self.assertIsNone(unrecorded.continuation["authorization_revision_id"])
 
     def test_stale_references_stop_for_user_confirmation(self) -> None:
         store, _, _ = self.seeded_with_checkpoint()
@@ -348,6 +491,21 @@ class ContinuityTests(unittest.TestCase):
         broken = Resumer(store, FakeVm(error=RuntimeError("synthetic failure " + SECRET))).resume("project-1")
         self.assertEqual((broken.status, broken.handoff), ("unavailable", "retry"))
         self.assertNotIn(SECRET, repr(broken))
+
+    def test_unreadable_project_and_goal_references_are_not_continued(self) -> None:
+        store, _, _ = self.seeded_with_checkpoint()
+        missing_goal = vm_payload()
+        del missing_goal["goal_id"]
+        cases = {
+            "PROJECT_REFERENCE_UNREADABLE": dict(vm_payload(), project_id="bad project id!"),
+            "GOAL_REFERENCE_UNREADABLE": missing_goal,
+        }
+        for code, payload in cases.items():
+            with self.subTest(code=code):
+                result = Resumer(store, FakeVm(payload)).resume("project-1")
+                self.assertEqual((result.status, result.handoff), ("unverifiable", "inspect_vm"))
+                self.assertIn((code, None), result.mismatches)
+                self.assertIsNone(result.continuation)
 
     def test_no_checkpoint_reports_start_goal_without_creating(self) -> None:
         store = self.store()

@@ -2,15 +2,18 @@
 
 This is a partial implementation. User directives and later corrections are
 stored append-only, in arrival order, together with their scope (which earlier
-directive they replace, supplement or withdraw). Model summaries are stored
-only as ``model_reported`` auxiliary text. Checkpoints hold only VM/AGS ledger
-IDs and revision IDs: no Goal/Task state copy and no second Goal authority.
+directive they replace, supplement or withdraw). A directive that is already
+replaced or withdrawn cannot be corrected again; its current successor must be
+corrected instead. Model summaries are stored only as ``model_reported``
+auxiliary text. Checkpoints hold only VM ledger IDs and revision IDs: no
+Goal/Task state copy and no second Goal authority. AGS ledger references are
+not implemented.
 
 Resume re-reads the stored references through an injected VM read port
 (``status``) and continues with the existing IDs and revisions only when VM
-still agrees. On any mismatch it stops and requires user confirmation; it never
-creates a new Goal or Attempt itself. Real VM/AGS installations and Windows
-behaviour are NOT_RUN.
+still agrees and no directive was stored after the checkpoint. On any mismatch
+it stops and requires user confirmation; it never creates a new Goal or
+Attempt itself. Real VM installations and Windows behaviour are NOT_RUN.
 """
 
 from .errors import (
