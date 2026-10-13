@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-13T12:39:44Z`
+- 수정일 (UTC): `2026-10-13T14:31:28Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 56개 · 진행 중 0개 · 진행 차단 32개 · 완료 2개 · 취소 0개
+- 상태: 미착수 54개 · 진행 중 0개 · 진행 차단 34개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -34,7 +34,7 @@ python tools/backlog.py report
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 0 | 0 | 7 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 1 | 0 | 13 | 0 | 0 | 0 |
-| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 15 | 0 | 12 | 0 | 0 | 0 |
+| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 13 | 0 | 14 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
 | M4 · Windows 첫 배포 검증 | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
@@ -973,6 +973,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - `EV-AIK-031-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · 부분 구현: commit 7136475/341e9f9/db4e7ec/81e98c0, tests/test_vm_bridge.py 55개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 3(부분), 4(미충족); 차단: upstream durable binding extension 부재(AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED); 실제 AttemptDetail에 goal_revision_id가 없어 owner query 정보 부족; AGS manifest 부재(AGS_HOST_INTEGRATION_MANIFEST_MISSING); status는 engine_port 정규화로 구현·대조, final_report·run_once 실제 Goal 경로 미검증; 선행 AIK-004 blocked 상태. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T10:15:05Z`
 - `EV-AIK-031-HOSTED-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · VM 설계 seam 기준 hosted 경로 부분 구현: commit 0b7960a/1e3bbd6. AikHostedRuntime(VM CodexRuntimePort)·AIK 소유 binding journal·run_once_hosted/confirm_attempt(attempt_detail+status join). tests/test_vm_hosted_runtime.py 39개·test_vm_hosted_runtime_review.py 24개 fake 시험과 실제 upstream 적합성 (f)(g)(h)(VM 32bb0f9 소스) 세션 Linux PASS. 완료 기준 4 미충족→부분. 차단: 실제 설치형 VM RuntimeJob 실행(Windows 전용) NOT_RUN, supervisor 스레드 trace scope는 설계 가정, AGS A2 전환 전(AIK-081). 통합 완료 아님. · `2026-10-13T12:39:44Z`
 - `EV-AIK-031-WINE2E-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · Windows hosted E2E 진단 DIAGNOSTIC_PASS(CI run #23, commit 15940c5, windows-2022): VM 32bb0f9 소스·VM FakeCodexRuntime·진단용 허용 gate로 실제 RuntimeJob supervisor 실행. worker 스레드의 create_thread/start_turn이 trace scope(Attempt·intent·call)와 함께 hosted runtime을 지났고 효과 전 durable in-flight 기록, 성공 뒤 정리, confirm_attempt 확정을 관측. VM은 역할 scope 재진입을 CORE_CAPABILITY_DENIED로 거절(placement Task는 HOSTED_TASK_PENDING). 설치형 wheel 아님(소스 import), AGS 아님, Goal 판정 미도달, 실모델·Windows 11 NOT_RUN. 통합 완료 아님. · `2026-10-13T13:15:40Z`
+- `EV-AIK-031-WINGOAL-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · Windows hosted E2E 진단 Goal 판정 도달(CI run #26, commit dc77b6d, windows-2022): 같은 VM 32bb0f9 소스·FakeCodexRuntime·진단용 허용 gate 경로에서 Task 완료 뒤 독립 Goal Test가 실행돼 evidence-backed GoalVerdict satisfied를 기록. run #25의 Goal Test binding 581회 반복은 VM이 Goal Test cwd를 resolve()로 정규화하는데 runner 임시 경로가 8.3 짧은 이름이라 매 tick 공급한 step이 저장 binding과 달랐기 때문(work_path_resolved_differs=true 관측). AIK 진단만 고쳤고 VM은 수정하지 않음(관측으로 기록). 설치형 wheel·AGS·실모델·Windows 11 NOT_RUN, 통합 완료 아님. · `2026-10-13T14:31:28Z`
 
 ### AIK-084
 
@@ -1348,13 +1349,13 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Placement |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E06 · 배치·worker 수명 |
 | 실행 순서 | 39 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:49:10Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T14:31:28Z` |
 
 VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제 자원 능력에 맞게 배치한다.
 
@@ -1374,7 +1375,7 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-033-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-033` · 부분 구현: commit 8f4b942, tests/test_placement.py 15개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 4(부분); 차단: 선행 AIK-019·020·023·031·032·040 미완료; AGS 역할 계약의 host·전문역량·데이터 범위 입력 부재; 실제 qualified route 없음(AIK-086 미실행); A2 gate 미연결(AIK-032). 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T14:31:27Z`
 
 ### AIK-034
 
@@ -1382,13 +1383,13 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Lease manager |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E06 · 배치·worker 수명 |
 | 실행 순서 | 40 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T14:31:28Z` |
 
 기간과 작업 범위를 가진 사용권을 원자적으로 예약하고 중복 점유를 막는다.
 
@@ -1407,7 +1408,7 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-034-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-034` · 부분 구현: commit 8f4b942, tests/test_lease.py 16개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분); 차단: 선행 AIK-005·033·040 미완료; 실제 provider job 시작·관측 연결 없음(dispatch 의도 순서는 호출자 책임); 다중 프로세스·Windows 잠금 경합 미검증. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T14:31:27Z`
 
 ### AIK-035
 
@@ -3739,7 +3740,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-13T12:39:44Z |
+| `updated_at` | 2026-10-13T14:31:28Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

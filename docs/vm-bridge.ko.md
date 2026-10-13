@@ -203,6 +203,9 @@ inner 호출 중 프로세스가 죽어도 재시작 뒤 in-flight 행이 남아
   - 효과마다 binding이 먼저 기록된다.
   - in-flight 행이 정리된다.
   - owner 확인이 성공한다.
+- 이어서 독립 Goal Test까지 진행해 GoalVerdict 기록 여부(`goal_verdict_id`)를 보고한다. 이 값은 정보용이며 통과 조건에 들지 않는다.
+  - VM은 Goal Test cwd를 `resolve()`로 정규화해 binding에 저장한다. 그래서 진단은 정규화된 작업 경로에서 시작하고, binding이 생긴 뒤에는 step을 다시 공급하지 않는다.
+  - Windows 8.3 짧은 임시 경로에서는 매 tick 같은 step을 다시 공급하면 VM이 binding을 계속 다시 고정한다(CI run #25에서 관측).
 - 모델·계정·네트워크는 쓰지 않는다.
 - VM wheel은 개발자 모듈(`e2e_qualification` 등)을 빼므로, 이 진단은 VM을 소스에서 import한다. 그래서 설치형 wheel 근거가 아니다.
 - governance gate는 진단용 허용 gate다. 그래서 통과해도 AGS 적합성, 제품 qualification, 통합 완료가 아니다.

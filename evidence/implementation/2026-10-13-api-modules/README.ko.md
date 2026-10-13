@@ -600,9 +600,68 @@
 - **한계:**
   - VM wheel이 개발자 모듈(`e2e_qualification` 등)을 빼므로, VM은 **소스에서 import**했다. 설치형 wheel 근거가 아니다.
   - governance gate는 진단용 허용 gate다. AGS가 아니다.
-  - 이번 run은 Task 완료까지 진행했지만 독립 Goal Test 판정(`goal_verdict_id`)에는 시간 안에 도달하지 못했다(null).
+  - 이번 run은 Task 완료까지 진행했지만 독립 Goal Test 판정(`goal_verdict_id`)에는 시간 안에 도달하지 못했다(null). 후속 run #26에서 도달했다(아래).
   - 실모델, Windows 11, AGS A2는 NOT_RUN이다.
   - 통합 완료가 아니다.
+
+### AIK-031 추가 기록 — Windows 진단의 Goal 판정 도달 (CI run #26, `dc77b6d`)
+
+- **결과:** 같은 진단 경로(VM 32bb0f9 소스, VM `FakeCodexRuntime`, 진단용 허용 gate)에서 Task 완료 뒤 독립 Goal Test가 실행됐다. evidence-backed GoalVerdict `satisfied`가 기록됐다(`goal_verdict_id` 값 있음, 마지막 action `completed`). 앞의 여섯 검사도 모두 true였다.
+- **run #25에서 막힌 원인:** Goal Test binding 고정(`materialized`)이 581번 반복되고 실행되지 않았다.
+  - VM은 Goal Test step의 cwd를 `resolve()`로 정규화해 binding에 저장한다.
+  - Windows runner의 임시 경로는 8.3 짧은 이름(`RUNNER~1`)이다. 그래서 매 tick 공급한 step이 저장된 binding과 달랐고, VM이 binding을 다시 고정했다.
+  - run #26에서 `work_path_resolved_differs: true`로 이 차이를 관측했다.
+- **조치:** AIK 진단만 고쳤다. 정규화된 작업 경로에서 시작하고, binding이 생긴 뒤에는 step을 다시 공급하지 않는다. VM은 고정 계약으로 보고 수정하지 않았다.
+  - 관측: VM 자체 E2E 루프처럼 매 tick 같은 step을 공급하는 호출자는 Windows 짧은 경로에서 같은 반복을 겪을 수 있다.
+- **한계:** VM 소스 import(설치형 wheel 아님), AGS 아님, 실모델·Windows 11 NOT_RUN. 통합 완료가 아니다.
+
+## AIK-033
+
+- 구현: src/aik_placement에 VM ready·인가 입력(ReadyTask) 기반 placement planner, 후보 프로필 선호 순서 eligibility filter(역할·모델·effort·도구 capability·route 자격·신선도·capacity·같은 프로젝트 직렬), 병렬 근거(ParallelQualification) 검사, append-only 결정 journal(inventory revision 포함)을 구현했다. unknown 배치는 capacity와 직렬 자리를 계속 점유한다.
+- 검증: tests/test_placement.py 15개가 합성 Pool·ExecutionProfile·RuntimeStore와 fake registry/inventory로 조건별 배치, candidate/qualification 분리, 멱등, journal append-only, 동시 plan capacity, unknown 점유를 검사한다.
+- 커밋: `8f4b942`
+- 시험: `tests/test_placement.py` (15개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 단위 범위 충족 | ReadyTask는 VM이 준 ready·인가 ID만 담고 planner는 DAG·재시도·다음 Task 선택을 하지 않는다. 같은 Attempt 재요청은 멱등, 다른 Task면 ATTEMPT_ALREADY_PLACED로 거절한다. |
+| 2 | 부분 | 역할·모델·effort·도구 capability와 pool 상태는 검사한다. AGS/AGENT 역할 계약의 host·전문역량·데이터 범위 요구는 입력 계약이 없어 검사하지 않는다. |
+| 3 | 단위 범위 충족 | 같은 프로젝트에 활성·unknown 배치가 있으면 SAME_PROJECT_SERIAL로 대기한다. 병렬은 qualified route와 일치하는 inventory revision 근거가 있을 때만 허용하고 결정에 기록한다. 독립성 판단 자체는 VM ready 집합에 맡긴다. |
+| 4 | 부분 | 운영 배치는 registry의 placement_eligible(qualified) route만, candidate route는 qualification 목적에서 명시 선택할 때만 쓴다. candidate 경로의 A2 gate·budget/lease 적용은 placement 밖(AIK-032 미구현, AIK-034 별도)이다. |
+
+차단 사유:
+- 선행 AIK-019·020·023·031·032·040 미완료
+- AGS 역할 계약의 host·전문역량·데이터 범위 입력 부재
+- 실제 qualified route 없음(AIK-086 미실행)
+- A2 gate 미연결(AIK-032)
+
+실행하지 않은 검증(NOT_RUN):
+- 실제 ResourcePoolRegistry·CapabilityInventory와 실 provider 관측 통합
+- Windows 실행
+- 다중 프로세스 동시 배치
+
+## AIK-034
+
+- 구현: src/aik_lease에 runtime store 사용권 예약과 budget admission 연결(lease id = reservation id), fencing token 기반 낡은 owner 거절, provider 호출 전 dispatch 의도 기록(activate), 갱신·반환 3분기·만료(효과 전 expired / dispatch 뒤 unknown)·unknown 해소, crash 사이 고아 정리(reconcile)를 구현했다.
+- 검증: tests/test_lease.py 16개가 임시 RuntimeStore·BudgetStore·주입 시계로 스레드 동시 예약 capacity, TTL 만료 분기, stale token, unknown 재발사 거절, budget wait/rejected/예외 보상, reconcile, release 분기, dispatch 의도 뒤 crash를 검사한다.
+- 커밋: `8f4b942`
+- 시험: `tests/test_lease.py` (16개)
+
+| 완료 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 | 부분 | runtime store BEGIN IMMEDIATE 안에서 pool capacity를 검사하고 budget admission이 예산·동시성을 검사한다. 두 DB는 한 commit이 아니어서 보상·reconcile로 맞추며, 다중 프로세스 경합은 이 태스크에서 시험하지 않았다. |
+| 2 | 단위 범위 충족 | lease는 VM task/attempt를 가진 placement와 pool·worker를 참조하고, 모든 변경은 (lease_id, fencing_token)으로 검사해 낡은 token·더 새 lease가 있는 owner를 거절한다. |
+| 3 | 단위 범위 충족 | 만료는 provider 종료가 아니다. dispatch 의도·job이 기록된 lease는 만료 시 unknown이 되고 예산 hold와 capacity를 유지하며, unknown이면 같은 placement의 새 lease를 거절한다. 종료 관측 뒤에만 released로 간다. |
+
+차단 사유:
+- 선행 AIK-005·033·040 미완료
+- 실제 provider job 시작·관측 연결 없음(dispatch 의도 순서는 호출자 책임)
+- 다중 프로세스·Windows 잠금 경합 미검증
+
+실행하지 않은 검증(NOT_RUN):
+- Windows 실행·msvcrt 잠금
+- 다중 프로세스 경합
+- 실제 provider job 수명
 
 ## AIK-040
 
