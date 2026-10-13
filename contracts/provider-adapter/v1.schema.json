@@ -375,7 +375,17 @@
           "anyOf": [
             {
               "type": "string",
-              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,63}$"
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,63}$",
+              "not": {
+                "anyOf": [
+                  {
+                    "pattern": "^(?:gh[pousr]_|github_pat_|sk_|AIza)"
+                  },
+                  {
+                    "pattern": "[A-Za-z0-9]{30,}"
+                  }
+                ]
+              }
             },
             {
               "type": "null"
