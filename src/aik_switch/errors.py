@@ -22,4 +22,8 @@ class SwitchConflict(SwitchError):
 
 
 class InvalidSwitchJournal(SwitchError):
-    """The journal file is damaged, foreign, tampered or uses an unsupported schema."""
+    """The journal file is damaged, foreign, internally inconsistent or uses an unsupported schema.
+
+    The record fingerprint is an unkeyed digest. It detects accidental damage
+    and inconsistent rows, not deliberate rewriting by a program with file access.
+    """

@@ -9,11 +9,13 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import replace
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import sqlite3
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,8 +29,10 @@ from aik_profiles import DirectorProfile, ExecutionChoice, RoleProfile  # noqa: 
 from aik_runtime import UnsafeStoragePath  # noqa: E402
 from aik_switch import (  # noqa: E402
     CallEvent, DirectorSwitch, FallbackRule, InvalidSwitch, InvalidSwitchJournal, SwitchBlocked,
-    SwitchJournal, SwitchPending, SwitchPolicy, SwitchRequest,
+    SwitchConflict, SwitchError, SwitchJournal, SwitchPending, SwitchPolicy, SwitchRequest,
+    binding_to_dict, make_binding,
 )
+from aik_switch import journal as journal_module  # noqa: E402
 
 
 DIGEST = "a" * 64
@@ -50,6 +54,10 @@ def director_profile() -> DirectorProfile:
 
 def worker_profile() -> RoleProfile:
     return RoleProfile("worker-1", "ws-1", "worker", ExecutionChoice("conn-w", "synthetic-worker-model"), 10)
+
+
+def reviewer_profile() -> RoleProfile:
+    return RoleProfile("reviewer-1", "ws-1", "reviewer", ExecutionChoice("conn-r", "synthetic-reviewer-model"), 10)
 
 
 def make_policy(**overrides) -> SwitchPolicy:
@@ -114,16 +122,42 @@ class FakeRunner:
         self.observe_effort = True
         self.model_override = None
         self.fail = False
+        self.invalid_result = False
 
     def activate(self, binding, handoff):
         self.activations.append((binding, handoff))
         if self.fail:
             raise RuntimeError("synthetic runner failure")
+        if self.invalid_result:
+            return "synthetic-not-a-session"
         return RunnerSession(
             f"session-{len(self.activations)}",
             observed_model=self.model_override or binding.model,
             observed_effort=binding.effort if self.observe_effort else None,
         )
+
+
+class FakeBudget:
+    """Synthetic remaining-budget source read at deferred application points."""
+
+    def __init__(self, value=100):
+        self.value = value
+        self.calls = []
+
+    def remaining(self, project_id):
+        self.calls.append(project_id)
+        return self.value
+
+
+class StubContinuity:
+    def __init__(self, *, result=None, error=None):
+        self.result = result
+        self.error = error
+
+    def handoff(self, project_id):
+        if self.error is not None:
+            raise self.error
+        return self.result
 
 
 class SwitchTests(unittest.TestCase):
@@ -144,13 +178,14 @@ class SwitchTests(unittest.TestCase):
         for choice in (director_profile().primary, *director_profile().fallbacks):
             self.inventory.allow(choice.connection_id, choice.model, ("low", "medium", "high"), ("shell", "files"))
         self.runner = FakeRunner()
+        self.budget = FakeBudget(100)
 
     def make(self, *, policy="default", journal=None, **overrides) -> DirectorSwitch:
         values = dict(
             profiles=self.profiles, profile_id="director-1", inventory=self.inventory, runner=self.runner,
             continuity=self.continuity, project_id="project-1", journal=journal or self.journal,
             policy=make_policy() if policy == "default" else policy,
-            clock=lambda: datetime(2030, 1, 1, tzinfo=timezone.utc),
+            clock=lambda: datetime(2030, 1, 1, tzinfo=timezone.utc), budget=self.budget,
         )
         values.update(overrides)
         return DirectorSwitch(**values)
@@ -451,6 +486,248 @@ class SwitchTests(unittest.TestCase):
         same_position = switch.request_switch(SwitchRequest("evt-same", "user_request", "primary", 100))
         self.assertIn("SAME_AS_CURRENT", same_position.record["candidates"][0]["reasons"])
         self.assertEqual(replace(make_policy(), min_quality=80).min_quality, 80)
+
+    # -------------------------------------------------- review regressions (F1)
+    def test_lost_apply_record_is_reconciled_before_resume_and_survives_restart(self) -> None:
+        real_append = self.journal.append
+        faults = {"apply": True}
+
+        def failing_append(document):
+            if document.get("phase") == "apply" and faults["apply"]:
+                raise SwitchError("synthetic journal write failure")
+            return real_append(document)
+
+        switch = self.make()
+        with mock.patch.object(self.journal, "append", side_effect=failing_append):
+            with self.assertRaises(SwitchError):
+                switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 100))
+            self.assertEqual(switch.state, "decision_required")
+            self.assertEqual(switch.block_codes, ("JOURNAL_WRITE_FAILED",))
+            self.assertEqual(switch.binding.position, "fallback:0")
+            self.assertIsNone(self.journal.get("evt-1", "apply"))
+            # While the record still cannot be written, the block is not released.
+            with self.assertRaises(SwitchError):
+                switch.resume_current("evt-resume")
+            self.assertEqual(switch.block_codes, ("JOURNAL_WRITE_FAILED",))
+            self.assertIsNone(self.journal.get("evt-resume", "request"))
+            faults["apply"] = False
+            resumed = switch.resume_current("evt-resume")
+        self.assertEqual(resumed.status, "resumed")
+        self.assertEqual(resumed.record["reconciled_apply_event_id"], "evt-1")
+        apply = self.journal.get("evt-1", "apply")
+        self.assertIsNotNone(apply)
+        self.assertEqual(apply["status"], "applied")
+        self.assertEqual(apply["new"]["position"], "fallback:0")
+        self.assertEqual(apply["observed_effort"], "medium")
+        self.assertEqual(apply["checkpoint"]["revision"], 1)
+        restarted = self.make(journal=SwitchJournal(self.journal.path))
+        self.assertEqual(restarted.binding.position, "fallback:0")
+        self.assertEqual(restarted.state, "active")
+
+    def test_resume_record_with_unrecorded_binding_change_fails_closed_on_restart(self) -> None:
+        self.make()
+        # Simulates a journal written by the earlier code: the apply record was
+        # lost, but a later resume released the changed binding.
+        fallback = binding_to_dict(make_binding(director_profile(), 3, "fallback:0"))
+        self.journal.append({
+            "event_id": "evt-old-resume", "phase": "request", "kind": "resume", "status": "resumed",
+            "director_id": "director-1", "project_id": "project-1", "recorded_at": "2030-01-01T00:00:00Z",
+            "reason": "resume_current", "previous": fallback, "recheck": None, "reasons": [],
+            "state_after": "active", "block_codes": [],
+        })
+        restarted = self.make(journal=SwitchJournal(self.journal.path))
+        self.assertEqual(restarted.state, "decision_required")
+        self.assertEqual(restarted.block_codes, ("RESUMED_BINDING_MISMATCH",))
+        self.assertEqual(restarted.binding.position, "primary")
+        with self.assertRaises(SwitchBlocked):
+            restarted.begin_call("call-1")
+
+    # -------------------------------------------------- review regressions (F2)
+    def test_deferred_apply_rechecks_budget_from_budget_port(self) -> None:
+        switch = self.make()
+        switch.begin_call("call-1")
+        pending = switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 25))
+        self.assertEqual(pending.status, "pending")
+        self.budget.value = 15  # the in-flight call consumed budget
+        outcome = switch.observe(CallEvent("evt-done", "call-1", "completed")).switch
+        self.assertEqual(outcome.status, "recheck_failed")
+        self.assertEqual(outcome.apply_record["reasons"], ["RECHECK_REJECTED", "BUDGET_EXCEEDED"])
+        self.assertEqual(outcome.apply_record["budget_source"], "budget_port")
+        self.assertEqual(outcome.apply_record["budget_remaining_at_apply"], 15)
+        self.assertEqual(self.budget.calls, ["project-1"])
+        self.assertEqual(switch.binding.position, "primary")
+        self.assertEqual(self.runner.activations, [])
+
+    def test_deferred_apply_without_budget_source_fails_closed(self) -> None:
+        switch = self.make(budget=None)
+        switch.begin_call("call-1")
+        switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 100))
+        outcome = switch.observe(CallEvent("evt-done", "call-1", "completed")).switch
+        self.assertEqual(outcome.status, "recheck_failed")
+        self.assertEqual(outcome.apply_record["reasons"], ["RECHECK_REJECTED", "BUDGET_UNKNOWN"])
+        self.assertEqual(outcome.apply_record["budget_source"], "NO_BUDGET_SOURCE")
+        self.assertEqual(self.runner.activations, [])
+        # Immediate application happens at the request instant and uses its value.
+        immediate = switch.request_switch(SwitchRequest("evt-2", "user_request", "fallback:0", 100))
+        self.assertEqual(immediate.status, "applied")
+        self.assertEqual(immediate.apply_record["budget_source"], "request")
+
+    # -------------------------------------------------- review regressions (F3)
+    def test_event_id_reuse_with_different_content_conflicts(self) -> None:
+        switch = self.make()
+        switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 100))
+        self.assertEqual(switch.request_switch(
+            SwitchRequest("evt-1", "user_request", "fallback:0", 100)).status, "duplicate")
+        with self.assertRaises(SwitchConflict):
+            switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:2", 100))
+        with self.assertRaises(SwitchConflict):
+            switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 50))
+        with self.assertRaises(SwitchConflict):
+            switch.resume_current("evt-1")
+        self.assertEqual(switch.resume_current("evt-r").status, "rejected")
+        with self.assertRaises(SwitchConflict):
+            switch.request_switch(SwitchRequest("evt-r", "user_request", "fallback:2", 100))
+        switch.begin_call("call-1")
+        switch.observe(CallEvent("evt-c", "call-1", "completed"))
+        switch.begin_call("call-2")
+        with self.assertRaises(SwitchConflict):
+            switch.observe(CallEvent("evt-c", "call-2", "completed"))
+        self.assertEqual(switch.binding.position, "fallback:0")
+        self.assertEqual(len(self.runner.activations), 1)
+
+    # -------------------------------------------------- review regressions (F4)
+    def test_terminal_event_before_registration_is_not_consumed(self) -> None:
+        switch = self.make()
+        early = switch.observe(CallEvent("evt-early", "call-1", "completed"))
+        self.assertEqual(early.status, "unknown_call")
+        switch.begin_call("call-1")
+        again = switch.observe(CallEvent("evt-early", "call-1", "completed"))
+        self.assertEqual(again.status, "recorded")
+        self.assertEqual(switch.in_flight_call_ids, ())
+
+    # -------------------------------------------------- review regressions (F6)
+    def test_reauth_ref_is_recorded_and_conflicts_on_reuse(self) -> None:
+        switch = self.make()
+        switch.request_switch(SwitchRequest("evt-1", "auth_expired"))
+        with self.assertRaises(InvalidSwitch):
+            switch.resume_current("evt-relogin", reauth_ref="not a valid ref")
+        resumed = switch.resume_current("evt-relogin", reauth_ref="relogin-ref-1")
+        self.assertEqual(resumed.status, "resumed")
+        self.assertEqual(resumed.record["reauth_ref"], "relogin-ref-1")
+        self.assertEqual(switch.resume_current("evt-relogin", reauth_ref="relogin-ref-1").status, "duplicate")
+        with self.assertRaises(SwitchConflict):
+            switch.resume_current("evt-relogin", reauth_ref="relogin-ref-2")
+
+    # -------------------------------------------------- review regressions (F7)
+    def test_fingerprint_detects_accidental_mismatch_but_is_not_tamper_proof(self) -> None:
+        self.assertNotIn("tampered", InvalidSwitchJournal.__doc__)
+        self.make().request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 100))
+        path = self.journal.path
+        with closing(sqlite3.connect(path, isolation_level=None)) as connection:
+            seq, text = connection.execute(
+                "SELECT seq, document FROM switch_records WHERE event_id = 'evt-1' AND phase = 'request'").fetchone()
+        document = json.loads(text)
+        document["budget_remaining"] = 999
+        forged = journal_module._canonical(document)
+
+        def rewrite(fingerprint=None):
+            with closing(sqlite3.connect(path, isolation_level=None)) as connection:
+                connection.execute("DROP TRIGGER switch_records_no_update")
+                if fingerprint is None:
+                    connection.execute("UPDATE switch_records SET document = ? WHERE seq = ?", (forged, seq))
+                else:
+                    connection.execute("UPDATE switch_records SET document = ?, fingerprint = ? WHERE seq = ?",
+                                       (forged, fingerprint, seq))
+                connection.execute(journal_module._STATEMENTS[2])
+
+        rewrite()
+        with self.assertRaises(InvalidSwitchJournal):
+            SwitchJournal(path)
+        rewrite(journal_module._fingerprint("evt-1", "request", "director-1", "accepted", forged))
+        # A recomputed unkeyed fingerprint is accepted: documented limitation.
+        self.assertEqual(SwitchJournal(path).get("evt-1")["budget_remaining"], 999)
+
+    # -------------------------------------------------- review regressions (F9)
+    def test_clock_failure_at_application_point_changes_nothing_and_can_retry(self) -> None:
+        clock_state = {"fail": False}
+
+        def clock():
+            if clock_state["fail"]:
+                raise RuntimeError("synthetic clock failure")
+            return datetime(2030, 1, 1, tzinfo=timezone.utc)
+
+        switch = self.make(clock=clock)
+        switch.begin_call("call-1")
+        switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 100))
+        clock_state["fail"] = True
+        with self.assertRaises(SwitchError):
+            switch.observe(CallEvent("evt-done", "call-1", "completed"))
+        self.assertEqual(switch.state, "switch_pending")
+        self.assertEqual(switch.pending_event_id, "evt-1")
+        self.assertEqual(switch.in_flight_call_ids, ("call-1",))
+        self.assertEqual(self.runner.activations, [])
+        clock_state["fail"] = False
+        retried = switch.observe(CallEvent("evt-done", "call-1", "completed"))
+        self.assertEqual(retried.status, "recorded")
+        self.assertEqual(retried.switch.status, "applied")
+        self.assertEqual(switch.binding.position, "fallback:0")
+
+    # -------------------------------------------------- test-gap coverage (F8)
+    def test_activation_failures_for_handoff_and_runner_results_keep_binding(self) -> None:
+        cases = (
+            ("continuity-error", StubContinuity(error=RuntimeError("synthetic outage")), False,
+             "CONTINUITY_UNAVAILABLE"),
+            ("invalid-handoff", StubContinuity(result=object()), False, "INVALID_HANDOFF"),
+            ("invalid-runner", self.continuity, True, "INVALID_RUNNER_RESULT"),
+        )
+        for name, continuity, invalid_result, code in cases:
+            with self.subTest(case=name):
+                self.runner.invalid_result = invalid_result
+                switch = self.make(continuity=continuity)
+                outcome = switch.request_switch(SwitchRequest(f"evt-{name}", "user_request", "fallback:0", 100))
+                self.assertEqual(outcome.status, "activation_failed")
+                self.assertEqual(outcome.apply_record["reasons"], [code])
+                self.assertEqual(switch.binding.position, "primary")
+                self.assertEqual(switch.state, "decision_required")
+        self.assertEqual(len(self.runner.activations), 1)
+
+    def test_inventory_change_while_pending_fails_the_recheck(self) -> None:
+        switch = self.make()
+        switch.begin_call("call-1")
+        switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 100))
+        self.inventory.supported.pop(("conn-b", "synthetic-model-beta"))
+        outcome = switch.observe(CallEvent("evt-done", "call-1", "completed")).switch
+        self.assertEqual(outcome.status, "recheck_failed")
+        self.assertEqual(outcome.apply_record["reasons"][:2], ["RECHECK_REJECTED", "CAPABILITY_REJECTED"])
+        self.assertEqual(switch.binding.position, "primary")
+        self.assertEqual(self.runner.activations, [])
+
+    def test_failed_call_is_an_application_point_without_rerun(self) -> None:
+        switch = self.make()
+        switch.begin_call("call-1")
+        switch.request_switch(SwitchRequest("evt-1", "user_request", "fallback:0", 100))
+        outcome = switch.observe(CallEvent("evt-failed", "call-1", "failed"))
+        self.assertEqual(outcome.switch.status, "applied")
+        self.assertEqual(switch.binding.position, "fallback:0")
+        self.assertEqual(len(self.runner.activations), 1)
+
+    def test_restart_restores_blocked_state_and_detects_changed_profile(self) -> None:
+        self.make().request_switch(SwitchRequest("evt-1", "auth_expired"))
+        restarted = self.make(journal=SwitchJournal(self.journal.path))
+        self.assertEqual(restarted.state, "reauth_required")
+        self.assertEqual(restarted.block_codes, ("REAUTH_REQUIRED",))
+        self.assertEqual(restarted.resume_current("evt-r").status, "resumed")
+        self.assertEqual(restarted.request_switch(
+            SwitchRequest("evt-2", "user_request", "fallback:0", 100)).status, "applied")
+        self.profiles.entries["director-1"] = Revisioned(director_profile(), 4)
+        changed = self.make(journal=SwitchJournal(self.journal.path))
+        self.assertEqual(changed.state, "decision_required")
+        self.assertEqual(changed.block_codes, ("PROFILE_CHANGED_SINCE_LAST_SWITCH",))
+
+    def test_reviewer_profile_is_rejected(self) -> None:
+        self.profiles.entries["reviewer-1"] = Revisioned(reviewer_profile(), 2)
+        with self.assertRaises(InvalidSwitch):
+            self.make(profile_id="reviewer-1", policy=None)
 
 
 if __name__ == "__main__":

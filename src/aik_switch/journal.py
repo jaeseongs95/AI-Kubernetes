@@ -4,6 +4,9 @@ Path validation and the cooperating process lock are reused from
 aik_runtime.paths. Every operation opens a fresh connection under that lock in
 one IMMEDIATE transaction (DELETE journal, FULL sync). Triggers reject UPDATE
 and DELETE. (event_id, phase) is unique: the same event is recorded once.
+The per-row fingerprint is an unkeyed SHA-256 consistency check. It detects
+accidental damage, but a program with file access can rewrite rows and
+recompute it; it is not tamper protection.
 """
 
 from __future__ import annotations
@@ -134,6 +137,7 @@ def _canonical(document: object) -> str:
 
 
 def _fingerprint(event_id: str, phase: str, director_id: str, status: str, text: str) -> str:
+    """Unkeyed consistency digest: detects accidental damage, not deliberate rewriting."""
     material = "\0".join(("aik-switch", event_id, phase, director_id, status, text))
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 

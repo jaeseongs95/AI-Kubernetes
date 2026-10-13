@@ -1,15 +1,22 @@
 """Director profile switch state machine.
 
 States: active, switch_pending, reauth_required, decision_required.
-- A switch accepted while calls are in flight is pending; new calls are refused
-  (SwitchPending) so the application point is exactly "the last in-flight call
-  was observed terminal". Cancellation counts only once it is observed.
-- An in-flight call keeps the binding it started with; it is never resumed on
+- A switch accepted while calls are in flight becomes pending. New calls are
+  refused (SwitchPending), so the application point is exactly "the last
+  in-flight call was observed terminal". A cancellation counts only once it is
+  observed.
+- An in-flight call keeps the binding it started with. It is never resumed on
   the new model. The runner receives only the aik_continuity handoff packet.
-- At application the profile revision, policy and inventory are checked again.
-- Failure reasons without a qualifying candidate block new calls until a later
-  switch or an explicit resume_current().
-Only the director profile is read; nothing here writes any profile.
+- At application the profile revision, policy, inventory and budget are checked
+  again. A deferred application reads the current budget from the optional
+  budget port. Without that port, a candidate with a cost fails as
+  BUDGET_UNKNOWN.
+- A failure reason without a qualifying candidate blocks new calls. The block
+  ends with a later switch or an explicit resume_current().
+- An applied record whose journal write failed is kept in memory. It is
+  re-appended before any later switch or resume, so the binding change is never
+  released without its record.
+Only the director profile is read. Nothing here writes any profile.
 """
 
 from __future__ import annotations
@@ -42,13 +49,15 @@ class DirectorSwitch:
     """Switch the director binding at explicit application points; never workers."""
 
     def __init__(self, *, profiles, profile_id: str, inventory, runner, continuity, project_id: str,
-                 journal: SwitchJournal, policy: SwitchPolicy | None = None, clock=None):
+                 journal: SwitchJournal, policy: SwitchPolicy | None = None, clock=None, budget=None):
         check_id(profile_id, "profile_id")
         check_id(project_id, "project_id")
         for port, method in ((profiles, "get"), (inventory, "validate"), (runner, "activate"),
                              (continuity, "handoff")):
             if not callable(getattr(port, method, None)):
                 raise InvalidSwitch(f"A required port does not provide {method}().")
+        if budget is not None and not callable(getattr(budget, "remaining", None)):
+            raise InvalidSwitch("A budget port must provide remaining().")
         if type(journal) is not SwitchJournal:
             raise InvalidSwitch("A SwitchJournal is required.")
         if policy is not None:
@@ -67,6 +76,7 @@ class DirectorSwitch:
         self._project_id = project_id
         self._journal = journal
         self._policy = policy
+        self._budget = budget
         self._clock = clock if clock is not None else (lambda: datetime.now(timezone.utc))
         self._lock = threading.RLock()
         profile, revision = self._load_profile()
@@ -77,6 +87,7 @@ class DirectorSwitch:
         self._ended: set[str] = set()
         self._call_events: dict[str, str] = {}
         self._pending: dict | None = None
+        self._unrecorded: dict | None = None
         self._restore(profile, revision)
 
     # ------------------------------------------------------------ properties
@@ -139,6 +150,18 @@ class DirectorSwitch:
         except Exception:
             return None
 
+    def _current_budget(self) -> tuple:
+        """The remaining budget at a deferred application point; unknown is None."""
+        if self._budget is None:
+            return None, "NO_BUDGET_SOURCE"
+        try:
+            value = self._budget.remaining(self._project_id)
+        except Exception:
+            return None, "BUDGET_SOURCE_UNAVAILABLE"
+        if type(value) is not int or not 0 <= value <= MAX_INTEGER:
+            return None, "BUDGET_NOT_REPORTED"
+        return value, "budget_port"
+
     def _restore(self, profile, revision: int) -> None:
         applied = self._journal.latest_applied(self._profile_id)
         if applied is not None:
@@ -149,6 +172,11 @@ class DirectorSwitch:
             self._binding = restored
         latest = self._journal.latest(self._profile_id)
         if latest is None:
+            return
+        if latest.get("kind") == "resume" and latest.get("previous") != binding_to_dict(self._binding):
+            # A resume released a binding that the applied records do not
+            # explain (for example an apply record lost before this fix).
+            self._state, self._block_codes = "decision_required", ("RESUMED_BINDING_MISMATCH",)
             return
         state = latest.get("state_after")
         if state == "switch_pending":
@@ -177,12 +205,16 @@ class DirectorSwitch:
         return {"event_id": event_id, "phase": phase, "kind": kind, "status": status,
                 "director_id": self._profile_id, "project_id": self._project_id, "recorded_at": now}
 
-    def _duplicate(self, event_id: str) -> SwitchOutcome | None:
+    def _duplicate(self, event_id: str, expected: dict) -> SwitchOutcome | None:
+        """Same event ID and same request content is a duplicate; other reuse conflicts."""
         stored = self._journal.get(event_id, "request")
         if stored is None:
             return None
         if stored.get("director_id") != self._profile_id:
             raise SwitchConflict("Another director already used this event ID.")
+        expected = {"project_id": self._project_id, **expected}
+        if any(stored.get(key) != value for key, value in expected.items()):
+            raise SwitchConflict("A different switch request already used this event ID.")
         return SwitchOutcome("duplicate", event_id, self._state, self._binding, stored,
                              self._journal.get(event_id, "apply"))
 
@@ -195,7 +227,19 @@ class DirectorSwitch:
             return self._journal.append(document)[2]
         except BaseException:
             self._state, self._block_codes = "decision_required", ("JOURNAL_WRITE_FAILED",)
+            if document.get("phase") == "apply" and document.get("status") == "applied":
+                # The binding already changed; keep the record for reconciliation.
+                self._unrecorded = dict(document)
             raise
+
+    def _reconcile(self) -> str | None:
+        """Re-append an applied record whose write failed; raise if it still fails."""
+        document = self._unrecorded
+        if document is None:
+            return None
+        self._journal.append(document)
+        self._unrecorded = None
+        return document["event_id"]
 
     # ------------------------------------------------------------ calls
     def begin_call(self, call_id: str) -> DirectorBinding:
@@ -222,16 +266,20 @@ class DirectorSwitch:
                 if known != event.call_id:
                     raise SwitchConflict("A different call already used this event ID.")
                 return CallOutcome("duplicate", event.event_id, event.call_id, event.kind)
-            self._call_events[event.event_id] = event.call_id
             if event.call_id in self._ended:
+                self._call_events[event.event_id] = event.call_id
                 return CallOutcome("already_terminal", event.event_id, event.call_id, event.kind)
             if event.call_id not in self._calls:
+                # Not consumed: the same event may be delivered again after begin_call().
                 return CallOutcome("unknown_call", event.event_id, event.call_id, event.kind)
+            applies = (self._state == "switch_pending" and self._pending is not None
+                       and set(self._calls) == {event.call_id})
+            # Read the clock before any change so a clock failure is retryable.
+            now = self._now() if applies else None
+            self._call_events[event.event_id] = event.call_id
             del self._calls[event.call_id]
             self._ended.add(event.call_id)
-            applied = None
-            if self._state == "switch_pending" and self._pending is not None and not self._calls:
-                applied = self._apply_pending()
+            applied = self._apply_pending(now, deferred=True) if applies else None
             return CallOutcome("recorded", event.event_id, event.call_id, event.kind, applied)
 
     # ------------------------------------------------------------ switching
@@ -240,10 +288,14 @@ class DirectorSwitch:
             raise InvalidSwitch("Only SwitchRequest records can be processed.")
         request = rebuild(request)
         with self._lock:
-            duplicate = self._duplicate(request.event_id)
+            duplicate = self._duplicate(request.event_id, {
+                "kind": "switch_request", "reason": request.reason, "target": request.target,
+                "budget_remaining": request.budget_remaining,
+            })
             if duplicate is not None:
                 return duplicate
             now = self._now()
+            self._reconcile()
             previous = self._binding
             auth = request.reason in AUTH_REASONS
             candidates: list[CandidateCheck] = []
@@ -311,20 +363,16 @@ class DirectorSwitch:
                              "record": stored}
             if self._calls:
                 return SwitchOutcome("pending", request.event_id, self._state, self._binding, stored)
-            return self._apply_pending()
+            return self._apply_pending(now, deferred=False)
 
-    def _apply_pending(self) -> SwitchOutcome:
+    def _apply_pending(self, now: str, *, deferred: bool) -> SwitchOutcome:
         plan = self._pending
         self._pending = None
-        try:
-            now = self._now()
-        except SwitchError:
-            self._state, self._block_codes = "decision_required", ("CLOCK_UNAVAILABLE",)
-            raise
         previous = self._binding
         failure = None
         check = None
         profile = revision = None
+        budget = budget_source = None
         loaded = self._try_load()
         if loaded is None:
             failure = ("recheck_failed", ("PROFILE_UNAVAILABLE",))
@@ -333,9 +381,14 @@ class DirectorSwitch:
             if revision != plan["profile_revision"]:
                 failure = ("recheck_failed", ("PROFILE_CHANGED",))
             else:
+                if deferred:
+                    # In-flight calls may have consumed budget since the request.
+                    budget, budget_source = self._current_budget()
+                else:
+                    budget, budget_source = plan["budget_remaining"], "request"
                 check = evaluate(plan["position"], profile=profile, revision=revision, policy=self._policy,
                                  inventory=self._inventory, current=previous, reason=plan["reason"],
-                                 budget_remaining=plan["budget_remaining"])
+                                 budget_remaining=budget)
                 if not check.accepted:
                     failure = ("recheck_failed", ("RECHECK_REJECTED", *check.reasons))
         handoff = None
@@ -365,6 +418,7 @@ class DirectorSwitch:
         document.update({"reason": plan["reason"], "position": plan["position"],
                          "previous": binding_to_dict(previous), "new": None, "approval": None,
                          "recheck": None if check is None else check.to_dict(),
+                         "budget_remaining_at_apply": budget, "budget_source": budget_source,
                          "checkpoint": None, "checkpoint_reason": None, "handoff": None})
         document.update({name: None for name in _OBSERVATION_FIELDS})
         if failure is not None:
@@ -408,14 +462,23 @@ class DirectorSwitch:
         return SwitchOutcome("applied", plan["event_id"], self._state, self._binding, plan["record"], stored,
                              session, handoff)
 
-    def resume_current(self, event_id: str) -> SwitchOutcome:
-        """After re-login or a user decision: recheck the current binding and unblock."""
+    def resume_current(self, event_id: str, *, reauth_ref: str | None = None) -> SwitchOutcome:
+        """After re-login or a user decision: recheck the current binding and unblock.
+
+        reauth_ref is an optional caller-supplied re-login reference. It is
+        format-checked and recorded only; the login itself is not verified here.
+        A lost applied record is re-appended first; if that still fails, the
+        block remains and the error propagates.
+        """
         check_id(event_id, "event_id")
+        if reauth_ref is not None:
+            check_id(reauth_ref, "reauth_ref")
         with self._lock:
-            duplicate = self._duplicate(event_id)
+            duplicate = self._duplicate(event_id, {"kind": "resume", "reauth_ref": reauth_ref})
             if duplicate is not None:
                 return duplicate
             now = self._now()
+            reconciled = self._reconcile()
             previous = self._binding
             check = None
             state_after, block = self._state, self._block_codes
@@ -439,6 +502,7 @@ class DirectorSwitch:
                         status, reasons = "decision_required", check.reasons
             document = self._base(event_id, "request", "resume", status, now)
             document.update({"reason": "resume_current", "previous": binding_to_dict(previous),
+                             "reauth_ref": reauth_ref, "reconciled_apply_event_id": reconciled,
                              "recheck": None if check is None else check.to_dict(), "reasons": list(reasons)})
             stored = self._commit(document, state_after, block)
             return SwitchOutcome(status, event_id, self._state, self._binding, stored)
