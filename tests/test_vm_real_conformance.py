@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 import importlib
 import importlib.util
 import inspect
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -457,6 +458,22 @@ def _upstream():
 
 
 UPSTREAM, UPSTREAM_REASON = _upstream()
+
+
+# CI sets AIK_REQUIRE_UPSTREAM=1 after a non-editable install of the pinned
+# upstream; then an unavailable or source-only upstream is a failure, not NOT_RUN.
+REQUIRE_UPSTREAM = os.environ.get("AIK_REQUIRE_UPSTREAM") == "1"
+
+
+@unittest.skipUnless(REQUIRE_UPSTREAM, "AIK_REQUIRE_UPSTREAM is not set (local development run)")
+class UpstreamRequirementTests(unittest.TestCase):
+    def test_required_upstream_is_importable_and_installed_not_source(self) -> None:
+        self.assertIsNone(UPSTREAM_REASON)
+        import importlib.metadata
+        import flowmarshal
+        self.assertEqual(importlib.metadata.version("flowmarshal-engine"), "0.2.0a1")
+        location = Path(flowmarshal.__file__).resolve()
+        self.assertIn("site-packages", location.parts, location)
 
 
 def _create_project(service, name: str, root: Path):

@@ -66,3 +66,53 @@ jobs:
           if missing:
               sys.exit("packages without a test module import: " + ", ".join(missing))
           print("packages covered:", len(packages))
+
+  upstream-conformance:
+    # Installs the pinned VM (vibemarshal 32bb0f9) non-editable and runs the
+    # real-surface conformance tests with skips turned into failures. Needs the
+    # repository secret VM_UPSTREAM_TOKEN (read access to the private upstream);
+    # without it the job reports NOT_RUN and does not claim conformance.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
+      VM_UPSTREAM_TOKEN: ${{ secrets.VM_UPSTREAM_TOKEN }}
+    steps:
+      - name: Report NOT_RUN without upstream access
+        if: env.VM_UPSTREAM_TOKEN == ''
+        shell: bash
+        run: echo "::warning title=Upstream conformance NOT_RUN::VM_UPSTREAM_TOKEN secret is not configured; real VM conformance was not executed."
+      - name: Checkout the exact source revision
+        if: env.VM_UPSTREAM_TOKEN != ''
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Checkout pinned upstream VM
+        if: env.VM_UPSTREAM_TOKEN != ''
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: jaeseongs95/vibemarshal
+          ref: 32bb0f9dd9f024045d24487312b50f5b703573a3
+          token: ${{ secrets.VM_UPSTREAM_TOKEN }}
+          path: upstream-vm
+          persist-credentials: false
+      - name: Python pinned runtime
+        if: env.VM_UPSTREAM_TOKEN != ''
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Install pinned upstream non-editable
+        if: env.VM_UPSTREAM_TOKEN != ''
+        run: |
+          python -m pip install -r upstream-vm/requirements.lock
+          python -m pip install --no-deps ./upstream-vm
+      - name: Real upstream conformance (skips are failures)
+        if: env.VM_UPSTREAM_TOKEN != ''
+        env:
+          AIK_REQUIRE_UPSTREAM: '1'
+        run: python -m unittest tests.test_vm_real_conformance -v
