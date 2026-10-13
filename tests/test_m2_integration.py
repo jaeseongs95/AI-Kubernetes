@@ -68,7 +68,7 @@ from aik_provider.contracts import (  # noqa: E402
 )
 from aik_provider.controller import GuardedAdapter  # noqa: E402
 from aik_readmodel import ReadModel, SourceEvent, from_bridge_receipt, from_lease  # noqa: E402
-from aik_recovery import EffectRef, RecoveryJournal, RecoveryReconciler  # noqa: E402
+from aik_recovery import EffectRef, RecoveryJournal, RecoveryReconciler, ToolEffectAdapter  # noqa: E402
 from aik_runtime import ExecutionProfile, Lease, Placement, Pool, RuntimeStore  # noqa: E402
 from aik_validation import IndependentChecker, ValidationError, build_completion_view  # noqa: E402
 from aik_vm_bridge.bridge import BridgeReceipt, VmRefs  # noqa: E402
@@ -769,20 +769,32 @@ class M2IntegrationTests(unittest.TestCase):
                                                                 "attempt-1", MODEL), requested_model=MODEL)
         self.assertEqual(again.state, "send_unknown")
         self.assertEqual(provider.start_calls, 0)
-        effects = FakeEffects()
-        effect = EffectRef("attempt-1", "tool-call-unknown", "dev.create_file", False, False, "non_idempotent")
-        effects.refs = (effect,)
+        # The worker's API loop had journaled a tool intent but no receipt when the process died.
+        api_identity = replace(record.identity, request_id="api-attempt-1", path="api")
+        journal.register(api_identity)
+        journal.tool_event("api-attempt-1", "tool-call-unknown", "intent",
+                           {"tool": "create_file", "arguments_digest": digest("args"), "effect_id": None,
+                            "input_revision": INPUT_REVISION, "authorization_revision": 1})
+        resent = []
+        tool_effects = ToolEffectAdapter(journal, resend=lambda *args: resent.append(args))
+        effect = EffectRef("attempt-1", "tool-call-unknown", "create_file", False, False, "non_idempotent")
+        self.assertEqual(tool_effects.inflight(), (effect,))
+        effects = FakeEffects()  # lifecycle teardown port: the effect is still unresolved
         effects.pending["attempt-1"] = (effect,)
         reconciler = RecoveryReconciler(
             runtime, leases, observer, vm_port=FakeVm({"attempt-1": "active"}), job_port=provider,
-            effect_port=effects, journal=RecoveryJournal(self.state / "recovery.sqlite3"), clock=self.clock,
+            effect_port=tool_effects, journal=RecoveryJournal(self.state / "recovery.sqlite3"), clock=self.clock,
         )
         report = reconciler.reconcile()
         lease_decisions = [d for d in report.decisions if d.subject_id == lease_id]
         self.assertTrue(lease_decisions, "the unknown lease must leave a journaled decision")
         for decision in lease_decisions:
             self.assertNotIn(decision.action, ("release_provider_terminal", "release_undispatched"))
-        self.assertIn(effect.subject_id, [d.subject_id for d in report.decisions] + list(report.failures))
+        effect_decisions = [d.action for d in report.decisions
+                            if d.subject_id == effect.subject_id and d.outcome == "applied"]
+        self.assertEqual(effect_decisions, ["handoff_vm_unknown"])
+        self.assertEqual([e.state for e in journal.tool_events("api-attempt-1")], ["intent", "effect_unknown"])
+        self.assertEqual(resent, [])
         self.assertEqual(provider.start_calls, 0)
         self.assertEqual(effects.executed, [])
         self.assertIn(runtime.get(Lease, lease_id).value.state, HOLDING_STATES)

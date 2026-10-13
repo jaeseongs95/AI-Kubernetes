@@ -11,6 +11,7 @@ never creates a retry. VM's unknown/retry contract stays the authority. No
 exactly-once delivery or execution is claimed.
 """
 
+from .adapters import READ_ONLY_TOOLS, UNKNOWN_CODE, ToolEffectAdapter
 from .journal import APPLICATION_ID, SCHEMA_VERSION, RecoveryJournal, decision_fingerprint
 from .models import (
     ACTIONS, IDEMPOTENCY_CLASSES, OUTCOMES, SUBJECT_KINDS, VM_STATES, EffectRef,
@@ -19,7 +20,7 @@ from .models import (
 from .reconciler import LEASE_SCAN_STATES, RecoveryReconciler
 
 __all__ = [
-    "RecoveryReconciler", "RecoveryJournal", "decision_fingerprint", "APPLICATION_ID", "SCHEMA_VERSION",
+    "RecoveryReconciler", "RecoveryJournal", "ToolEffectAdapter", "READ_ONLY_TOOLS", "UNKNOWN_CODE", "decision_fingerprint", "APPLICATION_ID", "SCHEMA_VERSION",
     "EffectRef", "RecoveryDecision", "RecoveryReport", "RecoveryError",
     "ACTIONS", "OUTCOMES", "SUBJECT_KINDS", "VM_STATES", "IDEMPOTENCY_CLASSES", "LEASE_SCAN_STATES",
 ]

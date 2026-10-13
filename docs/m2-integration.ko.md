@@ -70,7 +70,7 @@ dispatch는 실제 `NativeDispatcher`와 실제 `aik_provider.controller.Guarded
 - **초안의 시험 입력 오류(수정함)**: pause 사유에 공백이 든 문장을 넣어 `INVALID_REASON`이 났다. `LifecycleGate`는 사유를 식별자 형식으로 받는다. 모듈 결함이 아니므로 시험 입력을 식별자로 고쳤다.
 - **placement 재사용 규칙(불일치 없음)**: 시나리오 2(pause 뒤 같은 Attempt granted)와 시나리오 3(`failed` placement가 남은 같은 Attempt 거절)이 함께 통과한다. `ElasticityController`가 planner 호출 전에 lifecycle gate를 확인해 pause 중에는 placement를 만들지 않기 때문이다(AIK-041).
 - **재시작 뒤 dispatch(불일치 없음)**: 같은 파일로 다시 연 `NativeDispatcher.recover()`는 `send_unknown` 기록을 바꾸지 않는다. 같은 request ID로 다시 dispatch해도 저장된 기록을 돌려주며 provider를 호출하지 않는다.
-- **recovery effect port의 실제 adapter 부재(알려진 한계)**: `LifecycleController`의 effect port(`unresolved`)에는 실제 adapter `aik_lifecycle.BindingEffectAdapter`가 있다. 반면 `RecoveryReconciler`의 effect port(`inflight`·`mark_unknown`·`resend_result`)에는 실제 `ExecutionBindingStore`/`AikEffectJournal` adapter가 없어 이 시험도 fake를 쓴다. AIK-039 근거에 기록된 한계와 같다.
+- **recovery effect port(해소, API 경로)**: 처음 실행 때는 `RecoveryReconciler`의 effect port에 실제 adapter가 없어 fake를 썼다. 이후 `aik_recovery.ToolEffectAdapter`를 추가했고, 시나리오 4는 재시작한 `DispatchJournal`에 남은 intent만 있는 tool call을 이 adapter로 대조한다. 결과는 `handoff_vm_unknown`과 `effect_unknown` 기록이며 재전송·재실행은 없다. hosted runtime 경로(`AikEffectJournal`) adapter는 아직 없다. lifecycle teardown의 effect port는 이 시나리오에서 여전히 fake다.
 - **runtime 변경 피드 부재(알려진 한계)**: `aik_readmodel.from_lease`의 cursor는 호출자가 공급해야 한다. runtime 저장소에 변경 피드가 없어 시험이 cursor를 수동으로 증가시킨다(AIK-043 한계).
 
 ## NOT_RUN

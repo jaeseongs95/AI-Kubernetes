@@ -32,6 +32,8 @@
 - `dispatch_events(seq, request_id, state, data_json, at)` — `(request_id, state)` 유일
 - `tool_events(seq, request_id, tool_call_id, state, data_json, at)` — `(request_id, tool_call_id, state)` 유일
 
+`open_tool_requests()`는 `returned`되지 않은 tool call이 하나라도 있는 request ID를 첫 tool event 순서로 돌려주는 읽기 전용 조회다. API 경로 등록은 dispatch 이벤트가 없어 `request_ids_in_state`로 찾을 수 없으므로, 재시작 뒤 recovery(`aik_recovery.ToolEffectAdapter`)가 이 조회를 쓴다.
+
 세 테이블 모두 UPDATE/DELETE trigger로 거절한다. 연결은 연산마다 열고 `contextlib.closing`으로 닫는다. 이벤트 데이터에는 ID·digest·예외 클래스 이름만 남기며 provider 응답 원문, 예외 메시지, 도구 인자·파일 내용은 남기지 않는다.
 
 ## 디스패치 상태 (native)
