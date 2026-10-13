@@ -1165,5 +1165,109 @@
    "다중 프로세스 동시 reconcile",
    "Windows 실행"
   ]
+ },
+ {
+  "task_id": "AIK-041",
+  "implemented": "src/aik_elastic의 ElasticityController가 VM ready 순서를 그대로 따라 AIK-033 PlacementPlanner로 배치하고, aik_lifecycle.GatedLeaseManager로만 lease를 확보한다(게이트 없는 manager는 UNGATED_LEASE_MANAGER로 거절). pool별 점유 lease 수(HOLDING_STATES)로 CAPACITY_EXHAUSTED·CONTROL_RESERVE 대기를 결정하고, control_reserve 슬롯만큼 worker 점유를 막는다. planner 호출 전에 pool·프로젝트 lifecycle gate를 확인해 pause 중 Attempt placement 소모를 막는다. dispatch되지 않은 reserved lease를 idle_seconds 뒤 반환하고, 완료/실패 뒤 정리는 LifecycleController.teardown에 위임한다.",
+  "verified": "tests/test_elastic.py 7개가 실제 RuntimeStore·BudgetStore·PlacementPlanner·LifecycleGate·GatedLeaseManager·WorkerObserver와 주입 시계로 같은 프로젝트 직렬, 다른 프로젝트 제한 병렬·CAPACITY_EXHAUSTED, control reserve(max_parallel 2/1), pause 대기와 resume 후 grant, 미전송 reserved lease만 회수, 미해결 효과 시 teardown 미정리를 검사한다. LeaseManager.reserve만 grant double로 바꿔 예산 승인 경로는 이 시험에서 실행하지 않았다.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "partial",
+    "reason": "VM ready 순서와 planner의 프로젝트 직렬·qualified route 제약을 따르는 제한 병렬 배정은 단위 시험했다. 복수 worker의 실제 동시 실행은 실제 provider·worker 프로세스 없이 검증하지 않았다."
+   },
+   {
+    "ordinal": 2,
+    "status": "partial",
+    "reason": "유휴 미전송 lease 반환과 teardown 위임(evidence 검증·usage 정산·자체 생성 worker 종료 규칙)은 단위 시험했다. 실제 worker 프로세스 종료와 실제 usage 회수는 NOT_RUN이다."
+   },
+   {
+    "ordinal": 3,
+    "status": "unit_scope_met",
+    "reason": "control_reserve로 pool의 worker 점유 상한을 max_parallel - n으로 제한한다. 실제 provider 용량이나 제어 경로 성공을 보장하지 않는 AIK 배정 상한이다."
+   }
+  ],
+  "blockers": [
+   "실제 provider·worker 프로세스로 복수 worker 동시 실행 미검증",
+   "planner와 reserve 사이 pause·경합 시 해당 Attempt는 VM이 새 Attempt를 줄 때까지 재배치 불가",
+   "선행 AIK-003 Windows 실기 검증 미완료"
+  ],
+  "not_run": [
+   "복수 worker 실제 동시 실행",
+   "실제 worker 프로세스 생성·종료",
+   "예산 승인 경로를 포함한 reserve 결합 시험",
+   "Windows 실행"
+  ]
+ },
+ {
+  "task_id": "AIK-042",
+  "implemented": "src/aik_validation에 CompletionView를 구현해 provider 관측·dispatch ACK·worker 완료 선언·독립 검사·VM validation ID·VM gate 투영·GoalVerdict ID·재작업 사유를 출처와 함께 분리 표시한다. completion_authority는 항상 vm이고 vm_verdict_recorded는 VM final_report의 goal_verdict_id로만 참이 된다. VM 응답은 기대 command의 실제 BridgeReceipt만 읽고 Attempt·프로젝트 불일치를 거절한다. IndependentChecker는 reviewer 역할과 worker와 다른 세션만 허용하고(NOT_INDEPENDENT) 정책 고정 DevTools 검증 명령을 실행해 PASS/FAIL/ORACLE_CHANGED를 append-only CheckJournal에 기록한다.",
+  "verified": "tests/test_validation.py 9개가 합성 payload를 담은 실제 BridgeReceipt와 실제 governance 투영, 실제 자식 프로세스 DevTools(fake authority)로 상태 분리, 완료 선언·PASS·ACK가 VM 판정을 만들지 않음, Attempt·프로젝트 불일치 거절, 독립성 거절, oracle 변경 판정, 재검사 append-only와 tool call 충돌을 검사한다.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "unit_scope_met",
+    "reason": "provider 관측·ACK·독립 검사·VM validation·gate·GoalVerdict를 서로 다른 필드와 provenance로 두고 어느 신호도 VM 판정으로 승격하지 않는다."
+   },
+   {
+    "ordinal": 2,
+    "status": "partial",
+    "reason": "reviewer 역할·별도 세션과 실행 provenance를 기록하고 자기 완료 선언을 승격하지 않는다. AGS 독립검토의 실제 실행과 실제 authority gateway 인가는 NOT_RUN이다."
+   },
+   {
+    "ordinal": 3,
+    "status": "unit_scope_met",
+    "reason": "VM 응답을 재해석하지 않고 재작업 사유를 원문 순서로 회수하며 검사 명령도 기존 authority gateway를 거친다."
+   },
+   {
+    "ordinal": 4,
+    "status": "partial",
+    "reason": "정책 고정 명령과 oracle 변경 감지(ORACLE_CHANGED)로 worker의 기준 변경을 통과시키지 않는 것은 단위 시험했다. 의도된 실패 뒤 VM 재작업/Goal Test를 거쳐 수정 bytes로 성공하는 실제 루프는 NOT_RUN이다."
+   }
+  ],
+  "blockers": [
+   "실제 VM Goal Test·재작업 루프와의 결합 미검증",
+   "AIK-081 A2 호환 AGS plugin 미확보로 AGS 독립검토 실행 불가",
+   "선행 AIK-031 hosted 경로의 실제 governed 실행 미검증"
+  ],
+  "not_run": [
+   "실제 VM이 반환한 BridgeReceipt와의 결합",
+   "AGS 독립검토 실제 실행과 authority gateway reviewer 인가",
+   "의도된 실패 뒤 VM 재작업 루프",
+   "Windows 실행"
+  ]
+ },
+ {
+  "task_id": "AIK-043",
+  "implemented": "src/aik_readmodel에 non-authoritative ReadModel을 구현했다. source별 연속 cursor 적용, 같은 digest 중복 무시, 다른 digest의 CURSOR_CONFLICT·EVENT_ID_CONFLICT append-only 기록, gap 표시(stale)와 늦은 이벤트로 순서 역전 복원, event_log 재적용 rebuild와 projection_digest를 제공한다. refs 허용 키로 VM Goal/Task/Attempt·AIK placement/lease/dispatch·AGS workflow/session/peer/message·worker 주소를 연결하고, attempt_view는 attempt 고유 ID로만 확장한다. user_scope는 DB에 한 번 고정해 다른 범위 batch를 전부 거절한다. 어댑터는 실제 BridgeReceipt의 refs.history_cursor·ID·job.vm_status, lease, peer 메시지를 원문 그대로 옮긴다.",
+  "verified": "tests/test_readmodel.py 10개가 합성 ID를 담은 실제 BridgeReceipt·VmRefs·JobObservation과 합성 lease·peer 이벤트로 attempt 연결, peer 전달 이력, 중복·충돌, gap·순서 역전, rebuild digest 동일성, user_scope 거절, append-only trigger를 검사한다.",
+  "criteria": [
+   {
+    "ordinal": 1,
+    "status": "partial",
+    "reason": "VM·AGS·AIK ID를 refs와 links로 연결하는 projection은 단위 시험했다. 실제 VM History·AGS PEER 이벤트 수집기는 없다."
+   },
+   {
+    "ordinal": 2,
+    "status": "unit_scope_met",
+    "reason": "event_log 재적용 rebuild가 같은 projection_digest를 만들고 DB meta·모든 view에 non-authoritative를 표시한다."
+   },
+   {
+    "ordinal": 3,
+    "status": "partial",
+    "reason": "AGS peer의 delivered/claimed/acked/result와 worker 주소 연결, 같은 user_scope 고정은 구현했다. 실제 AGS 로컬 PEER와 OS principal 확인은 NOT_RUN이다."
+   }
+  ],
+  "blockers": [
+   "실제 VM History·AGS PEER 수집기 없음",
+   "VM history_cursor처럼 receipt 사이에 cursor가 비는 source는 영구 gap(stale)으로 남음",
+   "AIK-081 A2 호환 AGS plugin 미확보"
+  ],
+  "not_run": [
+   "실제 VM·AGS·provider 소스 연결",
+   "GUI 연결",
+   "OS 사용자 principal 확인",
+   "Windows 실행"
+  ]
  }
 ]
