@@ -1,0 +1,40 @@
+{
+  "task_id": "AIK-017",
+  "source_commit": "d8fb632c6bd7493e2f53f8e35d9b8ae3387682e2",
+  "recorded_at": "2026-10-13T03:49:18Z",
+  "github_run_id": "38343374083",
+  "tests": {
+    "tests": 38,
+    "passed": 38,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log_sha256": "4205b5cd57e94c02859a30bc345a4165b326d28aef5406e9150d09810c0c19c3"
+  },
+  "sources_sha256": {
+    "src/aik_security/redaction.py": "46059d78c1e7d7a48f1e2fb6e2a87cdc6f779c778cacf6d5020465ce3f162699",
+    "tests/test_security_redaction.py": "530f1a4c87e6c35381345161f4e4bb1c7ca56b52bf7a92a0e5833951721a7046",
+    "tests/test_security_redaction_boundaries.py": "0e9918708d8264f071e68dbb9625c5904b4e6e2ac81b9404410b4faed27db631"
+  },
+  "canonical_ledger_before_git_blob": "611bcdb4eb30d0a1c73687deb5d2080130db704f",
+  "canonical_ledger_after_git_blob": "97b9248ea0dafc1fba576552378a57a052820561",
+  "ledger_delta": {
+    "tasks_changed": [
+      "AIK-017"
+    ],
+    "evidence_added": 1,
+    "events_added": 1,
+    "other_tasks_unchanged": true,
+    "acceptance_criteria_unchanged": true,
+    "dependencies_unchanged": true,
+    "schema_unchanged": true
+  },
+  "counts": {
+    "tasks": 90,
+    "acceptance_criteria": 311,
+    "task_dependencies": 365
+  },
+  "ready_tasks": 0,
+  "task_status": "blocked",
+  "installed_product_integration": "NOT_RUN"
+}
