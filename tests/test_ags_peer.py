@@ -6,6 +6,8 @@ with a NOT_RUN reason. Linux results are development verification only.
 """
 from __future__ import annotations
 
+from contextlib import closing
+
 import hashlib
 import json
 import os
@@ -393,17 +395,17 @@ class PeerBridgeFakeTests(unittest.TestCase):
         record = self.bridge.send(ORCH, "worker-1", self.task_body())
         self.cli.call("claim", {"target": doc(WORKER)})
         self.bridge.observe(ORCH, record.ags_message_id)
-        with sqlite3.connect(self.journal_path) as connection:
+        with closing(sqlite3.connect(self.journal_path)) as connection:
             for statement in ("UPDATE peer_events SET state='acked'", "DELETE FROM peer_events",
                               "UPDATE send_records SET phase='sent'", "DELETE FROM send_records"):
                 with self.subTest(statement=statement):
                     with self.assertRaises(sqlite3.DatabaseError):
                         connection.execute(statement)
-        with sqlite3.connect(self.addresses.path) as connection:
+        with closing(sqlite3.connect(self.addresses.path)) as connection:
             with self.assertRaises(sqlite3.DatabaseError):
                 connection.execute("DELETE FROM worker_addresses")
         foreign = self.root / "foreign.sqlite3"
-        with sqlite3.connect(foreign) as connection:
+        with closing(sqlite3.connect(foreign)) as connection:
             connection.execute("PRAGMA application_id = 1234")
             connection.execute("CREATE TABLE unrelated (payload TEXT)")
         for constructor in (lambda: AddressBook(foreign),
