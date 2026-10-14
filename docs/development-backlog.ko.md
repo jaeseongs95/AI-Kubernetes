@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-13T16:58:36Z`
+- 수정일 (UTC): `2026-10-13T17:32:04Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
 - 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 43개 · 진행 중 0개 · 진행 차단 45개 · 완료 2개 · 취소 0개
+- 상태: 미착수 42개 · 진행 중 0개 · 진행 차단 46개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -33,7 +33,7 @@ python tools/backlog.py report
 | 단계 | 범위 | 태스크 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 착수 가능 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 0 | 0 | 7 | 2 | 0 | 0 |
-| M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 1 | 0 | 13 | 0 | 0 | 0 |
+| M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 0 | 0 | 14 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 2 | 0 | 25 | 0 | 0 | 0 |
 | M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
 | M4 · Windows 첫 배포 검증 | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
@@ -806,13 +806,13 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Windows qualification |
 | 작업 유형 | 검증 (`validation`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 23 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T17:32:04Z` |
 
 AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualification을 구분하고 선택 경로의 미지원은 독립 결과로 보관한다.
 
@@ -831,7 +831,7 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-022-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-022` · 부분 구현: PR #17(f731b1e, merge e025f41) 설치형 Windows 앱 auth_vault 카드가 제품 aik_vault DPAPI·aik_auth_lifecycle·aik_connection으로 합성 비밀 실패 경로 10개를 실행. Linux 시험(test_auth_vault.py 5개 등) PASS, GitHub Actions Windows Server installed-spike job 115434838577에서 실제 DPAPI 설치본 auth_vault PASS(로그 판정). 남은 기준 1(미충족: 실계정 경로 NOT_RUN), 2(부분: 다른 사용자 프로필 NOT_RUN), 3(부분). Windows 11 표준 사용자 실기 NOT_RUN. · `2026-10-13T17:32:04Z`
 
 ## M2 · 총괄 에이전트·AGS/VM 실행 통합
 
@@ -3751,7 +3751,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-13T16:58:36Z |
+| `updated_at` | 2026-10-13T17:32:04Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

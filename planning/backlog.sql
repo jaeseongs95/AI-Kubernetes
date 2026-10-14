@@ -365,7 +365,7 @@ INSERT INTO "metadata" VALUES('schema_version','1');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-13T16:58:36Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-13T17:32:04Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -1228,6 +1228,7 @@ INSERT INTO "task_events" VALUES(298,'AIK-043','verification_progress','blocked'
 INSERT INTO "task_events" VALUES(299,'AIK-043','verification_progress','blocked','blocked','보충 근거 EV-AIK-043-SUPP-AGSPEER-20261013 기록. 완료 아님.','2026-10-13T16:45:26Z');
 INSERT INTO "task_events" VALUES(300,'AIK-025','verification_progress','blocked','blocked','보충 근거 EV-AIK-025-SUPP-AGSPEER-20261013 기록. 완료 아님.','2026-10-13T16:45:26Z');
 INSERT INTO "task_events" VALUES(301,'AIK-086','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-086-MODULE-20261013). 완료 아님. 차단: AIK-022 Windows 멀티벤더 인증 qualification 미완료; AIK-081 AGS A2 plugin 미확보(host-integration.json·A2는 AGS 3.x 미병합); 실제 governed 실행·실계정 미실행','2026-10-13T16:58:36Z');
+INSERT INTO "task_events" VALUES(302,'AIK-022','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-022-MODULE-20261013). 완료 아님. 차단: 실계정 인증 경로(기준 1) 미실행: 사용자 key 입력 UI·실행 필요; 다른 Windows 사용자 프로필 조건 NOT_RUN(두 번째 계정 필요); Windows 11 표준 사용자 실기 결과 대기(AIK-003 handoff와 같은 실행)','2026-10-13T17:32:04Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1311,6 +1312,7 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-043-SUPP-M2INT-20261013','AIK-043','p
 INSERT INTO "task_evidence" VALUES('EV-AIK-043-SUPP-AGSPEER-20261013','AIK-043','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-ags-peer-bridge','보충: src/aik_ags_peer(AGS 2.9.0 세션 메시징 공개 CLI 계약 adapter)가 AIK worker 주소(aik-worker:<id>)와 AGS {host, sessionId}를 append-only AddressBook으로 연결하고 delivered/claimed/acked/result 단계를 from_peer_message 입력으로 내보낸다. tests/test_ags_peer.py 17개 PASS이며, 그중 실제 AGS 2.9.0(56fef8bd) CLI·node v24로 task→claim·ack→result 왕복과 실제 ReadModel peer_view를 확인했다. result는 AGS 유형이 아니라 AIK 규약 aik.peer.v1이다. 실제 worker 호스트 세션·Windows·OS principal 확인은 NOT_RUN. 상태 변경 없음.','2026-10-13T16:45:26Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-025-SUPP-AGSPEER-20261013','AIK-025','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-ags-peer-bridge','보충: src/aik_ags_peer가 AGS 세션 메시징으로 총괄↔worker 메시지를 보내고 result를 claim한다(전달 불명은 send_unknown, 자동 재전송 없음, ACK는 완료 아님). 실제 AGS 2.9.0 CLI 계약 시험 PASS. aik_inbox 큐·wake와의 연결은 아직 없어 NOT_RUN. 상태 변경 없음.','2026-10-13T16:45:26Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-086-MODULE-20261013','AIK-086','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-086','부분 구현: commit PR #16 aik_governance_env, tests/test_governance_env.py 26개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(이 환경 검증 불가), 3(부분), 4(이 환경 검증 불가); 차단: AIK-022 Windows 멀티벤더 인증 qualification 미완료; AIK-081 AGS A2 plugin 미확보(host-integration.json·A2는 AGS 3.x 미병합); 실제 governed 실행·실계정 미실행. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T16:58:36Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-022-MODULE-20261013','AIK-022','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-022','부분 구현: PR #17(f731b1e, merge e025f41) 설치형 Windows 앱 auth_vault 카드가 제품 aik_vault DPAPI·aik_auth_lifecycle·aik_connection으로 합성 비밀 실패 경로 10개를 실행. Linux 시험(test_auth_vault.py 5개 등) PASS, GitHub Actions Windows Server installed-spike job 115434838577에서 실제 DPAPI 설치본 auth_vault PASS(로그 판정). 남은 기준 1(미충족: 실계정 경로 NOT_RUN), 2(부분: 다른 사용자 프로필 NOT_RUN), 3(부분). Windows 11 표준 사용자 실기 NOT_RUN.','2026-10-13T17:32:04Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2127,7 +2129,7 @@ INSERT INTO "tasks" VALUES('AIK-018','작업 범위 credential broker와 실행 
 INSERT INTO "tasks" VALUES('AIK-019','ResourcePool 레지스트리·건강 상태·발견','공통 연결·capability 계약에 따라 모델/host/tools와 현재 실행 가능 상태를 광고한다. 공통 registry 개발은 모든 후보 adapter의 완성을 기다리지 않으며 구현 여부와 실제 qualification을 분리한다.','resource inventory·health probe·TTL 갱신','공통 fake adapter의 상태 전이·다중 계정 계약 검증; 022 인증, 082 실제 사전 probe, 086 governed qualification 근거와 대조','E03','M1','P0','blocked','feature','Resource registry',20,'2026-10-12T05:36:30Z','2026-10-13T09:24:28Z');
 INSERT INTO "tasks" VALUES('AIK-020','모델·추론 수준·도구 capability 조회와 검증','계정별 이용 가능한 모델과 runtime 옵션을 조회하여 총괄·worker 설정의 유효 조합을 만든다.','model inventory·capability validator','변경된 모델 목록·지원 안 되는 effort/tool 조합 검증','E03','M1','P0','blocked','feature','Model inventory',21,'2026-10-12T05:36:30Z','2026-10-13T09:24:28Z');
 INSERT INTO "tasks" VALUES('AIK-021','workspace별 연결 사용 범위·안전한 설정 이동','여러 프로젝트가 연결을 공유하는 범위와 설정의 import/export 정책을 구현한다.','connection scope policy·설정 export/import','다른 workspace·다른 Windows 사용자/기기의 복원 검증','E02','M1','P1','blocked','feature','Connections',22,'2026-10-12T05:36:30Z','2026-10-13T09:24:28Z');
-INSERT INTO "tasks" VALUES('AIK-022','Windows 멀티벤더 인증·vault qualification','AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualification을 구분하고 선택 경로의 미지원은 독립 결과로 보관한다.','matrix revision/digest별 auth/vault qualification·경로별 live evidence·재현 절차','실제 Windows 사용자 환경과 가짜 비밀의 실패 경로 검증','E02','M1','P0','todo','validation','Windows qualification',23,'2026-10-12T05:36:30Z','2026-10-12T06:45:00Z');
+INSERT INTO "tasks" VALUES('AIK-022','Windows 멀티벤더 인증·vault qualification','AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualification을 구분하고 선택 경로의 미지원은 독립 결과로 보관한다.','matrix revision/digest별 auth/vault qualification·경로별 live evidence·재현 절차','실제 Windows 사용자 환경과 가짜 비밀의 실패 경로 검증','E02','M1','P0','blocked','validation','Windows qualification',23,'2026-10-12T05:36:30Z','2026-10-13T17:32:04Z');
 INSERT INTO "tasks" VALUES('AIK-023','총괄·worker 역할별 실행 프로필과 모델 지정','총괄의 connection/model/effort/tool/budget/fallback을 설정하고 worker/검토 역할과 독립 유지한다.','DirectorProfile·RoleProfile schema·검증 명령','다중 벤더 프로필·옵션 불일치·역할 분리 검증','E04','M2','P0','blocked','feature','Director',24,'2026-10-12T05:36:30Z','2026-10-13T09:24:29Z');
 INSERT INTO "tasks" VALUES('AIK-024','총괄 에이전트 bootstrap·시작·정지','사용자가 지정한 자원으로 총괄을 실행하고 미설정 상태에서 로그인·모델 선택으로 이어지는 초기 흐름을 만든다.','director bootstrap·runtime binding·health endpoint','미설정/정상/인증불가 상태와 중복 시작 검증','E04','M2','P0','blocked','feature','Director',25,'2026-10-12T05:36:30Z','2026-10-13T09:24:29Z');
 INSERT INTO "tasks" VALUES('AIK-025','총괄 inbox·callback·wake 큐','사용자 지시와 AGS/VM 이벤트를 영속 수신하고 필요한 때 총괄을 깨운다.','durable inbox/outbox·consumer·wake 정책','중복·순서 역전·재시작·빈 큐 유휴 검증','E04','M2','P0','blocked','feature','Director event loop',26,'2026-10-12T05:36:30Z','2026-10-13T09:24:29Z');
@@ -2237,6 +2239,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',301);
+INSERT INTO "sqlite_sequence" VALUES('task_events',302);
 COMMIT;
 PRAGMA foreign_keys = ON;
