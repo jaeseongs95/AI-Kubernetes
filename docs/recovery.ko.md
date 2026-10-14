@@ -45,7 +45,7 @@ live→unknown 전이는 `LeaseManager.mark_unknown(lease_id, fencing_token, exp
 
 ## API 경로 effect port (`ToolEffectAdapter`)
 
-`ApiAgentLoop`은 tool call마다 `DispatchJournal`에 `intent` → `receipt`·`denied`·`effect_unknown` 중 하나 → `returned` 순서로 기록한다. adapter는 이 기록만 공개 메서드(`open_tool_requests`·`record`·`tool_events`·`tool_event`)로 읽고 쓴다.
+`ApiToolLoop`(`aik_dispatch.api_loop`, 문서에서 'API agent loop')은 tool call마다 `DispatchJournal`에 `intent` → `receipt`·`denied`·`effect_unknown` 중 하나 → `returned` 순서로 기록한다. adapter는 이 기록만 공개 메서드(`open_tool_requests`·`record`·`tool_events`·`tool_event`)로 읽고 쓴다.
 
 | 저널 상태 | `EffectRef` | reconciler 판단 |
 |---|---|---|
@@ -53,13 +53,23 @@ live→unknown 전이는 `LeaseManager.mark_unknown(lease_id, fencing_token, exp
 | `receipt` 또는 `denied`, `returned` 없음 | `has_receipt=True`, `model_result_returned=False` | VM attempt가 active면 `resend_result`, terminal·absent·취소면 `record_late_receipt` |
 | `returned` 있음 | 목록에 넣지 않음 | 없음 |
 
-- **`resend_result`:** 효과를 실행하지 않고 `returned`도 쓰지 않는다. 호출자의 `resend(request_id, tool_call_id)`에 넘기기만 한다. 실제 재전송과 `returned` 기록은 `ApiAgentLoop.resume`가 한다. `resume`은 저널의 결과를 replay하고, 결과 digest가 다르면 `REPLAY_MISMATCH`로 멈춘다.
+- **`resend_result`:** 효과를 실행하지 않고 `returned`도 쓰지 않는다. 호출자의 `resend(request_id, tool_call_id)`에 넘기기만 한다. 실제 재전송과 `returned` 기록은 `ApiToolLoop.resume`가 한다(아래 `LoopResendScheduler`). `resume`은 저널의 결과를 replay하고, 결과 digest가 다르면 `REPLAY_MISMATCH`로 멈춘다.
+- **이미 전달된 sibling:** `resume` 한 번은 같은 request의 대기 중인 call을 모두 보낸다. 직전 `inflight()` 스캔에 있던 call이 그 사이 `returned`가 되면 이미 전달된 것으로 보고 다시 넘기지 않는다.
 - **`denied`:** 효과가 없었다고 기록된 결과이므로 receipt처럼 다룬다.
 - **멱등성 분류:** `read_file`과 지원하지 않는 도구는 `read_only`, 그 밖의 도구는 `non_idempotent`로 분류한다. DevTools의 effect ID replay는 프로세스 메모리에만 있어 재시작 뒤에는 쓸 수 없다.
 - **스캔 뒤 상태 변화:** 스캔과 동작 사이에 receipt가 도착하면 `EFFECT_STATE_CHANGED`로 거절한다. reconciler는 이를 실패로 기록하고 다음 reconcile에서 다시 판단한다.
 - **여러 request의 같은 tool call:** 같은 Attempt의 같은 tool call ID를 두 request가 가지면 `AMBIGUOUS_EFFECT`로 스캔 전체를 거절한다(fail-closed).
 - **취소 여부:** `is_cancelled(vm_attempt_id)`를 주면 그 값을 `cancelled`로 쓴다. 주지 않으면 `False`이며, 취소된 Attempt는 VM 상태(terminal)로 판단한다.
 - **hosted runtime 경로:** 이 경로의 tool 효과(`AikEffectJournal`)는 다루지 않는다. 그 경로의 unknown 절차 권위는 VM에 있다.
+
+## 재전송 스케줄러 (`LoopResendScheduler`)
+
+`LoopResendScheduler(dispatch_journal, contexts)`는 `ToolEffectAdapter`의 `resend`로 넘기는 호출 가능 객체다. 받은 request에 대해 실제 `ApiToolLoop.resume`을 부른다.
+
+- **resume 입력은 호출자 소유:** `contexts(request_id)`는 `ResumeContext(loop, identity, session, input_revision, authorization_revision, messages)`를 돌려준다. messages에는 assistant `tool_calls`가 들어 있어야 한다. dispatch journal은 결과 본문이나 메시지를 저장하지 않으므로 스케줄러가 만들어 내지 않는다. 없으면 `RESUME_CONTEXT_MISSING`, request ID가 다르면 `RESUME_CONTEXT_MISMATCH`다.
+- **request당 한 번:** `resume`은 request의 대기 call을 한꺼번에 처리하고 다음 모델 호출로 이어간다. 그래서 한 스케줄러 안에서 request마다 한 번만 실행하고, 같은 request의 다른 call은 그 결과를 재사용한다. 모델은 다시 호출되지 않는다.
+- **전달 확인:** 해당 call에 `returned`가 기록돼야 성공이다. `resume`이 `effect_unknown`으로 멈추거나 예산·취소·한도 때문에 `returned` 전에 멈추면 `RESEND_NOT_DELIVERED`다. `DispatchError`는 `RESEND_<코드>`, `DispatchOutcomeUnknown`은 `RESEND_OUTCOME_UNKNOWN`이다. 모두 `RecoveryError`이므로 reconciler는 `applied`가 아니라 `failed`와 그 코드를 기록한다.
+- **프로세스 재시작 한계:** DevTools effect-ID replay는 프로세스 메모리에만 있다. 새 DevTools에서 receipt가 있는 call을 replay하면 `RESEND_REPLAY_MISMATCH`로 실패하고 `returned`를 쓰지 않는다. 이때 멱등 도구(`create_file`)는 DevTools가 기존 파일을 다시 관측하며, 권한 계층에 receipt가 한 번 더 전달된다. 새 intent·파일 변경은 없다. 영속 replay 저장소는 구현하지 않았다.
 
 ## 결정 기록
 
@@ -105,13 +115,15 @@ python -m unittest discover -s tests -p 'test_recovery*.py' -v
 - 취소 뒤 늦은 receipt·효과
 - append-only 기록과 외부 파일 거절
 - 재부팅 뒤 두 번째·세 번째 reconcile의 멱등성
-- `tests/test_recovery_adapter.py`: 실제 `DispatchJournal`의 crash 상태(intent만·receipt·denied·effect_unknown·returned)를 실제 `RecoveryReconciler`로 대조한다. `mark_unknown` 1회 기록, resend 인계만 하고 `returned`를 쓰지 않음, 스캔 뒤 상태 변화 거절, 모호한 tool call 거절, 두 번째 reconcile에서 재전송 반복 없음을 확인한다.
+- `tests/test_recovery_adapter.py`: 실제 `DispatchJournal`의 crash 상태(intent만·receipt·denied·effect_unknown·returned)를 실제 `RecoveryReconciler`로 대조한다. `mark_unknown` 1회 기록, resend 인계만 하고 `returned`를 쓰지 않음, 스캔 뒤 상태 변화 거절, 스캔 뒤 `returned`된 call 재전송 생략, 모호한 tool call 거절, 두 번째 reconcile에서 재전송 반복 없음을 확인한다.
+- `tests/test_resend_resume.py`: 실제 `ApiToolLoop`을 crash시킨 뒤 새 `RecoveryReconciler`·`ToolEffectAdapter`·`LoopResendScheduler`가 실제 `resume`을 부르는 8개 시험이다. receipt 뒤 crash는 같은 결과를 1회 재전송하고 `returned`를 기록한다(효과 intent 1회, 두 번째 reconcile 무동작). denied는 DevTools 없이 재전송한다. 두 대기 call은 resume 1회로 처리한다. intent만 있는 sibling은 `RESEND_NOT_DELIVERED`로 `failed`가 된다. 새 DevTools는 `RESEND_REPLAY_MISMATCH`, context 없음·불일치는 journal 변화 없이 `failed`이고, 같은 스케줄러는 나중에 등록된 context로 다시 성공한다.
 
 **미검증(NOT_RUN):**
 
 - 실제 provider·VM/AGS 설치와 연결
 - hosted runtime 경로(`AikEffectJournal`) effect adapter
-- 실제 `ApiAgentLoop.resume`와 `resend` 인계의 결합(시험은 인계 호출만 확인)
+- 실제 실행 프로세스에서 resume context(메시지 기록)를 보관·복원하는 저장소. 시험에서는 호출자가 메모리로 넘긴다.
+- 프로세스 재시작 뒤 DevTools 결과 replay(영속 replay 저장소 없음)
 - Windows 11 실행(잠금·경로 동작 포함)
 - 실제 프로세스 강제 종료·전원 차단 상태의 복구
 

@@ -1,7 +1,7 @@
 """Effect port adapter for RecoveryReconciler over the API agent loop's tool journal.
 
 Source of truth: ``aik_dispatch.DispatchJournal`` tool events, written by
-``ApiAgentLoop`` in the order intent -> receipt|denied|effect_unknown ->
+``ApiToolLoop`` in the order intent -> receipt|denied|effect_unknown ->
 returned. Only public journal methods are used (``open_tool_requests``,
 ``record``, ``tool_events``, ``tool_event``).
 
@@ -10,12 +10,14 @@ returned. Only public journal methods are used (``open_tool_requests``,
   ``denied`` -> ``has_receipt=True`` (a denial is a journaled outcome with no
   effect). Fully returned calls are not listed.
 - ``mark_unknown`` appends ``effect_unknown`` to an intent-only call. It never
-  re-executes the tool; ``ApiAgentLoop.resume`` then stops with
+  re-executes the tool; ``ApiToolLoop.resume`` then stops with
   ``effect_unknown`` and VM's unknown contract decides.
 - ``resend_result`` never executes the tool and never writes ``returned``.
   It hands ``(request_id, tool_call_id)`` to the caller's ``resend`` callable
-  (for example a scheduler that calls ``ApiAgentLoop.resume``, which replays
-  the journaled result and writes ``returned`` when it really sends it).
+  (``LoopResendScheduler`` calls ``ApiToolLoop.resume``, which replays the
+  journaled result and writes ``returned`` when it really sends it). One
+  resume sends every pending call of its request; a call found ``returned``
+  since the last ``inflight()`` scan is treated as already sent.
 
 Tool effects of the hosted runtime path (``AikEffectJournal``) are not
 covered: VM owns the unknown procedure there.
@@ -60,6 +62,7 @@ class ToolEffectAdapter:
         self._journal = journal
         self._resend = resend
         self._is_cancelled = is_cancelled
+        self._seen: dict = {}  # subject_id -> (request_id, tool_call_id) from the last inflight() scan
 
     @staticmethod
     def _states(events) -> dict:
@@ -95,7 +98,9 @@ class ToolEffectAdapter:
         return found
 
     def inflight(self) -> tuple:
-        return tuple(entry[2] for entry in self._scan().values())
+        found = self._scan()
+        self._seen = {subject: entry[:2] for subject, entry in found.items()}
+        return tuple(entry[2] for entry in found.values())
 
     def _locate(self, ref: object) -> tuple:
         if type(ref) is not EffectRef:
@@ -116,10 +121,21 @@ class ToolEffectAdapter:
         self._journal.tool_event(request_id, call_id, "effect_unknown", {"code": UNKNOWN_CODE})
 
     def resend_result(self, ref: EffectRef) -> None:
+        if type(ref) is EffectRef and self._returned_since_scan(ref):
+            # A resume for a sibling call of the same request already sent this result.
+            return
         request_id, call_id, seen = self._locate(ref)
         if not seen & {"receipt", "denied"}:
             raise RecoveryError("EFFECT_STATE_CHANGED")
         self._resend(request_id, call_id)
+
+    def _returned_since_scan(self, ref: EffectRef) -> bool:
+        entry = self._seen.get(ref.subject_id)
+        if entry is None:
+            return False
+        request_id, call_id = entry
+        return any(event.tool_call_id == call_id and event.state == "returned"
+                   for event in self._journal.tool_events(request_id))
 
 
 __all__ = ["ToolEffectAdapter", "READ_ONLY_TOOLS", "UNKNOWN_CODE"]
