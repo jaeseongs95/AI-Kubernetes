@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import errno
 import os
 from pathlib import Path
 import tempfile
@@ -14,6 +13,7 @@ from .contract import ENV_A2_PROFILE, ENV_MODEL_CLASSES, ENV_PLUGIN_ROOT
 from .errors import GovernanceEnvError
 from .model_classes import check_model_class_table
 from .plugin_root import PluginRootReport, inspect_plugin_root
+from aik_platform.fs import sync_directory as _sync_directory
 
 READY = "READY"
 BLOCKED = "BLOCKED"
@@ -99,20 +99,6 @@ def prepare_governance_environment(*, plugin_root, model_class_table_path, a2_co
         statuses.append(InputStatus(ENV_A2_PROFILE, _display(a2_config_path), BLOCKED, error.code, error.check))
 
     return GovernanceEnvironment(tuple(statuses), plugin_report, digest, names, a2_report)
-
-
-def _sync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return  # No portable directory fsync on Windows through Python.
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def write_atomic(path, data: bytes, *, exclusive: bool = True) -> Path:

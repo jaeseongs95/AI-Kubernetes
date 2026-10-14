@@ -3,12 +3,12 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T01:54:45Z`
+- 수정일 (UTC): `2026-10-14T02:14:24Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
 - 태스크 92개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 306건
-- 상태: 미착수 44개 · 진행 중 0개 · 진행 차단 46개 · 완료 2개 · 취소 0개
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 312건
+- 상태: 미착수 42개 · 진행 중 0개 · 진행 차단 48개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -35,8 +35,8 @@ python tools/backlog.py report
 
 | 단계 | 범위 | 태스크 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 착수 가능 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| M0 · 통합 계약·플랫폼 기반 결정 | 첫 출시 | 10 | 1 | 0 | 7 | 2 | 0 | 1 |
-| M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
+| M0 · 통합 계약·플랫폼 기반 결정 | 첫 출시 | 10 | 0 | 0 | 8 | 2 | 0 | 0 |
+| M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 15 | 0 | 0 | 15 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 2 | 0 | 25 | 0 | 0 | 0 |
 | M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
 | M4 · 첫 배포 검증(Windows·Linux) | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
@@ -80,8 +80,8 @@ python tools/backlog.py report
 
 | 단계 | 플랫폼 | 행 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 해당 없음 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| M0 | LINUX-X64 | 10 | 1 | 0 | 7 | 0 | 0 | 2 |
-| M0 | WIN-X64 | 10 | 1 | 0 | 7 | 2 | 0 | 0 |
+| M0 | LINUX-X64 | 10 | 0 | 0 | 8 | 0 | 0 | 2 |
+| M0 | WIN-X64 | 10 | 0 | 0 | 8 | 2 | 0 | 0 |
 | M1 | LINUX-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
 | M1 | WIN-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
 | M2 | LINUX-X64 | 27 | 1 | 0 | 26 | 0 | 0 | 0 |
@@ -471,13 +471,13 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | AIK platform |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E12 · 플랫폼 독립 계층 |
 | 실행 순서 | 91 |
-| 작성 / 수정 | `2026-10-14T01:54:45Z` / `2026-10-14T01:54:45Z` |
+| 작성 / 수정 | `2026-10-14T01:54:45Z` / `2026-10-14T02:14:23Z` |
 
 공통 코드에 흩어진 OS 분기(파일 동기화·원자적 쓰기·잠금·프로세스 트리·데이터 경로·세션 신호·시크릿 backend 선택)를 aik_platform의 concern별 port와 Windows·Linux adapter로 모은다. 기존 공개 이름과 동작은 유지한다.
 
@@ -488,7 +488,7 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER-20261014](#s-user-20261014)
 - **관련 결정:** [DEC14](#dec14) (확정)
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **플랫폼:** LINUX-X64 진행 차단 (작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -499,7 +499,7 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-091-PORTS-20261014` · partial_implementation_validation · `docs/platform.ko.md` · aik_platform(fs·locks·paths·process·session) 추가와 공통 코드 이전: 복제 _sync_directory 13벌·_sync_file 6벌·reparse 검사 4벌·동일 _process.py 2벌·supervisor _lock_ops·경로 분기 제거. 정적 시험으로 aik_platform 밖 os.name/sys.platform/msvcrt/fcntl 0건(예외: Windows DPAPI adapter의 WinDLL). 로컬 Linux 전체 회귀 1483건 OK(skip 18). Windows CI 결과와 실제 Windows 실행은 이 근거에 없다. · `2026-10-14T02:14:23Z` · 플랫폼 `LINUX-X64`
 
 ## M1 · 인증 보관·멀티벤더 자원 연결
 
@@ -542,6 +542,7 @@ API 키와 app 소유 비밀을 OS 사용자 범위 저장소(Windows DPAPI·Lin
 **기록된 증거**
 
 - `EV-AIK-009-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-009` · 부분 구현: commit 36f7e69/72a9d33, tests/test_vault.py 26개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분); 차단: 실제 Windows DPAPI 실행 근거 부재; 선행 AIK-004·AIK-005 장부상 미완료; Credential Manager 정책 근거 자료 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
+- `EV-AIK-009-SECRETSERVICE-20261014` · partial_implementation_validation · `docs/vault.ko.md` · Linux SecretServiceVaultBackend(secret-tool, stdin 전달, 절대 timeout, fail-closed)와 open_user_vault 플랫폼 선택 구현. 가짜 secret-tool 단위 시험 PASS. 실제 GNOME Keyring 왕복은 CI platform-linux.yml에서 별도 확인하며 이 근거에는 포함하지 않는다. 데스크톱 세션 키링 잠금·KWallet NOT_RUN. · `2026-10-14T02:14:23Z` · 플랫폼 `LINUX-X64`
 
 ### AIK-010
 
@@ -795,6 +796,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 **기록된 증거**
 
 - `EV-AIK-016-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-016` · 부분 구현: commit 5d4fc7f/8e4a5bb, tests/test_auth_lifecycle.py 27개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분); 차단: 선행 AIK-009·AIK-010·AIK-011 장부상 미완료; 연동하는 AIK-019(aik_pool) 장부상 미완료; 상태·회수 목록 영속화와 레지스트리 비활성화 hook 미구현. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
+- `EV-AIK-016-LOGIND-20261014` · partial_implementation_validation · `docs/auth-lifecycle.ko.md` · Linux 세션 잠금 신호(systemd-logind LockedHint via loginctl, 셸 없음, timeout, 답 없음은 잠김 처리) 구현과 os_session_locked 추가. 가짜 loginctl 단위 시험 PASS. 실제 데스크톱 세션 잠금 NOT_RUN. · `2026-10-14T02:14:23Z` · 플랫폼 `LINUX-X64`
 
 ### AIK-017
 
@@ -1021,13 +1023,13 @@ AIK-001 지원 matrix의 필수 인증 경로를 지원 플랫폼별 실제 환�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P1 |
 | 담당 컴포넌트 | AIK platform |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E12 · 플랫폼 독립 계층 |
 | 실행 순서 | 92 |
-| 작성 / 수정 | `2026-10-14T01:54:45Z` / `2026-10-14T01:54:45Z` |
+| 작성 / 수정 | `2026-10-14T01:54:45Z` / `2026-10-14T02:14:23Z` |
 
 공통 패키지가 특정 벤더 adapter 모듈을 import하거나 벤더 목록을 하드코딩하지 않게 한다. 범용 HTTP transport는 벤더 중립 모듈로 옮기고 진단 범위는 등록된 adapter에서 만든다.
 
@@ -1048,7 +1050,7 @@ AIK-001 지원 matrix의 필수 인증 경로를 지원 플랫폼별 실제 환�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-092-VENDOR-20261014` · partial_implementation_validation · `docs/platform.ko.md` · 범용 HTTP transport를 벤더 중립 aik_http로 옮기고 aik_jev가 이를 쓰도록 바꿨다. compat 진단의 벤더 목록 하드코딩을 식별자 형식 검사로 바꿨다(벤더 목록은 지원 matrix 데이터). 정적 시험으로 공통 패키지의 aik_adapter_*/aik_host_* import 0건. OpenAI transport 통합과 adapter 등록 기반 선택은 남았다. · `2026-10-14T02:14:23Z`
 
 ## M2 · 총괄 에이전트·AGS/VM 실행 통합
 
@@ -4500,6 +4502,12 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 304 | metadata `scope_policy` | value | Windows GUI confirmed; local-first release staging proposed in DEC06; federatio… | Desktop GUI for Windows x64 and Linux x64 confirmed (DEC01, 2026-10-14); Window… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
 | 305 | metadata `design_principles` | value | — | PRN-VENDOR, PRN-OS, PRN-SOLID (S-USER-20261014) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
 | 306 | metadata `platform_policy` | value | — | tasks.status is the overall state and task_platforms holds per-platform state. … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 307 | task_evidence `EV-AIK-091-PORTS-20261014` | created | — | AIK-091 partial_implementation_validation LINUX-X64 | AIK-091/092 OS port·벤더 중립 transport 구현 근거 | `2026-10-14T02:14:23Z` |
+| 308 | task_evidence `EV-AIK-092-VENDOR-20261014` | created | — | AIK-092 partial_implementation_validation 플랫폼 무관 | AIK-091/092 OS port·벤더 중립 transport 구현 근거 | `2026-10-14T02:14:23Z` |
+| 309 | task_evidence `EV-AIK-009-SECRETSERVICE-20261014` | created | — | AIK-009 partial_implementation_validation LINUX-X64 | AIK-091/092 OS port·벤더 중립 transport 구현 근거 | `2026-10-14T02:14:23Z` |
+| 310 | task_evidence `EV-AIK-016-LOGIND-20261014` | created | — | AIK-016 partial_implementation_validation LINUX-X64 | AIK-091/092 OS port·벤더 중립 transport 구현 근거 | `2026-10-14T02:14:23Z` |
+| 311 | task_platform `AIK-091/WIN-X64` | status | todo | blocked | 작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T02:14:24Z` |
+| 312 | task_platform `AIK-091/LINUX-X64` | status | todo | blocked | 작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T02:14:24Z` |
 
 ## DB 메타데이터
 
@@ -4528,7 +4536,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T01:54:45Z |
+| `updated_at` | 2026-10-14T02:14:24Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

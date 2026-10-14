@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 import test_controller as ctl  # noqa: E402
 import test_jev as jev_tests  # noqa: E402
-from aik_adapter_anthropic.transport import TransportTimeout  # noqa: E402
+from aik_http.transport import TransportTimeout  # noqa: E402
 from aik_authority import AuthorityCode, AuthorityDenied  # noqa: E402
 from aik_controller import Controller, GoalClassificationNote, InvalidControllerConfig  # noqa: E402
 from aik_jev import (  # noqa: E402

@@ -8,7 +8,6 @@ and runs in one IMMEDIATE transaction with DELETE journal and FULL sync.
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
-import errno
 from functools import lru_cache
 import hmac
 import json
@@ -31,6 +30,7 @@ from .models import (
     AckResult, InboxMessage, LeasedMessage, OutboxMessage, ReceiveResult, RecoveryReport,
     StoredMessage, StoredOutbox, WakeSnapshot, canonical_payload, check_identifier, fingerprint,
 )
+from aik_platform.fs import sync_directory as _sync_directory
 
 
 APPLICATION_ID = 0x41494B49  # AIKI; distinct from runtime (AIKR) and AIKC.
@@ -150,20 +150,6 @@ def _sqlite_failure(error: sqlite3.Error) -> None:
     if getattr(error, "sqlite_errorcode", 0) & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
         raise StorageBusy("SQLite could not acquire the inbox database lock.") from None
     raise InboxError("The inbox database operation could not be completed.") from None
-
-
-def _sync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return  # Windows directory fsync is not portable through Python.
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def _seconds_ms(value: object, name: str, *, maximum: float, positive: bool) -> int:

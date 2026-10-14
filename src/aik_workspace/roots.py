@@ -11,6 +11,8 @@ from aik_runtime.errors import UnsafeStoragePath
 from aik_runtime.paths import _WINDOWS_DEVICE, _inspect, _require_local_drive
 
 from .errors import InvalidWorkspaceRoot, RootUnavailable, WorkspaceError
+from aik_platform.fs import paths_case_insensitive
+from aik_platform.paths import supports_native_cwd
 
 
 MAX_ROOT_LENGTH = 4096
@@ -88,7 +90,7 @@ def is_git_internal(path: Path) -> bool:
 
 def root_key(root: str) -> tuple:
     parts = PurePath(root).parts
-    return tuple(part.casefold() for part in parts) if os.name == "nt" else parts
+    return tuple(part.casefold() for part in parts) if paths_case_insensitive() else parts
 
 
 def overlaps(first: str, second: str) -> bool:
@@ -140,10 +142,10 @@ def probe_access(path: Path) -> None:
 
 def host_cwd_support(root: Path) -> bool:
     """Whether this host can bind a native/API cwd to the root (no wider isolation implied)."""
-    if os.name == "nt":
-        try:
-            _require_local_drive(root)
-        except (UnsafeStoragePath, OSError):
-            return False
-        return True
-    return os.name == "posix"
+    if not supports_native_cwd():
+        return False
+    try:
+        _require_local_drive(root)  # a remote Windows drive is refused; POSIX is not checked
+    except (UnsafeStoragePath, OSError):
+        return False
+    return True

@@ -9,11 +9,11 @@ fake backend. Real DPAPI behavior is NOT_RUN in this repository's Linux tests.
 from __future__ import annotations
 
 import ctypes
-import os
 from pathlib import Path
 
 from .backend import _FileVaultBackend
 from .errors import VaultAccessDenied, VaultUnavailable
+from aik_platform import is_windows
 
 
 CRYPTPROTECT_UI_FORBIDDEN = 0x1
@@ -38,7 +38,7 @@ class _Crypt32Api:
     """Thin ctypes binding. Loaded only on Windows."""
 
     def __init__(self):
-        if os.name != "nt":
+        if not is_windows():
             raise VaultUnavailable()
         try:
             crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
@@ -110,7 +110,7 @@ class DpapiVaultBackend(_FileVaultBackend):
 
     def __init__(self, directory: Path | str | None = None, *, timeout: float = 5.0, _api=None):
         if _api is None:
-            if os.name != "nt":
+            if not is_windows():
                 raise VaultUnavailable()
             _api = _Crypt32Api()
         self._api = _api
@@ -136,8 +136,3 @@ class DpapiVaultBackend(_FileVaultBackend):
                 "The current Windows user cannot unprotect this credential."
             ) from None
         return plaintext if type(plaintext) is bytearray else bytearray(plaintext)
-
-
-def open_user_vault(directory: Path | str | None = None, *, timeout: float = 5.0) -> DpapiVaultBackend:
-    """Open the per-user product vault. Raises VaultUnavailable off Windows."""
-    return DpapiVaultBackend(directory, timeout=timeout)

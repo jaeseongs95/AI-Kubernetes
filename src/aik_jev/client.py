@@ -15,7 +15,7 @@ from types import MappingProxyType
 from typing import Mapping
 from urllib.parse import urlsplit
 
-from aik_adapter_anthropic.transport import (
+from aik_http.transport import (
     MAX_RESPONSE_BYTES, HttpRequest, HttpResponse, Transport, TransportNotSent, TransportTimeout,
     UrllibTransport,
 )

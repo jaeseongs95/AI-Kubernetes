@@ -46,7 +46,7 @@ import subprocess
 import threading
 from typing import Protocol, runtime_checkable
 
-from . import _process
+from aik_platform import process as _process
 
 SOURCES = ("synthetic_fixture", "live")
 MAX_TIMEOUT_SECONDS = 3600.0
@@ -257,7 +257,7 @@ class SubprocessRunner:
         if type(spec) is not CommandSpec:
             raise TypeError("CommandSpec required")
         argv, env = self._resolve(spec)
-        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+        flags = _process.no_window_flags()
         try:
             process = subprocess.Popen(
                 argv, stdin=subprocess.PIPE if spec.stdin is not None else subprocess.DEVNULL,
@@ -285,10 +285,7 @@ class SubprocessRunner:
 
     @staticmethod
     def _still_tracked(process) -> bool:
-        if os.name == "nt":
-            return process.poll() is None  # the Popen handle keeps the PID valid
-        # Never reap here: the deadline timer may still signal the PGID.
-        return _process._peek_exit(process) is not True
+        return _process.still_tracked(process)
 
     def launch(self, spec: CommandSpec) -> None:
         """Start the official interactive login without capturing its I/O.
@@ -300,7 +297,7 @@ class SubprocessRunner:
         if type(spec) is not CommandSpec:
             raise TypeError("CommandSpec required")
         argv, env = self._resolve(spec)
-        flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0) if os.name == "nt" else 0
+        flags = _process.new_console_flags()
         try:
             process = subprocess.Popen(argv, env=env, shell=False, close_fds=True,
                                        **_process.popen_options(flags))

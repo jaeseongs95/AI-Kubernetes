@@ -7,6 +7,7 @@ import os
 import stat
 
 from .errors import GovernanceEnvError
+from aik_platform import is_link_or_reparse_point
 
 
 class _DuplicateKey(ValueError):
@@ -45,7 +46,7 @@ def read_regular_file(path, *, limit: int, code: str, check: str | None = None) 
     """Read a regular non-link file of at most ``limit`` bytes, else fail with ``code``."""
     try:
         info = os.lstat(path)
-        if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+        if is_link_or_reparse_point(info):
             raise GovernanceEnvError(code, check=check)
         if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
             raise GovernanceEnvError(code, check=check)

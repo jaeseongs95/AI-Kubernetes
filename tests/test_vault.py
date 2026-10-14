@@ -570,7 +570,10 @@ class VaultTests(unittest.TestCase):
     def test_dpapi_backend_is_unavailable_outside_windows_without_fallback(self) -> None:
         with self.assertRaises(VaultUnavailable):
             DpapiVaultBackend(self.root / "dpapi-vault")
-        with self.assertRaises(VaultUnavailable):
+        # The platform selector does not fall back to files either: without the
+        # platform backend (here: no secret-tool on PATH) it is unavailable.
+        with mock.patch("aik_vault.secret_service.shutil.which", return_value=None), \
+                self.assertRaises(VaultUnavailable):
             open_user_vault(self.root / "dpapi-vault")
         self.assertFalse((self.root / "dpapi-vault").exists())
 

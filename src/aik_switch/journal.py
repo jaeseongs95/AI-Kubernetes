@@ -12,7 +12,6 @@ recompute it; it is not tamper protection.
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
-import errno
 from functools import lru_cache
 import hashlib
 import hmac
@@ -29,6 +28,7 @@ from aik_runtime.paths import database_lock, default_database_path, validate_dat
 
 from .errors import InvalidSwitch, InvalidSwitchJournal, SwitchConflict, SwitchError
 from .models import check_id
+from aik_platform.fs import sync_directory as _sync_directory
 
 
 APPLICATION_ID = 0x41494B53  # AIKS; distinct from AIKR, AIKC, AIKP, AIKN and AIKI.
@@ -113,20 +113,6 @@ def _sqlite_failure(error: sqlite3.Error) -> None:
     if getattr(error, "sqlite_errorcode", 0) & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
         raise StorageBusy("SQLite could not acquire the switch journal lock.") from None
     raise SwitchError("The switch journal operation could not be completed.") from None
-
-
-def _sync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return  # No portable directory fsync on Windows; rename durability is OS-owned.
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def _canonical(document: object) -> str:

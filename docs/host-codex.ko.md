@@ -23,7 +23,7 @@ fixture 통과는 실제 로그인 성공이 아니다. fixture 결과를 실측
 | 파일 | 역할 |
 |---|---|
 | `runner.py` | 아래 항목을 제공한다. 표준 라이브러리 `SubprocessRunner`의 실사용은 **NOT_RUN**이다.<br>- 주입형 `HostRunner`(`source`, `run`, `spawn`)<br>- `RunResult`<br>- 고정 코드 예외(`ProcessTreeUnconfirmed` 포함)<br>- 환경변수 allowlist<br>- `SubprocessRunner` |
-| `_process.py` | 패키지 내부 helper. 실행 중 출력 상한, 프로세스 트리 종료(POSIX process group / Windows Job Object), 종료 재관측을 담당한다 |
+| `aik_platform/process.py` | OS port(AIK-091). 두 호스트 adapter가 함께 쓴다. 실행 중 출력 상한, 프로세스 트리 종료(POSIX process group / Windows Job Object), 종료 재관측을 담당한다 |
 | `protocol.py` | 미검증 CLI 가정을 모은 `CodexCliProtocol`. `LoginState`, `LoginMethod`, `ParsedStatus`를 정의한다. 다른 protocol 객체로 교체할 수 있다 |
 | `bridge.py` | `CodexHostBridge`(ProviderAdapter 구현), `HostCapability`(connection capability), `HostHandle`, `GUI_COMMANDS` |
 

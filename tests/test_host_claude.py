@@ -880,7 +880,7 @@ class ClaudeHostBridgeTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
     def test_r1_unconfirmed_tree_termination_is_unknown_not_success(self) -> None:
-        from aik_host_claude import _process
+        from aik_platform import process as _process
         import aik_host_claude.runner as runner_module
 
         spec = CommandSpec((sys.executable, "-c", "print('ok')"), 20.0, 1024, build_environment(os.environ))
@@ -931,7 +931,7 @@ class ClaudeHostBridgeTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix" and hasattr(os, "waitid"), POSIX_WAITID_ONLY)
     def test_r2_f1_group_is_reobserved_before_the_leader_is_reaped(self) -> None:
-        from aik_host_claude import _process
+        from aik_platform import process as _process
 
         process = subprocess.Popen([sys.executable, "-c", "pass"], stdin=subprocess.DEVNULL,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -965,7 +965,7 @@ class ClaudeHostBridgeTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
     def test_r2_f1_already_reaped_leader_is_unconfirmed_without_signalling_its_group(self) -> None:
-        from aik_host_claude import _process
+        from aik_platform import process as _process
 
         class ReapedLeader:
             pid = 999999999  # never signalled: the helpers below are mocked
@@ -988,7 +988,7 @@ class ClaudeHostBridgeTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix" and hasattr(os, "waitid"), POSIX_WAITID_ONLY)
     def test_r2_f1_launch_bookkeeping_never_reaps_a_launched_process(self) -> None:
-        from aik_host_claude import _process
+        from aik_platform import process as _process
 
         runner = SubprocessRunner()
         env = build_environment(os.environ)
@@ -1009,7 +1009,7 @@ class ClaudeHostBridgeTests(unittest.TestCase):
         self.assertIsNone(first.returncode, "launch() reaped a process whose deadline timer may still signal it.")
 
     def test_r2_f2_windows_tree_is_confirmed_only_by_job_observation(self) -> None:
-        from aik_host_claude import _process
+        from aik_platform import process as _process
 
         class ExitedChild:
             pid = 4242
@@ -1040,7 +1040,7 @@ class ClaudeHostBridgeTests(unittest.TestCase):
                 self.assertFalse(_process.terminate_tree(tracked))
 
     def test_r2_f2_launched_process_is_tracked_for_tree_observation(self) -> None:
-        from aik_host_claude import _process
+        from aik_platform import process as _process
         import aik_host_claude.runner as runner_module
 
         spec = CommandSpec((sys.executable, "-c", "pass"), 0.5, 16, build_environment(os.environ))
@@ -1123,7 +1123,7 @@ class ClaudeHostBridgeTests(unittest.TestCase):
                 time.sleep(0.02)
 
     def test_r2_f6_incomplete_output_collection_is_unknown_not_truncated(self) -> None:
-        from aik_host_claude import _process
+        from aik_platform import process as _process
         import aik_host_claude.runner as runner_module
 
         spec = CommandSpec((sys.executable, "-c", "pass"), 5.0, 16, build_environment(os.environ))

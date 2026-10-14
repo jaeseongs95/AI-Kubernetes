@@ -9,7 +9,6 @@ transaction with DELETE journal and FULL sync. Triggers reject UPDATE/DELETE.
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
-import errno
 from functools import lru_cache
 import hmac
 import json
@@ -35,6 +34,7 @@ from .models import (
     StoredCheckpoint, StoredConfig, StoredDirective, StoredSummary, check_id, rebuild,
     resolve_directives,
 )
+from aik_platform.fs import sync_directory as _sync_directory
 
 
 APPLICATION_ID = 0x41494B4E  # AIKN; distinct from runtime (AIKR), inbox (AIKI) and AIKC.
@@ -153,20 +153,6 @@ def _sqlite_failure(error: sqlite3.Error) -> None:
     if getattr(error, "sqlite_errorcode", 0) & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
         raise StorageBusy("SQLite could not acquire the continuity database lock.") from None
     raise ContinuityError("The continuity database operation could not be completed.") from None
-
-
-def _sync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return  # Windows directory fsync is not portable through Python.
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def _directive_digest(directive: Directive) -> str:

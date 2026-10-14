@@ -39,7 +39,7 @@ entropy는 blob을 해당 참조에 결속하는 용도다. 다른 참조의 암
 ```python
 from aik_vault import open_user_vault, VaultError
 
-vault = open_user_vault()            # Windows에서만 동작, 그 외 VaultUnavailable
+vault = open_user_vault()            # Windows: DPAPI, Linux: Secret Service, 그 외 VaultUnavailable
 ref = vault.put(api_key)             # 'secret://aik-vault/<32 hex>' 반환
 vault.replace(ref, rotated_key)      # 같은 참조로 교체
 plaintext = vault.resolve(ref)       # 호출 경계에서만 평문, 저장·로그 금지
@@ -48,12 +48,12 @@ vault.delete(ref)
 
 - 백엔드 인터페이스 `VaultBackend`: `put/replace/delete/resolve`. 구현은 `DpapiVaultBackend`(제품)와 `FakeVaultBackend`(시험 전용).
 - 참조는 `secrets.token_hex(16)`의 무작위 ID이며 비밀에서 유도하지 않는다. `aik_runtime.CredentialRef(id, ref)`의 locator 규칙을 만족하므로 SQLite에는 이 참조만 저장한다. 설정 파일에도 참조만 쓴다.
-- `open_user_vault`는 Windows 외에서 fake로 **대체하지 않는다**(fail-closed). `FakeVaultBackend`는 명시적 디렉터리와 32-byte 키가 필수이며 보안 경계가 아니다.
+- `open_user_vault`는 플랫폼별 backend를 고른다(DEC09). Windows는 `DpapiVaultBackend`, Linux는 `SecretServiceVaultBackend`(`secret-tool`·D-Bus 키링)다. backend를 쓸 수 없으면 fake나 평문 파일로 **대체하지 않는다**(fail-closed). `FakeVaultBackend`는 명시적 디렉터리와 32-byte 키가 필수이며 보안 경계가 아니다.
 - 평문은 `str`로 받아 내부 `bytearray`로 처리하고 사용 후 0으로 덮는다. Python의 불변 `str`/`bytes` 사본은 지울 수 없으므로 메모리 잔존 방지는 **best effort**다. DPAPI 출력 버퍼는 `LocalFree` 전에 0으로 덮는다.
 
 ## 5. 파일 위치·형식·동시성
 
-- Windows 기본 위치: `%LOCALAPPDATA%\AIK\vault\`. `aik_runtime.paths.default_database_path()`의 규칙(LOCALAPPDATA 필수)을 재사용한다. 비 Windows의 `$XDG_STATE_HOME/aik/vault`는 개발·시험용 fallback이며 Linux 제품 지원이 아니다.
+- Windows 기본 위치: `%LOCALAPPDATA%\AIK\vault\`. `aik_runtime.paths.default_database_path()`의 규칙(LOCALAPPDATA 필수)을 재사용한다. 경로 규칙은 `aik_platform.paths`에 있다. Linux 제품 backend는 파일이 아니라 Secret Service 키링이며, `$XDG_STATE_HOME/aik/vault`는 파일 backend(`FakeVaultBackend` 등)를 직접 열 때만 쓴다.
 - 디렉터리와 각 암호문 파일은 `aik_runtime.paths.validate_database_path`로 검사한다: 절대 경로, `.git`/저장소 내부·개발 원장 이름 거절, symlink·reparse point·hardlink 거절, Windows 원격 드라이브 거절.
 - 파일: `<ref id>.aikv` = `AIKV` + 형식 버전(1) + backend 태그(DPAPI `0x01`, fake `0xFE`) + 보호된 blob. 임시 파일 → fsync → `os.replace` → (POSIX) 디렉터리 fsync. POSIX에서 디렉터리 0700, 파일 0600.
 - 프로세스 간 직렬화는 `aik_runtime.paths.database_lock`(`credentials.storage.lock`)을 재사용한다. 기한 초과는 `VAULT_BUSY`이며 put/replace/delete/resolve 모두 파일 작업을 수행하지 않는다.
@@ -113,3 +113,14 @@ Linux 시험 통과는 개발 검증이며 Windows 지원 증거가 아니다. �
 - 고아 파일이 남을 수 있다. (1) 프로세스가 임시 파일 작성과 `os.replace` 사이에 강제 종료되면 vault 디렉터리에 `.aikv-*.tmp`(암호문, 평문 아님)가 남는다. (2) `VAULT_DURABILITY_UNCONFIRMED`를 받은 put의 결과를 호출자가 기록하지 않으면, 참조를 아는 곳이 없는 암호문 파일이 남는다. 현재 목록·정리 API는 없으며 이런 파일을 자동으로 정리하지 않는다.
 - Windows는 Python에서 이식 가능한 디렉터리 fsync를 제공하지 않으므로, rename/unlink의 전원 장애 내구성은 OS 소관이다(Windows에서는 디렉터리 동기화 단계를 건너뛰므로 `VAULT_DURABILITY_UNCONFIRMED`가 발생하지 않는다).
 - 앱 제거 시 vault 처리, 백업·복구 정책, broker 프로세스 분리, 제품 GUI 연결은 후속 태스크 범위다.
+
+## Linux: Secret Service backend (AIK-009 LINUX-X64 행, DEC09)
+
+- 사용자 결정(2026-10-14)으로 Linux 비밀 저장은 freedesktop Secret Service다. `SecretServiceVaultBackend`는 libsecret의 `secret-tool`을 절대 timeout, 셸 없음, 재시도 없음으로 부른다.
+- 비밀은 `secret-tool store`의 stdin으로만 넘기고 argv에는 넣지 않는다. 항목 속성은 `aik-vault-namespace`·`aik-vault-ref`이고, 호출자는 `secret://aik-vault/<id>` 참조만 가진다.
+- `secret-tool`이 없거나 D-Bus 세션·키링을 쓸 수 없거나 키링이 잠겨 있으면 `VAULT_UNAVAILABLE`이다(fail-closed). stderr 내용은 보관하거나 표시하지 않는다.
+- 경계: 키링은 로그인한 같은 사용자의 다른 프로세스가 읽을 수 있다. Windows DPAPI와 같은 "같은 사용자" 경계이며 프로세스 격리가 아니다.
+- 검증
+  - 단위 시험은 가짜 `secret-tool`로 돈다(`tests/test_platform.py`).
+  - 실제 GNOME Keyring 왕복은 CI `platform-linux.yml`에서 합성 암호와 합성 비밀로 실행한다.
+  - 데스크톱 사용자 세션에서 키링이 실제로 잠기고 풀리는 동작, KWallet 같은 다른 구현은 **NOT_RUN**이다.

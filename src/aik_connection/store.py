@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from contextlib import closing, contextmanager
 from dataclasses import fields, replace
-import errno
 from functools import lru_cache
 import math
 import os
@@ -46,6 +45,7 @@ from .models import (
     AuthContext, Connection, ConnectionProvenance, ConnectionReference, ConnectionSpec, DeletionImpact,
     label_key, normalize_timestamp, provenance_of, rebuild, utc_now,
 )
+from aik_platform.fs import sync_file as _sync_file, sync_directory as _sync_directory
 
 
 CONNECTIONS_APPLICATION_ID = 0x41494B4E  # AIKN; distinct from AIKR runtime and AIKC settings.
@@ -109,29 +109,6 @@ def _sqlite_failure(error: sqlite3.Error) -> None:
     if getattr(error, "sqlite_errorcode", 0) & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
         raise StorageBusy("SQLite could not acquire the connection database lock.") from None
     raise StorageError("The connection database operation could not be completed.") from None
-
-
-def _sync_file(path: Path) -> None:
-    """Flush file contents. A package-local copy; no private aik_runtime import."""
-    with path.open("r+b") as stream:
-        stream.flush()
-        os.fsync(stream.fileno())
-
-
-def _sync_directory(path: Path) -> None:
-    # Windows does not expose portable directory fsync through Python. File
-    # contents are flushed there, but rename power-loss durability is OS-owned.
-    if os.name == "nt":
-        return
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def _shares_files(first: Path, second: Path) -> bool:

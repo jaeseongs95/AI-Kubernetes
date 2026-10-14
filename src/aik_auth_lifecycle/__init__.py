@@ -11,10 +11,10 @@ from .models import (
     LOCK_SESSION, LOCK_VAULT, AuthEvent, AuthEventKind, AuthLifecycleError, AuthSnapshot,
     AuthState, LockPolicy, RunRecord, RunStatus, RunTicket,
 )
-from .signals import ManualLockSignal, windows_session_locked
+from .signals import ManualLockSignal, os_session_locked, windows_session_locked
 
 __all__ = [
     "AuthLifecycle", "AuthState", "AuthEventKind", "AuthEvent", "AuthSnapshot",
     "RunStatus", "RunTicket", "RunRecord", "LockPolicy", "AuthLifecycleError",
-    "LOCK_VAULT", "LOCK_SESSION", "ManualLockSignal", "windows_session_locked",
+    "LOCK_VAULT", "LOCK_SESSION", "ManualLockSignal", "os_session_locked", "windows_session_locked",
 ]

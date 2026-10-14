@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-import errno
 import hashlib
 import hmac
 import math
@@ -21,7 +20,10 @@ import stat
 import tempfile
 
 from aik_runtime.errors import StorageBusy, UnsafeStoragePath
-from aik_runtime.paths import database_lock, default_database_path, validate_database_path
+from aik_platform import PlatformUnavailable
+from aik_platform.fs import restrict_to_owner, sync_directory
+from aik_platform.paths import component_dir
+from aik_runtime.paths import database_lock, validate_database_path
 
 from .errors import (
     CredentialNotFound, InvalidCredentialRef, InvalidSecret, UnsafeVaultPath,
@@ -57,16 +59,15 @@ def is_credential_ref(value: object) -> bool:
 
 
 def default_vault_directory() -> Path:
-    """Reuse the runtime per-user rule: %LOCALAPPDATA%\\AIK\\vault on Windows.
+    """Per-user vault directory from ``aik_platform.paths``.
 
-    Outside Windows the development fallback is $XDG_STATE_HOME/aik/vault (or
-    ~/.local/state/aik/vault). It does not make Linux a supported product OS.
+    Windows: %LOCALAPPDATA%\\AIK\\vault. Linux: $XDG_STATE_HOME/aik/vault (or
+    ~/.local/state/aik/vault).
     """
     try:
-        runtime = default_database_path()
-    except UnsafeStoragePath:
+        return component_dir("vault")
+    except PlatformUnavailable:
         raise UnsafeVaultPath() from None
-    return (runtime.parent.parent if os.name == "nt" else runtime.parent) / "vault"
 
 
 def _permission_denied(target: object) -> bool:
@@ -185,13 +186,12 @@ class _FileVaultBackend(VaultBackend):
         self.directory = anchor.parent
         if not self.directory.is_dir():
             raise UnsafeVaultPath()
-        if os.name != "nt":
-            try:
-                os.chmod(self.directory, 0o700)
-            except PermissionError:
-                raise VaultAccessDenied(_FILE_DENIED) from None
-            except OSError:
-                raise UnsafeVaultPath() from None
+        try:
+            restrict_to_owner(self.directory, directory=True)
+        except PermissionError:
+            raise VaultAccessDenied(_FILE_DENIED) from None
+        except OSError:
+            raise UnsafeVaultPath() from None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}()"
@@ -250,17 +250,7 @@ class _FileVaultBackend(VaultBackend):
         return validate_database_path(self.directory / f"{ref_id}{_SUFFIX}")
 
     def _sync_directory(self) -> None:
-        if os.name == "nt":
-            return
-        descriptor = os.open(self.directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-        try:
-            try:
-                os.fsync(descriptor)
-            except OSError as error:
-                if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                    raise
-        finally:
-            os.close(descriptor)
+        sync_directory(self.directory)
 
     def _sync_published(self, ref_id: str) -> None:
         """Sync after a rename/unlink that is already visible.
@@ -282,8 +272,7 @@ class _FileVaultBackend(VaultBackend):
                 stream.write(blob)
                 stream.flush()
                 os.fsync(stream.fileno())
-            if os.name != "nt":
-                os.chmod(temporary, 0o600)
+            restrict_to_owner(temporary)
             os.replace(temporary, path)
         except BaseException:
             try:

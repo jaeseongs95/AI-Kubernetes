@@ -14,7 +14,6 @@ from dataclasses import dataclass
 import math
 import os
 import re
-import signal
 import subprocess
 import time
 import urllib.parse
@@ -22,6 +21,7 @@ import urllib.parse
 from aik_security.redaction import OMITTED, REDACTED, OutputRedactor, RedactionError
 
 from .errors import InjectionError
+from aik_platform import process as _process
 
 
 _ENV_NAME = re.compile(r"[A-Z_][A-Z0-9_]{0,63}\Z")
@@ -142,11 +142,7 @@ def _terminate(process: subprocess.Popen) -> None:
     # POSIX: the child leads its own session, so its process group includes
     # descendants that did not create a new session. The child has not been
     # reaped yet, so its PID/PGID cannot have been reused.
-    if os.name != "nt":
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except OSError:
-            pass
+    _process.kill_group(process)
     try:
         process.kill()
     except OSError:
@@ -206,10 +202,7 @@ def run_injected(argv, secret: str, *, delivery: str = "stdin", env_name: str | 
     kwargs = {"stdout": subprocess.PIPE, "stderr": subprocess.PIPE, "env": env, "cwd": cwd,
               "shell": False, "close_fds": True,
               "stdin": subprocess.PIPE if delivery == "stdin" else subprocess.DEVNULL}
-    if os.name == "nt":
-        kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-    else:
-        kwargs["start_new_session"] = True
+    kwargs.update(_process.popen_options())
     data = secret.encode("utf-8") if delivery == "stdin" else None
     if delivery == "env":
         env[env_name] = secret

@@ -2,7 +2,8 @@
 
 Plaintext exists only at the put/replace/resolve call boundary. SQLite rows,
 settings, and logs hold the opaque ``secret://aik-vault/<id>`` reference.
-The product backend is Windows per-user DPAPI. The fake backend is test-only.
+The product backend is per platform: Windows per-user DPAPI, Linux Secret
+Service (``open_user_vault`` selects it). The fake backend is test-only.
 """
 
 from .backend import (
@@ -11,8 +12,10 @@ from .backend import (
 )
 from .dpapi import (
     CRYPTPROTECT_LOCAL_MACHINE, CRYPTPROTECT_UI_FORBIDDEN, PROTECT_FLAGS,
-    DpapiCallError, DpapiVaultBackend, open_user_vault,
+    DpapiCallError, DpapiVaultBackend,
 )
+from .secret_service import SecretServiceVaultBackend
+from .user_vault import open_user_vault
 from .errors import (
     CredentialNotFound, InvalidCredentialRef, InvalidSecret, UnsafeVaultPath,
     VaultAccessDenied, VaultBusy, VaultCorrupt, VaultDurabilityUnconfirmed, VaultError,
@@ -20,7 +23,7 @@ from .errors import (
 )
 
 __all__ = [
-    "VaultBackend", "DpapiVaultBackend", "FakeVaultBackend", "open_user_vault",
+    "VaultBackend", "DpapiVaultBackend", "SecretServiceVaultBackend", "FakeVaultBackend", "open_user_vault",
     "default_vault_directory", "parse_credential_ref", "is_credential_ref",
     "MAX_SECRET_BYTES", "REF_NAMESPACE", "REF_PREFIX",
     "CRYPTPROTECT_LOCAL_MACHINE", "CRYPTPROTECT_UI_FORBIDDEN", "PROTECT_FLAGS", "DpapiCallError",
