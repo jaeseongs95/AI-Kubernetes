@@ -20,7 +20,7 @@ const ROUTES = Object.freeze(["connections", "overview", "goals", "workers", "ev
 const PRELOAD = path.resolve(__dirname, "..", "..", "..", "src", "aik_ipc", "preload.cjs");
 const KEY_PRELOAD = path.resolve(__dirname, "..", "..", "..", "src", "aik_ipc", "key_entry_preload.cjs");
 const KEY_ENTRY_TIMEOUT_MS = 1800000;
-const SLOW_TIMEOUT_MS = 65000;
+const SLOW_TIMEOUT_MS = 155000; // a connection command may queue behind a vendor check in the engine
 const ENGINE_ENTRY = path.resolve(__dirname, "..", "engine", "aik_engine_entry.py");
 const smoke = process.argv.includes("--smoke");
 const reportArgument = process.argv.find((value) => value.startsWith("--report-dir="));
@@ -189,8 +189,10 @@ function handlers() {
 
 function timeouts() {
   const result = {"connections.request_key_entry": KEY_ENTRY_TIMEOUT_MS};
-  for (const command of WRITE_COMMANDS) {
-    if (command !== "connections.request_key_entry") result[command] = SLOW_TIMEOUT_MS;
+  for (const command of [...READ_COMMANDS, ...WRITE_COMMANDS]) {
+    if (command.startsWith("connections.") && command !== "connections.request_key_entry") {
+      result[command] = SLOW_TIMEOUT_MS;
+    }
   }
   return result;
 }

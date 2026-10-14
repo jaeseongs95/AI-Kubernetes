@@ -26,6 +26,8 @@ const CONNECTION_CODES = Object.freeze({
   CONNECTIONS_NOT_CONFIGURED: "Connection management is not configured in this engine.",
   UNSUPPORTED_PROVIDER: "No connector serves this vendor and execution path.",
   INVALID_SECRET: "The API key was not accepted.",
+  KEY_REJECTED: "The vendor rejected the API key; nothing was saved.",
+  KEY_REJECTED_CLEANUP_UNCONFIRMED: "The vendor rejected the key and removing the new connection failed.",
   INVALID_INPUT: "The request values are invalid.",
   INVALID_LABEL: "The account label is invalid.",
   VAULT_UNAVAILABLE: "The per-user secret store is unavailable.",

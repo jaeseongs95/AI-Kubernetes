@@ -168,6 +168,19 @@ class ConnectionServiceTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, "DUPLICATE_CONNECTION")
         self.assertEqual(sorted(p.name for p in (self.root / "vault").iterdir()), before)
 
+    def test_a_new_key_the_vendor_rejects_is_not_kept(self):
+        self.verifier.results.append(CheckResult(CheckState.UNAUTHENTICATED, code="KEY_REJECTED_BY_VENDOR"))
+        with self.assertRaises(ConnectError) as raised:
+            self.service.add_api_key("vendor-a", "틀린 키", SECRET)
+        self.assertEqual(raised.exception.code, "KEY_REJECTED")
+        self.assertEqual(self.service.list()["connections"], [])
+        self.assertEqual(list((self.root / "vault").glob("*.aikv")), [])  # the new vault entry is gone too
+        # An unknown outcome (no network) keeps the connection for a later check.
+        self.verifier.results.append(CheckResult(CheckState.UNKNOWN, code="NETWORK"))
+        kept = self.service.add_api_key("vendor-a", "네트워크 없음", SECRET_2)
+        self.assertEqual(kept["connection"]["state"], "unknown")
+        self.assertEqual(len(self.service.list()["connections"]), 1)
+
     def test_vault_failures_become_codes(self):
         class Locked(FakeVaultBackend):
             def put(self, secret):

@@ -9,6 +9,11 @@ Rules:
 - Reads never create storage: without a settings database the list is empty.
 - An API key goes into the vault here and nowhere else. A failed registration
   deletes the new vault entry again (best effort, reported when unconfirmed).
+  A new key that the vendor rejects outright (UNAUTHENTICATED) is not kept:
+  the connection and its vault entry are removed and ``KEY_REJECTED`` lets the
+  user correct the key. An unknown outcome (for example no network) keeps the
+  connection so the check can be retried. A rejected replacement key stays in
+  place (the old key is never read back), leaving the connection unauthenticated.
 - ``credential_ref`` is immutable, so a key change replaces the vault entry in
   place after a rebind to a fresh account marker (verification is cleared and
   the binding revision moves on), then checks again.
@@ -139,7 +144,9 @@ class ConnectionService:
     def _open_store(self, *, create: bool) -> ConnectionStore | None:
         if self._store is not None:
             return self._store
-        if not create and not self._settings_path.exists():
+        # A read needs both files: opening ConnectionStore would create the details file.
+        if not create and not (self._settings_path.exists()
+                               and self._settings_path.with_name("connections.sqlite3").exists()):
             return None
         try:
             settings = SettingsStore(self._settings_path)
@@ -301,7 +308,20 @@ class ConnectionService:
                 code = _store_code(error) if isinstance(error, (SettingsError, StorageError)) else "STORE_UNAVAILABLE"
                 cleaned = _delete_quietly(vault, reference)
                 raise ConnectError(code if cleaned else "SECRET_CLEANUP_UNCONFIRMED") from None
-            return self._check_and_report(store, entry)
+            report = self._check_and_report(store, entry)
+            if report["check"]["state"] == CheckState.UNAUTHENTICATED.value:
+                self._discard_rejected(store, report["connection"], reference, vault)
+            return report
+
+    def _discard_rejected(self, store: ConnectionStore, connection: dict, reference: str, vault: VaultBackend):
+        try:
+            store.delete(connection["connection_id"], connection["revision"])
+        except (SettingsError, StorageError):
+            raise ConnectError("KEY_REJECTED_CLEANUP_UNCONFIRMED") from None
+        self._checks.pop(connection["connection_id"], None)
+        if not _delete_quietly(vault, reference):
+            raise ConnectError("SECRET_CLEANUP_UNCONFIRMED")
+        raise ConnectError("KEY_REJECTED")
 
     def rotate_key(self, connection_id: object, expected_revision: object, secret: object) -> dict:
         with self._lock:

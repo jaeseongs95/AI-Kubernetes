@@ -8,7 +8,7 @@
 |---|---|
 | `apps/desktop/electron/main.cjs` | Electron main. spike(AIK-002)의 보안 설정을 그대로 쓰고, renderer IPC는 AIK-004 `DesktopRouter`로만 받는다 |
 | `apps/desktop/electron/platform.cjs` | OS 차이를 모은 유일한 파일: 엔진 실행 파일 이름, 엔진에 넘길 환경 변수 allow list, spawn 옵션. 다른 파일에서 `process.platform`을 쓰면 시험이 실패한다 |
-| `apps/desktop/electron/engine.cjs` | `EngineClient`(stdio JSON-lines, 프로세스별 nonce, 64KiB frame, 동시 4건, 기한. 벤더 검사·로그인 명령은 60초)와 `EngineSupervisor`(실패 뒤 5초 간격 재시작, 버전 불일치는 재시작하지 않음) |
+| `apps/desktop/electron/engine.cjs` | `EngineClient`(stdio JSON-lines, 프로세스별 nonce, 64KiB frame, 동시 4건, 기한. `connections.*`는 엔진의 연결 전용 줄에서 순서대로 처리되므로 150초)와 `EngineSupervisor`(실패 뒤 5초 간격 재시작, 버전 불일치는 재시작하지 않음) |
 | `apps/desktop/electron/key-entry.cjs` | AIK-046/047 main 소유 API 키 입력 창. 전용 preload(`src/aik_ipc/key_entry_preload.cjs`)·채널(`aik:key-entry:v1`)·발신자 검사. 키는 이 창에서 엔진으로만 간다 |
 | `apps/desktop/src/` | React renderer: 화면 7개, 연결 상태 표시줄, typed client(`api.ts`) |
 | `apps/desktop/engine/aik_engine_entry.py` | `python -I`로 소스 엔진을 띄우는 진입점. 벤더 connector를 조립하는 composition root(공통 패키지는 벤더 패키지를 import하지 않는다) |

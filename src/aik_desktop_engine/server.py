@@ -10,6 +10,9 @@ Framing:
   and exits with code 3 when the protocol versions differ.
 - Every later line is one request; every answer is one line. A line longer
   than ``MAX_FRAME`` bytes or a malformed line ends the session (exit 2).
+- ``connections.*`` requests run one at a time on a separate worker thread, so a
+  slow vendor check never delays a status query. Answers may therefore arrive
+  out of request order; the client matches them by ``request_id``.
 
 Status and read-model queries observe only; they never create state. The
 ``connections.*`` commands (AIK-046/047) go to an injected
@@ -29,8 +32,10 @@ import hmac
 import json
 import os
 from pathlib import Path
+import queue
 import re
 import sys
+import threading
 from typing import Any, BinaryIO
 
 from aik_platform import PlatformError, family
@@ -309,17 +314,44 @@ def serve(stdin: BinaryIO, stdout: BinaryIO, config: EngineConfig | None = None,
         _write(stdout, {"kind": "incompatible", "supported_versions": [PROTOCOL_VERSION]})
         return EXIT_INCOMPATIBLE
     engine = Engine(bootstrap["nonce"], config, environ=environ, connections=connections)
-    _write(stdout, {"kind": "ready", "protocol_version": PROTOCOL_VERSION, "pid": os.getpid(),
-                    "engine_version": ENGINE_VERSION})
-    while True:
-        raw = stdin.readline(MAX_FRAME + 1)
-        if not raw:
-            return 0
-        try:
-            request = parse_frame(raw)
-        except ProtocolError:
-            return EXIT_INVALID
-        _write(stdout, engine.dispatch(request))
+    output = threading.Lock()
+
+    def emit(value: dict) -> None:
+        with output:
+            _write(stdout, value)
+
+    pending: queue.Queue = queue.Queue()
+
+    def connection_lane() -> None:
+        while (request := pending.get()) is not None:
+            try:
+                emit(engine.dispatch(request))
+            except OSError:
+                return  # the client closed the pipe; nobody is left to answer
+
+    lane = threading.Thread(target=connection_lane, name="aik-engine-connections", daemon=True)
+    emit({"kind": "ready", "protocol_version": PROTOCOL_VERSION, "pid": os.getpid(),
+          "engine_version": ENGINE_VERSION})
+    lane.start()
+    code = 0
+    try:
+        while True:
+            raw = stdin.readline(MAX_FRAME + 1)
+            if not raw:
+                break
+            try:
+                request = parse_frame(raw)
+            except ProtocolError:
+                code = EXIT_INVALID
+                break
+            if request.get("command") in CONNECTION_COMMANDS:
+                pending.put(request)
+            else:
+                emit(engine.dispatch(request))
+    finally:
+        pending.put(None)
+        lane.join()  # finish (and answer) connection work already accepted
+    return code
 
 
 def _config(argv: list[str]) -> EngineConfig:

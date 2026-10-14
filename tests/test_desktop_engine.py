@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 import uuid
 
@@ -229,6 +230,29 @@ class FramingTests(unittest.TestCase):
         self.assertEqual(self.run_serve(raw=oversized)[0], 2)
         duplicate = b'{"kind":"bootstrap","kind":"bootstrap","protocol_version":1,"nonce":"' + NONCE.encode() + b'"}\n'
         self.assertEqual(self.run_serve(raw=duplicate), (2, []))
+
+    def test_a_slow_connection_command_does_not_hold_back_status(self):
+        released = threading.Event()
+
+        class SlowService:
+            def check(self, connection_id):
+                waited = released.wait(10)
+                return {"connection_id": connection_id, "waited": waited}
+
+        class Output(io.BytesIO):
+            def write(self, data):
+                if b'"command":"system.status"' in data:
+                    released.set()  # the status answer went out while the check was still running
+                return super().write(data)
+
+        stdout = Output()
+        stdin = frames({"kind": "bootstrap", "protocol_version": 1, "nonce": NONCE},
+                       request("connections.check", payload={"connection_id": "conn-1"}), request("system.status"))
+        code = serve(stdin, stdout, environ={"XDG_STATE_HOME": "/nonexistent-aik-test"}, connections=SlowService())
+        answers = lines(stdout)
+        self.assertEqual(code, 0)
+        self.assertEqual([answer.get("command") for answer in answers[1:]], ["system.status", "connections.check"])
+        self.assertEqual(answers[2]["result"], {"connection_id": "conn-1", "waited": True})
 
     def test_real_process_over_stdio(self):
         process = subprocess.run(

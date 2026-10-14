@@ -14,10 +14,9 @@ const COMMANDS = new Set(["system.status", "engine.info", "readmodel.sources",
   "connections.catalog", "connections.list", "connections.impact", "connections.login_state",
   "connections.add_key", "connections.rotate_key", "connections.check", "connections.rename", "connections.delete",
   "connections.start_login", "connections.cancel_login", "connections.complete_login", "connections.logout"]);
-// Vendor checks and official logins can take longer than a status query.
-const SLOW_COMMANDS = new Set(["connections.add_key", "connections.rotate_key", "connections.check",
-  "connections.start_login", "connections.complete_login", "connections.logout", "connections.cancel_login"]);
-const SLOW_TIMEOUT_MS = 60000;
+// The engine runs connection commands one at a time on its own lane, so one may
+// wait behind a vendor check or official login; status queries are not delayed.
+const SLOW_TIMEOUT_MS = 150000;
 const ERROR_CODE = /^[A-Z][A-Z0-9_]{1,63}$/;
 
 class EngineError extends Error {
@@ -132,7 +131,7 @@ class EngineClient {
     if (this.pending.size >= MAX_INFLIGHT) throw new EngineError("ENGINE_BUSY");
     const requestId = randomUUID();
     return new Promise((resolve, reject) => {
-      const timeoutMs = SLOW_COMMANDS.has(command) ? Math.max(this.timeoutMs, SLOW_TIMEOUT_MS) : this.timeoutMs;
+      const timeoutMs = command.startsWith("connections.") ? Math.max(this.timeoutMs, SLOW_TIMEOUT_MS) : this.timeoutMs;
       const timer = setTimeout(() => this.fail("ENGINE_REQUEST_TIMEOUT"), timeoutMs);
       this.pending.set(requestId, {command, resolve, reject, timer});
       this.child.stdin.write(JSON.stringify({protocol_version: this.protocolVersion, request_id: requestId, command,
