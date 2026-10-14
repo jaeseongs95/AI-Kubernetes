@@ -23,6 +23,8 @@ import type {
   SystemState
 } from "./api";
 import {ConnectionsRoute} from "./connections";
+import {WorkspacesPanel, currentProjectName, useWorkspaces} from "./workspaces";
+import type {WorkspacesStore} from "./workspaces";
 import "./style.css";
 
 const POLL_INTERVAL_MS = 5000;
@@ -283,9 +285,12 @@ function ConnectionBar({snapshot}: {snapshot: Snapshot}) {
   </div>;
 }
 
-function Nav({current}: {current: RouteId}) {
+function Nav({current, projectName}: {current: RouteId; projectName: string | null}) {
   return <nav className="side-nav" aria-label="주 메뉴">
-    <div className="brand"><span className="mark">AIK</span><div>AI-Kubernetes<span className="subtitle">로컬 workspace</span></div></div>
+    <div className="brand"><span className="mark">AIK</span><div>AI-Kubernetes<span className="subtitle" id="nav-project"
+      data-project={projectName !== null ? "1" : "0"} title={projectName ?? undefined}>
+      {projectName !== null ? <><span className="sr-only">현재 프로젝트: </span>{projectName}</> : "프로젝트 폴더 미선택"}
+    </span></div></div>
     <ul>
       {ROUTES.map((route) => <li key={route.id}>
         <a id={"nav-" + route.id} href={"#/" + route.id} aria-current={route.id === current ? "page" : undefined} className={route.id === current ? "active" : undefined}>
@@ -390,12 +395,13 @@ function OverviewRoute({snapshot}: {snapshot: Snapshot}) {
   </section>;
 }
 
-function SettingsRoute({snapshot}: {snapshot: Snapshot}) {
+function SettingsRoute({snapshot, workspaces}: {snapshot: Snapshot; workspaces: WorkspacesStore}) {
   const {engine, status} = snapshot;
   const info = engine.data;
   const dataState = engine.error !== null ? "ERROR" : info ? (status.data?.state ?? "UNKNOWN") : "LOADING";
   return <section id="route-settings" data-state={dataState}>
-    <RouteHeader eyebrow="SETTINGS" title="설정"><p>엔진이 보고한 실행 정보입니다. 이 화면에서는 값을 바꿀 수 없습니다.</p></RouteHeader>
+    <RouteHeader eyebrow="SETTINGS" title="설정"><p>작업할 프로젝트 폴더를 고르고 전환합니다. 아래 엔진 실행 정보는 읽기 전용입니다.</p></RouteHeader>
+    <WorkspacesPanel store={workspaces} />
     <article className="panel">
       <h2>엔진 정보 (읽기 전용)</h2>
       {info ? <dl className="fields">
@@ -409,7 +415,7 @@ function SettingsRoute({snapshot}: {snapshot: Snapshot}) {
         <Field label="director" value={textOf(DIRECTOR_STATE_TEXT, info.director_state)} code={info.director_state} />
       </dl> : engine.error ? <ErrorPanel error={engine.error} /> : <p className="muted">응답을 기다리는 중입니다.</p>}
       <StaleNotice query={engine} lastSuccessAt={snapshot.lastSuccessAt} />
-      <p className="note">파일 경로는 설계상 화면에 표시하지 않습니다.</p>
+      <p className="note">엔진 내부 파일 경로(상태 저장소·read model 등)는 설계상 화면에 표시하지 않습니다. 사용자가 고른 프로젝트 폴더의 경로는 위 프로젝트 폴더 패널에 그대로 표시합니다.</p>
     </article>
   </section>;
 }
@@ -429,6 +435,7 @@ function PendingRoute({id}: {id: keyof typeof PENDING_ROUTES}) {
 function App() {
   const route = useHashRoute();
   const snapshot = useEnginePolling();
+  const workspaces = useWorkspaces();
   const [connectionsLoaded, setConnectionsLoaded] = useState(false);
 
   // 연결 화면을 떠나면 다음 방문의 첫 응답까지 data-loaded를 다시 0으로 둔다.
@@ -449,7 +456,7 @@ function App() {
     view = <ConnectionsRoute onLoadedChange={setConnectionsLoaded} />;
     loaded = connectionsLoaded;
   } else if (route === "settings") {
-    view = <SettingsRoute snapshot={snapshot} />;
+    view = <SettingsRoute snapshot={snapshot} workspaces={workspaces} />;
     loaded = snapshot.engine.answered;
   } else {
     view = <PendingRoute id={route} />;
@@ -457,13 +464,13 @@ function App() {
   }
 
   return <div className="shell">
-    <Nav current={route} />
+    <Nav current={route} projectName={currentProjectName(workspaces.list)} />
     <div className="content">
       <ConnectionBar snapshot={snapshot} />
       <main id="route-view" data-route={route} data-loaded={loaded ? "1" : "0"}>
         {view}
       </main>
-      <footer><span>비밀 값 비표시 · 원장이 권위</span><span>workspace {WORKSPACE_ID}</span></footer>
+      <footer><span>비밀 값 비표시 · 원장이 권위</span><span>IPC 범위 {WORKSPACE_ID}</span></footer>
     </div>
   </div>;
 }
