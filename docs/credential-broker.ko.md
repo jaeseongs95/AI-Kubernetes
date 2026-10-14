@@ -8,7 +8,8 @@
 - **`grant_id`는 비밀로 취급해야 하는 단기 bearer capability다.** 등록된 adapter가 `grant_id`와 일치하는 workspace·task ID를 받아 호출하면 broker는 grant 범위 안에서 비밀을 해석한다. broker는 workspace·task 값을 호출자가 제출한 값과 grant를 비교할 뿐이므로, 그 값을 누가 제출했는지는 확인하지 않는다. 따라서 `grant_id`를 로그·화면·다른 workspace의 worker에 노출하지 않는다. broker의 감사 기록·logger·sink에도 원문 대신 비가역 참조 `grant_audit_ref(grant_id)`(`gref-` + SHA-256 앞 24 hex)만 남긴다.
 - 신뢰된 backend(오케스트레이터)가 `issue_grant`로 adapter·workspace·task·lease(fencing token)·connection 집합을 하나의 grant에 결속한다. TTL은 **0초 초과~3600초**(소수 허용)다. 사용 횟수는 기본 1회이며 최대 16회다.
 - 등록된 adapter만 `inject`/`run_with_credential`로 실행 직전에 비밀을 요청한다. broker는 `aik_vault`에서 평문을 해석해 **adapter callback 한 번에만** 넘기고 바로 참조를 버린다.
-- 평문을 호출자에게 그대로 반환하는 API는 없다. renderer용 raw secret API·IPC 명령도 만들지 않았다(`aik_ipc/desktop.cjs`는 handshake·status와 읽기 전용 engine.info·readmodel.sources만 허용하며, 어느 것도 비밀을 다루지 않는다).
+- 평문을 호출자에게 그대로 반환하는 API는 없다. renderer용 raw secret API·IPC 명령도 만들지 않았다. `aik_ipc/desktop.cjs`의 renderer 명령(handshake·status·engine.info·readmodel.sources와 AIK-046/047의 `connections.*`)은 어느 것도 비밀을 싣거나 돌려주지 않는다.
+- **저장 방향(GUI → vault)은 broker가 아니다.** API 키 등록·교체는 main 프로세스가 띄우는 별도 키 입력 창 → main → 엔진 `connections.add_key`/`rotate_key` → `aik_connect.ConnectionService` → `aik_vault` 경로로만 간다. renderer는 키를 보지 않는다. broker는 그렇게 저장된 `credential_ref`를 실행 시점에 해석해 adapter callback에 넘기는 방향만 맡는다. 자세한 경로와 한계는 [connections-gui](connections-gui.ko.md)에 있다.
 
 ## 2. 인가 순서 (fail-closed)
 

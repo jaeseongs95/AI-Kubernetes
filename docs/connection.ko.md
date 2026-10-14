@@ -56,6 +56,7 @@ store.register(ConnectionSpec('conn-api-a', 'ws-1', 'vendor', 'API 키', 'api_ke
   - 확인 시각(UTC `Z`로 정규화)을 기록하고 설정의 `needs_authentication`을 해제한다.
   - 관측 자체는 이 패키지가 하지 않는다.
 - `rebind(id, expected_revision, official_host=…, host_profile=…, account_binding=…)`: `binding_revision`을 1 올리고 확인 시각을 지운다. 이후 재인증이 필요하다.
+- `invalidate(id, expected_revision)`(AIK-046/047): 확인 시각만 지운다. binding과 `binding_revision`은 그대로다. 공식 호스트 로그아웃이나 벤더가 키·계정을 거절한 검사 뒤에 쓴다. settings의 `needs_authentication`은 `True`가 된다. 인증 없는 연결(`none`)에는 쓸 수 없다.
 - `verify_auth_context(context)`: 실행 직전 검증이다.
   - connection_id·provider·auth/execution kind·공식 호스트·프로필·계정·binding revision 중 하나라도 다르면 `AuthContextMismatch`.
   - 현재 binding revision이 미확인이면 `AuthenticationRequired`.
@@ -111,7 +112,7 @@ store.register(ConnectionSpec('conn-api-a', 'ws-1', 'vendor', 'API 키', 'api_ke
 | 작업 | commit 순서 | 두 commit 사이에서 실패하면 남는 상태 |
 | --- | --- | --- |
 | `register` | 설정 → 상세 | 상세 없는 settings `ConnectionProfile` |
-| `rebind` 등 `needs_authentication`을 유지하거나 설정하는 갱신 | 설정 → 상세 | settings는 `needs_authentication=True`, 상세는 옛 binding·확인 시각 |
+| `rebind`·`invalidate` 등 `needs_authentication`을 유지하거나 설정하는 갱신 | 설정 → 상세 | settings는 `needs_authentication=True`, 상세는 옛 binding·확인 시각 |
 | `mark_verified` (`needs_authentication` 해제) | 상세 → 설정 | 상세는 확인됨, settings는 `needs_authentication=True`(설정만 읽는 소비자에게도 미인증으로 보임) |
 | `delete` | 상세 → 설정 | 상세 없는 settings `ConnectionProfile` |
 
