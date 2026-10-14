@@ -3,12 +3,12 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T05:00:26Z`
+- 수정일 (UTC): `2026-10-14T05:40:33Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
 - 태스크 93개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 353건
-- 상태: 미착수 39개 · 진행 중 0개 · 진행 차단 52개 · 완료 2개 · 취소 0개
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 356건
+- 상태: 미착수 38개 · 진행 중 0개 · 진행 차단 53개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -38,7 +38,7 @@ python tools/backlog.py report
 | M0 · 통합 계약·플랫폼 기반 결정 | 첫 출시 | 10 | 0 | 0 | 8 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 15 | 0 | 0 | 15 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 28 | 2 | 0 | 26 | 0 | 0 | 0 |
-| M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 10 | 0 | 3 | 0 | 0 | 0 |
+| M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 9 | 0 | 4 | 0 | 0 | 0 |
 | M4 · 첫 배포 검증(Windows·Linux) | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
 | M6 · 추가 자원·조직·배포 확장 | 향후 확장 | 6 | 6 | 0 | 0 | 0 | 0 | 0 |
@@ -86,8 +86,8 @@ python tools/backlog.py report
 | M1 | WIN-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
 | M2 | LINUX-X64 | 28 | 1 | 0 | 27 | 0 | 0 | 0 |
 | M2 | WIN-X64 | 28 | 2 | 0 | 26 | 0 | 0 | 0 |
-| M3 | LINUX-X64 | 13 | 10 | 0 | 3 | 0 | 0 | 0 |
-| M3 | WIN-X64 | 13 | 10 | 0 | 3 | 0 | 0 | 0 |
+| M3 | LINUX-X64 | 13 | 9 | 0 | 4 | 0 | 0 | 0 |
+| M3 | WIN-X64 | 13 | 9 | 0 | 4 | 0 | 0 | 0 |
 | M4 | LINUX-X64 | 9 | 6 | 0 | 3 | 0 | 0 | 0 |
 | M4 | WIN-X64 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 | LINUX-X64 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -2152,13 +2152,13 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 52 |
-| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-14T01:54:45Z` |
+| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-14T05:40:33Z` |
 
 사용자가 자신의 프로젝트를 연결하고 어떤 파일 범위에서 목표가 실행되는지 확인·변경하는 데스크톱 GUI를 구현한다.
 
@@ -2169,7 +2169,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VISION](#s-vision)
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC04](#dec04) (확정)
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI 결과 대기. 선행 작업 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2180,7 +2180,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-087-IMPL-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-14-workspaces-gui/README.ko.md` · 엔진 WorkspaceService·workspaces.* 명령 8개(AIK-084 WorkspaceManager·AIK-007 설정·AIK-021 scope 위, 연결 처리 줄 공유), renderer 명령 6개(경로 없음)·main 소유 native 폴더 선택 창(FolderPicker), 설정 화면 프로젝트 폴더 패널 구현. VM project port가 없으면 등록은 VM_NOT_CONFIGURED로 막히고 폴더·registry·설정을 남기지 않음(사용자 결정 2026-10-14, 흐름은 fake VM port 시험). 로컬 Linux 전체 회귀 Ran 1584 OK(skip 18), 서비스·엔진 9, IPC node 53(workspaces 5)·desktop 19(폴더 선택 창 4) pass, npm build 성공. xvfb Electron smoke PASS(패널 EMPTY·vm NOT_CONFIGURED)·엔진 없음 BLOCKED(패널 UNAVAILABLE). 실제 VM project 생성·조회, native 폴더 선택 창 실조작, 등록된 행의 실제 화면, 한글·공백 경로·키보드 설치본 E2E, 실제 cwd 일치(AIK-044), Goal 입력·인가 revision 결속과 Windows 실행은 NOT_RUN. · `2026-10-14T05:40:33Z` · 플랫폼 `LINUX-X64`
 
 ### AIK-046
 
@@ -4593,6 +4593,9 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 351 | task_platform `AIK-046/WIN-X64` | note | Windows CI 결과 대기. 선행 작업 미완료 | Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-046-SHELL-WIN-CI-20261014… | Windows CI 근거 기록 | `2026-10-14T05:00:26Z` |
 | 352 | task_platform `AIK-047/WIN-X64` | note | Windows CI 결과 대기. 선행 작업 미완료 | Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-047-SHELL-WIN-CI-20261014… | Windows CI 근거 기록 | `2026-10-14T05:00:26Z` |
 | 353 | task_platform `AIK-045/WIN-X64` | note | desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료 | Windows CI(windows-2022) smoke 근거 EV-AIK-045-SHELL-WIN-CI-20261014. 작업 선행 미완료 | Windows CI 근거 기록 | `2026-10-14T05:00:26Z` |
+| 354 | task_evidence `EV-AIK-087-IMPL-20261014` | created | — | AIK-087 partial_implementation_validation LINUX-X64 | AIK-087 구현·Linux smoke 근거 | `2026-10-14T05:40:33Z` |
+| 355 | task_platform `AIK-087/LINUX-X64` | status | todo | blocked | 로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료 | `2026-10-14T05:40:33Z` |
+| 356 | task_platform `AIK-087/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 선행 작업 미완료 | `2026-10-14T05:40:33Z` |
 
 ## DB 메타데이터
 
@@ -4621,7 +4624,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T05:00:26Z |
+| `updated_at` | 2026-10-14T05:40:33Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |
