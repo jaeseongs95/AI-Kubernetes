@@ -3,12 +3,12 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T02:14:24Z`
+- 수정일 (UTC): `2026-10-14T02:38:19Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
 - 태스크 92개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 312건
-- 상태: 미착수 42개 · 진행 중 0개 · 진행 차단 48개 · 완료 2개 · 취소 0개
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 317건
+- 상태: 미착수 41개 · 진행 중 0개 · 진행 차단 49개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -38,7 +38,7 @@ python tools/backlog.py report
 | M0 · 통합 계약·플랫폼 기반 결정 | 첫 출시 | 10 | 0 | 0 | 8 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 15 | 0 | 0 | 15 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 2 | 0 | 25 | 0 | 0 | 0 |
-| M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
+| M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
 | M4 · 첫 배포 검증(Windows·Linux) | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
 | M6 · 추가 자원·조직·배포 확장 | 향후 확장 | 6 | 6 | 0 | 0 | 0 | 0 | 0 |
@@ -86,8 +86,8 @@ python tools/backlog.py report
 | M1 | WIN-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
 | M2 | LINUX-X64 | 27 | 1 | 0 | 26 | 0 | 0 | 0 |
 | M2 | WIN-X64 | 27 | 2 | 0 | 25 | 0 | 0 | 0 |
-| M3 | LINUX-X64 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
-| M3 | WIN-X64 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
+| M3 | LINUX-X64 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
+| M3 | WIN-X64 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
 | M4 | LINUX-X64 | 9 | 6 | 0 | 3 | 0 | 0 | 0 |
 | M4 | WIN-X64 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 | LINUX-X64 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -500,6 +500,7 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 **기록된 증거**
 
 - `EV-AIK-091-PORTS-20261014` · partial_implementation_validation · `docs/platform.ko.md` · aik_platform(fs·locks·paths·process·session) 추가와 공통 코드 이전: 복제 _sync_directory 13벌·_sync_file 6벌·reparse 검사 4벌·동일 _process.py 2벌·supervisor _lock_ops·경로 분기 제거. 정적 시험으로 aik_platform 밖 os.name/sys.platform/msvcrt/fcntl 0건(예외: Windows DPAPI adapter의 WinDLL). 로컬 Linux 전체 회귀 1483건 OK(skip 18). Windows CI 결과와 실제 Windows 실행은 이 근거에 없다. · `2026-10-14T02:14:23Z` · 플랫폼 `LINUX-X64`
+- `EV-AIK-091-WINDOWS-CI-20261014` · partial_implementation_validation · `docs/platform.ko.md` · PR #23 head b6294a0 CI run 38501246286의 modules (windows-2022) 전체 회귀 PASS: aik_platform port(msvcrt 잠금, Job Object 프로세스, LOCALAPPDATA 경로, DPAPI adapter)로 바꾼 공통 코드가 Windows Server에서 통과. 첫 실행(d564344)은 시험의 POSIX 전용 가짜 경로로 6건 실패했고 시험만 고쳐 재실행했다. 실제 Windows 11 실행은 이 근거에 없다. · `2026-10-14T02:38:19Z` · 플랫폼 `WIN-X64`
 
 ## M1 · 인증 보관·멀티벤더 자원 연결
 
@@ -543,6 +544,7 @@ API 키와 app 소유 비밀을 OS 사용자 범위 저장소(Windows DPAPI·Lin
 
 - `EV-AIK-009-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-009` · 부분 구현: commit 36f7e69/72a9d33, tests/test_vault.py 26개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분), 3(부분); 차단: 실제 Windows DPAPI 실행 근거 부재; 선행 AIK-004·AIK-005 장부상 미완료; Credential Manager 정책 근거 자료 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 - `EV-AIK-009-SECRETSERVICE-20261014` · partial_implementation_validation · `docs/vault.ko.md` · Linux SecretServiceVaultBackend(secret-tool, stdin 전달, 절대 timeout, fail-closed)와 open_user_vault 플랫폼 선택 구현. 가짜 secret-tool 단위 시험 PASS. 실제 GNOME Keyring 왕복은 CI platform-linux.yml에서 별도 확인하며 이 근거에는 포함하지 않는다. 데스크톱 세션 키링 잠금·KWallet NOT_RUN. · `2026-10-14T02:14:23Z` · 플랫폼 `LINUX-X64`
+- `EV-AIK-009-SECRETSERVICE-CI-20261014` · partial_implementation_validation · `.github/workflows/platform-linux.yml` · CI platform-linux run 38500153983 job 115644934084(ubuntu-24.04): dbus-run-session 위 실제 GNOME Keyring(합성 암호, 합성 비밀)에서 SecretServiceVaultBackend 저장·조회·교체·삭제 왕복 시험 PASS, 같은 job의 키링 없는 실행은 live 시험 skip·나머지 PASS. 러너 이미지 범위의 확인이며 데스크톱 세션 키링·KWallet NOT_RUN. · `2026-10-14T02:38:19Z` · 플랫폼 `LINUX-X64`
 
 ### AIK-010
 
@@ -2074,13 +2076,13 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 51 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T02:38:19Z` |
 
 기존 VM UI 자산을 검토해 실제 backend와 연결되는 데스크톱 shell을 만든다.
 
@@ -2091,7 +2093,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-USER](#s-user), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (확정), [DEC14](#dec14) (확정)
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux smoke PASS 근거. 작업 선행 미완료), WIN-X64 진행 차단 (desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2102,7 +2104,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-045-SHELL-LINUX-20261014` · partial_implementation_validation · `docs/desktop-shell.ko.md` · apps/desktop Electron 셸(화면 7개·연결 상태 표시줄)과 src/aik_desktop_engine stdio 엔진 구현. 로컬 Linux (xvfb, 일반 사용자, Electron 44.7.0) smoke 4건: 실제 소스 엔진 연결 PASS(route 7개 스크린샷), 엔진 미구성 BLOCKED/unavailable, 버전 불일치 가짜 엔진 BLOCKED/incompatible, cursor gap read model PASS/stale. 미연결 화면 5개는 NOT_CONNECTED만 표시(예시 데이터 없음). 선행 AIK-004·043·044 미완료, 실제 VM·AGS·벤더 데이터와 패키징(AIK-057) NOT_RUN. Windows 실행은 이 근거에 없다. · `2026-10-14T02:38:19Z` · 플랫폼 `LINUX-X64`
 
 ### AIK-087
 
@@ -4508,6 +4510,11 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 310 | task_evidence `EV-AIK-016-LOGIND-20261014` | created | — | AIK-016 partial_implementation_validation LINUX-X64 | AIK-091/092 OS port·벤더 중립 transport 구현 근거 | `2026-10-14T02:14:23Z` |
 | 311 | task_platform `AIK-091/WIN-X64` | status | todo | blocked | 작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T02:14:24Z` |
 | 312 | task_platform `AIK-091/LINUX-X64` | status | todo | blocked | 작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T02:14:24Z` |
+| 313 | task_evidence `EV-AIK-045-SHELL-LINUX-20261014` | created | — | AIK-045 partial_implementation_validation LINUX-X64 | AIK-045 데스크톱 셸·플랫폼 CI 근거 | `2026-10-14T02:38:19Z` |
+| 314 | task_evidence `EV-AIK-009-SECRETSERVICE-CI-20261014` | created | — | AIK-009 partial_implementation_validation LINUX-X64 | AIK-045 데스크톱 셸·플랫폼 CI 근거 | `2026-10-14T02:38:19Z` |
+| 315 | task_evidence `EV-AIK-091-WINDOWS-CI-20261014` | created | — | AIK-091 partial_implementation_validation WIN-X64 | AIK-045 데스크톱 셸·플랫폼 CI 근거 | `2026-10-14T02:38:19Z` |
+| 316 | task_platform `AIK-045/LINUX-X64` | status | todo | blocked | 로컬 Linux smoke PASS 근거. 작업 선행 미완료 | `2026-10-14T02:38:19Z` |
+| 317 | task_platform `AIK-045/WIN-X64` | status | todo | blocked | desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료 | `2026-10-14T02:38:19Z` |
 
 ## DB 메타데이터
 
@@ -4536,7 +4543,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T02:14:24Z |
+| `updated_at` | 2026-10-14T02:38:19Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |
