@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T05:40:33Z`
+- 수정일 (UTC): `2026-10-14T06:22:19Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
 - 태스크 93개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 356건
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 358건
 - 상태: 미착수 38개 · 진행 중 0개 · 진행 차단 53개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
@@ -2169,7 +2169,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VISION](#s-vision)
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC04](#dec04) (확정)
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI 결과 대기. 선행 작업 미완료)
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음), 폴더 선택 창 시험 pass 근거 EV-AIK-087-SHELL-WIN-CI-20261014. 실제 VM project·native 폴더 선택 창 실조작·설치본 E2E NOT_RUN. 선행 작업 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2181,6 +2181,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 **기록된 증거**
 
 - `EV-AIK-087-IMPL-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-14-workspaces-gui/README.ko.md` · 엔진 WorkspaceService·workspaces.* 명령 8개(AIK-084 WorkspaceManager·AIK-007 설정·AIK-021 scope 위, 연결 처리 줄 공유), renderer 명령 6개(경로 없음)·main 소유 native 폴더 선택 창(FolderPicker), 설정 화면 프로젝트 폴더 패널 구현. VM project port가 없으면 등록은 VM_NOT_CONFIGURED로 막히고 폴더·registry·설정을 남기지 않음(사용자 결정 2026-10-14, 흐름은 fake VM port 시험). 로컬 Linux 전체 회귀 Ran 1584 OK(skip 18), 서비스·엔진 9, IPC node 53(workspaces 5)·desktop 19(폴더 선택 창 4) pass, npm build 성공. xvfb Electron smoke PASS(패널 EMPTY·vm NOT_CONFIGURED)·엔진 없음 BLOCKED(패널 UNAVAILABLE). 실제 VM project 생성·조회, native 폴더 선택 창 실조작, 등록된 행의 실제 화면, 한글·공백 경로·키보드 설치본 E2E, 실제 cwd 일치(AIK-044), Goal 입력·인가 revision 결속과 Windows 실행은 NOT_RUN. · `2026-10-14T05:40:33Z` · 플랫폼 `LINUX-X64`
+- `EV-AIK-087-SHELL-WIN-CI-20261014` · partial_ci_validation · `https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38518102994/job/115701372020` · PR #29 head 8919ea4(merge 66c6fef)의 GitHub Actions desktop-shell `shell (windows-2022)` job: tests.test_desktop_engine·test_desktop_workspaces Ran 25 OK(workspace 서비스·엔진 명령 9 포함), apps/desktop node 19 pass(폴더 선택 창 시험 4 포함), npm run build, Electron smoke check_desktop_smoke `OK: PASS connected on windows`·`OK: BLOCKED unavailable on windows`(검사기가 프로젝트 폴더 패널 상태를 엔진 답과 대조; artifact 11872458165, zip sha256 47562b27dc97ec61ebb79c4e1b4a036ffd00fc6599740b4f476a819e2975dc6c). 패널 상태 값 자체는 로그에 따로 출력되지 않는다. 같은 head의 desktop-ipc·modules windows-2022 job도 success. 실제 VM project 생성·조회, native 폴더 선택 창 실조작, 한글·공백 경로·키보드 설치본 E2E, 실제 cwd 일치(AIK-044)는 NOT_RUN. · `2026-10-14T06:22:19Z` · 플랫폼 `WIN-X64`
 
 ### AIK-046
 
@@ -4596,6 +4597,8 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 354 | task_evidence `EV-AIK-087-IMPL-20261014` | created | — | AIK-087 partial_implementation_validation LINUX-X64 | AIK-087 구현·Linux smoke 근거 | `2026-10-14T05:40:33Z` |
 | 355 | task_platform `AIK-087/LINUX-X64` | status | todo | blocked | 로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료 | `2026-10-14T05:40:33Z` |
 | 356 | task_platform `AIK-087/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 선행 작업 미완료 | `2026-10-14T05:40:33Z` |
+| 357 | task_evidence `EV-AIK-087-SHELL-WIN-CI-20261014` | created | — | AIK-087 partial_ci_validation WIN-X64 | AIK-087 Windows CI 근거 | `2026-10-14T06:22:19Z` |
+| 358 | task_platform `AIK-087/WIN-X64` | note | Windows CI 결과 대기. 선행 작업 미완료 | Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음), 폴더 선택 창 시험 pass 근거 EV-AIK-087-SHEL… | Windows CI 근거 기록 | `2026-10-14T06:22:19Z` |
 
 ## DB 메타데이터
 
@@ -4624,7 +4627,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T05:40:33Z |
+| `updated_at` | 2026-10-14T06:22:19Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

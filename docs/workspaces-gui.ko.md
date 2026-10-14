@@ -395,7 +395,7 @@ Electron smoke(xvfb, 일반 사용자 계정, 빈 HOME):
 
 `tools/check_desktop_smoke.py`는 두 보고서 모두 OK다. smoke 뒤 HOME에 상태 파일이 생기지 않았다.
 
-Linux 통과는 개발 검증이며 Windows 지원 증거가 아니다. Windows 결과는 CI(`desktop-shell`, `desktop-ipc`)로만 기록한다.
+Linux 통과는 개발 검증이며 Windows 지원 증거가 아니다. Windows 결과는 CI로만 있다. PR #29의 `shell (windows-2022)` job에서 Python 25개 OK(workspace 9 포함), `apps/desktop` 19개 pass(폴더 선택 창 4 포함), smoke 엔진 있음 `PASS`·엔진 없음 `BLOCKED`였다([근거](../evidence/implementation/2026-10-14-workspaces-gui/README.ko.md)). `desktop-ipc (windows-2022)`도 success였다.
 
 ## 10. NOT_RUN과 한계
 
