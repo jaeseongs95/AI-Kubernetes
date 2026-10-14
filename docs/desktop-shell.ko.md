@@ -81,4 +81,4 @@ node --test tests/test_desktop_ipc.cjs tests/test_desktop_ipc_lifecycle.cjs test
 - **실제 운영 데이터**: 실제 키 저장·벤더 검사와 공식 로그인은 실행하지 않았다(NOT_RUN). VM Goal, worker, 근거, 사용량은 화면에 연결되지 않았다(AIK-044 선행).
 - **macOS**: `platform.cjs`에 항목이 없어 엔진을 띄우지 않고 "엔진 연결 불가"로 표시한다.
 - **접근성·트레이·재접속 UX**: 기본 키보드 이동과 `aria-live`만 있다. 나머지는 AIK-056이다.
-- **workspace**: `local` 하나로 고정했다. 프로젝트 선택은 AIK-087이다.
+- **workspace**: IPC 요청의 `workspace_id`는 `local`로 고정이다. 이 값은 앱 창의 라우팅 범위다. 사용자가 고른 프로젝트 폴더(AIK-087)는 엔진의 `workspaces.select`로 저장하는 데이터이고, 이 값을 바꾸지 않는다([workspaces-gui](workspaces-gui.ko.md)).

@@ -7,7 +7,9 @@ expected verdict, all seven routes with a screenshot each, a sandboxed renderer
 and engine answers that match the verdict. AIK-046/047: the connections route
 names its real state, and with an engine the key entry window probe must PASS
 (isolated window, password input, cancelled without a key) or, without an
-API-key connector, say NOT_RUN. Exit 0 when it does, 1 otherwise.
+API-key connector, say NOT_RUN. AIK-087: the settings route shows the project
+folder panel; with an engine it is EMPTY or READY and agrees with the engine's
+workspaces.list answer, without one it is UNAVAILABLE. Exit 0 when it does, 1 otherwise.
 """
 
 from __future__ import annotations
@@ -20,9 +22,11 @@ import sys
 ROUTES = ("connections", "overview", "goals", "workers", "evidence", "usage", "settings")
 NOT_CONNECTED = ("goals", "workers", "evidence", "usage")
 CONNECTION_STATES = ("NOT_CONFIGURED", "UNAVAILABLE", "EMPTY", "READY")
-BRIDGE = ["cancelLogin", "checkConnection", "completeLogin", "connectionCatalog", "connectionImpact", "connections",
-          "deleteConnection", "engineInfo", "handshake", "loginState", "logoutConnection", "readmodelSources",
-          "renameConnection", "requestKeyEntry", "startLogin", "status"]
+BRIDGE = ["archiveWorkspace", "cancelLogin", "checkConnection", "completeLogin", "connectionCatalog",
+          "connectionImpact", "connections", "deleteConnection", "engineInfo", "handshake", "loginState",
+          "logoutConnection", "readmodelSources", "renameConnection", "requestFolder", "requestKeyEntry",
+          "restoreWorkspace", "selectWorkspace", "startLogin", "status", "workspaceScope", "workspaces"]
+WORKSPACE_PANEL_STATES = ("NOT_CONFIGURED", "UNAVAILABLE", "EMPTY", "READY")
 
 
 def problems(report: dict, report_dir: Path, expect: str, connection: str) -> list[str]:
@@ -61,6 +65,18 @@ def problems(report: dict, report_dir: Path, expect: str, connection: str) -> li
             found.append("key entry probe PASS lacks isolation, a password input, a cancel or its screenshot")
     elif expect == "PASS" and probe.get("reason") != "no_api_connector":
         found.append(f"key entry probe was not run although the engine answered: {probe.get('reason')!r}")
+    panel = report.get("workspaces_panel")
+    answer = report.get("workspaces")
+    if not isinstance(panel, dict) or panel.get("state") not in WORKSPACE_PANEL_STATES:
+        found.append(f"project folder panel {panel!r}")
+    elif expect == "PASS":
+        result = answer.get("result") if isinstance(answer, dict) and answer.get("ok") is True else None
+        if not isinstance(result, dict):
+            found.append("PASS needs a workspaces.list answer seen by the main process")
+        elif panel["state"] != ("READY" if result.get("workspaces") else "EMPTY") or panel.get("vm") != result.get("vm"):
+            found.append(f"project folder panel {panel!r} does not match the engine answer")
+    elif panel["state"] != "UNAVAILABLE":
+        found.append(f"project folder panel state {panel['state']!r} without an engine")
     engine = report.get("engine")
     if expect == "PASS" and not (isinstance(engine, dict) and engine.get("ok") is True):
         found.append("PASS needs a real engine.info answer seen by the main process")

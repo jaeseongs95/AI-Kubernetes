@@ -283,6 +283,10 @@ async function runSmoke() {
     await waitFor(() => page(`(() => { const view = document.getElementById("route-view");
       return view?.dataset.route === "${route}" && view?.dataset.loaded === "1" &&
         Boolean(document.getElementById("route-${route}")); })()`));
+    if (route === "settings") {
+      // The project folder panel answers from its own engine query; capture it once it has.
+      await waitFor(() => page(`(document.getElementById("workspaces-panel")?.dataset.state ?? "LOADING") !== "LOADING"`));
+    }
     const state = await page(`document.getElementById("route-${route}").dataset.state ?? null`);
     // Let the compositor paint the new route before capturing it.
     await page("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))");
@@ -292,6 +296,8 @@ async function runSmoke() {
     routes.push({route, rendered: true, state, screenshot: file});
   }
   const connection = await page("document.getElementById('connection-bar').dataset.connection");
+  const workspacesPanel = await page(`(() => { const panel = document.getElementById("workspaces-panel");
+    return panel ? {state: panel.dataset.state ?? null, vm: panel.dataset.vm ?? null} : null; })()`);
   const keyEntryProbe = await probeKeyEntry();
   const engineInfo = observed.get("engine.info");
   const failed = rendererNodeAccess || !window.isVisible() || routes.length !== ROUTES.length ||
@@ -317,6 +323,7 @@ async function runSmoke() {
     readmodel_sources: observed.get("readmodel.sources") ?? null,
     connections: observed.get("connections.list") ?? null,
     workspaces: observed.get("workspaces.list") ?? null,
+    workspaces_panel: workspacesPanel,
     key_entry: keyEntryProbe,
     routes,
     metrics: {

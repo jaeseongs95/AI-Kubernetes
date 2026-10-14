@@ -4,8 +4,9 @@ renderer와 Electron main 사이의 제한된 IPC를 제공한다. 명령은 다
 
 - 기본 명령: `protocol.handshake`, `system.status`, AIK-045가 더한 읽기 전용 `engine.info`·`readmodel.sources`.
 - AIK-046·047 연결 명령: 읽기 4개, 쓰기 8개. 목록은 [connections-gui](connections-gui.ko.md) §4에 있다.
+- AIK-087 프로젝트 폴더 명령: 읽기 2개(`workspaces.list`·`scope`), 쓰기 4개(`select`·`archive`·`restore`·`request_folder`). 목록은 [workspaces-gui](workspaces-gui.ko.md)에 있다.
 
-어떤 renderer 명령도 API 키를 싣지 않는다. 키는 main이 띄우는 별도 키 입력 창에서만 입력하고, 그 창은 별도 채널을 쓴다(아래 "키 입력 창 채널").
+어떤 renderer 명령도 API 키나 폴더 경로를 싣지 않는다. 폴더는 main이 띄우는 OS 폴더 선택 창에서만 고르고, 고른 경로는 main이 엔진으로 바로 보낸다. 키는 main이 띄우는 별도 키 입력 창에서만 입력하고, 그 창은 별도 채널을 쓴다(아래 "키 입력 창 채널").
 
 이 문서는 제품 GUI·VM/AGS·vault broker 전체 연결이 끝났다고 말하지 않는다. 데스크톱 셸 연결은 [desktop-shell](desktop-shell.ko.md)에 있다.
 
@@ -29,6 +30,7 @@ payload 검사는 명령에 따라 다르다.
 - 필드 사이 조합도 검사한다.
   - `connections.start_login`: 새 로그인은 `provider`·`account_label`, 재인증은 `connection_id`만 준다.
   - `connections.request_key_entry`: `add`는 `provider`·`account_label`만, `rotate`는 `connection_id`·`expected_revision`만 준다.
+- 프로젝트 폴더 명령: `src/aik_ipc/workspaces.cjs`의 `readWorkspacePayload`가 같은 방식으로 검사한다. `name`은 `account_label`과 같은 규칙이고, `folder_name`은 `/ \ : * ? " < > |`·제어 문자·끝 공백/점·`.`/`..`를 거절한다. `workspaces.request_folder`는 `open`이 `name`만, `create`가 `name`·`folder_name`만, `rebind`가 `workspace_id`·`expected_revision`만 준다.
 - 크기는 `JSON.stringify` 없이 문자 수의 상한으로 추정한다. 상한은 전체 frame 16,384바이트다.
 
 검증 직후 원시 객체를 버리고 동결한 primitive snapshot을 사용한다. 동결한 payload는 handler 문맥의 `payload`로 main에 전달된다.
@@ -48,6 +50,7 @@ payload 검사는 명령에 따라 다르다.
   - 연결 ID가 중복된다.
   - `idle` 로그인에 `provider`가 있다.
   - 목록 상한을 넘는다(연결 256, 참조 1,024, connector 32).
+- 프로젝트 폴더 명령: `workspaces.cjs`의 `WORKSPACE_SNAPSHOTS`가 형식을 검사한다. 상태·조치 값이 정해진 집합 밖이거나, 실행 가능(`ready`)하지 않은 선택에 실행 폴더(`cwd`)가 있거나, 목록의 `active` 표시가 선택과 다르거나, 보관 상태와 `archived` 상태가 어긋나면 `INVALID_RESPONSE`다.
 
 원본이 비동기 처리 중 또는 반환 후 변경되어도 검증 결과에 반영되지 않는다.
 
@@ -60,6 +63,7 @@ backend 오류는 고정 코드/문구로 바꾸고, 원시 예외·stack·민�
 - 연결 명령에서는 다음 코드도 그대로 전달한다.
   - 엔진이 거절하며 보낸 고정 코드 중 `CONNECTION_CODES`에 있는 것.
   - main의 `KEY_ENTRY_BUSY`·`KEY_ENTRY_UNAVAILABLE`.
+- 프로젝트 폴더 명령에서는 `WORKSPACE_CODES`에 있는 엔진 코드와 main의 `FOLDER_PICKER_BUSY`·`FOLDER_PICKER_UNAVAILABLE`도 그대로 전달한다.
 - 목록에 없는 코드(예: 엔진의 `INTERNAL_ERROR`)와 다른 예외는 모두 `BACKEND_UNAVAILABLE`이다.
 
 handshake 결과의 `boundary`는 `RENDERER_NO_SECRETS`다. 이전 값 `RENDERER_READ_ONLY`에서 바뀌었다. renderer에 쓰기 명령이 생겼지만 비밀을 다루는 명령은 없다는 뜻이다. 이 값으로 분기하는 소비자는 함께 바꿔야 한다.
