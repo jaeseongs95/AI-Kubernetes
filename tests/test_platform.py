@@ -30,6 +30,10 @@ from aik_vault import (  # noqa: E402
 from aik_vault.secret_service import namespace_for  # noqa: E402
 
 SECRET = "synthetic-secret-éé-value"
+# Fake tool locations; abspath gives a drive-qualified path on Windows, where
+# the adapters' absolute-path check would reject a bare "/usr/bin/...".
+LOGINCTL = os.path.abspath("/usr/bin/loginctl")
+SECRET_TOOL = os.path.abspath("/usr/bin/secret-tool")
 
 
 class FakeKeyring:
@@ -148,7 +152,7 @@ class PlatformPortTests(unittest.TestCase):
 
 
 class SessionLockTests(unittest.TestCase):
-    def logind(self, stdout=b"no\n", returncode=0, environ=None, which="/usr/bin/loginctl", error=None):
+    def logind(self, stdout=b"no\n", returncode=0, environ=None, which=LOGINCTL, error=None):
         calls = []
 
         def run(argv, **kwargs):
@@ -167,7 +171,7 @@ class SessionLockTests(unittest.TestCase):
         result, calls = self.logind(b"no\n")
         self.assertIs(result, False)
         argv, kwargs = calls[0]
-        self.assertEqual(argv, ["/usr/bin/loginctl", "show-session", "c2", "--property=LockedHint", "--value"])
+        self.assertEqual(argv, [LOGINCTL, "show-session", "c2", "--property=LockedHint", "--value"])
         self.assertFalse(kwargs["shell"])
         self.assertEqual(kwargs["timeout"], 2.0)
 
@@ -199,7 +203,7 @@ class SessionLockTests(unittest.TestCase):
 class SecretServiceVaultTests(unittest.TestCase):
     def vault(self, keyring=None, namespace="test"):
         self.keyring = keyring or FakeKeyring()
-        return SecretServiceVaultBackend(namespace, _runner=self.keyring, _which=lambda name: "/usr/bin/secret-tool")
+        return SecretServiceVaultBackend(namespace, _runner=self.keyring, _which=lambda name: SECRET_TOOL)
 
     def test_round_trip_keeps_the_secret_out_of_argv(self):
         vault = self.vault()
@@ -213,7 +217,7 @@ class SecretServiceVaultTests(unittest.TestCase):
             vault.resolve(ref)
         for argv, stdin in self.keyring.calls:
             self.assertFalse(any(SECRET in item for item in argv))
-            self.assertEqual(argv[0], "/usr/bin/secret-tool")
+            self.assertEqual(argv[0], SECRET_TOOL)
         stores = [stdin for argv, stdin in self.keyring.calls if argv[1] == "store"]
         self.assertEqual(stores, [SECRET.encode(), (SECRET + "-2").encode()])
 
@@ -252,7 +256,7 @@ class SecretServiceVaultTests(unittest.TestCase):
 
     def test_open_user_vault_selects_by_platform(self):
         with mock.patch("aik_vault.user_vault.family", return_value="linux"), \
-                mock.patch("aik_vault.secret_service.shutil.which", return_value="/usr/bin/secret-tool"):
+                mock.patch("aik_vault.secret_service.shutil.which", return_value=SECRET_TOOL):
             selected = open_user_vault(Path("/tmp/somewhere"))
         self.assertIsInstance(selected, SecretServiceVaultBackend)
         self.assertNotEqual(namespace_for(Path("/tmp/a")), namespace_for(Path("/tmp/b")))
