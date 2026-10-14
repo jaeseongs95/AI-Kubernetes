@@ -18,9 +18,10 @@ from .models import (
     RecoveryDecision, RecoveryError, RecoveryReport,
 )
 from .reconciler import LEASE_SCAN_STATES, RecoveryReconciler
+from .resend import LoopResendScheduler, ResumeContext
 
 __all__ = [
-    "RecoveryReconciler", "RecoveryJournal", "ToolEffectAdapter", "READ_ONLY_TOOLS", "UNKNOWN_CODE", "decision_fingerprint", "APPLICATION_ID", "SCHEMA_VERSION",
+    "RecoveryReconciler", "RecoveryJournal", "ToolEffectAdapter", "LoopResendScheduler", "ResumeContext", "READ_ONLY_TOOLS", "UNKNOWN_CODE", "decision_fingerprint", "APPLICATION_ID", "SCHEMA_VERSION",
     "EffectRef", "RecoveryDecision", "RecoveryReport", "RecoveryError",
     "ACTIONS", "OUTCOMES", "SUBJECT_KINDS", "VM_STATES", "IDEMPOTENCY_CLASSES", "LEASE_SCAN_STATES",
 ]

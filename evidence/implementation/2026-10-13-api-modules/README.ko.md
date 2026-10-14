@@ -1084,3 +1084,15 @@ PR #15(commit `004ae1f`·`5953027`)는 상태를 바꾸지 않고 아래 태스�
 - 다른 Windows 사용자 프로필 DPAPI 거부
 - Windows 11 표준 사용자 실기
 - matrix revision별 live qualification
+
+## 보충 근거: recovery 재전송과 ApiToolLoop.resume 결합
+
+`aik_recovery.LoopResendScheduler`는 상태를 바꾸지 않고 아래 태스크에 근거를 보충한다. 근거 ID는 `EV-<태스크>-SUPP-RESEND-20261014`이다.
+
+- 시험: `tests/test_resend_resume.py`(8개), `tests/test_recovery_adapter.py`(9개). 세션 Linux에서 통과했다.
+- 상세: [복구 문서의 재전송 스케줄러 절](../../../docs/recovery.ko.md).
+
+| 태스크 | 주제 | 보충 내용 |
+|---|---|---|
+| AIK-039 | recovery 재전송 결합 | 보충: aik_recovery.LoopResendScheduler가 ToolEffectAdapter의 resend를 실제 ApiToolLoop.resume에 연결했다(request당 resume 1회, returned 확인 뒤에만 성공, 미전달은 RESEND_NOT_DELIVERED 등 고정 코드로 reconciler failed 기록). adapter는 같은 request의 resume으로 이미 returned된 sibling을 다시 넘기지 않는다. tests/test_resend_resume.py 8개(실제 loop crash 뒤 새 reconciler로 receipt 재전송 1회·denied·두 call·intent sibling 차단·새 DevTools REPLAY_MISMATCH·context 없음)와 adapter 시험 1개 추가, 세션 Linux PASS. 영속 replay 저장소·resume context 보관소·실제 프로세스 kill·Windows는 NOT_RUN. 상태 변경 없음. |
+| AIK-086 | 재시작 경계 결합 | 보충(기준 3): 도구 intent/receipt/결과 반환 경계에서 재시작 뒤 recovery가 실제 ApiToolLoop.resume으로 같은 결과를 1회 재전송하고(효과 재실행 없음), 전달하지 못한 경우 applied가 아닌 failed로 남김을 tests/test_resend_resume.py로 저장소 안에서 확인했다. 새 프로세스에서는 replay 기억이 없어 실패로 닫힌다(멱등 create_file은 재관측으로 receipt가 한 번 더 전달됨, 고정 시험). 설치본 crash 실측·governed 실행은 NOT_RUN. 상태 변경 없음. |

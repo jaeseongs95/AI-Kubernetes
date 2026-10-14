@@ -83,7 +83,8 @@ native 경로는 기존 VM runtime이나 `aik_vm_bridge.AikHostedRuntime`을 대
   3. 같은 `Invocation`으로 DevTools를 다시 부른다.
   4. DevTools 재생 결과가 `replayed=True`이고 결과 digest가 `receipt`와 같아야 재전송한다. 아니면 `REPLAY_MISMATCH`로 멈춘다.
 - `denied`는 저장된 오류 코드로 다시 보낸다.
-- 재생은 DevTools의 재생 계약에 의존한다. DevTools가 결과를 보존하지 않는 새 프로세스에서의 재생 동작은 검증하지 않았다(NOT_RUN).
+- 재생은 DevTools의 재생 계약에 의존한다. 결과를 보존하지 않는 새 DevTools에서는 `REPLAY_MISMATCH`로 멈추며 `returned`를 쓰지 않는다. 이때 멱등 도구(`create_file`)는 기존 파일을 다시 관측하고 권한 계층에 receipt를 한 번 더 전달한다(`tests/test_resend_resume.py`가 고정). 영속 replay는 구현하지 않았다.
+- recovery는 `aik_recovery.LoopResendScheduler`로 이 `resume`을 부른다([복구 문서](recovery.ko.md)).
 
 ## 오류
 
@@ -109,7 +110,7 @@ NOT_RUN 항목:
 - VM `run_once`·RuntimeJob과의 결합
 - AGS gate 실행
 - native OS 권한·same-user 관측
-- 프로세스 재시작 뒤 DevTools 재생
+- 프로세스 재시작 뒤 DevTools 결과 replay(영속 저장소 없음. 새 DevTools에서는 실패로 닫힘)
 - Windows 실행
 
 API 경로의 lease 활성화·budget 정산 연결도 구현하지 않았다. 전체 live governed qualification은 AIK-086 범위다. qualified를 주장하지 않는다.

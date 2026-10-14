@@ -1588,6 +1588,7 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 
 - `EV-AIK-039-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-039` · 부분 구현: commit 080d185, tests/test_recovery.py 11개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 4(부분); 차단: 선행 AIK-035 dispatch 미완료(골격만); VM attempt_state·effect port의 실제 adapter 없음; 실제 provider 재관측 미실행. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:13:34Z`
 - `EV-AIK-039-SUPP-M2INT-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-m2-결합-시험과-recovery-실제-adapter` · 보충: aik_recovery.ToolEffectAdapter가 RecoveryReconciler의 effect port(inflight·mark_unknown·resend_result)를 실제 aik_dispatch.DispatchJournal tool event 위에 구현했다(commit 5953027, tests/test_recovery_adapter.py 8개, M2 결합 시험 시나리오 4). 기존 근거의 'fake port 시험뿐'을 API 경로에 한해 정정한다. hosted runtime 경로(AikEffectJournal) adapter와 실제 ApiAgentLoop.resume 재전송 결합은 NOT_RUN. 상태 변경 없음. · `2026-10-13T16:31:55Z`
+- `EV-AIK-039-SUPP-RESEND-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-recovery-재전송과-apitoolloopresume-결합` · 보충: aik_recovery.LoopResendScheduler가 ToolEffectAdapter의 resend를 실제 ApiToolLoop.resume에 연결했다(request당 resume 1회, returned 확인 뒤에만 성공, 미전달은 RESEND_NOT_DELIVERED 등 고정 코드로 reconciler failed 기록). adapter는 같은 request의 resume으로 이미 returned된 sibling을 다시 넘기지 않는다. tests/test_resend_resume.py 8개(실제 loop crash 뒤 새 reconciler로 receipt 재전송 1회·denied·두 call·intent sibling 차단·새 DevTools REPLAY_MISMATCH·context 없음)와 adapter 시험 1개 추가, 세션 Linux PASS. 영속 replay 저장소·resume context 보관소·실제 프로세스 kill·Windows는 NOT_RUN. 상태 변경 없음. · `2026-10-14T00:58:46Z`
 
 ### AIK-086
 
@@ -1622,6 +1623,7 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 **기록된 증거**
 
 - `EV-AIK-086-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-086` · 부분 구현: commit PR #16 aik_governance_env, tests/test_governance_env.py 26개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(이 환경 검증 불가), 3(부분), 4(이 환경 검증 불가); 차단: AIK-022 Windows 멀티벤더 인증 qualification 미완료; AIK-081 AGS A2 plugin 미확보(host-integration.json·A2는 AGS 3.x 미병합); 실제 governed 실행·실계정 미실행. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T16:58:36Z`
+- `EV-AIK-086-SUPP-RESEND-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-recovery-재전송과-apitoolloopresume-결합` · 보충(기준 3): 도구 intent/receipt/결과 반환 경계에서 재시작 뒤 recovery가 실제 ApiToolLoop.resume으로 같은 결과를 1회 재전송하고(효과 재실행 없음), 전달하지 못한 경우 applied가 아닌 failed로 남김을 tests/test_resend_resume.py로 저장소 안에서 확인했다. 새 프로세스에서는 replay 기억이 없어 실패로 닫힌다(멱등 create_file은 재관측으로 receipt가 한 번 더 전달됨, 고정 시험). 설치본 crash 실측·governed 실행은 NOT_RUN. 상태 변경 없음. · `2026-10-14T00:58:46Z`
 
 ### AIK-041
 

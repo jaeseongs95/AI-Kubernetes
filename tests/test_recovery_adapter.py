@@ -162,6 +162,14 @@ class ToolEffectAdapterTests(unittest.TestCase):
             self.adapter.resend_result(no_receipt)
         self.assertEqual(raised.exception.code, "EFFECT_STATE_CHANGED")
 
+    def test_call_returned_since_the_scan_is_not_resent(self) -> None:
+        # One resume sends every pending call of a request; a sibling found returned is already sent.
+        ref = next(ref for ref in self.adapter.inflight() if ref.tool_call_id == "call-denied")
+        self.journal.tool_event("req-a", "call-denied", "returned", {})
+        self.adapter.resend_result(ref)
+        self.assertEqual(self.resent, [])
+        self.assertEqual(self.states("req-a", "call-denied"), ["intent", "denied", "returned"])
+
     def test_unknown_or_returned_refs_are_refused(self) -> None:
         stale = EffectRef("attempt-a", "call-done", "create_file", True, False, "non_idempotent")
         with self.assertRaises(RecoveryError) as raised:
