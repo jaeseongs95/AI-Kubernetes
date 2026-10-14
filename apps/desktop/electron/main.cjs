@@ -5,7 +5,9 @@
 // AIK-046/047: connection commands go through the same router; API keys are typed
 // only into the main-owned key entry window (./key-entry.cjs) and go from there
 // straight to the engine.
-const {app, BrowserWindow, ipcMain, protocol, session} = require("electron");
+// AIK-087: project folders are picked only in the main-owned native folder dialog
+// (./folder-picker.cjs); the chosen path goes from main straight to the engine.
+const {app, BrowserWindow, dialog, ipcMain, protocol, session} = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const platform = require("./platform.cjs");
@@ -13,13 +15,17 @@ const {EngineSupervisor, EngineError} = require("./engine.cjs");
 const {CHANNEL, READ_COMMANDS, WRITE_COMMANDS, BackendError, DesktopRouter, makeRendererHandler} =
   require("../../../src/aik_ipc/desktop.cjs");
 const {KEY_CHANNEL, KeyEntry, KeyEntryError} = require("./key-entry.cjs");
+const {FolderPicker, FolderPickerError} = require("./folder-picker.cjs");
 
 const APP_URL = "aik://app/index.html";
-const WORKSPACE_ID = "local"; // single local workspace until project selection (AIK-087)
+// IPC session scope of this app window. The selected project folder (AIK-087) is engine data
+// (workspaces.select), not this routing scope; connections stay in this scope.
+const WORKSPACE_ID = "local";
 const ROUTES = Object.freeze(["connections", "overview", "goals", "workers", "evidence", "usage", "settings"]);
 const PRELOAD = path.resolve(__dirname, "..", "..", "..", "src", "aik_ipc", "preload.cjs");
 const KEY_PRELOAD = path.resolve(__dirname, "..", "..", "..", "src", "aik_ipc", "key_entry_preload.cjs");
 const KEY_ENTRY_TIMEOUT_MS = 1800000;
+const FOLDER_DIALOG_TIMEOUT_MS = 1800000;
 const SLOW_TIMEOUT_MS = 155000; // a connection command may queue behind a vendor check in the engine
 const ENGINE_ENTRY = path.resolve(__dirname, "..", "engine", "aik_engine_entry.py");
 const smoke = process.argv.includes("--smoke");
@@ -30,6 +36,7 @@ const observed = new Map(); // smoke evidence: validated backend answers seen by
 let window;
 let engine;
 let keyEntry;
+let folderPicker;
 let quitting = false;
 
 if (smoke && !reportDirectory) {
@@ -162,6 +169,15 @@ async function submitKey(context, secret) {
   }
 }
 
+async function requestFolder(_workspaceId, context) {
+  try {
+    return await folderPicker.pick(context.payload, context.signal);
+  } catch (error) {
+    if (error instanceof FolderPickerError) throw new BackendError(error.code);
+    throw engineFailure(error);
+  }
+}
+
 function createKeyWindow() {
   const keyWindow = new BrowserWindow({
     parent: window, modal: true, width: 520, height: 320, resizable: false, minimizable: false, maximizable: false,
@@ -182,15 +198,17 @@ function createKeyWindow() {
 function handlers() {
   const result = {};
   for (const command of [...READ_COMMANDS, ...WRITE_COMMANDS]) {
-    result[command] = command === "connections.request_key_entry" ? requestKeyEntry : reader(command);
+    result[command] = command === "connections.request_key_entry" ? requestKeyEntry
+      : command === "workspaces.request_folder" ? requestFolder : reader(command);
   }
   return result;
 }
 
 function timeouts() {
-  const result = {"connections.request_key_entry": KEY_ENTRY_TIMEOUT_MS};
+  const result = {"connections.request_key_entry": KEY_ENTRY_TIMEOUT_MS,
+    "workspaces.request_folder": FOLDER_DIALOG_TIMEOUT_MS};
   for (const command of [...READ_COMMANDS, ...WRITE_COMMANDS]) {
-    if (command.startsWith("connections.") && command !== "connections.request_key_entry") {
+    if ((command.startsWith("connections.") || command.startsWith("workspaces.")) && !Object.hasOwn(result, command)) {
       result[command] = SLOW_TIMEOUT_MS;
     }
   }
@@ -222,9 +240,10 @@ function page(expression) {
   return window.webContents.executeJavaScript(expression);
 }
 
-const BRIDGE_KEYS = ["cancelLogin", "checkConnection", "completeLogin", "connectionCatalog", "connectionImpact",
-  "connections", "deleteConnection", "engineInfo", "handshake", "loginState", "logoutConnection", "readmodelSources",
-  "renameConnection", "requestKeyEntry", "startLogin", "status"].join(",");
+const BRIDGE_KEYS = ["archiveWorkspace", "cancelLogin", "checkConnection", "completeLogin", "connectionCatalog",
+  "connectionImpact", "connections", "deleteConnection", "engineInfo", "handshake", "loginState", "logoutConnection",
+  "readmodelSources", "renameConnection", "requestFolder", "requestKeyEntry", "restoreWorkspace", "selectWorkspace",
+  "startLogin", "status", "workspaceScope", "workspaces"].join(",");
 
 async function probeKeyEntry() {
   // Opens the key entry window from the renderer bridge, checks its isolation, captures it, then cancels.
@@ -297,6 +316,7 @@ async function runSmoke() {
     system_status: observed.get("system.status") ?? null,
     readmodel_sources: observed.get("readmodel.sources") ?? null,
     connections: observed.get("connections.list") ?? null,
+    workspaces: observed.get("workspaces.list") ?? null,
     key_entry: keyEntryProbe,
     routes,
     metrics: {
@@ -305,7 +325,7 @@ async function runSmoke() {
       renderer_working_set_kb: metrics?.memory?.workingSetSize ?? null
     },
     not_run: ["packaged frozen engine (AIK-057)", "typing and saving a real API key, official vendor login",
-      "real VM/AGS data (AIK-044)"]
+      "real VM/AGS data (AIK-044)", "native folder dialog and registering a project folder (needs a VM project)"]
   });
   await engine.close();
   app.exit(status === "PASS" ? 0 : status === "BLOCKED" ? 2 : 1);
@@ -334,6 +354,8 @@ async function startup() {
   window.webContents.on("will-attach-webview", (event) => event.preventDefault());
   engine = new EngineSupervisor({launch: launchEngine});
   keyEntry = new KeyEntry({createWindow: createKeyWindow, submit: submitKey});
+  folderPicker = new FolderPicker({showDialog: (options) => dialog.showOpenDialog(window, options),
+    request: (command, payload) => engine.request(command, payload)});
   window.on("closed", () => keyEntry.close());
   const router = new DesktopRouter({readers: handlers(), commandTimeoutsMs: timeouts()});
   ipcMain.handle(CHANNEL, makeRendererHandler({router, getWindow: () => window,

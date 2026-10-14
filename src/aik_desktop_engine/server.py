@@ -10,9 +10,10 @@ Framing:
   and exits with code 3 when the protocol versions differ.
 - Every later line is one request; every answer is one line. A line longer
   than ``MAX_FRAME`` bytes or a malformed line ends the session (exit 2).
-- ``connections.*`` requests run one at a time on a separate worker thread, so a
-  slow vendor check never delays a status query. Answers may therefore arrive
-  out of request order; the client matches them by ``request_id``.
+- ``connections.*`` and ``workspaces.*`` requests run one at a time on a
+  separate worker thread, so a slow vendor check or folder inspection never
+  delays a status query. Answers may therefore arrive out of request order; the
+  client matches them by ``request_id``.
 
 Status and read-model queries observe only; they never create state. The
 ``connections.*`` commands (AIK-046/047) go to an injected
@@ -22,6 +23,11 @@ connection metadata and the per-user vault. Requests that carry an API key
 its own key entry window; the engine never echoes a payload and answers every
 failure with a fixed code. Without a configured service the connection
 commands answer ``CONNECTIONS_NOT_CONFIGURED``.
+
+The ``workspaces.*`` commands (AIK-087) go to ``WorkspaceService``. Folder
+paths in ``workspaces.open``/``create``/``rebind_root`` come only from the main
+process's own folder dialog. Without a configured service they answer
+``WORKSPACES_NOT_CONFIGURED``.
 This is a pipe between processes of one user, not an OS security boundary.
 """
 
@@ -61,7 +67,20 @@ CONNECTION_COMMANDS = {
     "connections.complete_login": (),
     "connections.logout": ("connection_id", "expected_revision"),
 }
-PAYLOAD_FIELDS = {**_READ_COMMANDS, **CONNECTION_COMMANDS}
+# Exact payload keys per workspace command (AIK-087); paths come only from the main process.
+WORKSPACE_COMMANDS = {
+    "workspaces.list": (),
+    "workspaces.scope": ("workspace_id",),
+    "workspaces.open": ("name", "root"),
+    "workspaces.create": ("name", "parent", "folder_name"),
+    "workspaces.select": ("workspace_id",),
+    "workspaces.rebind_root": ("workspace_id", "root", "expected_revision"),
+    "workspaces.archive": ("workspace_id", "expected_revision"),
+    "workspaces.restore": ("workspace_id", "expected_revision"),
+}
+# Commands answered on the worker thread instead of the request reader.
+LANE_COMMANDS = frozenset(CONNECTION_COMMANDS) | frozenset(WORKSPACE_COMMANDS)
+PAYLOAD_FIELDS = {**_READ_COMMANDS, **CONNECTION_COMMANDS, **WORKSPACE_COMMANDS}
 COMMANDS = frozenset(PAYLOAD_FIELDS)
 _MAX_TEXT = 16384
 EXIT_INVALID = 2
@@ -113,7 +132,8 @@ def parse_frame(raw: bytes) -> dict:
 class Engine:
     """Answers validated requests. One instance serves one bootstrap session."""
 
-    def __init__(self, nonce: str, config: EngineConfig | None = None, *, environ=None, connections=None):
+    def __init__(self, nonce: str, config: EngineConfig | None = None, *, environ=None, connections=None,
+                 workspaces=None):
         if type(nonce) is not str or not _NONCE.fullmatch(nonce):
             raise ValueError("A 64 hex digit nonce is required.")
         self._nonce = nonce
@@ -121,6 +141,7 @@ class Engine:
         self._environ = environ
         self._readmodel = None
         self._connections = connections
+        self._workspaces = workspaces
 
     # -- observations ------------------------------------------------------------
 
@@ -266,6 +287,27 @@ class Engine:
             return service.logout(payload["connection_id"], payload["expected_revision"])
         raise ProtocolError("UNSUPPORTED_COMMAND")
 
+    def _workspace_command(self, command: str, payload: dict) -> dict:
+        from .workspaces import WorkspaceCommandError
+
+        service = self._workspaces
+        if service is None:
+            raise WorkspaceCommandError("WORKSPACES_NOT_CONFIGURED")
+        name = command.split(".", 1)[1]
+        if name == "list":
+            return service.list()
+        if name in ("scope", "select"):
+            return getattr(service, name)(payload["workspace_id"])
+        if name == "open":
+            return service.open(payload["name"], payload["root"])
+        if name == "create":
+            return service.create(payload["name"], payload["parent"], payload["folder_name"])
+        if name == "rebind_root":
+            return service.rebind_root(payload["workspace_id"], payload["root"], payload["expected_revision"])
+        if name in ("archive", "restore"):
+            return getattr(service, name)(payload["workspace_id"], payload["expected_revision"])
+        raise ProtocolError("UNSUPPORTED_COMMAND")
+
     def dispatch(self, request: dict) -> dict:
         request_id = request.get("request_id")
         command = request.get("command")
@@ -279,15 +321,18 @@ class Engine:
         except ProtocolError as error:
             return {**envelope, "ok": False, "error": {"code": str(error)}}
         from aik_connect import ConnectError
+        from .workspaces import WorkspaceCommandError
 
         payload = request["payload"]
         try:
             if command in CONNECTION_COMMANDS:
                 result = self._connection_command(command, payload)
+            elif command in WORKSPACE_COMMANDS:
+                result = self._workspace_command(command, payload)
             else:
                 result = {"system.status": self.system_status, "engine.info": self.engine_info,
                           "readmodel.sources": self.readmodel_sources}[command]()
-        except ConnectError as error:
+        except (ConnectError, WorkspaceCommandError) as error:
             return {**envelope, "ok": False, "error": {"code": error.code}}
         except Exception:  # noqa: BLE001 - a fixed code, never a traceback, crosses the pipe
             return {**envelope, "ok": False, "error": {"code": "INTERNAL_ERROR"}}
@@ -302,7 +347,7 @@ def _write(stream: BinaryIO, value: dict) -> None:
 
 
 def serve(stdin: BinaryIO, stdout: BinaryIO, config: EngineConfig | None = None, *, environ=None,
-          connections=None) -> int:
+          connections=None, workspaces=None) -> int:
     try:
         bootstrap = parse_frame(stdin.readline(MAX_FRAME + 1))
     except (ProtocolError, OSError):
@@ -313,7 +358,7 @@ def serve(stdin: BinaryIO, stdout: BinaryIO, config: EngineConfig | None = None,
     if type(bootstrap["protocol_version"]) is not int or bootstrap["protocol_version"] != PROTOCOL_VERSION:
         _write(stdout, {"kind": "incompatible", "supported_versions": [PROTOCOL_VERSION]})
         return EXIT_INCOMPATIBLE
-    engine = Engine(bootstrap["nonce"], config, environ=environ, connections=connections)
+    engine = Engine(bootstrap["nonce"], config, environ=environ, connections=connections, workspaces=workspaces)
     output = threading.Lock()
 
     def emit(value: dict) -> None:
@@ -344,7 +389,7 @@ def serve(stdin: BinaryIO, stdout: BinaryIO, config: EngineConfig | None = None,
             except ProtocolError:
                 code = EXIT_INVALID
                 break
-            if request.get("command") in CONNECTION_COMMANDS:
+            if request.get("command") in LANE_COMMANDS:
                 pending.put(request)
             else:
                 emit(engine.dispatch(request))
@@ -370,7 +415,20 @@ def main(argv: list[str] | None = None, *, connectors=None, vault_factory=None) 
     except ValueError:
         return EXIT_INVALID
     return serve(sys.stdin.buffer, sys.stdout.buffer, config,
-                 connections=_connection_service(connectors, vault_factory))
+                 connections=_connection_service(connectors, vault_factory),
+                 workspaces=_workspace_service())
+
+
+def _workspace_service():
+    """The per-user workspace service without a VM project port (fail-closed), or None."""
+    from aik_config.storage import default_settings_path
+    from aik_workspace import default_registry_path
+    from .workspaces import WorkspaceService
+
+    try:
+        return WorkspaceService(default_settings_path(), default_registry_path())
+    except Exception:  # noqa: BLE001 - reported as WORKSPACES_NOT_CONFIGURED by every command
+        return None
 
 
 def _connection_service(connectors, vault_factory=None):

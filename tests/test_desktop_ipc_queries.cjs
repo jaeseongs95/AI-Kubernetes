@@ -38,7 +38,8 @@ test("engine.info and readmodel.sources return frozen copies of validated DTOs",
 test("a command without a configured reader is BACKEND_UNAVAILABLE", async () => {
   const f = fixture({});
   for (const command of READ_COMMANDS) {
-    const payload = command === "connections.impact" ? {connection_id: "conn-0123456789abcdef"} : {};
+    const payload = command === "connections.impact" ? {connection_id: "conn-0123456789abcdef"}
+      : command === "workspaces.scope" ? {workspace_id: "ws-0123456789abcdef"} : {};
     assert.equal((await f.ask(command, payload)).error.code, "BACKEND_UNAVAILABLE");
   }
 });

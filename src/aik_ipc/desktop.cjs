@@ -5,11 +5,15 @@
 // AIK-045 adds two read-only queries (engine.info, readmodel.sources). AIK-046/047
 // add connection commands (./connections.cjs); none of them carries a secret:
 // API keys travel only from the main-owned key entry window to the engine.
+// AIK-087 adds project folder commands (./workspaces.cjs); folder paths come only
+// from the main-owned folder dialog, never from the renderer.
 // Every backend result is copied field by field into a frozen DTO before it leaves.
 const {performance} = require("node:perf_hooks");
 const {types} = require("node:util");
 const {CONNECTION_CODES, CONNECTION_SNAPSHOTS, READ_CONNECTION_COMMANDS, WRITE_CONNECTION_COMMANDS,
   readPayload} = require("./connections.cjs");
+const {WORKSPACE_CODES, WORKSPACE_SNAPSHOTS, READ_WORKSPACE_COMMANDS, WRITE_WORKSPACE_COMMANDS,
+  readWorkspacePayload} = require("./workspaces.cjs");
 
 const CHANNEL = "aik:desktop:v1";
 const VERSION = 1;
@@ -17,11 +21,12 @@ const MAX_FRAME_BYTES = 16384;
 const REQUEST_FIELDS = ["protocol_version", "request_id", "workspace_id", "command", "payload"];
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKSPACE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/;
-const READ_COMMANDS = Object.freeze(["system.status", "engine.info", "readmodel.sources", ...READ_CONNECTION_COMMANDS]);
-const WRITE_COMMANDS = WRITE_CONNECTION_COMMANDS;
+const READ_COMMANDS = Object.freeze(["system.status", "engine.info", "readmodel.sources", ...READ_CONNECTION_COMMANDS,
+  ...READ_WORKSPACE_COMMANDS]);
+const WRITE_COMMANDS = Object.freeze([...WRITE_CONNECTION_COMMANDS, ...WRITE_WORKSPACE_COMMANDS]);
 const HANDLED_COMMANDS = Object.freeze([...READ_COMMANDS, ...WRITE_COMMANDS]);
 const COMMANDS = new Set(["protocol.handshake", ...HANDLED_COMMANDS]);
-const MAX_TIMEOUT_MS = 1800000; // a key entry window may stay open while the user types
+const MAX_TIMEOUT_MS = 1800000; // a key entry window or folder dialog may stay open while the user acts
 const STATES = new Set(["READY", "DEGRADED", "BLOCKED"]);
 const DIRECTOR_STATES = new Set(["NOT_CONFIGURED", "STOPPED", "RUNNING", "UNAVAILABLE"]);
 const PLATFORM_FAMILIES = new Set(["windows", "linux", "macos"]);
@@ -42,7 +47,8 @@ const MESSAGES = Object.freeze({
   BACKEND_TIMEOUT: "The backend did not respond within the request deadline.",
   INVALID_RESPONSE: "The backend returned an invalid response.",
   ROUTER_BUSY: "The IPC router has reached its bounded concurrency limit.",
-  ...CONNECTION_CODES
+  ...CONNECTION_CODES,
+  ...WORKSPACE_CODES
 });
 
 function ownData(object, key) {
@@ -83,6 +89,7 @@ function readRequest(value) {
   const supplied = ownData(value, "payload");
   let payload;
   if (command.startsWith("connections.")) payload = readPayload(command, supplied);
+  else if (command.startsWith("workspaces.")) payload = readWorkspacePayload(command, supplied);
   else payload = exactPlain(supplied, []) ? Object.freeze({}) : null;
   if (payload === null) return {code: "INVALID_REQUEST"};
   // Accepted values are bounded primitives; estimate their encoded size without JSON.stringify,
@@ -169,16 +176,18 @@ const SNAPSHOTS = Object.freeze({
   "system.status": statusSnapshot,
   "engine.info": engineInfoSnapshot,
   "readmodel.sources": readmodelSourcesSnapshot,
-  ...CONNECTION_SNAPSHOTS
+  ...CONNECTION_SNAPSHOTS,
+  ...WORKSPACE_SNAPSHOTS
 });
 
 function knownCode(code) {
-  return BACKEND_CODES.has(code) || (typeof code === "string" && Object.hasOwn(CONNECTION_CODES, code));
+  return BACKEND_CODES.has(code) || (typeof code === "string" &&
+    (Object.hasOwn(CONNECTION_CODES, code) || Object.hasOwn(WORKSPACE_CODES, code)));
 }
 
 class BackendError extends Error {
   // Trusted main-process handlers throw this to name why the backend cannot answer:
-  // a transport code (BACKEND_*) or a fixed connection-service code.
+  // a transport code (BACKEND_*) or a fixed connection- or workspace-service code.
   constructor(code) {
     super(knownCode(code) ? code : "BACKEND_UNAVAILABLE");
     this.code = knownCode(code) ? code : "BACKEND_UNAVAILABLE";

@@ -4,6 +4,8 @@
 // AIK-045 adds the read-only engine.info and readmodel.sources queries.
 // AIK-046/047 add connection commands with fixed payload shapes; none carries a
 // secret (API keys are typed only into the main-owned key entry window).
+// AIK-087 adds project folder commands; none carries a path (folders are picked
+// only in the main-owned native folder dialog).
 const {contextBridge, ipcRenderer} = require("electron");
 const CHANNEL = "aik:desktop:v1";
 function send(command, workspaceId, payload = {}) {
@@ -46,5 +48,15 @@ contextBridge.exposeInMainWorld("aikDesktop", Object.freeze({
   requestKeyEntry: (workspaceId, mode, provider, accountLabel, connectionId, expectedRevision) =>
     send("connections.request_key_entry", workspaceId, {mode: text(mode), provider: text(provider),
       account_label: text(accountLabel), connection_id: text(connectionId),
-      expected_revision: revision(expectedRevision)})
+      expected_revision: revision(expectedRevision)}),
+  workspaces: (workspaceId) => send("workspaces.list", workspaceId),
+  workspaceScope: (workspaceId, targetId) => send("workspaces.scope", workspaceId, {workspace_id: text(targetId)}),
+  selectWorkspace: (workspaceId, targetId) => send("workspaces.select", workspaceId, {workspace_id: text(targetId)}),
+  archiveWorkspace: (workspaceId, targetId, expectedRevision) =>
+    send("workspaces.archive", workspaceId, {workspace_id: text(targetId), expected_revision: revision(expectedRevision)}),
+  restoreWorkspace: (workspaceId, targetId, expectedRevision) =>
+    send("workspaces.restore", workspaceId, {workspace_id: text(targetId), expected_revision: revision(expectedRevision)}),
+  requestFolder: (workspaceId, mode, name, folderName, targetId, expectedRevision) =>
+    send("workspaces.request_folder", workspaceId, {mode: text(mode), name: text(name), folder_name: text(folderName),
+      workspace_id: text(targetId), expected_revision: revision(expectedRevision)})
 }));
