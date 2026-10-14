@@ -288,7 +288,7 @@ node --test tests/test_desktop_ipc_connections.cjs
 node --test apps/desktop/tests/key-entry.test.cjs
 ```
 
-2026-10-14 Linux(x64) 개발 컨테이너에서 실행한 결과다. Windows 결과는 CI로만 기록한다.
+2026-10-14 Linux(x64) 개발 컨테이너에서 실행한 결과다. Windows 결과는 표 아래에 CI 결과로만 적는다.
 
 | 시험 | 대상 | 결과 |
 | --- | --- | --- |
@@ -317,6 +317,15 @@ smoke `key_entry` probe의 동작은 다음과 같다.
 - 앱 bridge 함수 목록이 바뀌어도 smoke가 실패한다.
 
 시험 파일의 세부 사례는 이 문서에서 나열하지 않는다. Linux 통과는 개발 검증이며 Windows 지원 증거가 아니다.
+
+Windows CI 결과(PR #27, `desktop-shell` `shell (windows-2022)`)는 다음과 같다.
+
+- 엔진 시험: 16개 OK
+- `apps/desktop` 시험: 15개 pass
+- smoke(엔진 있음): `PASS`
+- smoke(엔진 없음): `BLOCKED`
+
+이 job 로그에는 `key_entry` 값이 따로 나오지 않는다. 그래서 Windows의 키 입력 창 probe 결과는 확정하지 않는다. 자세한 값은 [근거](../evidence/implementation/2026-10-14-connections-gui/README.ko.md)의 Windows CI 절에 있다.
 
 ## 9. NOT_RUN과 한계
 

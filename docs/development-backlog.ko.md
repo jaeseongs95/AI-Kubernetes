@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T04:48:09Z`
+- 수정일 (UTC): `2026-10-14T05:00:26Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
 - 태스크 93개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 348건
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 353건
 - 상태: 미착수 39개 · 진행 중 0개 · 진행 차단 52개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
@@ -2132,7 +2132,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-USER](#s-user), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (확정), [DEC14](#dec14) (확정)
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux smoke PASS 근거. 작업 선행 미완료), WIN-X64 진행 차단 (desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료)
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux smoke PASS 근거. 작업 선행 미완료), WIN-X64 진행 차단 (Windows CI(windows-2022) smoke 근거 EV-AIK-045-SHELL-WIN-CI-20261014. 작업 선행 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2205,7 +2205,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-USER](#s-user)
 - **관련 결정:** 없음
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI 결과 대기. 선행 작업 미완료)
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-046-SHELL-WIN-CI-20261014. 실계정·DPAPI 위 연결 서비스 NOT_RUN. 선행 작업 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2217,6 +2217,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 **기록된 증거**
 
 - `EV-AIK-046-IMPL-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-14-connections-gui/README.ko.md` · aik_connect(ConnectionService·벤더 중립 KeyVerifier/HostLogin), 엔진 connections.* 명령(연결 전용 처리 줄), renderer 연결 명령(비밀 없음)·main 소유 키 입력 창, 벤더 connector 4개(OpenAI·Anthropic API, Claude Code·Codex 구독), composition root, 연결 관리·온보딩 화면 구현. 로컬 Linux 전체 회귀 Ran 1575 OK(skip 18), connector 34·서비스 14·엔진 16, IPC node 48·desktop 15 pass. xvfb Electron smoke PASS(key_entry probe PASS: 창 격리·password·취소)·엔진 없음 BLOCKED. 기준 1·3의 실제 API 키 저장·벤더 검사·공식 로그인과 Windows 실행은 NOT_RUN. 총괄 모델 설정은 AIK-049. · `2026-10-14T04:48:09Z` · 플랫폼 `LINUX-X64`
+- `EV-AIK-046-SHELL-WIN-CI-20261014` · partial_ci_validation · `https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38513315966/job/115686489947` · PR #27 head e155709(merge 5168480)의 GitHub Actions desktop-shell `shell (windows-2022)` job: tests.test_desktop_engine 16 OK(연결 명령·연결 전용 처리 줄·composition root 실제 프로세스), apps/desktop node 15 pass(키 입력 창 시험 5 포함), npm run build, Electron smoke check_desktop_smoke `OK: PASS connected on windows`·`OK: BLOCKED unavailable on windows`(artifact 11869953605, zip sha256 4377aec5252d0c542bf398913b0b7c2624222e9c6b7b14d6e556b9556cc59e5b). key_entry probe 값은 로그에 따로 출력되지 않는다(검사기는 PASS·NOT_RUN 모두 허용). 같은 head의 desktop-ipc·modules windows-2022 job도 success. 실제 API 키 저장·벤더 검사·공식 로그인과 DPAPI 위 연결 서비스는 NOT_RUN. · `2026-10-14T05:00:26Z` · 플랫폼 `WIN-X64`
 
 ### AIK-047
 
@@ -2241,7 +2242,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC03](#dec03) (확정)
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI 결과 대기. 선행 작업 미완료)
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-047-SHELL-WIN-CI-20261014. 실계정·DPAPI 위 연결 서비스 NOT_RUN. 선행 작업 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2253,6 +2254,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 **기록된 증거**
 
 - `EV-AIK-047-IMPL-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-14-connections-gui/README.ko.md` · aik_connect(ConnectionService·벤더 중립 KeyVerifier/HostLogin), 엔진 connections.* 명령(연결 전용 처리 줄), renderer 연결 명령(비밀 없음)·main 소유 키 입력 창, 벤더 connector 4개(OpenAI·Anthropic API, Claude Code·Codex 구독), composition root, 연결 관리·온보딩 화면 구현. 로컬 Linux 전체 회귀 Ran 1575 OK(skip 18), connector 34·서비스 14·엔진 16, IPC node 48·desktop 15 pass. xvfb Electron smoke PASS(key_entry probe PASS: 창 격리·password·취소)·엔진 없음 BLOCKED. 연결이 있는 목록의 실제 렌더, 실제 키 교체·로그아웃·재인증, 실행 중 작업 영향(VM 미연결, AIK-044)과 Windows 실행은 NOT_RUN. · `2026-10-14T04:48:09Z` · 플랫폼 `LINUX-X64`
+- `EV-AIK-047-SHELL-WIN-CI-20261014` · partial_ci_validation · `https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38513315966/job/115686489947` · PR #27 head e155709(merge 5168480)의 GitHub Actions desktop-shell `shell (windows-2022)` job: tests.test_desktop_engine 16 OK(연결 명령·연결 전용 처리 줄·composition root 실제 프로세스), apps/desktop node 15 pass(키 입력 창 시험 5 포함), npm run build, Electron smoke check_desktop_smoke `OK: PASS connected on windows`·`OK: BLOCKED unavailable on windows`(artifact 11869953605, zip sha256 4377aec5252d0c542bf398913b0b7c2624222e9c6b7b14d6e556b9556cc59e5b). key_entry probe 값은 로그에 따로 출력되지 않는다(검사기는 PASS·NOT_RUN 모두 허용). 같은 head의 desktop-ipc·modules windows-2022 job도 success. 연결이 있는 목록의 실제 렌더, 실제 키 교체·로그아웃·재인증, DPAPI 위 연결 서비스, 실행 중 작업 영향(AIK-044)은 NOT_RUN. · `2026-10-14T05:00:26Z` · 플랫폼 `WIN-X64`
 
 ### AIK-048
 
@@ -4586,6 +4588,11 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 346 | task_platform `AIK-046/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 선행 작업 미완료 | `2026-10-14T04:48:09Z` |
 | 347 | task_platform `AIK-047/LINUX-X64` | status | todo | blocked | 로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료 | `2026-10-14T04:48:09Z` |
 | 348 | task_platform `AIK-047/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 선행 작업 미완료 | `2026-10-14T04:48:09Z` |
+| 349 | task_evidence `EV-AIK-046-SHELL-WIN-CI-20261014` | created | — | AIK-046 partial_ci_validation WIN-X64 | AIK-046·047 Windows CI 근거 | `2026-10-14T05:00:26Z` |
+| 350 | task_evidence `EV-AIK-047-SHELL-WIN-CI-20261014` | created | — | AIK-047 partial_ci_validation WIN-X64 | AIK-046·047 Windows CI 근거 | `2026-10-14T05:00:26Z` |
+| 351 | task_platform `AIK-046/WIN-X64` | note | Windows CI 결과 대기. 선행 작업 미완료 | Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-046-SHELL-WIN-CI-20261014… | Windows CI 근거 기록 | `2026-10-14T05:00:26Z` |
+| 352 | task_platform `AIK-047/WIN-X64` | note | Windows CI 결과 대기. 선행 작업 미완료 | Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-047-SHELL-WIN-CI-20261014… | Windows CI 근거 기록 | `2026-10-14T05:00:26Z` |
+| 353 | task_platform `AIK-045/WIN-X64` | note | desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료 | Windows CI(windows-2022) smoke 근거 EV-AIK-045-SHELL-WIN-CI-20261014. 작업 선행 미완료 | Windows CI 근거 기록 | `2026-10-14T05:00:26Z` |
 
 ## DB 메타데이터
 
@@ -4614,7 +4621,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T04:48:09Z |
+| `updated_at` | 2026-10-14T05:00:26Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |
