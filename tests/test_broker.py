@@ -290,10 +290,25 @@ class GrantScopeTests(BrokerTestCase):
         source = ROOT / "src" / "aik_ipc" / "desktop.cjs"
         if not source.is_file():
             self.skipTest("Desktop IPC source is unavailable.")
-        match = re.search(r"const COMMANDS = new Set\(\[([^\]]*)\]\)", source.read_text(encoding="utf-8"))
+        text = source.read_text(encoding="utf-8")
+        match = re.search(r"const READ_COMMANDS = Object.freeze\(\[([^\]]*)\]\)", text)
         self.assertIsNotNone(match)
         self.assertEqual(sorted(re.findall(r'"([^"]+)"', match.group(1))),
-                         ["engine.info", "protocol.handshake", "readmodel.sources", "system.status"])
+                         ["engine.info", "readmodel.sources", "system.status"])
+        self.assertIn('const COMMANDS = new Set(["protocol.handshake", ...HANDLED_COMMANDS]);', text)
+        # AIK-046/047: renderer connection commands carry no secret; key-bearing commands
+        # (connections.add_key/rotate_key) exist only between main's key entry window and the engine.
+        connections = (ROOT / "src" / "aik_ipc" / "connections.cjs").read_text(encoding="utf-8")
+        payloads = re.search(r"const PAYLOADS = Object.freeze\(\{(.*?)\n\}\);", connections, re.S)
+        self.assertIsNotNone(payloads)
+        self.assertEqual(sorted(re.findall(r'"(connections\.[a-z_]+)"', payloads.group(1))), [
+            "connections.cancel_login", "connections.catalog", "connections.check", "connections.complete_login",
+            "connections.delete", "connections.impact", "connections.list", "connections.login_state",
+            "connections.logout", "connections.rename", "connections.request_key_entry", "connections.start_login",
+        ])
+        self.assertNotRegex(payloads.group(1), r"secret|token|password|credential")
+        code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
+        self.assertNotRegex(code, r"add_key|rotate_key")
 
     def test_unregistered_adapter_handle_loses_access(self) -> None:
         grant = self.grant()

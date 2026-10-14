@@ -518,6 +518,16 @@ class ConnectionStore:
 
         return self._update(connection_id, expected_revision, mutate, sync_settings=True)
 
+    def invalidate(self, connection_id: str, expected_revision: int) -> Revisioned:
+        """Clear the verification time (signed out or rejected); the binding is unchanged."""
+
+        def mutate(current: Connection) -> Connection:
+            if current.auth_kind == "none":
+                raise InvalidSetting("A connection without authentication has no verification to clear.")
+            return replace(current, verified_at=None)
+
+        return self._update(connection_id, expected_revision, mutate, sync_settings=True)
+
     def rebind(self, connection_id: str, expected_revision: int, *, official_host: str | None = None,
                host_profile: str | None = None, account_binding: str | None = None) -> Revisioned:
         """Change host/profile/account binding: binding revision +1, verification cleared."""

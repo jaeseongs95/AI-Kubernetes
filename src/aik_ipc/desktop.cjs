@@ -1,11 +1,15 @@
 "use strict";
 
-// AIK-004: read-only renderer IPC. Native main owns caller/workspace binding.
+// AIK-004: renderer IPC. Native main owns caller/workspace binding.
 // Do not expose this router or a generic invoke method through the preload.
-// AIK-045 adds two read-only queries (engine.info, readmodel.sources). Every
-// backend result is copied field by field into a frozen DTO before it leaves.
+// AIK-045 adds two read-only queries (engine.info, readmodel.sources). AIK-046/047
+// add connection commands (./connections.cjs); none of them carries a secret:
+// API keys travel only from the main-owned key entry window to the engine.
+// Every backend result is copied field by field into a frozen DTO before it leaves.
 const {performance} = require("node:perf_hooks");
 const {types} = require("node:util");
+const {CONNECTION_CODES, CONNECTION_SNAPSHOTS, READ_CONNECTION_COMMANDS, WRITE_CONNECTION_COMMANDS,
+  readPayload} = require("./connections.cjs");
 
 const CHANNEL = "aik:desktop:v1";
 const VERSION = 1;
@@ -13,8 +17,11 @@ const MAX_FRAME_BYTES = 16384;
 const REQUEST_FIELDS = ["protocol_version", "request_id", "workspace_id", "command", "payload"];
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKSPACE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/;
-const COMMANDS = new Set(["protocol.handshake", "system.status", "engine.info", "readmodel.sources"]);
-const READ_COMMANDS = Object.freeze(["system.status", "engine.info", "readmodel.sources"]);
+const READ_COMMANDS = Object.freeze(["system.status", "engine.info", "readmodel.sources", ...READ_CONNECTION_COMMANDS]);
+const WRITE_COMMANDS = WRITE_CONNECTION_COMMANDS;
+const HANDLED_COMMANDS = Object.freeze([...READ_COMMANDS, ...WRITE_COMMANDS]);
+const COMMANDS = new Set(["protocol.handshake", ...HANDLED_COMMANDS]);
+const MAX_TIMEOUT_MS = 1800000; // a key entry window may stay open while the user types
 const STATES = new Set(["READY", "DEGRADED", "BLOCKED"]);
 const DIRECTOR_STATES = new Set(["NOT_CONFIGURED", "STOPPED", "RUNNING", "UNAVAILABLE"]);
 const PLATFORM_FAMILIES = new Set(["windows", "linux", "macos"]);
@@ -34,7 +41,8 @@ const MESSAGES = Object.freeze({
   BACKEND_INCOMPATIBLE: "The engine speaks a different protocol version than this app.",
   BACKEND_TIMEOUT: "The backend did not respond within the request deadline.",
   INVALID_RESPONSE: "The backend returned an invalid response.",
-  ROUTER_BUSY: "The IPC router has reached its bounded concurrency limit."
+  ROUTER_BUSY: "The IPC router has reached its bounded concurrency limit.",
+  ...CONNECTION_CODES
 });
 
 function ownData(object, key) {
@@ -51,6 +59,17 @@ function exactPlain(value, fields) {
     fields.includes(key) && Object.hasOwn(Object.getOwnPropertyDescriptor(value, key), "value"));
 }
 
+function payloadBytes(payload) {
+  // Upper bound: every string character may need a two-character escape; 32 bytes per field cover
+  // the key, quotes and a number/boolean/null.
+  let total = 2;
+  for (const key of Object.keys(payload)) {
+    const value = payload[key];
+    total += 32 + key.length + (typeof value === "string" ? 2 * Buffer.byteLength(value, "utf8") : 0);
+  }
+  return total;
+}
+
 function readRequest(value) {
   if (!exactPlain(value, REQUEST_FIELDS)) return {code: "INVALID_REQUEST"};
   const version = ownData(value, "protocol_version");
@@ -61,12 +80,18 @@ function readRequest(value) {
   if (typeof workspace !== "string" || !WORKSPACE.test(workspace)) return {code: "INVALID_REQUEST"};
   const command = ownData(value, "command");
   if (typeof command !== "string" || !COMMANDS.has(command)) return {code: "UNSUPPORTED_COMMAND"};
-  if (!exactPlain(ownData(value, "payload"), [])) return {code: "INVALID_REQUEST"};
-  // All accepted values are bounded ASCII primitives. Allow 160 extra bytes
-  // for envelope punctuation/keys, without invoking a caller's toJSON hook.
-  if (id.length + workspace.length + command.length + 160 > MAX_FRAME_BYTES) return {code: "INVALID_REQUEST"};
+  const supplied = ownData(value, "payload");
+  let payload;
+  if (command.startsWith("connections.")) payload = readPayload(command, supplied);
+  else payload = exactPlain(supplied, []) ? Object.freeze({}) : null;
+  if (payload === null) return {code: "INVALID_REQUEST"};
+  // Accepted values are bounded primitives; estimate their encoded size without JSON.stringify,
+  // which could run an inherited toJSON. Allow 160 extra bytes for envelope punctuation/keys.
+  if (id.length + workspace.length + command.length + payloadBytes(payload) + 160 > MAX_FRAME_BYTES) {
+    return {code: "INVALID_REQUEST"};
+  }
   return {request: Object.freeze({protocol_version: VERSION, request_id: id,
-    workspace_id: workspace, command, payload: Object.freeze({})})};
+    workspace_id: workspace, command, payload})};
 }
 
 function requestCode(value) {
@@ -143,14 +168,20 @@ function readmodelSourcesSnapshot(value) {
 const SNAPSHOTS = Object.freeze({
   "system.status": statusSnapshot,
   "engine.info": engineInfoSnapshot,
-  "readmodel.sources": readmodelSourcesSnapshot
+  "readmodel.sources": readmodelSourcesSnapshot,
+  ...CONNECTION_SNAPSHOTS
 });
 
+function knownCode(code) {
+  return BACKEND_CODES.has(code) || (typeof code === "string" && Object.hasOwn(CONNECTION_CODES, code));
+}
+
 class BackendError extends Error {
-  // Trusted main-process readers throw this to name why the backend cannot answer.
+  // Trusted main-process handlers throw this to name why the backend cannot answer:
+  // a transport code (BACKEND_*) or a fixed connection-service code.
   constructor(code) {
-    super(BACKEND_CODES.has(code) ? code : "BACKEND_UNAVAILABLE");
-    this.code = BACKEND_CODES.has(code) ? code : "BACKEND_UNAVAILABLE";
+    super(knownCode(code) ? code : "BACKEND_UNAVAILABLE");
+    this.code = knownCode(code) ? code : "BACKEND_UNAVAILABLE";
   }
 }
 
@@ -161,7 +192,7 @@ function backendCode(error) {
       return "BACKEND_UNAVAILABLE";
     }
     const code = ownData(error, "code");
-    return BACKEND_CODES.has(code) ? code : "BACKEND_UNAVAILABLE";
+    return knownCode(code) ? code : "BACKEND_UNAVAILABLE";
   } catch { return "BACKEND_UNAVAILABLE"; }
 }
 
@@ -187,12 +218,17 @@ function trustedSender(event, webContents, appUrl) {
 
 class DesktopRouter {
   constructor({readStatus = null, readers = {}, maxInflight = 8, replayLimit = 4096, replayWindowMs = 600000,
-    requestTimeoutMs = 5000, clock = () => performance.now()} = {}) {
+    requestTimeoutMs = 5000, commandTimeoutsMs = {}, clock = () => performance.now()} = {}) {
     if (readStatus !== null && typeof readStatus !== "function") throw new TypeError("readStatus must be a function");
+    // ``readers`` maps each handled command (reads and secret-free connection writes) to a trusted handler.
     if (readers === null || typeof readers !== "object" || types.isProxy(readers) ||
       Object.getPrototypeOf(readers) !== Object.prototype || Object.keys(readers).some(key =>
-      !READ_COMMANDS.includes(key) || typeof readers[key] !== "function") ||
+      !HANDLED_COMMANDS.includes(key) || typeof readers[key] !== "function") ||
       (readStatus !== null && Object.hasOwn(readers, "system.status"))) throw new TypeError("readers");
+    if (commandTimeoutsMs === null || typeof commandTimeoutsMs !== "object" || types.isProxy(commandTimeoutsMs) ||
+      Object.getPrototypeOf(commandTimeoutsMs) !== Object.prototype || Object.keys(commandTimeoutsMs).some(key =>
+      !HANDLED_COMMANDS.includes(key) || !Number.isInteger(commandTimeoutsMs[key]) || commandTimeoutsMs[key] < 1 ||
+      commandTimeoutsMs[key] > MAX_TIMEOUT_MS)) throw new RangeError("commandTimeoutsMs");
     if (!Number.isInteger(maxInflight) || maxInflight < 1 || maxInflight > 64) throw new RangeError("maxInflight");
     if (!Number.isInteger(replayLimit) || replayLimit < maxInflight || replayLimit > 65536) throw new RangeError("replayLimit");
     if (!Number.isSafeInteger(replayWindowMs) || replayWindowMs < 1000 || replayWindowMs > 86400000 ||
@@ -203,6 +239,7 @@ class DesktopRouter {
     this.replayLimit = replayLimit;
     this.replayWindowMs = replayWindowMs;
     this.requestTimeoutMs = requestTimeoutMs;
+    this.commandTimeoutsMs = Object.freeze({...commandTimeoutsMs});
     this.clock = clock;
     this.lastNow = 0;
     this.seen = new Map();
@@ -245,7 +282,7 @@ class DesktopRouter {
     let returned;
     try {
       returned = reader(workspaceId, Object.freeze({
-        signal: controller.signal, requestId: request.request_id
+        signal: controller.signal, requestId: request.request_id, payload: request.payload
       }));
     } catch (error) { return failure(error); }
     // Only native Promises or a plain status DTO are supported. Arbitrary
@@ -260,7 +297,7 @@ class DesktopRouter {
         timedOut = true;
         resolve({code: "BACKEND_TIMEOUT"});
         controller.abort(); // cooperative cancellation; not evidence of completion
-      }, this.requestTimeoutMs);
+      }, this.commandTimeoutsMs[request.command] ?? this.requestTimeoutMs);
     });
     try { return await Promise.race([operation, timeout]); }
     finally { clearTimeout(timer); }
@@ -293,7 +330,7 @@ class DesktopRouter {
       this.seen.set(key, entry);
       let outcome;
       if (handshake) {
-        outcome = {result: Object.freeze({ipc_version: VERSION, boundary: "RENDERER_READ_ONLY", backend_state: "NOT_QUALIFIED"})};
+        outcome = {result: Object.freeze({ipc_version: VERSION, boundary: "RENDERER_NO_SECRETS", backend_state: "NOT_QUALIFIED"})};
         this.complete(entry);
       } else if (!Object.hasOwn(this.readers, request.command)) {
         this.complete(entry);
@@ -317,5 +354,5 @@ function makeRendererHandler({router, getWindow, getWorkspaceId, appUrl}) {
   return (event, request) => router.dispatch(event, request, {getWindow, getWorkspaceId, appUrl});
 }
 
-module.exports = {CHANNEL, VERSION, MAX_FRAME_BYTES, READ_COMMANDS, requestCode, failed, validStatus,
-  trustedSender, BackendError, DesktopRouter, makeRendererHandler};
+module.exports = {CHANNEL, VERSION, MAX_FRAME_BYTES, READ_COMMANDS, WRITE_COMMANDS, requestCode, failed, validStatus,
+  trustedSender, sameDocument, BackendError, DesktopRouter, makeRendererHandler};

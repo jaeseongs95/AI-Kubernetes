@@ -2,17 +2,25 @@
 
 // AIK-045 desktop GUI shell main process. Security settings come from the
 // AIK-002 spike; renderer IPC goes only through the AIK-004 DesktopRouter.
+// AIK-046/047: connection commands go through the same router; API keys are typed
+// only into the main-owned key entry window (./key-entry.cjs) and go from there
+// straight to the engine.
 const {app, BrowserWindow, ipcMain, protocol, session} = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const platform = require("./platform.cjs");
 const {EngineSupervisor, EngineError} = require("./engine.cjs");
-const {CHANNEL, BackendError, DesktopRouter, makeRendererHandler} = require("../../../src/aik_ipc/desktop.cjs");
+const {CHANNEL, READ_COMMANDS, WRITE_COMMANDS, BackendError, DesktopRouter, makeRendererHandler} =
+  require("../../../src/aik_ipc/desktop.cjs");
+const {KEY_CHANNEL, KeyEntry, KeyEntryError} = require("./key-entry.cjs");
 
 const APP_URL = "aik://app/index.html";
 const WORKSPACE_ID = "local"; // single local workspace until project selection (AIK-087)
 const ROUTES = Object.freeze(["connections", "overview", "goals", "workers", "evidence", "usage", "settings"]);
 const PRELOAD = path.resolve(__dirname, "..", "..", "..", "src", "aik_ipc", "preload.cjs");
+const KEY_PRELOAD = path.resolve(__dirname, "..", "..", "..", "src", "aik_ipc", "key_entry_preload.cjs");
+const KEY_ENTRY_TIMEOUT_MS = 1800000;
+const SLOW_TIMEOUT_MS = 65000;
 const ENGINE_ENTRY = path.resolve(__dirname, "..", "engine", "aik_engine_entry.py");
 const smoke = process.argv.includes("--smoke");
 const reportArgument = process.argv.find((value) => value.startsWith("--report-dir="));
@@ -21,6 +29,7 @@ const started = performance.now();
 const observed = new Map(); // smoke evidence: validated backend answers seen by main, never renderer claims
 let window;
 let engine;
+let keyEntry;
 let quitting = false;
 
 if (smoke && !reportDirectory) {
@@ -89,18 +98,101 @@ function backendError(error) {
   return new BackendError("BACKEND_UNAVAILABLE");
 }
 
+function engineFailure(error) {
+  // An engine answer with its own fixed code keeps that code; the router drops unknown ones.
+  if (error instanceof EngineError && error.code === "ENGINE_REJECTED" && typeof error.detail === "string") {
+    return new BackendError(error.detail);
+  }
+  return backendError(error);
+}
+
 function reader(command) {
-  return async () => {
+  return async (_workspaceId, context) => {
     try {
-      const result = await engine.request(command);
+      const result = await engine.request(command, {...(context?.payload ?? {})});
       if (smoke) observed.set(command, {ok: true, result});
       return result;
     } catch (error) {
-      const failure = backendError(error);
+      const failure = engineFailure(error);
       if (smoke) observed.set(command, {ok: false, code: failure.code});
       throw failure;
     }
   };
+}
+
+async function keyEntryContext(payload) {
+  if (payload.mode === "add") {
+    const catalog = await engine.request("connections.catalog");
+    const connector = (catalog?.connectors ?? []).find((item) =>
+      item?.provider === payload.provider && item?.execution_kind === "api");
+    if (!connector) throw new BackendError("UNSUPPORTED_PROVIDER");
+    return {mode: "add", provider: payload.provider, account_label: payload.account_label,
+      display_name: String(connector.display_name), connection_id: null, expected_revision: null};
+  }
+  const listed = await engine.request("connections.list");
+  const connection = (listed?.connections ?? []).find((item) => item?.connection_id === payload.connection_id);
+  if (!connection) throw new BackendError("UNKNOWN_CONNECTION");
+  if (connection.execution_kind !== "api") throw new BackendError("WRONG_METHOD");
+  return {mode: "rotate", provider: null, account_label: String(connection.account_label),
+    display_name: String(connection.display_name), connection_id: payload.connection_id,
+    expected_revision: payload.expected_revision};
+}
+
+async function requestKeyEntry(_workspaceId, context) {
+  try {
+    const entryContext = await keyEntryContext(context.payload);
+    return await keyEntry.open(entryContext, context.signal);
+  } catch (error) {
+    if (error instanceof BackendError) throw error;
+    if (error instanceof KeyEntryError) throw new BackendError(error.code);
+    throw engineFailure(error);
+  }
+}
+
+async function submitKey(context, secret) {
+  const payload = context.mode === "add"
+    ? {provider: context.provider, account_label: context.account_label, secret}
+    : {connection_id: context.connection_id, expected_revision: context.expected_revision, secret};
+  try {
+    return await engine.request(context.mode === "add" ? "connections.add_key" : "connections.rotate_key", payload);
+  } catch (error) {
+    throw engineFailure(error);
+  } finally {
+    payload.secret = null;
+  }
+}
+
+function createKeyWindow() {
+  const keyWindow = new BrowserWindow({
+    parent: window, modal: true, width: 520, height: 320, resizable: false, minimizable: false, maximizable: false,
+    show: true, backgroundColor: "#0c1716", title: "API 키 입력", autoHideMenuBar: true,
+    webPreferences: {
+      preload: KEY_PRELOAD,
+      nodeIntegration: false, contextIsolation: true, sandbox: true, spellcheck: false, devTools: false,
+      webSecurity: true, allowRunningInsecureContent: false, webviewTag: false
+    }
+  });
+  keyWindow.setContentProtection(true); // keep the key out of screen capture where the OS supports it
+  keyWindow.webContents.setWindowOpenHandler(() => ({action: "deny"}));
+  keyWindow.webContents.on("will-navigate", (event) => event.preventDefault());
+  keyWindow.webContents.on("will-attach-webview", (event) => event.preventDefault());
+  return keyWindow;
+}
+
+function handlers() {
+  const result = {};
+  for (const command of [...READ_COMMANDS, ...WRITE_COMMANDS]) {
+    result[command] = command === "connections.request_key_entry" ? requestKeyEntry : reader(command);
+  }
+  return result;
+}
+
+function timeouts() {
+  const result = {"connections.request_key_entry": KEY_ENTRY_TIMEOUT_MS};
+  for (const command of WRITE_COMMANDS) {
+    if (command !== "connections.request_key_entry") result[command] = SLOW_TIMEOUT_MS;
+  }
+  return result;
 }
 
 async function waitFor(check, deadlineMs = 30000) {
@@ -128,6 +220,37 @@ function page(expression) {
   return window.webContents.executeJavaScript(expression);
 }
 
+const BRIDGE_KEYS = ["cancelLogin", "checkConnection", "completeLogin", "connectionCatalog", "connectionImpact",
+  "connections", "deleteConnection", "engineInfo", "handshake", "loginState", "logoutConnection", "readmodelSources",
+  "renameConnection", "requestKeyEntry", "startLogin", "status"].join(",");
+
+async function probeKeyEntry() {
+  // Opens the key entry window from the renderer bridge, checks its isolation, captures it, then cancels.
+  // No key is typed. NOT_RUN when the engine offers no API-key connector.
+  let catalog;
+  try { catalog = await engine.request("connections.catalog"); }
+  catch { return {status: "NOT_RUN", reason: "catalog_unavailable"}; }
+  const connector = (catalog?.connectors ?? []).find((item) => item?.execution_kind === "api");
+  if (!connector) return {status: "NOT_RUN", reason: "no_api_connector"};
+  await page(`window.__aikKeyProbe = window.aikDesktop.requestKeyEntry("${WORKSPACE_ID}", "add",
+    ${JSON.stringify(connector.provider)}, "smoke probe", null, null)`);
+  await waitFor(() => Boolean(keyEntry.current) && !keyEntry.current.window.webContents.isLoading());
+  const keyWindow = keyEntry.current.window;
+  const keyPage = (expression) => keyWindow.webContents.executeJavaScript(expression);
+  await waitFor(() => keyPage("document.body.dataset.ready === '1'"));
+  const keyBridge = await keyPage("Object.keys(window.aikKeyEntry ?? {}).sort().join(',')");
+  const keyHasAppBridge = await keyPage("typeof window.aikDesktop !== 'undefined' || typeof window.require !== 'undefined'");
+  const appHasKeyBridge = await page("typeof window.aikKeyEntry !== 'undefined'");
+  const inputType = await keyPage("document.getElementById('key-input')?.type ?? null");
+  const image = await keyWindow.webContents.capturePage();
+  fs.writeFileSync(path.join(reportDirectory, "key-entry.png"), image.toPNG());
+  keyEntry.close();
+  const outcome = await page("window.__aikKeyProbe.then((value) => value?.ok === true ? value.result.outcome : value?.error?.code)");
+  const isolated = keyBridge === "cancel,context,submit" && !keyHasAppBridge && !appHasKeyBridge;
+  return {status: isolated && inputType === "password" && outcome === "cancelled" ? "PASS" : "FAIL",
+    provider: connector.provider, isolated, input_type: inputType, outcome, screenshot: "key-entry.png"};
+}
+
 async function runSmoke() {
   await waitFor(() => page("document.body.dataset.ready === '1'"));
   const rendererNodeAccess = await page("typeof window.require !== 'undefined' || typeof window.process !== 'undefined'");
@@ -148,9 +271,10 @@ async function runSmoke() {
     routes.push({route, rendered: true, state, screenshot: file});
   }
   const connection = await page("document.getElementById('connection-bar').dataset.connection");
+  const keyEntryProbe = await probeKeyEntry();
   const engineInfo = observed.get("engine.info");
   const failed = rendererNodeAccess || !window.isVisible() || routes.length !== ROUTES.length ||
-    bridgeKeys !== "engineInfo,handshake,readmodelSources,status";
+    bridgeKeys !== BRIDGE_KEYS || keyEntryProbe.status === "FAIL";
   // PASS needs real engine answers seen by main on this platform. "stale" still counts: it marks old
   // read model data (a cursor gap), which the shell must show, not a lost engine.
   const answered = engineInfo?.ok === true && observed.get("system.status")?.ok === true;
@@ -170,13 +294,16 @@ async function runSmoke() {
     engine: engineInfo ?? null,
     system_status: observed.get("system.status") ?? null,
     readmodel_sources: observed.get("readmodel.sources") ?? null,
+    connections: observed.get("connections.list") ?? null,
+    key_entry: keyEntryProbe,
     routes,
     metrics: {
       elapsed_ms: Math.round(performance.now() - started),
       main_rss_bytes: process.memoryUsage().rss,
       renderer_working_set_kb: metrics?.memory?.workingSetSize ?? null
     },
-    not_run: ["packaged frozen engine (AIK-057)", "vendor login and real VM/AGS data (AIK-044, AIK-046 onward)"]
+    not_run: ["packaged frozen engine (AIK-057)", "typing and saving a real API key, official vendor login",
+      "real VM/AGS data (AIK-044)"]
   });
   await engine.close();
   app.exit(status === "PASS" ? 0 : status === "BLOCKED" ? 2 : 1);
@@ -204,13 +331,12 @@ async function startup() {
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.webContents.on("will-attach-webview", (event) => event.preventDefault());
   engine = new EngineSupervisor({launch: launchEngine});
-  const router = new DesktopRouter({readers: {
-    "system.status": reader("system.status"),
-    "engine.info": reader("engine.info"),
-    "readmodel.sources": reader("readmodel.sources")
-  }});
+  keyEntry = new KeyEntry({createWindow: createKeyWindow, submit: submitKey});
+  window.on("closed", () => keyEntry.close());
+  const router = new DesktopRouter({readers: handlers(), commandTimeoutsMs: timeouts()});
   ipcMain.handle(CHANNEL, makeRendererHandler({router, getWindow: () => window,
     getWorkspaceId: () => WORKSPACE_ID, appUrl: APP_URL}));
+  ipcMain.handle(KEY_CHANNEL, (event, message) => keyEntry.handle(event, message));
   await window.loadURL(APP_URL);
   window.show();
   if (smoke) await runSmoke();

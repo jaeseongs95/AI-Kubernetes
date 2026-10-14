@@ -16,8 +16,8 @@ function fixture(readers, url = "aik://app/index.html") {
   const handler = makeRendererHandler({router, getWindow: () => ({webContents}),
     getWorkspaceId: () => "local", appUrl: "aik://app/index.html"});
   const event = {sender: webContents, senderFrame: frame};
-  const ask = (command) => handler(event, {protocol_version: VERSION, request_id: randomUUID(),
-    workspace_id: "local", command, payload: {}});
+  const ask = (command, payload = {}) => handler(event, {protocol_version: VERSION, request_id: randomUUID(),
+    workspace_id: "local", command, payload});
   return {ask};
 }
 
@@ -38,7 +38,8 @@ test("engine.info and readmodel.sources return frozen copies of validated DTOs",
 test("a command without a configured reader is BACKEND_UNAVAILABLE", async () => {
   const f = fixture({});
   for (const command of READ_COMMANDS) {
-    assert.equal((await f.ask(command)).error.code, "BACKEND_UNAVAILABLE");
+    const payload = command === "connections.impact" ? {connection_id: "conn-0123456789abcdef"} : {};
+    assert.equal((await f.ask(command, payload)).error.code, "BACKEND_UNAVAILABLE");
   }
 });
 

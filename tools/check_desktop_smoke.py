@@ -4,7 +4,10 @@ Usage: python -I tools/check_desktop_smoke.py REPORT --expect STATUS --connectio
 
 The report is the shell's own output; this script only confirms that it has the
 expected verdict, all seven routes with a screenshot each, a sandboxed renderer
-and engine answers that match the verdict. Exit 0 when it does, 1 otherwise.
+and engine answers that match the verdict. AIK-046/047: the connections route
+names its real state, and with an engine the key entry window probe must PASS
+(isolated window, password input, cancelled without a key) or, without an
+API-key connector, say NOT_RUN. Exit 0 when it does, 1 otherwise.
 """
 
 from __future__ import annotations
@@ -15,8 +18,11 @@ from pathlib import Path
 import sys
 
 ROUTES = ("connections", "overview", "goals", "workers", "evidence", "usage", "settings")
-NOT_CONNECTED = ("connections", "goals", "workers", "evidence", "usage")
-BRIDGE = ["engineInfo", "handshake", "readmodelSources", "status"]
+NOT_CONNECTED = ("goals", "workers", "evidence", "usage")
+CONNECTION_STATES = ("NOT_CONFIGURED", "UNAVAILABLE", "EMPTY", "READY")
+BRIDGE = ["cancelLogin", "checkConnection", "completeLogin", "connectionCatalog", "connectionImpact", "connections",
+          "deleteConnection", "engineInfo", "handshake", "loginState", "logoutConnection", "readmodelSources",
+          "renameConnection", "requestKeyEntry", "startLogin", "status"]
 
 
 def problems(report: dict, report_dir: Path, expect: str, connection: str) -> list[str]:
@@ -41,6 +47,20 @@ def problems(report: dict, report_dir: Path, expect: str, connection: str) -> li
             found.append(f"route {item.get('route')} has no rendered screenshot")
         if item.get("route") in NOT_CONNECTED and item.get("state") != "NOT_CONNECTED":
             found.append(f"route {item.get('route')} must say it is not connected")
+        if item.get("route") == "connections":
+            state = item.get("state")
+            if state not in CONNECTION_STATES or (expect == "PASS") == (state == "UNAVAILABLE"):
+                found.append(f"connections route state {state!r} does not match the engine verdict")
+    probe = report.get("key_entry")
+    if not isinstance(probe, dict) or probe.get("status") not in ("PASS", "NOT_RUN"):
+        found.append(f"key entry probe {probe!r}")
+    elif probe["status"] == "PASS":
+        image = report_dir / "key-entry.png"
+        if probe.get("isolated") is not True or probe.get("input_type") != "password" \
+                or probe.get("outcome") != "cancelled" or not image.is_file() or image.stat().st_size < 1000:
+            found.append("key entry probe PASS lacks isolation, a password input, a cancel or its screenshot")
+    elif expect == "PASS" and probe.get("reason") != "no_api_connector":
+        found.append(f"key entry probe was not run although the engine answered: {probe.get('reason')!r}")
     engine = report.get("engine")
     if expect == "PASS" and not (isinstance(engine, dict) and engine.get("ok") is True):
         found.append("PASS needs a real engine.info answer seen by the main process")
