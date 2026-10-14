@@ -8,12 +8,18 @@ Examples (paths may also be supplied with --db):
     python tools/backlog.py export
     python tools/backlog.py report
     python tools/backlog.py restore --source planning/backlog.sql --output restored.sqlite3
+    python tools/backlog.py migrate
+    python tools/backlog.py status AIK-045 blocked --platform LINUX-X64 --note "외부 선행"
 
 The SQLite file is canonical. Status updates write an audit event in the same
 transaction and refresh its sibling .sql snapshot. With the default database,
 they also refresh the Korean report. Starting or completing a task requires
 completed prerequisites. Completion additionally requires recorded evidence
 and at least two acceptance criteria.
+
+Schema version 2 adds design principles, platforms with a per-platform task
+status, external prerequisites and a digest-chained change log. ``migrate``
+converts a valid version 1 database without changing any version 1 row.
 """
 
 from __future__ import annotations
@@ -22,6 +28,8 @@ import argparse
 from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 import errno
+import hashlib
+import json
 import os
 from pathlib import Path
 import shutil
@@ -35,7 +43,14 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = ROOT / "planning" / "backlog.sqlite3"
 DEFAULT_REPORT = ROOT / "docs" / "development-backlog.ko.md"
+SCHEMA_PATHS = {1: ROOT / "planning" / "schema-v1.sql", 2: ROOT / "planning" / "schema.sql"}
 STATUSES = ("todo", "in_progress", "blocked", "done", "cancelled")
+PLATFORM_STATUSES = STATUSES + ("not_applicable",)
+CHANGE_ENTITY_TYPES = (
+    "metadata", "source", "requirement", "decision", "milestone", "epic", "task",
+    "acceptance_criterion", "task_link", "task_platform", "task_evidence", "principle",
+    "platform", "external_dependency",
+)
 REQUIRED_COLUMNS = {
     "metadata": "key value",
     "sources": "id title kind url revision notes",
@@ -50,10 +65,19 @@ REQUIRED_COLUMNS = {
     "decisions": "id title status decision rationale source_id",
     "task_decisions": "task_id decision_id",
     "task_events": "id task_id event_type old_status new_status note occurred_at",
-    "task_evidence": "id task_id kind reference summary recorded_at",
+    "task_evidence": "id task_id kind reference summary recorded_at platform_id",
+    "principles": "id title statement source_id",
+    "task_principles": "task_id principle_id",
+    "platforms": "id name family release_scope notes",
+    "task_platforms": "task_id platform_id status note updated_at",
+    "external_dependencies": "id owner title status reference notes",
+    "task_external_dependencies": "id task_id external_id platform_id",
+    "change_log": "id entity_type entity_id field old_value new_value reason changed_at previous_digest digest",
 }
-REQUIRED_VIEWS = ("v_backlog", "v_ready_tasks", "v_milestone_summary")
-SCHEMA_VERSION = 1
+REQUIRED_VIEWS = ("v_backlog", "v_ready_tasks", "v_milestone_summary", "v_platform_summary", "v_open_external")
+SCHEMA_VERSION = 2
+V2_TABLES = ("principles", "task_principles", "platforms", "task_platforms",
+             "external_dependencies", "task_external_dependencies", "change_log")
 REQUIRED_METADATA = (
     "schema_version", "project", "created_at", "updated_at", "baseline_commit",
     "canonical_data", "review_snapshot", "ownership_policy",
@@ -73,6 +97,13 @@ NONEMPTY_COLUMNS = {
     "task_decisions": "task_id decision_id",
     "task_events": "task_id event_type note occurred_at",
     "task_evidence": "id task_id kind reference summary recorded_at",
+    "principles": "id title statement source_id",
+    "task_principles": "task_id principle_id",
+    "platforms": "id name family release_scope",
+    "task_platforms": "task_id platform_id status updated_at",
+    "external_dependencies": "id owner title status",
+    "task_external_dependencies": "task_id external_id",
+    "change_log": "entity_type entity_id field reason changed_at digest",
 }
 ENUM_COLUMNS = {
     ("sources", "kind"): ("user", "repository", "official_doc"),
@@ -84,13 +115,34 @@ ENUM_COLUMNS = {
     ("decisions", "status"): ("confirmed", "proposed", "open"),
     ("task_events", "old_status"): STATUSES,
     ("task_events", "new_status"): STATUSES,
+    ("platforms", "family"): ("windows", "linux", "macos"),
+    ("platforms", "release_scope"): ("first_release", "follow_up", "future"),
+    ("task_platforms", "status"): PLATFORM_STATUSES,
+    ("external_dependencies", "owner"): ("vm", "ags", "vendor", "user", "os"),
+    ("external_dependencies", "status"): ("open", "resolved"),
+    ("change_log", "entity_type"): CHANGE_ENTITY_TYPES,
 }
 INTEGER_COLUMNS = {
     ("tasks", "sequence"): 0,
     ("milestones", "sequence"): 0,
     ("acceptance_criteria", "ordinal"): 1,
     ("task_events", "id"): 1,
+    ("task_external_dependencies", "id"): 1,
+    ("change_log", "id"): 1,
 }
+
+
+def required_columns(version: int) -> dict[str, str]:
+    """Columns of one supported schema version; version 1 lacks the v2 additions."""
+    if version == SCHEMA_VERSION:
+        return REQUIRED_COLUMNS
+    columns = {table: names for table, names in REQUIRED_COLUMNS.items() if table not in V2_TABLES}
+    columns["task_evidence"] = "id task_id kind reference summary recorded_at"
+    return columns
+
+
+def required_views(version: int) -> tuple[str, ...]:
+    return REQUIRED_VIEWS if version == SCHEMA_VERSION else REQUIRED_VIEWS[:3]
 
 
 def normalized_schema_sql(sql: str) -> str:
@@ -120,16 +172,16 @@ def normalized_schema_sql(sql: str) -> str:
     return "".join(result).strip()
 
 
-def schema_contract_issues(conn: sqlite3.Connection) -> list[str]:
+def schema_contract_issues(conn: sqlite3.Connection, version: int = SCHEMA_VERSION) -> list[str]:
     """Compare with the trusted versioned schema, including constraints/views."""
     query = (
         "SELECT name, type, sql FROM sqlite_master "
         "WHERE name NOT GLOB 'sqlite_*' ORDER BY name"
     )
     with closing(sqlite3.connect(":memory:")) as expected:
-        expected.executescript((ROOT / "planning" / "schema.sql").read_text(encoding="utf-8"))
-        if expected.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
-            raise BacklogError("The bundled schema.sql has an unsupported schema version.")
+        expected.executescript(SCHEMA_PATHS[version].read_text(encoding="utf-8"))
+        if expected.execute("PRAGMA user_version").fetchone()[0] != version:
+            raise BacklogError(f"The bundled {SCHEMA_PATHS[version].name} has an unsupported schema version.")
         canonical = {row[0]: (row[1], normalized_schema_sql(row[2] or ""))
                      for row in expected.execute(query)}
     actual = {row[0]: (row[1], normalized_schema_sql(row[2] or ""))
@@ -137,29 +189,36 @@ def schema_contract_issues(conn: sqlite3.Connection) -> list[str]:
     issues = []
     for name in sorted(canonical.keys() | actual.keys()):
         if name not in canonical:
-            issues.append(f"Unexpected schema object for version {SCHEMA_VERSION}: {name}")
+            issues.append(f"Unexpected schema object for version {version}: {name}")
         elif name not in actual:
-            issues.append(f"Missing schema object for version {SCHEMA_VERSION}: {name}")
+            issues.append(f"Missing schema object for version {version}: {name}")
         elif actual[name] != canonical[name]:
-            issues.append(f"Schema definition differs from version {SCHEMA_VERSION}: {name}")
+            issues.append(f"Schema definition differs from version {version}: {name}")
     return issues
 
 
-def value_domain_issues(conn: sqlite3.Connection) -> list[str]:
+def value_domain_issues(conn: sqlite3.Connection, version: int = SCHEMA_VERSION) -> list[str]:
     """Validate values independently of SQLite's CHECK enforcement setting."""
     issues: list[str] = []
+    tables = required_columns(version)
     for table, columns in NONEMPTY_COLUMNS.items():
+        if table not in tables:
+            continue
         for column in columns.split():
             query = (f'SELECT rowid FROM "{table}" WHERE typeof("{column}") <> \'text\' '
                      f'OR length(trim("{column}")) = 0')
             issues.extend(f"{table} rowid={row[0]}: {column} must be nonempty text"
                           for row in conn.execute(query))
     for (table, column), choices in ENUM_COLUMNS.items():
+        if table not in tables:
+            continue
         placeholders = ",".join("?" for _ in choices)
         query = f'SELECT rowid, "{column}" FROM "{table}" WHERE "{column}" NOT IN ({placeholders})'
         issues.extend(f"{table} rowid={row[0]}: invalid {column} {row[1]!r}"
                       for row in conn.execute(query, choices))
     for (table, column), minimum in INTEGER_COLUMNS.items():
+        if table not in tables:
+            continue
         query = (f'SELECT rowid, "{column}" FROM "{table}" '
                  f'WHERE typeof("{column}") <> \'integer\' OR "{column}" < ?')
         issues.extend(f"{table} rowid={row[0]}: {column} must be an integer >= {minimum}"
@@ -167,18 +226,18 @@ def value_domain_issues(conn: sqlite3.Connection) -> list[str]:
     return issues
 
 
-def metadata_issues(conn: sqlite3.Connection) -> list[str]:
+def metadata_issues(conn: sqlite3.Connection, version: int = SCHEMA_VERSION) -> list[str]:
     issues: list[str] = []
-    version = conn.execute("PRAGMA user_version").fetchone()[0]
-    if version != SCHEMA_VERSION:
-        issues.append(f"Unsupported schema user_version: {version}; expected {SCHEMA_VERSION}")
+    actual = conn.execute("PRAGMA user_version").fetchone()[0]
+    if actual != version:
+        issues.append(f"Unsupported schema user_version: {actual}; expected {version}")
     metadata = dict(conn.execute("SELECT key, value FROM metadata"))
     for key in REQUIRED_METADATA:
         value = metadata.get(key)
         if not isinstance(value, str) or not value.strip():
             issues.append(f"Missing or empty required metadata: {key}")
-    if metadata.get("schema_version") != str(SCHEMA_VERSION):
-        issues.append(f"metadata.schema_version must equal supported user_version {SCHEMA_VERSION}")
+    if metadata.get("schema_version") != str(version):
+        issues.append(f"metadata.schema_version must equal supported user_version {version}")
     if metadata.get("project") != "AI-Kubernetes":
         issues.append("metadata.project must identify AI-Kubernetes")
     return issues
@@ -266,8 +325,11 @@ def dependency_cycle(graph: dict[str, list[str]]) -> list[str] | None:
     return None
 
 
-def validate_connection(conn: sqlite3.Connection) -> list[str]:
+def validate_connection(conn: sqlite3.Connection, version: int = SCHEMA_VERSION) -> list[str]:
+    """Validate one database against a supported schema version (default: current)."""
     issues: list[str] = []
+    columns = required_columns(version)
+    views = required_views(version)
     for row in conn.execute("PRAGMA integrity_check"):
         if row[0] != "ok":
             issues.append(f"SQLite integrity: {row[0]}")
@@ -276,12 +338,12 @@ def validate_connection(conn: sqlite3.Connection) -> list[str]:
         row[0]: row[1]
         for row in conn.execute("SELECT name, type FROM sqlite_master")
     }
-    missing = [name for name in REQUIRED_COLUMNS if objects.get(name) != "table"]
-    missing += [name for name in REQUIRED_VIEWS if objects.get(name) != "view"]
+    missing = [name for name in columns if objects.get(name) != "table"]
+    missing += [name for name in views if objects.get(name) != "view"]
     if missing:
         return issues + ["Missing schema objects: " + ", ".join(missing)]
 
-    for table, required in REQUIRED_COLUMNS.items():
+    for table, required in columns.items():
         # Names come exclusively from the constant schema map above.
         actual = {row[1] for row in conn.execute(f'PRAGMA table_info("{table}")')}
         absent = sorted(set(required.split()) - actual)
@@ -290,11 +352,11 @@ def validate_connection(conn: sqlite3.Connection) -> list[str]:
     if any("missing columns" in issue for issue in issues):
         return issues
 
-    schema_issues = schema_contract_issues(conn)
+    schema_issues = schema_contract_issues(conn, version)
     if schema_issues:
         return issues + schema_issues
-    issues.extend(metadata_issues(conn))
-    domain_issues = value_domain_issues(conn)
+    issues.extend(metadata_issues(conn, version))
+    domain_issues = value_domain_issues(conn, version)
     if domain_issues:
         return issues + domain_issues
 
@@ -381,11 +443,133 @@ def validate_connection(conn: sqlite3.Connection) -> list[str]:
             issues.append(
                 f"{task_id}: first release depends on {prerequisite} ({row[7]})"
             )
+    if version >= 2:
+        issues.extend(platform_issues(conn))
+        issues.extend(change_log_issues(conn))
     return issues
 
 
-def require_valid(conn: sqlite3.Connection) -> None:
-    issues = validate_connection(conn)
+def platform_issues(conn: sqlite3.Connection) -> list[str]:
+    """Version 2 rules for principles, per-platform status and external prerequisites."""
+    checks = (
+        (
+            "SELECT t.id, tp.platform_id, tp.status FROM tasks t "
+            "JOIN task_platforms tp ON tp.task_id = t.id "
+            "WHERE t.status = 'done' AND tp.status NOT IN ('done', 'not_applicable')",
+            "{0}: done while platform {1} is {2}",
+        ),
+        (
+            "SELECT t.id, tp.platform_id, tp.status FROM tasks t "
+            "JOIN task_platforms tp ON tp.task_id = t.id "
+            "WHERE t.status = 'todo' AND tp.status IN ('in_progress', 'done')",
+            "{0}: platform {1} is {2} while the task is todo",
+        ),
+        (
+            "SELECT tp.task_id, tp.platform_id FROM task_platforms tp "
+            "WHERE tp.status = 'done' AND NOT EXISTS (SELECT 1 FROM task_evidence e "
+            "WHERE e.task_id = tp.task_id AND (e.platform_id IS NULL OR e.platform_id = tp.platform_id))",
+            "{0}: platform {1} is done without evidence for that platform",
+        ),
+        (
+            "SELECT tp.task_id, tp.platform_id, tp.status FROM task_platforms tp "
+            "WHERE tp.status IN ('blocked', 'not_applicable', 'cancelled') AND length(trim(tp.note)) = 0",
+            "{0}: platform {1} is {2} without a note",
+        ),
+        (
+            # Applies once the backlog records any principle; a fresh migration has none yet.
+            "SELECT t.id FROM tasks t WHERE t.work_type IN ('feature', 'integration') "
+            "AND EXISTS (SELECT 1 FROM principles) AND NOT EXISTS "
+            "(SELECT 1 FROM task_principles p WHERE p.task_id = t.id)",
+            "{0}: feature/integration task has no design principle",
+        ),
+        (
+            "SELECT p.id FROM principles p WHERE NOT EXISTS "
+            "(SELECT 1 FROM task_principles t WHERE t.principle_id = p.id)",
+            "{0}: principle has no task",
+        ),
+        (
+            "SELECT tp.task_id, tp.platform_id, d.external_id FROM task_platforms tp "
+            "JOIN task_external_dependencies d ON d.task_id = tp.task_id "
+            "AND (d.platform_id IS NULL OR d.platform_id = tp.platform_id) "
+            "JOIN external_dependencies x ON x.id = d.external_id "
+            "WHERE x.status = 'open' AND tp.status = 'done'",
+            "{0}: platform {1} is done while external prerequisite {2} is open",
+        ),
+        (
+            "SELECT t.id, d.external_id FROM tasks t "
+            "JOIN task_external_dependencies d ON d.task_id = t.id "
+            "JOIN external_dependencies x ON x.id = d.external_id "
+            "WHERE x.status = 'open' AND t.status = 'done'",
+            "{0}: done while external prerequisite {1} is open",
+        ),
+        (
+            "SELECT t.id, p.id FROM tasks t JOIN milestones m ON m.id = t.milestone_id "
+            "JOIN platforms p ON p.release_scope = 'first_release' "
+            "WHERE m.scope = 'first_release' AND NOT EXISTS (SELECT 1 FROM task_platforms tp "
+            "WHERE tp.task_id = t.id AND tp.platform_id = p.id)",
+            "{0}: first release task has no status for first release platform {1}",
+        ),
+        (
+            "SELECT d.task_id, d.platform_id FROM task_external_dependencies d "
+            "WHERE d.platform_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM task_platforms tp "
+            "WHERE tp.task_id = d.task_id AND tp.platform_id = d.platform_id)",
+            "{0}: external prerequisite names platform {1} without a platform status",
+        ),
+    )
+    issues: list[str] = []
+    for query, message in checks:
+        issues.extend(message.format(*row) for row in conn.execute(query))
+    return issues
+
+
+def change_digest(previous: str, entity_type: str, entity_id: str, field: str,
+                  old_value: str | None, new_value: str | None, reason: str, changed_at: str) -> str:
+    payload = json.dumps(
+        [previous, entity_type, entity_id, field, old_value, new_value, reason, changed_at],
+        ensure_ascii=False, separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def change_log_issues(conn: sqlite3.Connection) -> list[str]:
+    """The change log must be one unbroken digest chain in id order.
+
+    Like the task event history, this detects edits and deletions made outside
+    the tool; it is not tamper-proof against someone who recomputes the chain.
+    """
+    issues: list[str] = []
+    previous = ""
+    for row in conn.execute("SELECT * FROM change_log ORDER BY id"):
+        if row["previous_digest"] != previous:
+            issues.append(f"change_log {row['id']}: previous_digest does not continue the chain")
+        expected = change_digest(row["previous_digest"], row["entity_type"], row["entity_id"], row["field"],
+                                 row["old_value"], row["new_value"], row["reason"], row["changed_at"])
+        if row["digest"] != expected:
+            issues.append(f"change_log {row['id']}: digest does not match its content")
+        previous = row["digest"]
+    return issues
+
+
+def append_change(conn: sqlite3.Connection, entity_type: str, entity_id: str, field: str,
+                  old_value, new_value, reason: str, changed_at: str) -> str:
+    """Append one change-log row that continues the digest chain."""
+    def text(value):
+        return None if value is None else str(value)
+
+    row = conn.execute("SELECT digest FROM change_log ORDER BY id DESC LIMIT 1").fetchone()
+    previous = row[0] if row is not None else ""
+    old_value, new_value = text(old_value), text(new_value)
+    digest = change_digest(previous, entity_type, entity_id, field, old_value, new_value, reason, changed_at)
+    conn.execute(
+        "INSERT INTO change_log (entity_type, entity_id, field, old_value, new_value, reason, changed_at, "
+        "previous_digest, digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (entity_type, entity_id, field, old_value, new_value, reason, changed_at, previous, digest),
+    )
+    return digest
+
+
+def require_valid(conn: sqlite3.Connection, version: int = SCHEMA_VERSION) -> None:
+    issues = validate_connection(conn, version)
     if issues:
         raise BacklogError("Validation failed:\n" + "\n".join(f"- {x}" for x in issues))
 
@@ -434,6 +618,16 @@ def markdown_report(conn: sqlite3.Connection, database: Path, destination: Path)
     decision_links = grouped("SELECT * FROM task_decisions ORDER BY task_id, decision_id", "task_id")
     criteria = grouped("SELECT * FROM acceptance_criteria ORDER BY task_id, ordinal", "task_id")
     evidence = grouped("SELECT * FROM task_evidence ORDER BY task_id, recorded_at, id", "task_id")
+    principles = conn.execute("SELECT * FROM principles ORDER BY id").fetchall()
+    platforms = conn.execute("SELECT * FROM platforms ORDER BY id").fetchall()
+    externals = conn.execute("SELECT * FROM external_dependencies ORDER BY id").fetchall()
+    principle_links = grouped("SELECT * FROM task_principles ORDER BY task_id, principle_id", "task_id")
+    platform_rows = grouped("SELECT * FROM task_platforms ORDER BY task_id, platform_id", "task_id")
+    external_links = grouped("SELECT * FROM task_external_dependencies ORDER BY task_id, external_id, platform_id",
+                             "task_id")
+    platform_summary = conn.execute(
+        "SELECT * FROM v_platform_summary ORDER BY milestone_sequence, platform_id").fetchall()
+    changes = conn.execute("SELECT * FROM change_log ORDER BY id").fetchall()
     tasks_by_milestone: dict = {}
     for task in tasks:
         tasks_by_milestone.setdefault(task["milestone_id"], []).append(task)
@@ -443,6 +637,9 @@ def markdown_report(conn: sqlite3.Connection, database: Path, destination: Path)
     decision_labels = {"confirmed": "확정", "proposed": "제안", "open": "미정"}
     origin_labels = {"user": "사용자 요구", "derived": "설계에서 도출"}
     source_labels = {"user": "사용자 제공", "repository": "저장소 기준선", "official_doc": "공식 문서"}
+    platform_status_labels = dict(status_labels, not_applicable="해당 없음")
+    family_labels = {"windows": "Windows", "linux": "Linux", "macos": "macOS"}
+    external_status_labels = {"open": "미해소", "resolved": "해소"}
     work_labels = {"decision": "결정", "feature": "기능 개발", "integration": "통합", "validation": "검증", "documentation": "문서", "research": "조사"}
     try:
         database_link = Path(os.path.relpath(database.resolve(), destination.parent.resolve())).as_posix()
@@ -462,6 +659,8 @@ def markdown_report(conn: sqlite3.Connection, database: Path, destination: Path)
         f"- 검토일 (UTC): `{metadata.get('reviewed_at', '미기록')}`",
         f"- SQLite `user_version`: `{user_version}` · 메타데이터 스키마 버전: `{metadata.get('schema_version', '미기록')}`",
         f"- 태스크 {len(tasks)}개 · 요구사항 {len(requirements)}개 · 결정 {len(decisions)}개 · 출처 {len(sources)}개",
+        f"- 설계 원칙 {len(principles)}개 · 플랫폼 {len(platforms)}개 · 외부 선행 {len(externals)}개"
+        f"(미해소 {sum(row['status'] == 'open' for row in externals)}개) · 변경 이력 {len(changes)}건",
         "- 상태: " + " · ".join(f"{status_labels[status]} {counts[status]}개" for status in STATUSES),
         "",
         "## 유지보수 방법",
@@ -484,6 +683,11 @@ def markdown_report(conn: sqlite3.Connection, database: Path, destination: Path)
         "python tools/backlog.py report",
         "```",
         "",
+        "플랫폼별 상태는 `status AIK-045 blocked --platform LINUX-X64 --note \"이유\"`로 바꾸며, "
+        "작업 이력과 변경 이력(`change_log`)에 함께 남습니다. 작업이 완료이려면 모든 플랫폼 행이 완료 또는 "
+        "해당 없음이어야 하고, 플랫폼 완료에는 그 플랫폼(또는 플랫폼 무관) 근거가 필요합니다. "
+        "schema 1 DB는 `migrate`로 변환합니다.",
+        "",
         "`--db`로 다른 DB를 선택할 수 있습니다. `report --output 경로.md`는 출력 경로를 바꿉니다. "
         "`restore --source planning/backlog.sql --output 새경로.sqlite3`는 기존 파일을 덮어쓰지 않고 복원·검증합니다.",
         "",
@@ -501,6 +705,57 @@ def markdown_report(conn: sqlite3.Connection, database: Path, destination: Path)
             )) + " |"
         )
     lines.extend(["", "착수 가능 수는 DB에 기록된 선행 작업이 모두 완료된 `todo` 태스크를 셉니다.", ""])
+
+    lines.extend(["## 설계 원칙", ""])
+    if principles:
+        for principle in principles:
+            related = [task["id"] for task in tasks if any(
+                row["principle_id"] == principle["id"] for row in principle_links.get(task["id"], []))]
+            lines.extend([
+                f"### {principle['id']}", "", f"**{principle['title']}**", "",
+                principle["statement"], "",
+                f"- 출처: {link(principle['source_id'])} · 연결 태스크 {len(related)}개", "",
+            ])
+    else:
+        lines.extend(["기록 없음.", ""])
+
+    lines.extend(["## 플랫폼별 현황", ""])
+    if platforms:
+        lines.extend(["| 플랫폼 | 계열 | 범위 | 메모 |", "|---|---|---|---|"])
+        lines.extend(
+            f"| {platform['id']} · {cell(platform['name'])} | {family_labels[platform['family']]} | "
+            f"{scope_labels[platform['release_scope']]} | {cell(platform['notes'] or '없음')} |"
+            for platform in platforms
+        )
+        lines.extend(["", "| 단계 | 플랫폼 | 행 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 해당 없음 |",
+                      "|---|---|---:|---:|---:|---:|---:|---:|---:|"])
+        for row in platform_summary:
+            lines.append(
+                f"| {row['milestone_id']} | {row['platform_id']} | "
+                + " | ".join(str(row[key] or 0) for key in (
+                    "total_tasks", "todo_tasks", "in_progress_tasks", "blocked_tasks", "done_tasks",
+                    "cancelled_tasks", "not_applicable_tasks")) + " |"
+            )
+        lines.append("")
+    else:
+        lines.extend(["기록 없음.", ""])
+
+    lines.extend(["## 외부 선행", ""])
+    if externals:
+        for external in externals:
+            related = sorted(
+                f"{row['task_id']}" + (f"({row['platform_id']})" if row["platform_id"] else "")
+                for rows in external_links.values() for row in rows if row["external_id"] == external["id"]
+            )
+            lines.extend([
+                f"### {external['id']}", "", f"**{external['title']}**", "",
+                f"- 소유: `{external['owner']}` · 상태: {external_status_labels[external['status']]} (`{external['status']}`)",
+                f"- 참조: {external['reference'] or '미기록'}",
+                f"- 막힌 태스크: {', '.join(related) or '없음'}", "",
+                external["notes"] or "추가 메모 없음.", "",
+            ])
+    else:
+        lines.extend(["기록 없음.", ""])
 
     for milestone in milestones:
         lines.extend([
@@ -538,7 +793,15 @@ def markdown_report(conn: sqlite3.Connection, database: Path, destination: Path)
                 f"- **선행 작업:** {references(dependencies.get(identifier, []), 'depends_on')}",
                 f"- **요구사항:** {references(requirement_links.get(identifier, []), 'requirement_id')}",
                 f"- **출처:** {', '.join(related_sources) or '없음'}",
-                f"- **관련 결정:** {', '.join(related_decisions) or '없음'}", "",
+                f"- **관련 결정:** {', '.join(related_decisions) or '없음'}",
+                f"- **설계 원칙:** {references(principle_links.get(identifier, []), 'principle_id')}",
+                "- **플랫폼:** " + (", ".join(
+                    f"{row['platform_id']} {platform_status_labels[row['status']]}"
+                    + (f" ({cell(row['note'])})" if row["note"] else "")
+                    for row in platform_rows.get(identifier, [])) or "기록 없음"),
+                "- **외부 선행:** " + (", ".join(
+                    link(row["external_id"]) + (f" ({row['platform_id']})" if row["platform_id"] else "")
+                    for row in external_links.get(identifier, [])) or "없음"), "",
                 "**완료 기준**", "",
             ])
             lines.extend(f"{row['ordinal']}. {row['criterion']}" for row in criteria.get(identifier, []))
@@ -548,6 +811,7 @@ def markdown_report(conn: sqlite3.Connection, database: Path, destination: Path)
                     lines.append(
                         f"- `{row['id']}` · {row['kind']} · `{row['reference']}` · "
                         f"{row['summary']} · `{row['recorded_at']}`"
+                        + (f" · 플랫폼 `{row['platform_id']}`" if row["platform_id"] else "")
                     )
             else:
                 lines.append("기록 없음.")
@@ -590,6 +854,25 @@ def markdown_report(conn: sqlite3.Connection, database: Path, destination: Path)
             ),
             "", source["notes"] or "추가 메모 없음.", "",
         ])
+
+    def short(value) -> str:
+        if value is None:
+            return "—"
+        text = str(value)
+        return cell(text if len(text) <= 80 else text[:79] + "…")
+
+    lines.extend(["## 변경 이력", "",
+                  "`change_log`는 digest로 이어진 추가 전용 기록입니다. 긴 값은 80자에서 줄였으며 원문은 DB에 있습니다.", ""])
+    if changes:
+        lines.extend(["| # | 대상 | 항목 | 이전 | 이후 | 이유 | 시각 |", "|---:|---|---|---|---|---|---|"])
+        lines.extend(
+            f"| {row['id']} | {row['entity_type']} `{cell(row['entity_id'])}` | {cell(row['field'])} | "
+            f"{short(row['old_value'])} | {short(row['new_value'])} | {cell(row['reason'])} | `{row['changed_at']}` |"
+            for row in changes
+        )
+        lines.append("")
+    else:
+        lines.extend(["기록 없음.", ""])
 
     lines.extend(["## DB 메타데이터", "", "| 키 | 값 |", "|---|---|"])
     lines.extend(f"| `{cell(key)}` | {cell(value)} |" for key, value in metadata.items())
@@ -756,7 +1039,8 @@ def command_validate(args: argparse.Namespace) -> None:
         require_valid(conn)
         counts = {
             table: conn.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]
-            for table in ("tasks", "requirements", "task_dependencies", "task_evidence")
+            for table in ("tasks", "requirements", "task_dependencies", "task_evidence",
+                          "principles", "platforms", "task_platforms", "change_log")
         }
         ready = conn.execute("SELECT count(*) FROM v_ready_tasks").fetchone()[0]
     print("VALID: " + ", ".join(f"{name}={count}" for name, count in counts.items()))
@@ -841,6 +1125,106 @@ def command_restore(args: argparse.Namespace) -> None:
     print(f"Restored and validated database: {destination}")
 
 
+V1_COPY_ORDER = (
+    "metadata", "sources", "requirements", "milestones", "epics", "tasks", "task_dependencies",
+    "task_requirements", "task_sources", "acceptance_criteria", "decisions", "task_decisions",
+    "task_events", "task_evidence",
+)
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def migrate_v1_rows(source: sqlite3.Connection, target: sqlite3.Connection, changed_at: str) -> None:
+    """Copy every version 1 row unchanged into an empty version 2 database."""
+    columns = required_columns(1)
+    for table in V1_COPY_ORDER:
+        names = columns[table].split()
+        quoted = ", ".join(f'"{name}"' for name in names)
+        rows = source.execute(f'SELECT {quoted} FROM "{table}" ORDER BY rowid').fetchall()
+        target.executemany(
+            f'INSERT INTO "{table}" ({quoted}) VALUES ({", ".join("?" for _ in names)})',
+            [tuple(row) for row in rows],
+        )
+    sequence = source.execute("SELECT seq FROM sqlite_sequence WHERE name = 'task_events'").fetchone()
+    if sequence is not None:
+        target.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'task_events'", (sequence[0],))
+    target.execute("UPDATE metadata SET value = ? WHERE key = 'schema_version'", (str(SCHEMA_VERSION),))
+    target.execute("UPDATE metadata SET value = ? WHERE key = 'updated_at'", (changed_at,))
+    append_change(target, "metadata", "schema_version", "value", "1", str(SCHEMA_VERSION),
+                  "schema v1 -> v2 migration by tools/backlog.py migrate; every v1 row is copied unchanged",
+                  changed_at)
+
+
+def command_migrate(args: argparse.Namespace) -> None:
+    database = args.db
+    output = args.output
+    changed_at = args.at or utc_now()
+    in_place = output is None
+    if not in_place and (output.exists() or output.is_symlink()):
+        raise BacklogError(f"Refusing to overwrite existing migration destination: {output}")
+    snapshot = default_sql_path(database)
+    report_path = DEFAULT_REPORT if same_path(database, DEFAULT_DB) else None
+    if in_place:
+        check_snapshot_path(database, snapshot)
+        if report_path is not None:
+            check_snapshot_path(database, report_path, kind="report")
+    staged: list[tuple[Path, Path]] = []
+    temporary = None
+    try:
+        with maintenance_lock(database):
+            with closing(connect_database(database)) as source:
+                source.execute("BEGIN")
+                version = source.execute("PRAGMA user_version").fetchone()[0]
+                if version == SCHEMA_VERSION:
+                    require_valid(source)
+                    print(f"Already at schema version {SCHEMA_VERSION}; nothing changed: {database}")
+                    return
+                if version != 1:
+                    raise BacklogError(f"Cannot migrate schema user_version {version}; expected 1")
+                require_valid(source, 1)
+                directory = (database.resolve() if in_place else output.resolve()).parent
+                directory.mkdir(parents=True, exist_ok=True)
+                descriptor, name = tempfile.mkstemp(prefix=".migrate.", suffix=".sqlite3.tmp", dir=directory)
+                os.close(descriptor)
+                temporary = Path(name)
+                with closing(sqlite3.connect(temporary, isolation_level=None)) as target:
+                    target.row_factory = sqlite3.Row
+                    target.executescript(SCHEMA_PATHS[SCHEMA_VERSION].read_text(encoding="utf-8"))
+                    target.execute("PRAGMA foreign_keys = ON")
+                    target.execute("BEGIN IMMEDIATE")
+                    migrate_v1_rows(source, target, changed_at)
+                    require_valid(target)
+                    if in_place:
+                        staged.append((stage_text(snapshot, sql_snapshot(target)), snapshot))
+                        if report_path is not None:
+                            staged.append((stage_text(report_path, markdown_report(target, database, report_path)),
+                                           report_path))
+                    target.commit()
+            if in_place:
+                for suffix in ("-wal", "-journal"):
+                    sidecar = database.resolve().with_name(database.resolve().name + suffix)
+                    if sidecar.exists() and sidecar.stat().st_size:
+                        raise BacklogError(f"Refusing to replace a database with a live {suffix} file: {sidecar}")
+                os.replace(temporary, database.resolve())
+                temporary = None
+                for staged_path, destination in staged:
+                    os.replace(staged_path, destination)
+                staged = []
+            else:
+                with output.open("xb") as stream, temporary.open("rb") as migrated:
+                    shutil.copyfileobj(migrated, stream)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+        for staged_path, _ in staged:
+            staged_path.unlink(missing_ok=True)
+    print(f"Migrated schema 1 -> {SCHEMA_VERSION}: {database if in_place else output}")
+
+
 def command_list(args: argparse.Namespace) -> None:
     view = "v_ready_tasks" if args.ready else "v_backlog"
     with closing(connect_database(args.db)) as conn:
@@ -878,6 +1262,10 @@ def command_status(args: argparse.Namespace) -> None:
         check_snapshot_path(args.db, report_path, kind="report")
     if report_path is not None and snapshot.resolve() == report_path.resolve():
         raise BacklogError("The SQL snapshot and Markdown report paths must differ.")
+    platform = args.platform
+    if platform is None and args.new_status not in STATUSES:
+        raise BacklogError(f"{args.new_status} is only a platform status; add --platform.")
+    subject = args.task_id if platform is None else f"{args.task_id} on {platform}"
     committed = False
     previous_status = None
     try:
@@ -886,21 +1274,47 @@ def command_status(args: argparse.Namespace) -> None:
             task = conn.execute("SELECT status FROM tasks WHERE id = ?", (args.task_id,)).fetchone()
             if task is None:
                 raise BacklogError(f"Unknown task: {args.task_id}")
-            previous_status = task[0]
-            if previous_status == args.new_status:
-                raise BacklogError(f"{args.task_id} is already {args.new_status}; nothing changed.")
-            now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-            conn.execute(
-                "UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?",
-                (args.new_status, now, args.task_id),
-            )
+            now = utc_now()
+            note = args.note.strip()
+            if platform is None:
+                previous_status = task[0]
+                if previous_status == args.new_status:
+                    raise BacklogError(f"{args.task_id} is already {args.new_status}; nothing changed.")
+                conn.execute(
+                    "UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?",
+                    (args.new_status, now, args.task_id),
+                )
+                conn.execute(
+                    "INSERT INTO task_events "
+                    "(task_id, event_type, old_status, new_status, note, occurred_at) "
+                    "VALUES (?, 'status_change', ?, ?, ?, ?)",
+                    (args.task_id, previous_status, args.new_status, note, now),
+                )
+            else:
+                if not conn.execute("SELECT 1 FROM platforms WHERE id = ?", (platform,)).fetchone():
+                    raise BacklogError(f"Unknown platform: {platform}")
+                row = conn.execute("SELECT status FROM task_platforms WHERE task_id = ? AND platform_id = ?",
+                                   (args.task_id, platform)).fetchone()
+                previous_status = None if row is None else row[0]
+                if previous_status == args.new_status:
+                    raise BacklogError(f"{subject} is already {args.new_status}; nothing changed.")
+                if row is None:
+                    conn.execute("INSERT INTO task_platforms (task_id, platform_id, status, note, updated_at) "
+                                 "VALUES (?, ?, ?, ?, ?)", (args.task_id, platform, args.new_status, note, now))
+                else:
+                    conn.execute("UPDATE task_platforms SET status = ?, note = ?, updated_at = ? "
+                                 "WHERE task_id = ? AND platform_id = ?",
+                                 (args.new_status, note, now, args.task_id, platform))
+                append_change(conn, "task_platform", f"{args.task_id}/{platform}", "status",
+                              previous_status, args.new_status, note, now)
+                # A platform change is recorded in the task's own history without changing its status.
+                conn.execute(
+                    "INSERT INTO task_events "
+                    "(task_id, event_type, old_status, new_status, note, occurred_at) "
+                    "VALUES (?, 'platform_status', NULL, NULL, ?, ?)",
+                    (args.task_id, f"{platform}: {previous_status or 'none'} -> {args.new_status}: {note}", now),
+                )
             conn.execute("UPDATE metadata SET value = ? WHERE key = 'updated_at'", (now,))
-            conn.execute(
-                "INSERT INTO task_events "
-                "(task_id, event_type, old_status, new_status, note, occurred_at) "
-                "VALUES (?, 'status_change', ?, ?, ?, ?)",
-                (args.task_id, previous_status, args.new_status, args.note.strip(), now),
-            )
             # Checks the proposed state before either the status or audit event commits.
             require_valid(conn)
             temporary = stage_text(snapshot, sql_snapshot(conn))
@@ -926,7 +1340,7 @@ def command_status(args: argparse.Namespace) -> None:
         if report_temporary is not None:
             report_temporary.unlink(missing_ok=True)
     if committed:
-        print(f"{args.task_id}: {previous_status} -> {args.new_status}")
+        print(f"{subject}: {previous_status or 'none'} -> {args.new_status}")
         print(f"Updated SQL snapshot: {snapshot}")
         if report_path is not None:
             print(f"Updated development report: {report_path}")
@@ -951,12 +1365,16 @@ def build_parser() -> argparse.ArgumentParser:
     restore = command("restore", "Restore and validate SQL into a new database", command_restore)
     restore.add_argument("--source", type=Path, required=True)
     restore.add_argument("--output", type=Path, required=True)
+    migrate = command("migrate", "Convert a valid schema 1 database to schema 2", command_migrate)
+    migrate.add_argument("--output", type=Path, help="Write a new database instead of replacing --db in place")
+    migrate.add_argument("--at", help="UTC timestamp recorded for the migration (default: now)")
     listing = command("list", "List tasks in milestone and execution order", command_list)
     listing.add_argument("--ready", action="store_true", help="Only todo tasks whose prerequisites are done")
     listing.add_argument("--milestone", help="Filter by milestone ID")
     status = command("status", "Change status, record an event, and refresh snapshots", command_status)
     status.add_argument("task_id")
-    status.add_argument("new_status", choices=STATUSES)
+    status.add_argument("new_status", choices=PLATFORM_STATUSES)
+    status.add_argument("--platform", help="Change only this platform's status (for example LINUX-X64)")
     status.add_argument("--note", required=True, help="Reason or completion explanation")
     status.add_argument("--snapshot", type=Path, help="SQL output; defaults to the database's sibling .sql")
     return parser

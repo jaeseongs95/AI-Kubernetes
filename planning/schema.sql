@@ -1,7 +1,9 @@
--- AI-Kubernetes development backlog, schema version 1.
+-- AI-Kubernetes development backlog, schema version 2.
+-- v2 adds design principles, platforms with per-platform task status, external
+-- prerequisites, a digest-chained change log and the evidence platform.
 -- Canonical data: planning/backlog.sqlite3; review snapshot: planning/backlog.sql.
 PRAGMA foreign_keys = ON;
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;
 
 CREATE TABLE metadata (
     key TEXT PRIMARY KEY NOT NULL CHECK (length(trim(key)) > 0),
@@ -112,7 +114,67 @@ CREATE TABLE task_evidence (
     kind TEXT NOT NULL CHECK (length(trim(kind)) > 0),
     reference TEXT NOT NULL CHECK (length(trim(reference)) > 0),
     summary TEXT NOT NULL CHECK (length(trim(summary)) > 0),
-    recorded_at TEXT NOT NULL CHECK (length(trim(recorded_at)) > 0)
+    recorded_at TEXT NOT NULL CHECK (length(trim(recorded_at)) > 0),
+    platform_id TEXT REFERENCES platforms(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE principles (
+    id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
+    title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+    statement TEXT NOT NULL CHECK (length(trim(statement)) > 0),
+    source_id TEXT NOT NULL REFERENCES sources(id) ON UPDATE CASCADE
+);
+
+CREATE TABLE task_principles (
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    principle_id TEXT NOT NULL REFERENCES principles(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    PRIMARY KEY (task_id, principle_id)
+);
+
+CREATE TABLE platforms (
+    id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+    family TEXT NOT NULL CHECK (family IN ('windows', 'linux', 'macos')),
+    release_scope TEXT NOT NULL CHECK (release_scope IN ('first_release', 'follow_up', 'future')),
+    notes TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE task_platforms (
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    platform_id TEXT NOT NULL REFERENCES platforms(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    status TEXT NOT NULL CHECK (status IN ('todo', 'in_progress', 'blocked', 'done', 'cancelled', 'not_applicable')),
+    note TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    PRIMARY KEY (task_id, platform_id)
+);
+
+CREATE TABLE external_dependencies (
+    id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
+    owner TEXT NOT NULL CHECK (owner IN ('vm', 'ags', 'vendor', 'user', 'os')),
+    title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+    status TEXT NOT NULL CHECK (status IN ('open', 'resolved')),
+    reference TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE task_external_dependencies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    external_id TEXT NOT NULL REFERENCES external_dependencies(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    platform_id TEXT REFERENCES platforms(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE change_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL CHECK (entity_type IN ('metadata', 'source', 'requirement', 'decision', 'milestone', 'epic', 'task', 'acceptance_criterion', 'task_link', 'task_platform', 'task_evidence', 'principle', 'platform', 'external_dependency')),
+    entity_id TEXT NOT NULL CHECK (length(trim(entity_id)) > 0),
+    field TEXT NOT NULL CHECK (length(trim(field)) > 0),
+    old_value TEXT,
+    new_value TEXT,
+    reason TEXT NOT NULL CHECK (length(trim(reason)) > 0),
+    changed_at TEXT NOT NULL CHECK (length(trim(changed_at)) > 0),
+    previous_digest TEXT NOT NULL,
+    digest TEXT NOT NULL UNIQUE CHECK (length(digest) = 64)
 );
 
 CREATE INDEX ix_tasks_milestone_status ON tasks(milestone_id, status, sequence);
@@ -123,6 +185,12 @@ CREATE INDEX ix_source_tasks ON task_sources(source_id);
 CREATE INDEX ix_decision_tasks ON task_decisions(decision_id);
 CREATE INDEX ix_events_task ON task_events(task_id, id);
 CREATE INDEX ix_evidence_task ON task_evidence(task_id);
+CREATE INDEX ix_evidence_platform ON task_evidence(platform_id);
+CREATE INDEX ix_principle_tasks ON task_principles(principle_id);
+CREATE INDEX ix_platform_tasks ON task_platforms(platform_id, status);
+CREATE UNIQUE INDEX ux_task_external ON task_external_dependencies(task_id, external_id, ifnull(platform_id, ''));
+CREATE INDEX ix_external_tasks ON task_external_dependencies(external_id);
+CREATE INDEX ix_change_log_entity ON change_log(entity_type, entity_id, id);
 
 CREATE VIEW v_backlog AS
 SELECT t.*,
@@ -158,3 +226,28 @@ SELECT m.id AS milestone_id, m.name, m.sequence, m.scope,
 FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
+
+CREATE VIEW v_platform_summary AS
+SELECT m.id AS milestone_id, m.sequence AS milestone_sequence, p.id AS platform_id,
+       p.release_scope AS platform_scope,
+       count(tp.task_id) AS total_tasks,
+       sum(CASE WHEN tp.status = 'todo' THEN 1 ELSE 0 END) AS todo_tasks,
+       sum(CASE WHEN tp.status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_tasks,
+       sum(CASE WHEN tp.status = 'blocked' THEN 1 ELSE 0 END) AS blocked_tasks,
+       sum(CASE WHEN tp.status = 'done' THEN 1 ELSE 0 END) AS done_tasks,
+       sum(CASE WHEN tp.status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_tasks,
+       sum(CASE WHEN tp.status = 'not_applicable' THEN 1 ELSE 0 END) AS not_applicable_tasks
+FROM milestones m
+CROSS JOIN platforms p
+LEFT JOIN tasks t ON t.milestone_id = m.id
+LEFT JOIN task_platforms tp ON tp.task_id = t.id AND tp.platform_id = p.id
+GROUP BY m.id, m.sequence, p.id, p.release_scope;
+
+CREATE VIEW v_open_external AS
+SELECT x.id AS external_id, x.owner, x.title, x.reference,
+       d.task_id, d.platform_id, t.status AS task_status, tp.status AS platform_status
+FROM external_dependencies x
+JOIN task_external_dependencies d ON d.external_id = x.id
+JOIN tasks t ON t.id = d.task_id
+LEFT JOIN task_platforms tp ON tp.task_id = d.task_id AND tp.platform_id = d.platform_id
+WHERE x.status = 'open';

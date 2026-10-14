@@ -217,8 +217,12 @@ M0~M4의 **72개**가 현재 제안한 첫 Windows 배포 범위이며 064의 �
 | `task_events` | 작업 생성·상태 변경 이력 |
 | `task_evidence` | 완료 근거의 참조와 요약 |
 | `metadata` | schema·기준선·작성 시각·소유권 및 정본 정책 |
+| `principles`, `task_principles` | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 작업 연결 (schema 2) |
+| `platforms`, `task_platforms` | 지원 플랫폼과 작업별 플랫폼 상태 (schema 2) |
+| `external_dependencies`, `task_external_dependencies` | VM·AGS 같은 외부 선행과 막힌 작업·플랫폼 (schema 2) |
+| `change_log` | 요구·결정·작업 문구와 연결 변경의 digest 연쇄 이력 (schema 2) |
 
-현재 **90개 태스크, 29개 요구사항(사용자 9·파생 20), 13개 결정, 18개 출처, 311개 완료 기준, 365개 의존성**이다. 파생 요구 20개는 기존 D01~D08과 인수 흐름 P01~P12다. 태스크별 기준 수는 필요한 계약에 따라 다르다. 실제 구현에 따른 상태·증거·변경 이력은 [생성 장부](development-backlog.ko.md)와 [구현 검증 JSON](../planning/implementation-validation.json)에 기록한다. 이전 `created` 90건과 `review_refined` 132건은 계획 등록·보강 이력으로 보존하며, 새 구현·실행 근거와 구분한다.
+현재(schema 2) **92개 태스크, 31개 요구사항(사용자 11·파생 20), 14개 결정, 19개 출처, 316개 완료 기준, 372개 의존성, 설계 원칙 3개, 플랫폼 2개(Windows x64·Linux x64)**다. schema 2 개편 내용은 [원장 schema 2](backlog-v2.ko.md)에 정리했다. 파생 요구 20개는 기존 D01~D08과 인수 흐름 P01~P12다. 태스크별 기준 수는 필요한 계약에 따라 다르다. 실제 구현에 따른 상태·증거·변경 이력은 [생성 장부](development-backlog.ko.md)와 [구현 검증 JSON](../planning/implementation-validation.json)에 기록한다. 이전 `created` 90건과 `review_refined` 132건은 계획 등록·보강 이력으로 보존하며, 새 구현·실행 근거와 구분한다.
 
 `v_backlog`는 작업별 선행 잔여 수·기준 수·증거 수를 보여준다. `v_ready_tasks`는 `todo`이면서 모든 선행 작업이 `done`인 항목이다. `v_milestone_summary`는 단계별 상태·착수 가능 수를 집계한다.
 

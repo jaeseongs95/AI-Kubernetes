@@ -17,7 +17,7 @@ class BacklogPathTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory(prefix="aik-output-paths-")
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name) / "project"
-        for name in ("tools/backlog.py", "planning/schema.sql", "planning/backlog.sqlite3"):
+        for name in ("tools/backlog.py", "planning/schema.sql", "planning/schema-v1.sql", "planning/backlog.sqlite3"):
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / name, target)
