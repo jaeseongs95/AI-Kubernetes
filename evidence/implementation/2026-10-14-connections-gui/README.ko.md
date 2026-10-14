@@ -41,4 +41,20 @@
 - 실제 API 키 저장·벤더 검사, Claude Code·Codex 공식 로그인·로그아웃
 - Windows DPAPI·Linux 키링 위 연결 서비스 실행, Windows 화면 캡처 차단
 - 실행 중 작업 영향(VM 미연결, AIK-044)
-- Windows smoke는 CI(`desktop-shell.yml`) 결과로만 기록한다
+- Windows 실기 실행. Windows는 아래 CI 결과만 있다.
+
+## Windows CI (원장 `EV-AIK-046/047-SHELL-WIN-CI-20261014`)
+
+PR #27 head `e155709`(merge `5168480`)의 `desktop-shell` `shell (windows-2022)` job([run 38513315966 / job 115686489947](https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38513315966/job/115686489947)):
+
+| 단계 | 결과 |
+|---|---|
+| `tests.test_desktop_engine` | Ran 16, OK |
+| `apps/desktop` `npm test` | 15 pass(키 입력 창 시험 5 포함) |
+| `npm run build` | 성공 |
+| smoke 엔진 있음 | `OK: PASS connected on windows` |
+| smoke 엔진 없음 | `OK: BLOCKED unavailable on windows` |
+
+- 아티팩트 `desktop-smoke-windows-2022-51684809c8cf16ed8c674c468c54b844be3c9739`(ID 11869953605), zip sha256 `4377aec5252d0c542bf398913b0b7c2624222e9c6b7b14d6e556b9556cc59e5b`.
+- 이 job 로그에는 `key_entry` 값이 따로 출력되지 않는다. 검사기는 `PASS`와 `NOT_RUN`을 모두 허용하므로 Windows의 키 입력 창 probe 결과는 이 근거로 확정하지 않는다.
+- 같은 head의 `desktop-ipc (windows-2022)`·`modules (windows-2022)`도 success였다.

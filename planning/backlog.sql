@@ -689,6 +689,11 @@ INSERT INTO "change_log" VALUES(345,'task_platform','AIK-046/LINUX-X64','status'
 INSERT INTO "change_log" VALUES(346,'task_platform','AIK-046/WIN-X64','status','todo','blocked','Windows CI 결과 대기. 선행 작업 미완료','2026-10-14T04:48:09Z','64e5e254ddb06aec1a8e2afa5032b89b9cc6d0ef70d555e20f776442114f600d','3f24e2b759e3be0381518d9adce409748af6f911b6c03e20955dfa541d625ef6');
 INSERT INTO "change_log" VALUES(347,'task_platform','AIK-047/LINUX-X64','status','todo','blocked','로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료','2026-10-14T04:48:09Z','3f24e2b759e3be0381518d9adce409748af6f911b6c03e20955dfa541d625ef6','dee849eb5e06ce5a00d3367b61cea35635f54ade4220d04ce082a75c71982583');
 INSERT INTO "change_log" VALUES(348,'task_platform','AIK-047/WIN-X64','status','todo','blocked','Windows CI 결과 대기. 선행 작업 미완료','2026-10-14T04:48:09Z','dee849eb5e06ce5a00d3367b61cea35635f54ade4220d04ce082a75c71982583','329245bd1354802ebea3a9395c342fc17064d69c53dcefe519d6747402b97a1c');
+INSERT INTO "change_log" VALUES(349,'task_evidence','EV-AIK-046-SHELL-WIN-CI-20261014','created',NULL,'AIK-046 partial_ci_validation WIN-X64','AIK-046·047 Windows CI 근거','2026-10-14T05:00:26Z','329245bd1354802ebea3a9395c342fc17064d69c53dcefe519d6747402b97a1c','01f2025fcc6d4638ea8915c274fe1df3e9157bf8f53d971269056797018e3584');
+INSERT INTO "change_log" VALUES(350,'task_evidence','EV-AIK-047-SHELL-WIN-CI-20261014','created',NULL,'AIK-047 partial_ci_validation WIN-X64','AIK-046·047 Windows CI 근거','2026-10-14T05:00:26Z','01f2025fcc6d4638ea8915c274fe1df3e9157bf8f53d971269056797018e3584','79aae17d207002cf16122b83b1a12ebfc67532135b3a5c1995bc4c4c81cafca9');
+INSERT INTO "change_log" VALUES(351,'task_platform','AIK-046/WIN-X64','note','Windows CI 결과 대기. 선행 작업 미완료','Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-046-SHELL-WIN-CI-20261014. 실계정·DPAPI 위 연결 서비스 NOT_RUN. 선행 작업 미완료','Windows CI 근거 기록','2026-10-14T05:00:26Z','79aae17d207002cf16122b83b1a12ebfc67532135b3a5c1995bc4c4c81cafca9','ed7f24a08cdfe13b1beaff77d8de61ea5e6c32db22f216a939f8d34b6fe58cd8');
+INSERT INTO "change_log" VALUES(352,'task_platform','AIK-047/WIN-X64','note','Windows CI 결과 대기. 선행 작업 미완료','Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-047-SHELL-WIN-CI-20261014. 실계정·DPAPI 위 연결 서비스 NOT_RUN. 선행 작업 미완료','Windows CI 근거 기록','2026-10-14T05:00:26Z','ed7f24a08cdfe13b1beaff77d8de61ea5e6c32db22f216a939f8d34b6fe58cd8','5f2e6e03931b79e2173f68b1d32299dd1743fa24be562f6e6fa4892d6b9becff');
+INSERT INTO "change_log" VALUES(353,'task_platform','AIK-045/WIN-X64','note','desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료','Windows CI(windows-2022) smoke 근거 EV-AIK-045-SHELL-WIN-CI-20261014. 작업 선행 미완료','Windows CI 근거 기록','2026-10-14T05:00:26Z','5f2e6e03931b79e2173f68b1d32299dd1743fa24be562f6e6fa4892d6b9becff','182a6cfcc898eca140eaa3f2f94b0604e74172f8c57ed7689a9c75333fc8d9ad');
 CREATE TABLE decisions (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     title TEXT NOT NULL CHECK (length(trim(title)) > 0),
@@ -746,7 +751,7 @@ INSERT INTO "metadata" VALUES('schema_version','2');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-14T04:48:09Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-14T05:00:26Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -1686,6 +1691,8 @@ INSERT INTO "task_events" VALUES(337,'AIK-046','platform_status',NULL,NULL,'WIN-
 INSERT INTO "task_events" VALUES(338,'AIK-047','status_change','todo','blocked','구현·Linux smoke 근거 기록(EV-AIK-047-IMPL-20261014). 선행 작업 미완료, 실제 키·공식 로그인·Windows NOT_RUN','2026-10-14T04:48:09Z');
 INSERT INTO "task_events" VALUES(339,'AIK-047','platform_status',NULL,NULL,'LINUX-X64: todo -> blocked: 로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료','2026-10-14T04:48:09Z');
 INSERT INTO "task_events" VALUES(340,'AIK-047','platform_status',NULL,NULL,'WIN-X64: todo -> blocked: Windows CI 결과 대기. 선행 작업 미완료','2026-10-14T04:48:09Z');
+INSERT INTO "task_events" VALUES(341,'AIK-046','verification_progress','blocked','blocked','부분 근거 EV-AIK-046-SHELL-WIN-CI-20261014 기록(상태 변경 없음)','2026-10-14T05:00:26Z');
+INSERT INTO "task_events" VALUES(342,'AIK-047','verification_progress','blocked','blocked','부분 근거 EV-AIK-047-SHELL-WIN-CI-20261014 기록(상태 변경 없음)','2026-10-14T05:00:26Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1790,6 +1797,8 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-093-LIVE-20261014','AIK-093','partial
 INSERT INTO "task_evidence" VALUES('EV-AIK-093-WIN-CI-20261014','AIK-093','partial_ci_validation','https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38505135469','PR #25 head bf20d1d의 GitHub Actions windows-2022 job: modules 전체 회귀(provider turns·Anthropic cache·loop port·OpenAI usage·budget·observer 시험 포함), provider-contract·redaction·acceptance-candidate·desktop-ipc·upstream-conformance 모두 success. 실제 provider 호출·1시간 보존 적중·Windows 실기 NOT_RUN.','2026-10-14T03:24:55Z','WIN-X64');
 INSERT INTO "task_evidence" VALUES('EV-AIK-046-IMPL-20261014','AIK-046','partial_implementation_validation','evidence/implementation/2026-10-14-connections-gui/README.ko.md','aik_connect(ConnectionService·벤더 중립 KeyVerifier/HostLogin), 엔진 connections.* 명령(연결 전용 처리 줄), renderer 연결 명령(비밀 없음)·main 소유 키 입력 창, 벤더 connector 4개(OpenAI·Anthropic API, Claude Code·Codex 구독), composition root, 연결 관리·온보딩 화면 구현. 로컬 Linux 전체 회귀 Ran 1575 OK(skip 18), connector 34·서비스 14·엔진 16, IPC node 48·desktop 15 pass. xvfb Electron smoke PASS(key_entry probe PASS: 창 격리·password·취소)·엔진 없음 BLOCKED. 기준 1·3의 실제 API 키 저장·벤더 검사·공식 로그인과 Windows 실행은 NOT_RUN. 총괄 모델 설정은 AIK-049.','2026-10-14T04:48:09Z','LINUX-X64');
 INSERT INTO "task_evidence" VALUES('EV-AIK-047-IMPL-20261014','AIK-047','partial_implementation_validation','evidence/implementation/2026-10-14-connections-gui/README.ko.md','aik_connect(ConnectionService·벤더 중립 KeyVerifier/HostLogin), 엔진 connections.* 명령(연결 전용 처리 줄), renderer 연결 명령(비밀 없음)·main 소유 키 입력 창, 벤더 connector 4개(OpenAI·Anthropic API, Claude Code·Codex 구독), composition root, 연결 관리·온보딩 화면 구현. 로컬 Linux 전체 회귀 Ran 1575 OK(skip 18), connector 34·서비스 14·엔진 16, IPC node 48·desktop 15 pass. xvfb Electron smoke PASS(key_entry probe PASS: 창 격리·password·취소)·엔진 없음 BLOCKED. 연결이 있는 목록의 실제 렌더, 실제 키 교체·로그아웃·재인증, 실행 중 작업 영향(VM 미연결, AIK-044)과 Windows 실행은 NOT_RUN.','2026-10-14T04:48:09Z','LINUX-X64');
+INSERT INTO "task_evidence" VALUES('EV-AIK-046-SHELL-WIN-CI-20261014','AIK-046','partial_ci_validation','https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38513315966/job/115686489947','PR #27 head e155709(merge 5168480)의 GitHub Actions desktop-shell `shell (windows-2022)` job: tests.test_desktop_engine 16 OK(연결 명령·연결 전용 처리 줄·composition root 실제 프로세스), apps/desktop node 15 pass(키 입력 창 시험 5 포함), npm run build, Electron smoke check_desktop_smoke `OK: PASS connected on windows`·`OK: BLOCKED unavailable on windows`(artifact 11869953605, zip sha256 4377aec5252d0c542bf398913b0b7c2624222e9c6b7b14d6e556b9556cc59e5b). key_entry probe 값은 로그에 따로 출력되지 않는다(검사기는 PASS·NOT_RUN 모두 허용). 같은 head의 desktop-ipc·modules windows-2022 job도 success. 실제 API 키 저장·벤더 검사·공식 로그인과 DPAPI 위 연결 서비스는 NOT_RUN.','2026-10-14T05:00:26Z','WIN-X64');
+INSERT INTO "task_evidence" VALUES('EV-AIK-047-SHELL-WIN-CI-20261014','AIK-047','partial_ci_validation','https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38513315966/job/115686489947','PR #27 head e155709(merge 5168480)의 GitHub Actions desktop-shell `shell (windows-2022)` job: tests.test_desktop_engine 16 OK(연결 명령·연결 전용 처리 줄·composition root 실제 프로세스), apps/desktop node 15 pass(키 입력 창 시험 5 포함), npm run build, Electron smoke check_desktop_smoke `OK: PASS connected on windows`·`OK: BLOCKED unavailable on windows`(artifact 11869953605, zip sha256 4377aec5252d0c542bf398913b0b7c2624222e9c6b7b14d6e556b9556cc59e5b). key_entry probe 값은 로그에 따로 출력되지 않는다(검사기는 PASS·NOT_RUN 모두 허용). 같은 head의 desktop-ipc·modules windows-2022 job도 success. 연결이 있는 목록의 실제 렌더, 실제 키 교체·로그아웃·재인증, DPAPI 위 연결 서비스, 실행 중 작업 영향(AIK-044)은 NOT_RUN.','2026-10-14T05:00:26Z','WIN-X64');
 CREATE TABLE task_external_dependencies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -1912,13 +1921,13 @@ INSERT INTO "task_platforms" VALUES('AIK-043','WIN-X64','blocked','v1 작업 상
 INSERT INTO "task_platforms" VALUES('AIK-043','LINUX-X64','blocked','v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전','2026-10-14T01:54:45Z');
 INSERT INTO "task_platforms" VALUES('AIK-044','WIN-X64','todo','','2026-10-14T01:54:45Z');
 INSERT INTO "task_platforms" VALUES('AIK-044','LINUX-X64','blocked','외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용)','2026-10-14T01:54:45Z');
-INSERT INTO "task_platforms" VALUES('AIK-045','WIN-X64','blocked','desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료','2026-10-14T02:38:19Z');
+INSERT INTO "task_platforms" VALUES('AIK-045','WIN-X64','blocked','Windows CI(windows-2022) smoke 근거 EV-AIK-045-SHELL-WIN-CI-20261014. 작업 선행 미완료','2026-10-14T05:00:26Z');
 INSERT INTO "task_platforms" VALUES('AIK-045','LINUX-X64','blocked','로컬 Linux smoke PASS 근거. 작업 선행 미완료','2026-10-14T02:38:19Z');
 INSERT INTO "task_platforms" VALUES('AIK-087','WIN-X64','todo','','2026-10-14T01:54:45Z');
 INSERT INTO "task_platforms" VALUES('AIK-087','LINUX-X64','todo','','2026-10-14T01:54:45Z');
-INSERT INTO "task_platforms" VALUES('AIK-046','WIN-X64','blocked','Windows CI 결과 대기. 선행 작업 미완료','2026-10-14T04:48:09Z');
+INSERT INTO "task_platforms" VALUES('AIK-046','WIN-X64','blocked','Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-046-SHELL-WIN-CI-20261014. 실계정·DPAPI 위 연결 서비스 NOT_RUN. 선행 작업 미완료','2026-10-14T05:00:26Z');
 INSERT INTO "task_platforms" VALUES('AIK-046','LINUX-X64','blocked','로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료','2026-10-14T04:48:09Z');
-INSERT INTO "task_platforms" VALUES('AIK-047','WIN-X64','blocked','Windows CI 결과 대기. 선행 작업 미완료','2026-10-14T04:48:09Z');
+INSERT INTO "task_platforms" VALUES('AIK-047','WIN-X64','blocked','Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음) 근거 EV-AIK-047-SHELL-WIN-CI-20261014. 실계정·DPAPI 위 연결 서비스 NOT_RUN. 선행 작업 미완료','2026-10-14T05:00:26Z');
 INSERT INTO "task_platforms" VALUES('AIK-047','LINUX-X64','blocked','로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료','2026-10-14T04:48:09Z');
 INSERT INTO "task_platforms" VALUES('AIK-048','WIN-X64','todo','','2026-10-14T01:54:45Z');
 INSERT INTO "task_platforms" VALUES('AIK-048','LINUX-X64','todo','','2026-10-14T01:54:45Z');
@@ -3090,8 +3099,8 @@ JOIN tasks t ON t.id = d.task_id
 LEFT JOIN task_platforms tp ON tp.task_id = d.task_id AND tp.platform_id = d.platform_id
 WHERE x.status = 'open';
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',340);
-INSERT INTO "sqlite_sequence" VALUES('change_log',348);
+INSERT INTO "sqlite_sequence" VALUES('task_events',342);
+INSERT INTO "sqlite_sequence" VALUES('change_log',353);
 INSERT INTO "sqlite_sequence" VALUES('task_external_dependencies',8);
 COMMIT;
 PRAGMA foreign_keys = ON;
