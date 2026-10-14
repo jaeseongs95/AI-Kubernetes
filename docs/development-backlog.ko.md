@@ -3,11 +3,12 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-13T17:32:04Z`
+- 수정일 (UTC): `2026-10-14T01:54:45Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
-- SQLite `user_version`: `1` · 메타데이터 스키마 버전: `1`
-- 태스크 90개 · 요구사항 29개 · 결정 13개 · 출처 18개
-- 상태: 미착수 42개 · 진행 중 0개 · 진행 차단 46개 · 완료 2개 · 취소 0개
+- SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
+- 태스크 92개 · 요구사항 31개 · 결정 14개 · 출처 19개
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 306건
+- 상태: 미착수 44개 · 진행 중 0개 · 진행 차단 46개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -26,27 +27,101 @@ python tools/backlog.py export
 python tools/backlog.py report
 ```
 
+플랫폼별 상태는 `status AIK-045 blocked --platform LINUX-X64 --note "이유"`로 바꾸며, 작업 이력과 변경 이력(`change_log`)에 함께 남습니다. 작업이 완료이려면 모든 플랫폼 행이 완료 또는 해당 없음이어야 하고, 플랫폼 완료에는 그 플랫폼(또는 플랫폼 무관) 근거가 필요합니다. schema 1 DB는 `migrate`로 변환합니다.
+
 `--db`로 다른 DB를 선택할 수 있습니다. `report --output 경로.md`는 출력 경로를 바꿉니다. `restore --source planning/backlog.sql --output 새경로.sqlite3`는 기존 파일을 덮어쓰지 않고 복원·검증합니다.
 
 ## 단계별 현황
 
 | 단계 | 범위 | 태스크 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 착수 가능 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| M0 · 통합 계약·Windows 기반 결정 | 첫 출시 | 9 | 0 | 0 | 7 | 2 | 0 | 0 |
-| M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 14 | 0 | 0 | 14 | 0 | 0 | 0 |
+| M0 · 통합 계약·플랫폼 기반 결정 | 첫 출시 | 10 | 1 | 0 | 7 | 2 | 0 | 1 |
+| M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 2 | 0 | 25 | 0 | 0 | 0 |
-| M3 · Windows GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
-| M4 · Windows 첫 배포 검증 | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
+| M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
+| M4 · 첫 배포 검증(Windows·Linux) | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
 | M6 · 추가 자원·조직·배포 확장 | 향후 확장 | 6 | 6 | 0 | 0 | 0 | 0 | 0 |
 
 착수 가능 수는 DB에 기록된 선행 작업이 모두 완료된 `todo` 태스크를 셉니다.
 
-## M0 · 통합 계약·Windows 기반 결정
+## 설계 원칙
+
+### PRN-OS
+
+**운영체제 독립**
+
+공통 코드는 운영체제를 모른다. 파일·잠금·프로세스·경로·시크릿·세션 신호의 OS 차이는 port 뒤 플랫폼 adapter에만 두고, OS 판별은 플랫폼 계층 한 곳에서만 한다.
+
+- 출처: [S-USER-20261014](#s-user-20261014) · 연결 태스크 41개
+
+### PRN-SOLID
+
+**SOLID**
+
+단일 책임과 좁은 인터페이스(ISP), 추상에 대한 의존(DIP)을 지키고, 새 OS·벤더는 기존 코드 수정이 아니라 adapter 추가로 지원한다(OCP).
+
+- 출처: [S-USER-20261014](#s-user-20261014) · 연결 태스크 76개
+
+### PRN-VENDOR
+
+**벤더 독립**
+
+벤더 독립은 무조건 지킨다. 공통 계약·저장소·GUI는 특정 벤더를 모르고, 벤더 차이는 adapter에만 둔다. 공통 코드는 벤더 adapter 모듈을 import하지 않는다.
+
+- 출처: [S-USER-20261014](#s-user-20261014) · 연결 태스크 28개
+
+## 플랫폼별 현황
+
+| 플랫폼 | 계열 | 범위 | 메모 |
+|---|---|---|---|
+| LINUX-X64 · Linux x64 | Linux | 첫 출시 | 지원 배포판·설치 형식은 미정(DEC08/AIK-003). VM 실행 의존 부분은 EXT-VM-POSIX-D1 외부 선행. |
+| WIN-X64 · Windows x64 | Windows | 첫 출시 | 지원 버전·설치 형식은 DEC08/AIK-003. 진행 우선 플랫폼. |
+
+| 단계 | 플랫폼 | 행 | 미착수 | 진행 중 | 차단 | 완료 | 취소 | 해당 없음 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| M0 | LINUX-X64 | 10 | 1 | 0 | 7 | 0 | 0 | 2 |
+| M0 | WIN-X64 | 10 | 1 | 0 | 7 | 2 | 0 | 0 |
+| M1 | LINUX-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
+| M1 | WIN-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
+| M2 | LINUX-X64 | 27 | 1 | 0 | 26 | 0 | 0 | 0 |
+| M2 | WIN-X64 | 27 | 2 | 0 | 25 | 0 | 0 | 0 |
+| M3 | LINUX-X64 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
+| M3 | WIN-X64 | 13 | 13 | 0 | 0 | 0 | 0 | 0 |
+| M4 | LINUX-X64 | 9 | 6 | 0 | 3 | 0 | 0 | 0 |
+| M4 | WIN-X64 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
+| M5 | LINUX-X64 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| M5 | WIN-X64 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| M6 | LINUX-X64 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| M6 | WIN-X64 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+## 외부 선행
+
+### EXT-AGS-A2-HOSTINTEGRATION
+
+**AGS host-integration.json(HostIntegration.v1)과 A2 profile의 main 반영**
+
+- 소유: `ags` · 상태: 미해소 (`open`)
+- 참조: agent-governance-suite main 2.9.0(56fef8bd)에 없음; 리뷰 후보 codex/v260-semantic-decision-layer
+- 막힌 태스크: AIK-081, AIK-086
+
+AGS는 수정하지 않는 고정 계약이다. 반영 전에는 실제 A2 적합성 PASS가 불가능하다.
+
+### EXT-VM-POSIX-D1
+
+**VibeMarshal RuntimeJob owner lock의 POSIX 지원**
+
+- 소유: `vm` · 상태: 미해소 (`open`)
+- 참조: vibemarshal src/flowmarshal/engine/runtime.py (os.name == 'nt', msvcrt 잠금; POSIX는 fail-closed, VM 결정 D1)
+- 막힌 태스크: AIK-031(LINUX-X64), AIK-044(LINUX-X64), AIK-059(LINUX-X64), AIK-060(LINUX-X64), AIK-064(LINUX-X64), AIK-086(LINUX-X64)
+
+VM은 수정하지 않는 고정 계약이다. VM이 POSIX 잠금을 지원할 때까지 Linux에서 VM 실제 실행에 의존하는 플랫폼 행은 완료할 수 없다.
+
+## M0 · 통합 계약·플랫폼 기반 결정
 
 **범위:** 첫 출시 (`first_release`)
 
-**단계 완료 조건:** 소유권·실제 runtime 주입점·지원 환경과 P01~P12 최소 제품 인수 계약/독립 oracle/측정 조건을 고정하고 GUI·저장 기반을 준비한다.
+**단계 완료 조건:** 소유권·실제 runtime 주입점·지원 환경과 P01~P12 최소 제품 인수 계약/독립 oracle/측정 조건을 고정하고 GUI·저장 기반을 준비한다. OS 차이는 port 뒤 플랫폼 adapter로 분리한다(AIK-091).
 
 ### AIK-001
 
@@ -70,6 +145,9 @@ python tools/backlog.py report
 - **요구사항:** [D04](#d04), [D08](#d08), [U08](#u08)
 - **출처:** [S-AGS](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/README.md) ([색인](#s-ags)), [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui)), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** [DEC04](#dec04) (확정), [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 해당 없음 (OS 무관 계약 기준선. Linux의 VM 실행 차이는 EXT-VM-POSIX-D1과 AIK-031·044·059의 LINUX-X64 행에서 추적한다), WIN-X64 완료 (v1 완료 승계: 플랫폼 무관 계약 근거)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -88,7 +166,7 @@ python tools/backlog.py report
 
 ### AIK-002
 
-**Windows GUI 스택과 엔진 sidecar 검증**
+**데스크톱 GUI 스택과 엔진 sidecar 검증(Windows 실측)**
 
 | 항목 | 내용 |
 |---|---|
@@ -98,7 +176,7 @@ python tools/backlog.py report
 | 작업 유형 | 결정 (`decision`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 2 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T09:04:21Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 연결되는 작은 spike로 구현 스택을 결정한다.
 
@@ -108,6 +186,9 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 - **요구사항:** [D07](#d07), [P10](#p10), [U03](#u03), [U04](#u04), [U08](#u08)
 - **출처:** [S-USER](#s-user), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 해당 없음 (Windows 실측 스택 검증 spike(ADR 확정). Linux 데스크톱 실행 검증은 AIK-045·AIK-091의 LINUX-X64 행에서 다룬다), WIN-X64 완료 (v1 완료 승계: Windows 설치형 실측 근거)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -117,14 +198,14 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 
 **기록된 증거**
 
-- `EV-002-ELECTRON-20261012` · windows_installed_gui · `evidence/windows-foundation/38219549819/installed-spike.json` · 소스56523355d9cf3a2437989d1dd26f2e5ced1666d2의 Windows CI38219549819 첫 실행: install/bundle/실제 GUI/worker/DPAPI/uninstall PASS. 후보별 실측 비교가 남아 전체 태스크는 in_progress. · `2026-10-12T08:05:45Z`
+- `EV-002-ELECTRON-20261012` · windows_installed_gui · `evidence/windows-foundation/38219549819/installed-spike.json` · 소스56523355d9cf3a2437989d1dd26f2e5ced1666d2의 Windows CI38219549819 첫 실행: install/bundle/실제 GUI/worker/DPAPI/uninstall PASS. 후보별 실측 비교가 남아 전체 태스크는 in_progress. · `2026-10-12T08:05:45Z` · 플랫폼 `WIN-X64`
 - `EV-002-REVIEW-20261012` · independent_review · `evidence/reviews/2026-10-12-before-stack-comparison.json` · 세 AC는 충족하지만 기존 tasks.verification의 Tauri 대안 설치·IPC·worker·메모리 실측은 보완해야 한다. Electron 성공만으로 전체 done 처리하지 않는다. · `2026-10-12T08:05:45Z`
-- `EV-002-COMPARISON-20261012` · windows_candidate_comparison · `evidence/tauri-comparison/38223818838/ci-validation.json` · 실제 Windows CI38223818838 같은 job·같은 frozen engine으로 Electron/Tauri 설치·GUI·typed IPC·worker·DPAPI·메모리 관측·제거 PASS. 두 ZIP digest/크기, installer/report/PNG hash 결속 및 직접 화면 검토 PASS. DEC07 구현 선택 완료. 전체 메모리·속도 우위 및 제품 연동은 주장하지 않는다. · `2026-10-12T09:04:20Z`
+- `EV-002-COMPARISON-20261012` · windows_candidate_comparison · `evidence/tauri-comparison/38223818838/ci-validation.json` · 실제 Windows CI38223818838 같은 job·같은 frozen engine으로 Electron/Tauri 설치·GUI·typed IPC·worker·DPAPI·메모리 관측·제거 PASS. 두 ZIP digest/크기, installer/report/PNG hash 결속 및 직접 화면 검토 PASS. DEC07 구현 선택 완료. 전체 메모리·속도 우위 및 제품 연동은 주장하지 않는다. · `2026-10-12T09:04:20Z` · 플랫폼 `WIN-X64`
 - `EV-002-COMPARISON-REVIEW-20261012` · independent_review · `evidence/reviews/2026-10-12-after-stack-comparison.json` · 원래 AIK-002의 3 AC 및 후보별 설치성·IPC·worker 기동·메모리 verification을 독립 대조해 모두 충족 판정. DEC07 confirmed의 repository/CI 출처와 구현 결정 구분을 확인. AIK-003 기존 clean/no-tools 기준은 미충족으로 보존. SHA256 db299eef3e27761d30099920ae569b1045f284c15763aa33f03e79aed4243763 · `2026-10-12T09:04:20Z`
 
 ### AIK-003
 
-**Windows 지원 환경·설치·서명 방식 결정**
+**지원 플랫폼 환경·설치·서명 방식 결정**
 
 | 항목 | 내용 |
 |---|---|
@@ -132,35 +213,38 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Release |
 | 작업 유형 | 결정 (`decision`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 3 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T12:22:34Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
-첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.
+첫 배포의 지원 플랫폼(Windows x64·Linux x64)별 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다.
 
-- **산출물:** Windows support matrix와 packaging ADR
-- **검증 방법:** 깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토
+- **산출물:** 플랫폼별 support matrix와 packaging ADR
+- **검증 방법:** 플랫폼별 깨끗한 후보 환경의 설치 spike 및 문서 검토
 - **선행 작업:** 없음
-- **요구사항:** [D07](#d07), [P01](#p01), [P10](#p10), [U04](#u04)
+- **요구사항:** [D07](#d07), [P01](#p01), [P10](#p10), [U04](#u04), [U10](#u10)
 - **출처:** [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC08](#dec08) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
-1. 지원 Windows 버전·CPU·최소 자원과 선택한 설치 형식을 명시한다.
+1. 플랫폼별 지원 OS 버전·CPU·최소 자원과 선택한 설치 형식을 명시한다.
 2. 개발 도구가 없는 환경에서 필요한 runtime을 어떻게 공급할지 검증한다.
-3. 서명·업데이트 신뢰·제거 후 데이터 처리 기준을 정하며 macOS/Linux를 첫 출시 gate로 넣지 않는다.
+3. 서명·업데이트 신뢰·제거 후 데이터 처리 기준을 정하며 macOS는 첫 출시 gate로 넣지 않는다.
 4. 최소/기준 hardware, 지원 파일 경로·오프라인/네트워크 조건, 응답성·메모리·지속 실행의 측정 부하를 결정하고 AIK-083에서 출시 임계값을 측정 전에 고정한다. 실제 provider 지연과 GUI/제어부 응답 시간을 분리하며 미충족 조건은 AIK-062/064를 차단한다.
 
 **기록된 증거**
 
-- `EV-003-INSTALL-20261012` · partial_installation_validation · `evidence/windows-foundation/38219549819/verification.json` · runtime 공급과 설치/제거는 Windows Server2022 관리자 CI에서 실제 PASS. 개발 도구 없는 깨끗한 후보 Windows와 표준 사용자 실행은 NOT_RUN이다. · `2026-10-12T08:05:45Z`
+- `EV-003-INSTALL-20261012` · partial_installation_validation · `evidence/windows-foundation/38219549819/verification.json` · runtime 공급과 설치/제거는 Windows Server2022 관리자 CI에서 실제 PASS. 개발 도구 없는 깨끗한 후보 Windows와 표준 사용자 실행은 NOT_RUN이다. · `2026-10-12T08:05:45Z` · 플랫폼 `WIN-X64`
 - `EV-003-POLICY-20261012` · packaging_decision · `docs/windows-packaging.ko.md` · Windows x64 후보·runtime 포함 NSIS·서명/업데이트/데이터 정책·성능 측정 부하를 정했다. 기존 AC2 및 verification의 깨끗한 후보 Windows 설치 검증은 미충족. · `2026-10-12T08:05:45Z`
-- `EV-003-HANDOFF-20261012` · actual_windows_powershell_handoff · `evidence/windows-handoff/38226204128/verification.json` · 실제 소스4b948f57020f3e507683de6e538544b9bac558e7/run38226204128에서 ZIP 재추출 후 Windows PowerShell5.1 Desktop으로 신규 설치·GUI·frozen Python·worker·DPAPI·제거 및 8검사 PASS. 다운로드3ZIP/hash·11구성원·새실행·화면 직접 검토 PASS. Server 관리자 CI이므로 원래 clean/no-tools 조건은 NOT_RUN. SHA256 d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37 · `2026-10-12T09:06:04Z`
-- `EV-003-LEGACY-20261012` · powershell_encoding_regression · `evidence/reviews/2026-10-12-powershell-legacy-encoding.json` · 초기 UTF8NoBOM/CP1252 파싱 결함의 재현 근거를 보존했다. 후속 EV-003-HANDOFF 실제 WindowsPS5.1에서 원본 오류2/BOM사본 오류0을 확인했다. 최초 handoff CI38225912010의 Get-FileHash 조회 실패도 원문 보존 후 .NET SHA256으로 수정하고 새 CI에서 검증했다. 환경 qualification과 분리한다. · `2026-10-12T09:06:04Z`
+- `EV-003-HANDOFF-20261012` · actual_windows_powershell_handoff · `evidence/windows-handoff/38226204128/verification.json` · 실제 소스4b948f57020f3e507683de6e538544b9bac558e7/run38226204128에서 ZIP 재추출 후 Windows PowerShell5.1 Desktop으로 신규 설치·GUI·frozen Python·worker·DPAPI·제거 및 8검사 PASS. 다운로드3ZIP/hash·11구성원·새실행·화면 직접 검토 PASS. Server 관리자 CI이므로 원래 clean/no-tools 조건은 NOT_RUN. SHA256 d15c51d0f445d6aa908420829c3ae8136a9868a30431928421365f6dc8f25f37 · `2026-10-12T09:06:04Z` · 플랫폼 `WIN-X64`
+- `EV-003-LEGACY-20261012` · powershell_encoding_regression · `evidence/reviews/2026-10-12-powershell-legacy-encoding.json` · 초기 UTF8NoBOM/CP1252 파싱 결함의 재현 근거를 보존했다. 후속 EV-003-HANDOFF 실제 WindowsPS5.1에서 원본 오류2/BOM사본 오류0을 확인했다. 최초 handoff CI38225912010의 Get-FileHash 조회 실패도 원문 보존 후 .NET SHA256으로 수정하고 새 CI에서 검증했다. 환경 qualification과 분리한다. · `2026-10-12T09:06:04Z` · 플랫폼 `WIN-X64`
 - `EV-003-CLIENT-INTAKE-20261012` · partial_client_evidence_tooling · `evidence/windows-client-intake/2026-10-12/local-validation.json` · 설치 전 원래 PATH·registry·일반 설치 경로/OS·실제 CPU architecture/토큰 관리자 그룹 수집과 새 실행 hash 결속, 준비 기록 및 portable 증거 검사기를 구현. 로컬 113 tests PASS(실패/skip 0), 보존된 실제 Server 증거는 무결성 PASS·청정 client BLOCKED. 실제 Windows11 clean/no-tools 원래 AC2는 NOT_RUN이며 blocked 유지. local-validation SHA256 5ff201abcbd1c8a4ffab37e1e19748308738031aab9d28f9b5cff8cb533e6ef7 · `2026-10-12T12:06:58Z`
-- `EV-003-CLIENT-INTAKE-WINDOWS-20261012` · partial_windows_client_tooling_validation · `evidence/windows-client-intake/2026-10-12/windows-ci-validation.json` · AIK-003 동일 범위 후속 검증. commit 312fa94adfce6ca5ff1ded54a85eea42b512b536의 Windows CI 38247899230 전체 성공: 회귀 41/Python 엔진 23/Node 계약 8 PASS, 실제 PowerShell 5.1 수집 6 probe PASS 및 설치·GUI·worker·DPAPI·제거 PASS. Server/관리자/개발 도구 146개 관측을 무결성 오류 없이 BLOCKED로 판정. 원본 artifact SHA-256 5b3966ca0f8dff693956fccdbddd061e14bf444743ecf755b6bb7b2bc66e75e5 보존. 실제 깨끗한 Windows 11 표준 사용자 검증·서명·제품 통합은 NOT_RUN이며 원래 AC2/검증 및 blocked 유지. 보고서 SHA-256 26a393f0428d1b454ed3855140619d5dc944f8ffad286bfcc9140af3f9358623 · `2026-10-12T12:22:34Z`
-- `EV-003-USER-WIN11-20261014` · actual_windows11_client_run · `evidence/windows-client/2026-10-14-user-win11-26h2/README.ko.md` · 사용자 PC Windows 11 Pro 26H2(build 26300) 실기에서 handoff 패키지(e025f41, CI 38439252870 attempt 2, manifest b85ee7ce…a66) 실행: handoff 8개 검사·설치·GUI·frozen Python·worker·DPAPI·제거 PASS. review_windows_client.py 판정 BLOCKED(무결성 오류 0): 승격 관리자 토큰, 개발 도구 9건(node·npm·git), 준비 기록 없음. 청정 Windows 11 표준 사용자·개발 도구 부재·서명은 NOT_RUN. 첨부 ZIP sha256 0c4df266…993b. · `2026-10-14T00:45:00Z`
+- `EV-003-CLIENT-INTAKE-WINDOWS-20261012` · partial_windows_client_tooling_validation · `evidence/windows-client-intake/2026-10-12/windows-ci-validation.json` · AIK-003 동일 범위 후속 검증. commit 312fa94adfce6ca5ff1ded54a85eea42b512b536의 Windows CI 38247899230 전체 성공: 회귀 41/Python 엔진 23/Node 계약 8 PASS, 실제 PowerShell 5.1 수집 6 probe PASS 및 설치·GUI·worker·DPAPI·제거 PASS. Server/관리자/개발 도구 146개 관측을 무결성 오류 없이 BLOCKED로 판정. 원본 artifact SHA-256 5b3966ca0f8dff693956fccdbddd061e14bf444743ecf755b6bb7b2bc66e75e5 보존. 실제 깨끗한 Windows 11 표준 사용자 검증·서명·제품 통합은 NOT_RUN이며 원래 AC2/검증 및 blocked 유지. 보고서 SHA-256 26a393f0428d1b454ed3855140619d5dc944f8ffad286bfcc9140af3f9358623 · `2026-10-12T12:22:34Z` · 플랫폼 `WIN-X64`
+- `EV-003-USER-WIN11-20261014` · actual_windows11_client_run · `evidence/windows-client/2026-10-14-user-win11-26h2/README.ko.md` · 사용자 PC Windows 11 Pro 26H2(build 26300) 실기에서 handoff 패키지(e025f41, CI 38439252870 attempt 2, manifest b85ee7ce…a66) 실행: handoff 8개 검사·설치·GUI·frozen Python·worker·DPAPI·제거 PASS. review_windows_client.py 판정 BLOCKED(무결성 오류 0): 승격 관리자 토큰, 개발 도구 9건(node·npm·git), 준비 기록 없음. 청정 Windows 11 표준 사용자·개발 도구 부재·서명은 NOT_RUN. 첨부 ZIP sha256 0c4df266…993b. · `2026-10-14T00:45:00Z` · 플랫폼 `WIN-X64`
 
 ### AIK-083
 
@@ -174,7 +258,7 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 | 작업 유형 | 결정 (`decision`) |
 | 에픽 | E01 · 제품·통합 기반 |
 | 실행 순서 | 4 |
-| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-13T06:24:36Z` |
+| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-14T01:54:45Z` |
 
 장부 P01~P12에 이미 명시한 최소 사용자 흐름을 구현·GUI·검증 담당과 고정 지원 조합에 결속한다. 이후 태스크가 끝나도 흐름이 빠지는 것을 막는 제품 인수 계약이다.
 
@@ -184,10 +268,13 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 - **요구사항:** [D06](#d06), [D07](#d07), [P01](#p01), [P02](#p02), [P03](#p03), [P04](#p04), [P05](#p05), [P06](#p06), [P07](#p07), [P08](#p08), [P09](#p09), [P10](#p10), [U01](#u01), [U02](#u02), [U03](#u03), [U04](#u04), [U06](#u06), [U07](#u07), [U08](#u08), [U09](#u09)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user), [S-VISION](#s-vision)
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC02](#dec02) (확정), [DEC03](#dec03) (확정), [DEC04](#dec04) (확정), [DEC05](#dec05) (확정), [DEC06](#dec06) (제안), [DEC08](#dec08) (제안), [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
-1. P01~P10의 첫 Windows 흐름과 P11 연합/P12 확장의 최소 입력·관찰 가능한 성공·실패 차단을 보존하고 각 항목에 구현·GUI/설치 복구·검증 소유자와 최종 gate를 연결한다. 기존 최소 여정을 나중에 정의하겠다는 문서나 일반 체크리스트만으로 완료하지 않는다.
+1. P01~P10의 첫 출시(지원 플랫폼별) 흐름과 P11 연합/P12 확장의 최소 입력·관찰 가능한 성공·실패 차단을 보존하고 각 항목에 구현·GUI/설치 복구·검증 소유자와 최종 gate를 연결한다. 기존 최소 여정을 나중에 정의하겠다는 문서나 일반 체크리스트만으로 완료하지 않는다.
 2. 대표 실제 프로젝트·RAW Goal·A/B→C 쓰기/검증·의도된 실패와 재작업 시나리오, worker가 바꿀 수 없는 판정 oracle, artifact bytes/digest/명령 결과·권위 receipt의 대조를 고정한다. fixture 입력과 모델이 생성할 결과를 구분하고 완성 결과/Plan/Task 사전 주입을 금지한다.
 3. 003의 지원 hardware/부하/지속시간에 맞춰 GUI 응답·메모리·사용량 한도를 측정 전에 고정하고 필수 FAIL/NOT_RUN 또는 중대 결함의 출시 차단을 정한다. 001의 역할별 runtime/도구 matrix와 같은 판본에 결속하고 범위·oracle·임계값 변경은 영향·결정·재검증 기록을 요구한다.
 4. 001/031의 공개 접합 계약·085 도구 구현과 082 실제 사전 probe를 준비하고 035 실행 연결→086 candidate governed qualification→044 합성 E2E→059/064 설치본 판정으로 이어지는 개발 계약을 고정한다. M5/M6 선택 기능은 해당 scope 확정 때 실제 release gate 선행으로 추가·검증하며 미선택을 done으로 바꾸지 않는다.
@@ -218,6 +305,9 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 - **요구사항:** [D01](#d01), [D04](#d04), [P05](#p05), [U03](#u03)
 - **출처:** [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** [DEC04](#dec04) (확정), [DEC07](#dec07) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -251,6 +341,9 @@ GUI는 제한된 command/query client로 두고 실행과 비밀 조회를 backe
 - **요구사항:** [D01](#d01), [D03](#d03), [D04](#d04), [P09](#p09)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** [DEC04](#dec04) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -285,6 +378,9 @@ GUI 창과 런타임 수명을 분리하고 사용자 세션 내에서 총괄·s
 - **요구사항:** [D03](#d03), [D04](#d04), [P08](#p08), [U02](#u02)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -318,6 +414,9 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 - **요구사항:** [D01](#d01), [D05](#d05), [P02](#p02), [P09](#p09), [U01](#u01), [U02](#u02)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -352,6 +451,9 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 - **요구사항:** [D06](#d06), [D08](#d08), [U08](#u08)
 - **출처:** [S-AGS](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/README.md) ([색인](#s-ags)), [S-AGS-ATTEST](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/docs/host-execution-attestation.md) ([색인](#s-ags-attest)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** [DEC04](#dec04) (확정), [DEC12](#dec12) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -363,15 +465,51 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 
 - `EV-AIK-008-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-008` · 부분 구현: commit eb51d14/d3dae47, tests/test_upstream_defects.py 22개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(부분); 차단: 선행 AIK-083 미완료; 설치형 conformance 미실행; A2 호환 AGS 배포물 부재; AIK-081/082 live probe 근거 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T09:24:26Z`
 
+### AIK-091
+
+**OS port 계층·플랫폼 adapter와 공통 헬퍼 통합**
+
+| 항목 | 내용 |
+|---|---|
+| 상태 | 미착수 (`todo`) |
+| 우선순위 | P0 |
+| 담당 컴포넌트 | AIK platform |
+| 작업 유형 | 기능 개발 (`feature`) |
+| 에픽 | E12 · 플랫폼 독립 계층 |
+| 실행 순서 | 91 |
+| 작성 / 수정 | `2026-10-14T01:54:45Z` / `2026-10-14T01:54:45Z` |
+
+공통 코드에 흩어진 OS 분기(파일 동기화·원자적 쓰기·잠금·프로세스 트리·데이터 경로·세션 신호·시크릿 backend 선택)를 aik_platform의 concern별 port와 Windows·Linux adapter로 모은다. 기존 공개 이름과 동작은 유지한다.
+
+- **산출물:** aik_platform 패키지·adapter 주입 시험·복제 헬퍼 제거
+- **검증 방법:** adapter 주입 단위 시험, 기존 전체 회귀, Windows·Linux CI matrix
+- **선행 작업:** [AIK-001](#aik-001)
+- **요구사항:** [D07](#d07), [U10](#u10)
+- **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER-20261014](#s-user-20261014)
+- **관련 결정:** [DEC14](#dec14) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
+
+**완료 기준**
+
+1. 공통 코드의 os.name·sys.platform 분기가 플랫폼 계층 한 곳으로 모이고, 각 concern은 좁은 port로 주입·대체할 수 있다.
+2. 기존 공개 이름·파일 권한(mode)·오류 코드·잠금 의미가 바뀌지 않음을 기존 전체 회귀가 Windows·Linux CI에서 확인한다.
+3. Linux adapter는 거절(fail-closed) 경로를 포함해 실제 Linux에서 검증하고, 미구현 concern은 거절 사유와 함께 표시한다.
+
+**기록된 증거**
+
+기록 없음.
+
 ## M1 · 인증 보관·멀티벤더 자원 연결
 
 **범위:** 첫 출시 (`first_release`)
 
-**단계 완료 조건:** 후보 adapter 코드를 구현하고, 같은 지원 matrix의 필수 두 벤더 API/지원 구독 인증 경로와 vault를 실제 Windows에서 검증한다. 선택 미지원 경로는 별도 결과로 유지한다.
+**단계 완료 조건:** 후보 adapter 코드를 구현하고, 같은 지원 matrix의 필수 두 벤더 API/지원 구독 인증 경로와 vault를 지원 플랫폼(Windows·Linux)마다 실제로 검증한다. 선택 미지원 경로는 별도 결과로 유지한다.
 
 ### AIK-009
 
-**Windows 사용자 범위 시크릿 vault 구현**
+**사용자 범위 시크릿 vault 구현(플랫폼별 backend)**
 
 | 항목 | 내용 |
 |---|---|
@@ -381,20 +519,23 @@ workspace별 설정 schema와 UI가 사용할 조회·변경 명령을 마련한
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 10 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:27Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
-API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaque credential_ref로 접근한다.
+API 키와 app 소유 비밀을 OS 사용자 범위 저장소(Windows DPAPI·Linux Secret Service)에 보관하고 opaque credential_ref로 접근한다.
 
 - **산출물:** vault backend·CRUD·OS 사용자 경계
-- **검증 방법:** 실제 Windows vault 왕복·다른 사용자·재시작·오류 검증
-- **선행 작업:** [AIK-002](#aik-002), [AIK-003](#aik-003), [AIK-004](#aik-004), [AIK-005](#aik-005)
-- **요구사항:** [D01](#d01), [P05](#p05), [U01](#u01), [U04](#u04)
+- **검증 방법:** 지원 플랫폼별 실제 vault 왕복·다른 사용자·재시작·오류 검증
+- **선행 작업:** [AIK-002](#aik-002), [AIK-003](#aik-003), [AIK-004](#aik-004), [AIK-005](#aik-005), [AIK-091](#aik-091)
+- **요구사항:** [D01](#d01), [P05](#p05), [U01](#u01), [U04](#u04), [U10](#u10)
 - **출처:** [S-CRED](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritea) ([색인](#s-cred)), [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata) ([색인](#s-dpapi)), [S-USER](#s-user)
-- **관련 결정:** [DEC03](#dec03) (확정), [DEC09](#dec09) (제안)
+- **관련 결정:** [DEC03](#dec03) (확정), [DEC09](#dec09) (제안), [DEC14](#dec14) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
-1. Credential Manager 또는 사용자 범위 DPAPI 후보를 검증해 선택하고 머신 공유 범위를 기본으로 사용하지 않는다. 저장 보호·다른 OS 사용자 경계와 동일 사용자 native 프로세스의 직접 접근 범위를 ADR에 명시한다.
+1. 플랫폼별 backend(Windows: Credential Manager 또는 사용자 범위 DPAPI, Linux: Secret Service)를 검증해 선택하고 머신 공유 범위를 기본으로 사용하지 않는다. 저장 보호·다른 OS 사용자 경계와 동일 사용자 native 프로세스의 직접 접근 범위를 ADR에 명시한다.
 2. 저장·교체·삭제와 앱 재시작 후 참조 회수가 동작한다.
 3. SQLite·설정·로그·지원 번들에서 테스트 비밀 평문이 검출되지 않으며 저장소 접근 실패를 정확히 반환한다.
 
@@ -424,6 +565,9 @@ API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaq
 - **요구사항:** [D01](#d01), [P01](#p01), [U01](#u01), [U05](#u05)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC03](#dec03) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -454,9 +598,12 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 - **산출물:** ProviderAdapter 인터페이스·오류/capability 스키마
 - **검증 방법:** 가짜 adapter와 실제 호스트 계약 대조 검증
 - **선행 작업:** [AIK-001](#aik-001), [AIK-010](#aik-010)
-- **요구사항:** [D02](#d02), [D08](#d08), [U05](#u05)
+- **요구사항:** [D02](#d02), [D08](#d08), [U05](#u05), [U11](#u11)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -490,6 +637,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 - **요구사항:** [D02](#d02), [P01](#p01), [U01](#u01), [U05](#u05)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC12](#dec12) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -523,6 +673,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 - **요구사항:** [D02](#d02), [P01](#p01), [U01](#u01), [U05](#u05)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC12](#dec12) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -547,16 +700,19 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 15 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T10:15:05Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 공식 Codex 호스트 인증과 기존 VM runtime을 연결하는 bridge를 구현한다. 호스트 설치·인증·governance 미지원은 경로별 qualification 상태이며 bridge 코드의 구현 상태와 구분한다.
 
 - **산출물:** Codex host auth bridge 코드·host protocol fixture·connection capability
-- **검증 방법:** host fixture로 공식 인증 시작·상태·만료·해제·계정 변경 계약 검증; 실제 Windows 인증/실행은 AIK-022/082/086/044에서 검증
+- **검증 방법:** host fixture로 공식 인증 시작·상태·만료·해제·계정 변경 계약 검증; 실제 지원 플랫폼 인증/실행은 AIK-022/082/086/044에서 검증
 - **선행 작업:** [AIK-008](#aik-008), [AIK-011](#aik-011)
 - **요구사항:** [D08](#d08), [P01](#p01), [U01](#u01), [U05](#u05), [U08](#u08)
 - **출처:** [S-AGS](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/README.md) ([색인](#s-ags)), [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC12](#dec12) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -580,16 +736,19 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E03 · 자원·provider adapter |
 | 실행 순서 | 16 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T10:15:05Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
-공식 Claude Code 인증과 기존 VM CLI runtime을 자원 등록·재연결 계약으로 연결하는 bridge를 구현한다. 코드 구현과 실제 Windows 호스트 qualification을 구분한다.
+공식 Claude Code 인증과 기존 VM CLI runtime을 자원 등록·재연결 계약으로 연결하는 bridge를 구현한다. 코드 구현과 실제 지원 플랫폼 호스트 qualification을 구분한다.
 
 - **산출물:** Claude host auth bridge 코드·host protocol fixture·connection capability
-- **검증 방법:** host fixture로 공식 인증·실행 요청·만료·해제·계정 변경 계약 검증; 실제 Windows 인증/실행은 AIK-022/082/086/044에서 검증
+- **검증 방법:** host fixture로 공식 인증·실행 요청·만료·해제·계정 변경 계약 검증; 실제 지원 플랫폼 인증/실행은 AIK-022/082/086/044에서 검증
 - **선행 작업:** [AIK-008](#aik-008), [AIK-011](#aik-011)
 - **요구사항:** [D02](#d02), [P01](#p01), [U01](#u01), [U05](#u05), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC12](#dec12) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -613,22 +772,25 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 17 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 연결 자격이 바뀌었을 때 신규 배치와 진행 중 작업을 구분해 처리한다.
 
 - **산출물:** auth state machine·재인증/잠금 이벤트
 - **검증 방법:** 만료·동시 회전·잠금 중 실행·연결 삭제 경합 검증
-- **선행 작업:** [AIK-009](#aik-009), [AIK-010](#aik-010), [AIK-011](#aik-011)
-- **요구사항:** [D01](#d01), [D04](#d04), [U01](#u01)
+- **선행 작업:** [AIK-009](#aik-009), [AIK-010](#aik-010), [AIK-011](#aik-011), [AIK-091](#aik-091)
+- **요구사항:** [D01](#d01), [D04](#d04), [U01](#u01), [U10](#u10)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
 1. 만료/잠금/해제 자원은 신규 배치에서 제외하고 재인증 후 재검증한다.
 2. 키 교체 뒤 새 실행은 새 참조 버전을 사용하며 이전 실행은 실제 상태를 회수한다.
-3. 사용자가 설정한 vault 잠금·Windows 세션 잠금 정책이 동작하고 강제 로그아웃을 완료/환불로 간주하지 않는다.
+3. 사용자가 설정한 vault 잠금·OS 세션 잠금(Windows 세션 잠금·Linux logind LockedHint) 정책이 동작하고 강제 로그아웃을 완료/환불로 간주하지 않는다.
 
 **기록된 증거**
 
@@ -656,6 +818,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 - **요구사항:** [D01](#d01), [P05](#p05), [P07](#p07), [U01](#u01)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata) ([색인](#s-dpapi))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -689,6 +854,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 - **요구사항:** [D01](#d01), [D05](#d05), [P05](#p05), [U01](#u01)
 - **출처:** [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -722,6 +890,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 - **요구사항:** [D02](#d02), [D05](#d05), [P01](#p01), [P03](#p03), [U05](#u05)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -756,6 +927,9 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 - **요구사항:** [D02](#d02), [P03](#p03), [P05](#p05), [U02](#u02), [U05](#u05)
 - **출처:** [S-AGS-ATTEST](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/docs/host-execution-attestation.md) ([색인](#s-ags-attest)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -779,16 +953,19 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 22 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T09:24:28Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 여러 프로젝트가 연결을 공유하는 범위와 설정의 import/export 정책을 구현한다.
 
 - **산출물:** connection scope policy·설정 export/import
-- **검증 방법:** 다른 workspace·다른 Windows 사용자/기기의 복원 검증
+- **검증 방법:** 다른 workspace·다른 OS 사용자/기기의 복원 검증
 - **선행 작업:** [AIK-010](#aik-010), [AIK-018](#aik-018)
 - **요구사항:** [D01](#d01), [D05](#d05), [P02](#p02), [P09](#p09), [U01](#u01)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata) ([색인](#s-dpapi))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -803,7 +980,7 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 
 ### AIK-022
 
-**Windows 멀티벤더 인증·vault qualification**
+**멀티벤더 인증·vault qualification(플랫폼별)**
 
 | 항목 | 내용 |
 |---|---|
@@ -813,27 +990,65 @@ API 키 및 공식 구독 호스트의 sign-in/status/sign-out과 실행 능력�
 | 작업 유형 | 검증 (`validation`) |
 | 에픽 | E02 · 시크릿·인증 |
 | 실행 순서 | 23 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-13T17:32:04Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
-AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualification을 구분하고 선택 경로의 미지원은 독립 결과로 보관한다.
+AIK-001 지원 matrix의 필수 인증 경로를 지원 플랫폼별 실제 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualification을 구분하고 선택 경로의 미지원은 독립 결과로 보관한다.
 
 - **산출물:** matrix revision/digest별 auth/vault qualification·경로별 live evidence·재현 절차
-- **검증 방법:** 실제 Windows 사용자 환경과 가짜 비밀의 실패 경로 검증
-- **선행 작업:** [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-016](#aik-016), [AIK-017](#aik-017), [AIK-018](#aik-018), [AIK-019](#aik-019), [AIK-020](#aik-020), [AIK-021](#aik-021)
+- **검증 방법:** 지원 플랫폼별 실제 사용자 환경과 가짜 비밀의 실패 경로 검증
+- **선행 작업:** [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-016](#aik-016), [AIK-017](#aik-017), [AIK-018](#aik-018), [AIK-019](#aik-019), [AIK-020](#aik-020), [AIK-021](#aik-021), [AIK-092](#aik-092)
 - **요구사항:** [D01](#d01), [D06](#d06), [D08](#d08), [P01](#p01), [P05](#p05), [U01](#u01), [U04](#u04)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
-1. 동일 matrix revision의 필수 API/지원 구독 인증 경로마다 실제 Windows 등록·호출·회전·해제·재연결을 통과한다. 같은 벤더의 두 연결과 외부 로그인 변경에서 다른 계정으로 묵시 실행되지 않는다. adapter fixture만으로 이 기준을 통과하지 않는다.
+1. 동일 matrix revision의 필수 API/지원 구독 인증 경로마다 지원 플랫폼마다 실제 등록·호출·회전·해제·재연결을 통과한다. 같은 벤더의 두 연결과 외부 로그인 변경에서 다른 계정으로 묵시 실행되지 않는다. adapter fixture만으로 이 기준을 통과하지 않는다.
 2. 다른 사용자·잠금·손상된 참조·인증 만료·로그 제거 조건을 합성 비밀로 검증한다. 실제 계정 비밀은 장부/검증 산출물에 저장하지 않는다.
 3. auth 성공과 governed 실행 준비 여부를 별도 판정한다. 선택/미지원 경로의 사유·관측 시각·NOT_RUN 및 근거를 기록하며 필수 경로가 미지원/미검증이면 이 태스크는 완료할 수 없다. matrix 변경은 결정·영향·재검증 기록을 요구한다.
 
 **기록된 증거**
 
 - `EV-AIK-022-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-022` · 부분 구현: PR #17(f731b1e, merge e025f41) 설치형 Windows 앱 auth_vault 카드가 제품 aik_vault DPAPI·aik_auth_lifecycle·aik_connection으로 합성 비밀 실패 경로 10개를 실행. Linux 시험(test_auth_vault.py 5개 등) PASS, GitHub Actions Windows Server installed-spike job 115434838577에서 실제 DPAPI 설치본 auth_vault PASS(로그 판정). 남은 기준 1(미충족: 실계정 경로 NOT_RUN), 2(부분: 다른 사용자 프로필 NOT_RUN), 3(부분). Windows 11 표준 사용자 실기 NOT_RUN. · `2026-10-13T17:32:04Z`
-- `EV-AIK-022-USER-WIN11-20261014` · actual_windows11_synthetic_auth_vault · `evidence/windows-client/2026-10-14-user-win11-26h2/README.ko.md` · 같은 Windows 11 Pro 26H2 실기 설치본에서 auth_vault 카드 PASS(AUTH_VAULT_FAILURE_PATHS_OK): 실제 사용자 DPAPI로 잠금·잘못된 참조·손상 blob·외부 blob 모의·삭제 참조·인증 만료·자격 증명 삭제·출력 redaction 10 case가 기대 코드와 일치. 검사기 aik022_auth_vault=PASS_SYNTHETIC_SINGLE_USER. 기준 2 부분(다른 사용자 프로필 NOT_RUN), 기준 1 실계정 경로 NOT_RUN. 승격 관리자 세션 실행. · `2026-10-14T00:45:00Z`
+- `EV-AIK-022-USER-WIN11-20261014` · actual_windows11_synthetic_auth_vault · `evidence/windows-client/2026-10-14-user-win11-26h2/README.ko.md` · 같은 Windows 11 Pro 26H2 실기 설치본에서 auth_vault 카드 PASS(AUTH_VAULT_FAILURE_PATHS_OK): 실제 사용자 DPAPI로 잠금·잘못된 참조·손상 blob·외부 blob 모의·삭제 참조·인증 만료·자격 증명 삭제·출력 redaction 10 case가 기대 코드와 일치. 검사기 aik022_auth_vault=PASS_SYNTHETIC_SINGLE_USER. 기준 2 부분(다른 사용자 프로필 NOT_RUN), 기준 1 실계정 경로 NOT_RUN. 승격 관리자 세션 실행. · `2026-10-14T00:45:00Z` · 플랫폼 `WIN-X64`
+
+### AIK-092
+
+**공통 코드의 벤더 결합 제거**
+
+| 항목 | 내용 |
+|---|---|
+| 상태 | 미착수 (`todo`) |
+| 우선순위 | P1 |
+| 담당 컴포넌트 | AIK platform |
+| 작업 유형 | 기능 개발 (`feature`) |
+| 에픽 | E12 · 플랫폼 독립 계층 |
+| 실행 순서 | 92 |
+| 작성 / 수정 | `2026-10-14T01:54:45Z` / `2026-10-14T01:54:45Z` |
+
+공통 패키지가 특정 벤더 adapter 모듈을 import하거나 벤더 목록을 하드코딩하지 않게 한다. 범용 HTTP transport는 벤더 중립 모듈로 옮기고 진단 범위는 등록된 adapter에서 만든다.
+
+- **산출물:** 벤더 중립 transport 모듈·adapter 등록 기반 진단 범위·import 경계 시험
+- **검증 방법:** 공통 패키지의 벤더 adapter import 0건 정적 시험과 전체 회귀
+- **선행 작업:** [AIK-011](#aik-011)
+- **요구사항:** [U05](#u05), [U11](#u11)
+- **출처:** [S-USER-20261014](#s-user-20261014)
+- **관련 결정:** [DEC14](#dec14) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
+
+**완료 기준**
+
+1. aik_adapter_*·aik_host_* 밖의 공통 패키지가 벤더 adapter 모듈을 import하지 않음을 시험으로 고정한다.
+2. 새 벤더 adapter는 공통 코드 수정 없이 등록만으로 진단·선택 대상이 된다.
+
+**기록된 증거**
+
+기록 없음.
 
 ## M2 · 총괄 에이전트·AGS/VM 실행 통합
 
@@ -863,6 +1078,9 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 - **요구사항:** [D02](#d02), [D05](#d05), [P03](#p03), [U02](#u02)
 - **출처:** [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC02](#dec02) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -896,6 +1114,9 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 - **요구사항:** [D02](#d02), [D03](#d03), [P03](#p03), [U02](#u02)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -929,6 +1150,9 @@ AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검
 - **요구사항:** [D03](#d03), [D04](#d04), [P04](#p04), [P08](#p08), [U02](#u02)
 - **출처:** [S-AGS](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/README.md) ([색인](#s-ags)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -963,6 +1187,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D04](#d04), [D08](#d08), [P02](#p02), [P04](#p04), [P06](#p06), [P09](#p09), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui)), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** [DEC04](#dec04) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용)), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** [EXT-VM-POSIX-D1](#ext-vm-posix-d1) (LINUX-X64)
 
 **완료 기준**
 
@@ -975,8 +1202,8 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 
 - `EV-AIK-031-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · 부분 구현: commit 7136475/341e9f9/db4e7ec/81e98c0, tests/test_vm_bridge.py 55개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 2(부분), 3(부분), 4(미충족); 차단: upstream durable binding extension 부재(AIK_DURABLE_ROUTE_BINDING_NOT_IMPLEMENTED); 실제 AttemptDetail에 goal_revision_id가 없어 owner query 정보 부족; AGS manifest 부재(AGS_HOST_INTEGRATION_MANIFEST_MISSING); status는 engine_port 정규화로 구현·대조, final_report·run_once 실제 Goal 경로 미검증; 선행 AIK-004 blocked 상태. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T10:15:05Z`
 - `EV-AIK-031-HOSTED-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · VM 설계 seam 기준 hosted 경로 부분 구현: commit 0b7960a/1e3bbd6. AikHostedRuntime(VM CodexRuntimePort)·AIK 소유 binding journal·run_once_hosted/confirm_attempt(attempt_detail+status join). tests/test_vm_hosted_runtime.py 39개·test_vm_hosted_runtime_review.py 24개 fake 시험과 실제 upstream 적합성 (f)(g)(h)(VM 32bb0f9 소스) 세션 Linux PASS. 완료 기준 4 미충족→부분. 차단: 실제 설치형 VM RuntimeJob 실행(Windows 전용) NOT_RUN, supervisor 스레드 trace scope는 설계 가정, AGS A2 전환 전(AIK-081). 통합 완료 아님. · `2026-10-13T12:39:44Z`
-- `EV-AIK-031-WINE2E-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · Windows hosted E2E 진단 DIAGNOSTIC_PASS(CI run #23, commit 15940c5, windows-2022): VM 32bb0f9 소스·VM FakeCodexRuntime·진단용 허용 gate로 실제 RuntimeJob supervisor 실행. worker 스레드의 create_thread/start_turn이 trace scope(Attempt·intent·call)와 함께 hosted runtime을 지났고 효과 전 durable in-flight 기록, 성공 뒤 정리, confirm_attempt 확정을 관측. VM은 역할 scope 재진입을 CORE_CAPABILITY_DENIED로 거절(placement Task는 HOSTED_TASK_PENDING). 설치형 wheel 아님(소스 import), AGS 아님, Goal 판정 미도달, 실모델·Windows 11 NOT_RUN. 통합 완료 아님. · `2026-10-13T13:15:40Z`
-- `EV-AIK-031-WINGOAL-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · Windows hosted E2E 진단 Goal 판정 도달(CI run #26, commit dc77b6d, windows-2022): 같은 VM 32bb0f9 소스·FakeCodexRuntime·진단용 허용 gate 경로에서 Task 완료 뒤 독립 Goal Test가 실행돼 evidence-backed GoalVerdict satisfied를 기록. run #25의 Goal Test binding 581회 반복은 VM이 Goal Test cwd를 resolve()로 정규화하는데 runner 임시 경로가 8.3 짧은 이름이라 매 tick 공급한 step이 저장 binding과 달랐기 때문(work_path_resolved_differs=true 관측). AIK 진단만 고쳤고 VM은 수정하지 않음(관측으로 기록). 설치형 wheel·AGS·실모델·Windows 11 NOT_RUN, 통합 완료 아님. · `2026-10-13T14:31:28Z`
+- `EV-AIK-031-WINE2E-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · Windows hosted E2E 진단 DIAGNOSTIC_PASS(CI run #23, commit 15940c5, windows-2022): VM 32bb0f9 소스·VM FakeCodexRuntime·진단용 허용 gate로 실제 RuntimeJob supervisor 실행. worker 스레드의 create_thread/start_turn이 trace scope(Attempt·intent·call)와 함께 hosted runtime을 지났고 효과 전 durable in-flight 기록, 성공 뒤 정리, confirm_attempt 확정을 관측. VM은 역할 scope 재진입을 CORE_CAPABILITY_DENIED로 거절(placement Task는 HOSTED_TASK_PENDING). 설치형 wheel 아님(소스 import), AGS 아님, Goal 판정 미도달, 실모델·Windows 11 NOT_RUN. 통합 완료 아님. · `2026-10-13T13:15:40Z` · 플랫폼 `WIN-X64`
+- `EV-AIK-031-WINGOAL-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-031` · Windows hosted E2E 진단 Goal 판정 도달(CI run #26, commit dc77b6d, windows-2022): 같은 VM 32bb0f9 소스·FakeCodexRuntime·진단용 허용 gate 경로에서 Task 완료 뒤 독립 Goal Test가 실행돼 evidence-backed GoalVerdict satisfied를 기록. run #25의 Goal Test binding 581회 반복은 VM이 Goal Test cwd를 resolve()로 정규화하는데 runner 임시 경로가 8.3 짧은 이름이라 매 tick 공급한 step이 저장 binding과 달랐기 때문(work_path_resolved_differs=true 관측). AIK 진단만 고쳤고 VM은 수정하지 않음(관측으로 기록). 설치형 wheel·AGS·실모델·Windows 11 NOT_RUN, 통합 완료 아님. · `2026-10-13T14:31:28Z` · 플랫폼 `WIN-X64`
 
 ### AIK-084
 
@@ -1000,6 +1227,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D04](#d04), [D06](#d06), [P02](#p02), [P04](#p04), [P07](#p07), [U03](#u03), [U06](#u06), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VISION](#s-vision), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core)), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** [DEC04](#dec04) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1034,6 +1264,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D04](#d04), [D05](#d05), [P04](#p04), [P05](#p05), [P06](#p06), [U02](#u02), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core)), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** [DEC04](#dec04) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1068,6 +1301,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D04](#d04), [D05](#d05), [D06](#d06), [P02](#p02), [P04](#p04), [P05](#p05), [P06](#p06), [U02](#u02), [U06](#u06), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** [DEC04](#dec04) (확정), [DEC12](#dec12) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1103,6 +1339,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D03](#d03), [D04](#d04), [D06](#d06), [P04](#p04), [U02](#u02), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** [DEC04](#dec04) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1138,6 +1377,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D03](#d03), [D04](#d04), [P04](#p04), [P08](#p08), [U02](#u02)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1171,6 +1413,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D02](#d02), [D03](#d03), [D05](#d05), [P03](#p03), [U02](#u02)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1204,6 +1449,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D02](#d02), [D05](#d05), [P05](#p05), [P08](#p08), [U06](#u06)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1237,6 +1485,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D06](#d06), [D08](#d08), [U08](#u08)
 - **출처:** [S-AGS-ATTEST](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/docs/host-execution-attestation.md) ([색인](#s-ags-attest)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC04](#dec04) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** [EXT-AGS-A2-HOSTINTEGRATION](#ext-ags-a2-hostintegration)
 
 **완료 기준**
 
@@ -1270,6 +1521,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D02](#d02), [D06](#d06), [D08](#d08), [P03](#p03), [U02](#u02), [U08](#u08)
 - **출처:** [S-AGS-ATTEST](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/docs/host-execution-attestation.md) ([색인](#s-ags-attest)), [S-COMPLETE](#s-complete), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm)), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1303,6 +1557,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D06](#d06), [D08](#d08), [U08](#u08)
 - **출처:** [S-AGS-ATTEST](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/docs/host-execution-attestation.md) ([색인](#s-ags-attest)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** [DEC04](#dec04) (확정), [DEC12](#dec12) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1336,6 +1593,9 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 - **요구사항:** [D02](#d02), [P04](#p04), [U08](#u08), [U09](#u09)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-JEV](#s-jev)
 - **관련 결정:** [DEC05](#dec05) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1370,6 +1630,9 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 - **요구사항:** [D04](#d04), [D05](#d05), [P03](#p03), [P04](#p04), [U06](#u06), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** [DEC04](#dec04) (확정), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1405,6 +1668,9 @@ VM이 실행 가능하다고 제시한 Task를 AGS/AGENT 역할 요구와 실제
 - **요구사항:** [D04](#d04), [D05](#d05), [P05](#p05), [U06](#u06)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1439,6 +1705,9 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 - **요구사항:** [D04](#d04), [D06](#d06), [P02](#p02), [P03](#p03), [P04](#p04), [P05](#p05), [P06](#p06), [P08](#p08), [U06](#u06), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm)), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1475,6 +1744,9 @@ VM RuntimeJob/Attempt를 native 호스트 또는 API agent loop로 실행한다.
 - **요구사항:** [D02](#d02), [D04](#d04), [D06](#d06), [P03](#p03), [P08](#p08)
 - **출처:** [S-AGS-ATTEST](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/docs/host-execution-attestation.md) ([색인](#s-ags-attest)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1509,6 +1781,9 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 - **요구사항:** [D01](#d01), [D06](#d06), [P02](#p02), [P04](#p04), [P07](#p07), [P09](#p09), [U06](#u06)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1544,6 +1819,9 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 - **요구사항:** [D03](#d03), [D04](#d04), [P06](#p06), [P07](#p07), [P08](#p08), [U06](#u06)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1578,6 +1856,9 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 - **요구사항:** [D03](#d03), [D04](#d04), [P06](#p06), [P08](#p08), [P09](#p09), [U06](#u06)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core)), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1614,6 +1895,9 @@ worker 산출물을 접근 가능한 참조와 checksum으로 회수하고 VM/AG
 - **요구사항:** [D02](#d02), [D04](#d04), [D05](#d05), [D06](#d06), [D08](#d08), [P01](#p01), [P03](#p03), [P04](#p04), [P05](#p05), [P06](#p06), [U01](#u01), [U02](#u02), [U06](#u06), [U08](#u08)
 - **출처:** [S-AGS-ATTEST](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/docs/host-execution-attestation.md) ([색인](#s-ags-attest)), [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VM-RUNTIME](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/src/flowmarshal/engine/runtime.py) ([색인](#s-vm-runtime))
 - **관련 결정:** [DEC04](#dec04) (확정), [DEC12](#dec12) (제안)
+- **설계 원칙:** 없음
+- **플랫폼:** LINUX-X64 진행 차단 (외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용)), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** [EXT-AGS-A2-HOSTINTEGRATION](#ext-ags-a2-hostintegration), [EXT-VM-POSIX-D1](#ext-vm-posix-d1) (LINUX-X64)
 
 **완료 기준**
 
@@ -1649,6 +1933,9 @@ ready 작업과 검증된 용량에 맞춰 worker 수를 늘리고 유휴 사용
 - **요구사항:** [D03](#d03), [D05](#d05), [P08](#p08), [U06](#u06)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1683,6 +1970,9 @@ ready 작업과 검증된 용량에 맞춰 worker 수를 늘리고 유휴 사용
 - **요구사항:** [D04](#d04), [D06](#d06), [P04](#p04), [P07](#p07), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** [DEC04](#dec04) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1718,6 +2008,9 @@ GUI가 상태를 통합해서 읽도록 각 권위 원장을 ID·revision·curso
 - **요구사항:** [D04](#d04), [D06](#d06), [P08](#p08), [U03](#u03), [U08](#u08)
 - **출처:** [S-AGS](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/README.md) ([색인](#s-ags)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전), WIN-X64 진행 차단 (v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전)
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1753,6 +2046,9 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **요구사항:** [D06](#d06), [D08](#d08), [P04](#p04), [P07](#p07), [U02](#u02), [U05](#u05), [U06](#u06), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** 없음
+- **플랫폼:** LINUX-X64 진행 차단 (외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용)), WIN-X64 미착수
+- **외부 선행:** [EXT-VM-POSIX-D1](#ext-vm-posix-d1) (LINUX-X64)
 
 **완료 기준**
 
@@ -1764,15 +2060,15 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 기록 없음.
 
-## M3 · Windows GUI 실제 연결
+## M3 · 데스크톱 GUI 실제 연결
 
 **범위:** 첫 출시 (`first_release`)
 
-**단계 완료 조건:** 사용자 프로젝트 선택부터 인증·총괄/worker 모델 지정·RAW Goal/정정·실제 개발 작업·결과 사용·중단/재접속까지 GUI로 수행한다.
+**단계 완료 조건:** 사용자 프로젝트 선택부터 인증·총괄/worker 모델 지정·RAW Goal/정정·실제 개발 작업·결과 사용·중단/재접속까지 GUI로 수행한다. 지원 플랫폼마다 같은 흐름을 확인한다.
 
 ### AIK-045
 
-**Windows GUI shell·내비게이션·엔진 연결**
+**데스크톱 GUI shell·내비게이션·엔진 연결**
 
 | 항목 | 내용 |
 |---|---|
@@ -1780,18 +2076,21 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 51 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 기존 VM UI 자산을 검토해 실제 backend와 연결되는 데스크톱 shell을 만든다.
 
 - **산출물:** GUI shell·connection indicator·route 구조
 - **검증 방법:** 엔진 연결/재연결·버전 오류·화면 이동 검증
-- **선행 작업:** [AIK-002](#aik-002), [AIK-004](#aik-004), [AIK-043](#aik-043), [AIK-044](#aik-044)
-- **요구사항:** [P10](#p10), [U03](#u03), [U04](#u04), [U08](#u08)
+- **선행 작업:** [AIK-002](#aik-002), [AIK-004](#aik-004), [AIK-043](#aik-043), [AIK-044](#aik-044), [AIK-091](#aik-091)
+- **요구사항:** [P10](#p10), [U03](#u03), [U04](#u04), [U08](#u08), [U10](#u10)
 - **출처:** [S-USER](#s-user), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
-- **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (확정)
+- **관련 결정:** [DEC01](#dec01) (확정), [DEC07](#dec07) (확정), [DEC14](#dec14) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1813,11 +2112,11 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 52 |
-| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-14T01:54:45Z` |
 
-사용자가 자신의 프로젝트를 연결하고 어떤 파일 범위에서 목표가 실행되는지 확인·변경하는 Windows GUI를 구현한다.
+사용자가 자신의 프로젝트를 연결하고 어떤 파일 범위에서 목표가 실행되는지 확인·변경하는 데스크톱 GUI를 구현한다.
 
 - **산출물:** workspace picker/create/switch UI·project input binding·오류/재결속 화면
 - **검증 방법:** 한글/공백 기존 폴더·새 폴더·두 workspace·재시작·이동/권한 상실의 GUI와 실제 cwd 대조
@@ -1825,6 +2124,9 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **요구사항:** [D04](#d04), [D07](#d07), [P02](#p02), [P04](#p04), [U03](#u03), [U04](#u04), [U06](#u06)
 - **출처:** [S-COMPLETE](#s-complete), [S-USER](#s-user), [S-VISION](#s-vision)
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC04](#dec04) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1846,18 +2148,21 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 53 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 설치 후 연결 추가와 공식 로그인/API 키 등록을 터미널 명령 없이 수행하게 한다.
 
 - **산출물:** onboarding·API/구독 연결 wizard
-- **검증 방법:** 처음 사용하는 Windows 사용자의 전체 연결 흐름 검증
+- **검증 방법:** 처음 사용하는 지원 플랫폼 사용자의 전체 연결 흐름 검증
 - **선행 작업:** [AIK-022](#aik-022), [AIK-045](#aik-045)
 - **요구사항:** [P01](#p01), [U01](#u01), [U03](#u03), [U04](#u04)
 - **출처:** [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1879,7 +2184,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 54 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -1891,6 +2196,9 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **요구사항:** [D01](#d01), [P01](#p01), [U01](#u01), [U03](#u03)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC03](#dec03) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1912,7 +2220,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 55 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -1924,6 +2232,9 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **요구사항:** [D02](#d02), [P03](#p03), [U03](#u03), [U05](#u05)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1945,7 +2256,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 56 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -1957,6 +2268,9 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **요구사항:** [D02](#d02), [P03](#p03), [U02](#u02), [U03](#u03)
 - **출처:** [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC02](#dec02) (확정)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -1978,7 +2292,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 57 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -1990,6 +2304,9 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **요구사항:** [D03](#d03), [D06](#d06), [P02](#p02), [P04](#p04), [P08](#p08), [U02](#u02), [U03](#u03)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2012,7 +2329,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 58 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -2024,6 +2341,9 @@ VM 권위 상태를 기반으로 작업 분해·진행·검증·대기 이유를
 - **요구사항:** [D04](#d04), [D06](#d06), [P08](#p08), [U03](#u03), [U08](#u08)
 - **출처:** [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2045,7 +2365,7 @@ VM 권위 상태를 기반으로 작업 분해·진행·검증·대기 이유를
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 59 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -2057,6 +2377,9 @@ VM 권위 상태를 기반으로 작업 분해·진행·검증·대기 이유를
 - **요구사항:** [D02](#d02), [D03](#d03), [P06](#p06), [P08](#p08), [U03](#u03), [U06](#u06)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2078,7 +2401,7 @@ VM 권위 상태를 기반으로 작업 분해·진행·검증·대기 이유를
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 60 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -2090,6 +2413,9 @@ VM/AGS가 사용자 판단을 요구하는 경우 검토할 대상·효과·revi
 - **요구사항:** [D04](#d04), [D05](#d05), [P04](#p04), [P05](#p05), [U03](#u03)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2111,7 +2437,7 @@ VM/AGS가 사용자 판단을 요구하는 경우 검토할 대상·효과·revi
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 61 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -2123,6 +2449,9 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 - **요구사항:** [D01](#d01), [D06](#d06), [P04](#p04), [P07](#p07), [P09](#p09), [U03](#u03)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2145,7 +2474,7 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 62 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -2157,6 +2486,9 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 - **요구사항:** [D02](#d02), [D05](#d05), [P05](#p05), [P08](#p08), [U03](#u03)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2170,7 +2502,7 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 
 ### AIK-056
 
-**Windows 트레이·재접속·한글·접근성**
+**트레이·재접속·한글·접근성(플랫폼별)**
 
 | 항목 | 내용 |
 |---|---|
@@ -2178,11 +2510,11 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E08 · Windows GUI |
+| 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 63 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
-일상 운영에서 GUI 창의 수명과 총괄 실행을 구분하고 Windows 입력/표시 품질을 검증한다.
+일상 운영에서 GUI 창의 수명과 총괄 실행을 구분하고 지원 플랫폼별 입력/표시 품질을 검증한다.
 
 - **산출물:** tray/lifecycle UI·keyboard/a11y·Korean support
 - **검증 방법:** 다중 DPI·한글 IME·키보드 이동·창 닫힘/재열기 검증
@@ -2190,26 +2522,29 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 - **요구사항:** [D03](#d03), [D07](#d07), [P06](#p06), [P08](#p08), [P09](#p09), [U03](#u03), [U04](#u04)
 - **출처:** [S-USER](#s-user), [S-VM-GUI](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/gui-interface-design.md) ([색인](#s-vm-gui))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
 1. 창 닫기·백그라운드 유지·일시정지·완전 종료가 정해진 정책과 표시대로 동작한다.
-2. Windows 재접속 때 기존 인스턴스·목표를 복원하고 중복 총괄을 만들지 않는다.
+2. OS 재로그인·재접속 때 기존 인스턴스·목표를 복원하고 중복 총괄을 만들지 않는다.
 3. 한글 경로/IME·키보드 탐색·가독성·지원 DPI에서 주요 흐름을 사용할 수 있다.
 
 **기록된 증거**
 
 기록 없음.
 
-## M4 · Windows 첫 배포 검증
+## M4 · 첫 배포 검증(Windows·Linux)
 
 **범위:** 첫 출시 (`first_release`)
 
-**단계 완료 조건:** 하나의 지원 Windows 설치본에서 P01~P10, 일관 백업/GUI 복원·실패 회복·독립 검토·고정 품질/성능 기준을 모두 통과하고 064 release manifest로 배포한다.
+**단계 완료 조건:** 같은 source commit의 지원 플랫폼별 설치본에서 각각 P01~P10, 일관 백업/GUI 복원·실패 회복·독립 검토·고정 품질/성능 기준을 모두 통과하고 064 release manifest로 배포한다.
 
 ### AIK-057
 
-**Windows installer·runtime bundle·기동 구성**
+**플랫폼별 installer·runtime bundle·기동 구성**
 
 | 항목 | 내용 |
 |---|---|
@@ -2217,18 +2552,21 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Windows release |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 64 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 선택한 배포 형식으로 GUI와 검증된 엔진/adapter 의존성을 설치 가능하게 묶는다.
 
-- **산출물:** Windows installer build·runtime manifest·hash
-- **검증 방법:** 개발 도구 없는 지원 Windows 환경의 설치/제거 검증
-- **선행 작업:** [AIK-003](#aik-003), [AIK-022](#aik-022), [AIK-044](#aik-044), [AIK-045](#aik-045), [AIK-046](#aik-046), [AIK-047](#aik-047), [AIK-048](#aik-048), [AIK-049](#aik-049), [AIK-050](#aik-050), [AIK-051](#aik-051), [AIK-052](#aik-052), [AIK-053](#aik-053), [AIK-054](#aik-054), [AIK-055](#aik-055), [AIK-056](#aik-056), [AIK-087](#aik-087)
-- **요구사항:** [D01](#d01), [D07](#d07), [P01](#p01), [P02](#p02), [P09](#p09), [P10](#p10), [U04](#u04)
+- **산출물:** 플랫폼별 installer build·runtime manifest·hash
+- **검증 방법:** 개발 도구 없는 지원 플랫폼별 환경의 설치/제거 검증
+- **선행 작업:** [AIK-003](#aik-003), [AIK-022](#aik-022), [AIK-044](#aik-044), [AIK-045](#aik-045), [AIK-046](#aik-046), [AIK-047](#aik-047), [AIK-048](#aik-048), [AIK-049](#aik-049), [AIK-050](#aik-050), [AIK-051](#aik-051), [AIK-052](#aik-052), [AIK-053](#aik-053), [AIK-054](#aik-054), [AIK-055](#aik-055), [AIK-056](#aik-056), [AIK-087](#aik-087), [AIK-091](#aik-091)
+- **요구사항:** [D01](#d01), [D07](#d07), [P01](#p01), [P02](#p02), [P09](#p09), [P10](#p10), [U04](#u04), [U10](#u10)
 - **출처:** [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC08](#dec08) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2250,18 +2588,21 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Windows release |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 65 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:49:10Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 제품 업그레이드 실패에도 기존 설정·연결 참조·작업 이력을 복구할 수 있게 한다.
 
 - **산출물:** update/rollback·소유자별 coordinated checkpoint/restore·공통 recovery manifest·version check
-- **검증 방법:** 완료 Goal과 실행 중/unknown job을 가진 제품 상태의 업데이트 중단·혼합 checkpoint 거부·새 Windows 사용자 복원 검증
+- **검증 방법:** 완료 Goal과 실행 중/unknown job을 가진 제품 상태의 업데이트 중단·혼합 checkpoint 거부·새 OS 사용자 복원 검증
 - **선행 작업:** [AIK-005](#aik-005), [AIK-021](#aik-021), [AIK-039](#aik-039), [AIK-057](#aik-057)
 - **요구사항:** [D01](#d01), [D03](#d03), [D07](#d07), [P07](#p07), [P09](#p09), [P10](#p10), [U04](#u04)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2285,9 +2626,9 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Desktop maintenance |
 | 작업 유형 | 기능 개발 (`feature`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 66 |
-| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-14T01:54:45Z` |
 
 제품 유지보수를 사용자가 설치된 앱 또는 함께 제공한 복구 화면에서 완료하도록 연결한다. 058의 백업/복원 backend와 동일 계약을 사용한다.
 
@@ -2297,12 +2638,15 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 - **요구사항:** [D03](#d03), [D04](#d04), [D07](#d07), [P09](#p09), [P10](#p10), [U01](#u01), [U03](#u03), [U04](#u04)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC08](#dec08) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
 1. GUI에서 비밀 없는 설정 export/import와 전체 상태 backup/restore를 구분해 시작하고 포함 범위·필요한 재인증·진행/실패/완료 결과를 표시한다. CLI나 소스 checkout을 사용자 절차로 요구하지 않는다.
 2. 업데이트 확인/적용·실행 중 worker 처리·실패 복구를 058의 무결성/manifest/소유자 계약으로 연결한다. 앱이 시작되지 않을 때도 설치본과 함께 제공되는 복구 진입점으로 되돌리기/복원을 수행한다.
-3. 새 Windows 사용자에서 복원·재인증 후 기존 완료 Goal/근거/실제 파일을 GUI로 열고 active/unknown job을 reconciliation한다. 혼합 checkpoint·누락 파일·취소·부분 실패를 성공으로 꾸미지 않으며 복원 중 중복 효과가 없다.
+3. 새 OS 사용자에서 복원·재인증 후 기존 완료 Goal/근거/실제 파일을 GUI로 열고 active/unknown job을 reconciliation한다. 혼합 checkpoint·누락 파일·취소·부분 실패를 성공으로 꾸미지 않으며 복원 중 중복 효과가 없다.
 
 **기록된 증거**
 
@@ -2310,7 +2654,7 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 
 ### AIK-059
 
-**Windows GUI 설치본 사용자 E2E**
+**GUI 설치본 사용자 E2E(플랫폼별)**
 
 | 항목 | 내용 |
 |---|---|
@@ -2318,18 +2662,21 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Windows qualification |
 | 작업 유형 | 검증 (`validation`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 67 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
-하나의 Windows 배포 후보에서 P01~P09의 실제 사용자 흐름과 필수 runtime/역할 계약을 GUI로 검증하고 결과를 P10 최종 gate에 연결한다.
+같은 source commit의 지원 플랫폼별 배포 후보에서 P01~P09의 실제 사용자 흐름과 필수 runtime/역할 계약을 GUI로 검증하고 결과를 P10 최종 gate에 연결한다.
 
-- **산출물:** 지원 matrix revision/digest 및 installer identity별 Windows GUI E2E·재현 기록
-- **검증 방법:** 개발 도구·CLI 사전 준비 없는 지원 Windows 이미지의 P01~P09 및 고정 matrix 실제 GUI 시나리오
+- **산출물:** 지원 matrix revision/digest 및 installer identity별 플랫폼별 GUI E2E·재현 기록
+- **검증 방법:** 개발 도구·CLI 사전 준비 없는 지원 플랫폼별 이미지의 P01~P09 및 고정 matrix 실제 GUI 시나리오
 - **선행 작업:** [AIK-057](#aik-057), [AIK-058](#aik-058), [AIK-088](#aik-088)
 - **요구사항:** [D06](#d06), [D08](#d08), [P01](#p01), [P02](#p02), [P03](#p03), [P04](#p04), [P06](#p06), [P07](#p07), [P08](#p08), [P09](#p09), [P10](#p10), [U01](#u01), [U02](#u02), [U03](#u03), [U04](#u04), [U06](#u06)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 진행 차단 (외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용)), WIN-X64 미착수
+- **외부 선행:** [EXT-VM-POSIX-D1](#ext-vm-posix-d1) (LINUX-X64)
 
 **완료 기준**
 
@@ -2351,7 +2698,7 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Integration qualification |
 | 작업 유형 | 검증 (`validation`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 68 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -2363,6 +2710,9 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 - **요구사항:** [D04](#d04), [D05](#d05), [D06](#d06), [D08](#d08), [P05](#p05), [P06](#p06), [P08](#p08), [P10](#p10), [U04](#u04)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 진행 차단 (외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용)), WIN-X64 미착수
+- **외부 선행:** [EXT-VM-POSIX-D1](#ext-vm-posix-d1) (LINUX-X64)
 
 **완료 기준**
 
@@ -2377,7 +2727,7 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 
 ### AIK-061
 
-**Windows 시크릿·권한·출시 독립 검토**
+**시크릿·권한·출시 독립 검토(플랫폼별)**
 
 | 항목 | 내용 |
 |---|---|
@@ -2385,9 +2735,9 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Independent review |
 | 작업 유형 | 검증 (`validation`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 69 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 구현 담당과 구분된 검토 경로에서 인증·IPC·권한·실행 근거를 확인한다.
 
@@ -2397,6 +2747,9 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 - **요구사항:** [D01](#d01), [D06](#d06), [D08](#d08), [P05](#p05), [P09](#p09), [P10](#p10), [U04](#u04)
 - **출처:** [S-CREDREAD](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreada) ([색인](#s-credread)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2418,7 +2771,7 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Performance qualification |
 | 작업 유형 | 검증 (`validation`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 70 |
 | 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
 
@@ -2430,6 +2783,9 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 - **요구사항:** [D05](#d05), [D07](#d07), [P08](#p08), [P10](#p10), [U06](#u06)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2452,9 +2808,9 @@ Goal 결과와 실제 검증 근거, 비밀이 제거된 오류 이력을 탐색
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Product documentation |
 | 작업 유형 | 문서 (`documentation`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 71 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내와 배포 문서를 제공한다.
 
@@ -2464,13 +2820,16 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D07](#d07), [P01](#p01), [P07](#p07), [P09](#p09), [P10](#p10), [U03](#u03), [U04](#u04)
 - **출처:** [S-COMPLETE](#s-complete), [S-README](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/README.md) ([색인](#s-readme)), [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC10](#dec10) (미정), [DEC12](#dec12) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **외부 선행:** 없음
 
 **완료 기준**
 
 1. 연결·모델 지정·목표 실행·중단·재연결·오류 해결을 실제 화면 기준으로 설명한다.
 2. 지원 matrix revision/digest에 따라 구현 상태와 실지원/미지원/NOT_RUN 경로, 확인 불가 usage, 데이터 보관/삭제 및 native same-user 신뢰 범위를 안내한다. 문서의 지원 주장은 실제 qualification 근거와 일치한다.
 3. AIK 자체 라이선스를 확정하고 배포하는 upstream 구성요소의 notice를 포함한다.
-4. 사용자 프로젝트 열기/이동, 지원 개발 도구/검증 범위, 결과 보관/내보내기, 설정-only와 전체 백업 차이, 앱 부팅 실패 시 복구 진입점을 설치본에서 그대로 따라 할 수 있게 안내한다. 미완료 후속 기능을 첫 Windows 설치본의 지원으로 표시하지 않는다.
+4. 사용자 프로젝트 열기/이동, 지원 개발 도구/검증 범위, 결과 보관/내보내기, 설정-only와 전체 백업 차이, 앱 부팅 실패 시 복구 진입점을 설치본에서 그대로 따라 할 수 있게 안내한다. 미완료 후속 기능을 첫 출시 설치본의 지원으로 표시하지 않는다.
 
 **기록된 증거**
 
@@ -2478,7 +2837,7 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 
 ### AIK-064
 
-**Windows 첫 릴리스 최종 gate·배포**
+**첫 릴리스 최종 gate·배포(Windows·Linux)**
 
 | 항목 | 내용 |
 |---|---|
@@ -2486,11 +2845,11 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Release lead |
 | 작업 유형 | 검증 (`validation`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 72 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:47:43Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
-완료 근거를 하나의 설치본 identity에 묶어 첫 Windows 릴리스 판정을 내린다.
+완료 근거를 하나의 설치본 identity에 묶어 첫 릴리스(Windows·Linux) 판정을 내린다.
 
 - **산출물:** release manifest·qualified installer·release notes
 - **검증 방법:** 고정 installer hash/commit의 최종 qualification 검토
@@ -2498,13 +2857,16 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D06](#d06), [D07](#d07), [D08](#d08), [P01](#p01), [P02](#p02), [P03](#p03), [P04](#p04), [P05](#p05), [P06](#p06), [P07](#p07), [P08](#p08), [P09](#p09), [P10](#p10), [U01](#u01), [U02](#u02), [U03](#u03), [U04](#u04), [U05](#u05), [U06](#u06), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC01](#dec01) (확정), [DEC06](#dec06) (제안), [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** LINUX-X64 진행 차단 (외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용)), WIN-X64 미착수
+- **외부 선행:** [EXT-VM-POSIX-D1](#ext-vm-posix-d1) (LINUX-X64)
 
 **완료 기준**
 
 1. 같은 installer identity/runtime manifest와 지원 matrix revision/digest에 P01~P10, 두 벤더 합성 개발 E2E·필수 인증/runtime/역할/도구 live evidence·upstream conformance·일관 복원·독립 검토·측정 기준 결과를 연결한다. 개발 패키지나 이전 빌드 근거만으로 설치본 결과를 대체하지 않는다.
 2. 이 gate 자체를 제외한 현재 first_release 태스크 전체와 각 필수 사용자 흐름이 완료돼야 한다. 필수 경로 FAIL/미지원/NOT_RUN, oracle 불일치, 미해결 중대 결함은 출시를 차단한다. 선택 경로 결과는 별도 보관하고 범위·판정 기준 변경은 결정·영향·재검증 없이 gate를 완화할 수 없다.
 3. 선택된 서명/무결성·지원 환경·알려진 제한과 배포물 hash를 포함해 출시한다.
-4. release manifest는 P01~P10별 시나리오·지원 조합·실제 실행 결과·근거 위치/해시·검토자를 포함한다. 이 gate는 M0~M4 첫 Windows 제품을 판정하며 M5 연합과 M6 확장의 출시 완료는 각각 089/090의 새로운 배포 후보로 판정한다.
+4. release manifest는 P01~P10별 시나리오·지원 조합·실제 실행 결과·근거 위치/해시·검토자를 포함한다. 이 gate는 M0~M4 첫 제품(Windows·Linux)을 판정하며 M5 연합과 M6 확장의 출시 완료는 각각 089/090의 새로운 배포 후보로 판정한다.
 
 **기록된 증거**
 
@@ -2514,7 +2876,7 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 
 **범위:** 후속 개발 (`follow_up`)
 
-**단계 완료 조건:** 기본 065/067~075와 선택한 066을 089의 실제 선행에 결속하고 새 Windows 설치본에서 P01~P10 회귀와 P11 실제 두 클러스터 입력·쓰기/검증·결과·복구/비용을 통과해 출시한다. 미선택 066은 미완료로 유지한다.
+**단계 완료 조건:** 기본 065/067~075와 선택한 066을 089의 실제 선행에 결속하고 새 지원 플랫폼 설치본에서 P01~P10 회귀와 P11 실제 두 클러스터 입력·쓰기/검증·결과·복구/비용을 통과해 출시한다. 미선택 066은 미완료로 유지한다.
 
 ### AIK-065
 
@@ -2538,6 +2900,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D05](#d05), [P11](#p11), [U06](#u06)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2571,6 +2936,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D02](#d02), [D04](#d04), [P11](#p11), [U05](#u05), [U06](#u06)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2605,6 +2973,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D04](#d04), [D05](#d05), [P11](#p11), [U07](#u07), [U08](#u08)
 - **출처:** [S-AGS](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/README.md) ([색인](#s-ags)), [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** [DEC06](#dec06) (제안), [DEC11](#dec11) (미정), [DEC13](#dec13) (제안)
+- **설계 원칙:** 없음
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2639,6 +3010,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D01](#d01), [D05](#d05), [P11](#p11), [U07](#u07)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2672,6 +3046,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D04](#d04), [P11](#p11), [U07](#u07), [U08](#u08)
 - **출처:** [S-AGS](https://github.com/jaeseongs95/agent-governance-suite/blob/56fef8bd189377b80f4020f506e717ab292b260a/README.md) ([색인](#s-ags)), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2705,6 +3082,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D01](#d01), [D02](#d02), [D05](#d05), [P11](#p11), [U07](#u07)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2738,6 +3118,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D04](#d04), [D05](#d05), [P11](#p11), [U06](#u06), [U07](#u07)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM-CORE](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/docs/orchestration-redesign.md) ([색인](#s-vm-core))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2772,6 +3155,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D01](#d01), [D06](#d06), [P11](#p11), [U07](#u07)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2806,6 +3192,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D03](#d03), [D04](#d04), [P11](#p11), [U07](#u07)
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2839,6 +3228,9 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D06](#d06), [D08](#d08), [P11](#p11), [U06](#u06), [U07](#u07)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** 없음
+- **설계 원칙:** 없음
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2863,7 +3255,7 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E10 · 클러스터 연합 |
 | 실행 순서 | 83 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:47:43Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 단일/다중 클러스터 운영의 차이를 실측하고 GUI에 peer 상태·위임·복구를 노출한다.
 
@@ -2873,13 +3265,16 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 - **요구사항:** [D05](#d05), [D07](#d07), [P11](#p11), [P12](#p12), [U03](#u03), [U07](#u07)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
 1. GUI에서 peer 연결/회수·capacity·위임 상태·원격 근거·unknown 사유를 조회한다.
 2. 전송/queue/startup/실행/gather/감사 비용과 시간을 분리 측정한다.
 3. 성공 범위·실패 복구·신뢰/데이터 범위와 측정 조건을 문서화한다.
-4. 089의 새 Windows 설치본·업그레이드·첫 출시 회귀에서 실행할 연합 사용자 시나리오와 기능 후보 패키지를 제공한다. 다음 M6 판본의 기본 076~079와 선택 080 지원 범위를 실제 확장 qualification 전에 고정하고 선택한 080은 090의 선행에 추가한다. 미선택 기능은 todo/future로 유지하며 scope 변경은 결정·영향·검증을 기록한다.
+4. 089의 새 설치본·업그레이드·첫 출시 회귀에서 실행할 연합 사용자 시나리오와 기능 후보 패키지를 제공한다. 다음 M6 판본의 기본 076~079와 선택 080 지원 범위를 실제 확장 qualification 전에 고정하고 선택한 080은 090의 선행에 추가한다. 미선택 기능은 todo/future로 유지하며 scope 변경은 결정·영향·검증을 기록한다.
 
 **기록된 증거**
 
@@ -2887,7 +3282,7 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 
 ### AIK-089
 
-**연합 Windows 릴리스 패키징·업그레이드·최종 gate**
+**연합 릴리스 패키징·업그레이드·최종 gate**
 
 | 항목 | 내용 |
 |---|---|
@@ -2895,11 +3290,11 @@ GUI 사용자가 인증·총괄·작업·복구를 운영할 수 있는 안내�
 | 우선순위 | P1 |
 | 담당 컴포넌트 | Federation release lead |
 | 작업 유형 | 검증 (`validation`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 84 |
-| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-14T01:54:45Z` |
 
-M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이트·기존 제품 회귀·두 클러스터 사용자 흐름을 같은 판본으로 검증해 출시한다.
+M5 연합 기능을 새 지원 플랫폼 배포 후보에 포함하고 설치/업데이트·기존 제품 회귀·두 클러스터 사용자 흐름을 같은 판본으로 검증해 출시한다.
 
 - **산출물:** federation release installer/manifest·upgrade/recovery evidence·P01~P11 qualification·release notes
 - **검증 방법:** 고정 새 installer/matrix의 깨끗한 설치·M4 지원 버전에서 업그레이드·P01~P10 회귀·실제 두 클러스터 P11 GUI 여정
@@ -2907,11 +3302,14 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 - **요구사항:** [D06](#d06), [D07](#d07), [P11](#p11), [U03](#u03), [U04](#u04), [U06](#u06), [U07](#u07), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** [DEC06](#dec06) (제안), [DEC11](#dec11) (미정), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
 1. 067에서 고정한 기능/route scope와 source commit·새 installer hash·runtime provenance·matrix revision으로 M5 포함 배포물을 만든다. 기본 065/067~075와 선택한 066을 실제 gate 선행으로 등록·검증하고 미선택 기능을 done으로 처리하지 않는다. 필수 연합 route가 하나도 실행되지 않은 상태는 통과하지 않는다.
-2. 같은 새 설치본으로 깨끗한 지원 Windows 설치와 직전 지원 M4 제품에서 업데이트·중단/일관 복원을 수행하고 P01~P10 회귀를 통과한다. 옛 064 installer의 결과만 재인용하거나 개발 모드 실행으로 패키징 검증을 대체하지 않는다.
+2. 같은 새 설치본으로 깨끗한 지원 플랫폼 설치와 직전 지원 M4 제품에서 업데이트·중단/일관 복원을 수행하고 P01~P10 회귀를 통과한다. 옛 064 installer의 결과만 재인용하거나 개발 모드 실행으로 패키징 검증을 대체하지 않는다.
 3. 두 독립 클러스터에서 P11의 실제 입력 준비·의존 쓰기/검증·재작업·결과 인계·단절/취소/재시작·비밀/권한·비용 흐름을 GUI로 수행한다. 고정 필수 matrix의 FAIL/NOT_RUN·미해결 중대 결함은 출시를 차단하고 선택 unsupported는 지원 주장과 분리한다.
 4. 새 release manifest에 각 여정/조합의 결과·근거 해시·검토자와 서명/무결성·지원/보관/복구 안내를 결속해 배포한다. 이후 M6 변경은 이 PASS를 자동 상속하지 않고 090에서 새 후보로 다시 판정한다.
 
@@ -2923,7 +3321,7 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 
 **범위:** 향후 확장 (`future`)
 
-**단계 완료 조건:** 제안 기본 076~079와 선택한 080을 090의 실제 선행에 결속하고 새 Windows 설치본에서 P01~P11 회귀와 P12 확장별 실제 GUI/역할/작업/복구를 통과해 출시한다. 미선택 080은 미완료로 유지하며 전체 로드맵 완료와 구분한다.
+**단계 완료 조건:** 제안 기본 076~079와 선택한 080을 090의 실제 선행에 결속하고 새 지원 플랫폼 설치본에서 P01~P11 회귀와 P12 확장별 실제 GUI/역할/작업/복구를 통과해 출시한다. 미선택 080은 미완료로 유지하며 전체 로드맵 완료와 구분한다.
 
 ### AIK-076
 
@@ -2947,6 +3345,9 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 - **요구사항:** [D05](#d05), [D06](#d06), [P12](#p12), [U03](#u03), [U05](#u05)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -2981,6 +3382,9 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 - **요구사항:** [D02](#d02), [D08](#d08), [P12](#p12), [U05](#u05), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -3015,6 +3419,9 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 - **요구사항:** [D05](#d05), [P12](#p12), [U02](#u02), [U06](#u06), [U09](#u09)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-JEV](#s-jev), [S-VISION](#s-vision)
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -3049,6 +3456,9 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 - **요구사항:** [D01](#d01), [D04](#d04), [D05](#d05), [P12](#p12), [U07](#u07)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** 없음
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -3073,7 +3483,7 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 | 작업 유형 | 통합 (`integration`) |
 | 에픽 | E11 · 후속 확장 |
 | 실행 순서 | 89 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
 
 제품의 논리적 worker 계약을 실제 Kubernetes 배포 자원에 연결할 필요가 있을 때 추가한다.
 
@@ -3083,12 +3493,15 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 - **요구사항:** [D04](#d04), [P12](#p12), [U06](#u06), [U07](#u07)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design))
 - **관련 결정:** [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-SOLID](#prn-solid)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
 1. AIK의 이름을 Kubernetes API 호환 주장으로 사용하지 않고 연결 범위를 명시한다.
 2. 실제 배포 자원과 worker/lease identity를 연결하며 기존 VM/AGS 권위와 인증 경계를 보존한다.
-3. Windows GUI 첫 출시 의존성에 이 adapter나 Kubernetes 운영을 추가하지 않는다.
+3. 데스크톱 GUI 첫 출시 의존성에 이 adapter나 Kubernetes 운영을 추가하지 않는다.
 4. 선택한 경우 090의 선행으로 등록하고 057 빌드 절차의 기능 후보 설치본에서 GUI 장착·별도 Kubernetes support contract의 실제 생성/관측/drain/결과/회수·실행 근거와 실패 복구를 검증해 090에 제공한다. 미지원 관측은 구분하며 다른 Cloud 경로 성공을 Kubernetes 성공으로 대체하지 않는다. 미선택이면 todo/future를 유지하고 Kubernetes 지원이나 전체 로드맵 완료로 표시하지 않는다. 066의 Cloud API 지원이나 090 최종 PASS를 이 기능의 선행으로 요구하지 않는다.
 
 **기록된 증거**
@@ -3097,7 +3510,7 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 
 ### AIK-090
 
-**확장 Windows 릴리스 패키징·업그레이드·최종 gate**
+**확장 릴리스 패키징·업그레이드·최종 gate**
 
 | 항목 | 내용 |
 |---|---|
@@ -3105,11 +3518,11 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 | 우선순위 | P2 |
 | 담당 컴포넌트 | Extension release lead |
 | 작업 유형 | 검증 (`validation`) |
-| 에픽 | E09 · Windows 출시 |
+| 에픽 | E09 · 출시·패키징 |
 | 실행 순서 | 90 |
-| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T06:45:00Z` / `2026-10-14T01:54:45Z` |
 
-선택한 로컬 모델·추가 vendor/정책/조직/배포 확장을 Windows 설치본에 포함하고 기존 제품·연합 및 확장 사용자 흐름을 함께 검증해 출시한다.
+선택한 로컬 모델·추가 vendor/정책/조직/배포 확장을 지원 플랫폼 설치본에 포함하고 기존 제품·연합 및 확장 사용자 흐름을 함께 검증해 출시한다.
 
 - **산출물:** extension release installer/manifest·selected scope/dependency record·P01~P12 qualification·release notes
 - **검증 방법:** 고정 새 설치본의 지원 이전 버전 업데이트/복구·기본 제품/연합 회귀·선택 확장별 실제 GUI governed E2E
@@ -3117,6 +3530,9 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 - **요구사항:** [D06](#d06), [D07](#d07), [P12](#p12), [U03](#u03), [U04](#u04), [U05](#u05), [U06](#u06), [U07](#u07), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VISION](#s-vision)
 - **관련 결정:** [DEC06](#dec06) (제안), [DEC13](#dec13) (제안)
+- **설계 원칙:** [PRN-OS](#prn-os)
+- **플랫폼:** 기록 없음
+- **외부 선행:** 없음
 
 **완료 기준**
 
@@ -3138,7 +3554,7 @@ M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-004](#aik-004), [AIK-005](#aik-005), [AIK-007](#aik-007), [AIK-009](#aik-009), [AIK-010](#aik-010), [AIK-016](#aik-016), [AIK-017](#aik-017), [AIK-018](#aik-018), [AIK-021](#aik-021), [AIK-022](#aik-022), [AIK-037](#aik-037), [AIK-047](#aik-047), [AIK-054](#aik-054), [AIK-057](#aik-057), [AIK-058](#aik-058), [AIK-061](#aik-061), [AIK-068](#aik-068), [AIK-070](#aik-070), [AIK-072](#aik-072), [AIK-079](#aik-079)
 
-실비밀은 Windows 사용자 vault 또는 공식 호스트 저장소에 둔다. 프롬프트·장부·PEER·로그에는 참조와 비민감 metadata만 사용한다.
+실비밀은 OS 사용자 범위 vault(Windows DPAPI·Linux Secret Service) 또는 공식 호스트 저장소에 둔다. 프롬프트·장부·PEER·로그에는 참조와 비민감 metadata만 사용한다.
 
 ### D02
 
@@ -3187,12 +3603,12 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 
 ### D07
 
-**Windows 운영성과 배포 품질**
+**플랫폼 운영성과 배포 품질**
 
 - 구분: 설계에서 도출 (`derived`)
-- 개발 태스크: [AIK-002](#aik-002), [AIK-003](#aik-003), [AIK-083](#aik-083), [AIK-087](#aik-087), [AIK-056](#aik-056), [AIK-057](#aik-057), [AIK-058](#aik-058), [AIK-088](#aik-088), [AIK-062](#aik-062), [AIK-063](#aik-063), [AIK-064](#aik-064), [AIK-075](#aik-075), [AIK-089](#aik-089), [AIK-090](#aik-090)
+- 개발 태스크: [AIK-002](#aik-002), [AIK-003](#aik-003), [AIK-083](#aik-083), [AIK-091](#aik-091), [AIK-087](#aik-087), [AIK-056](#aik-056), [AIK-057](#aik-057), [AIK-058](#aik-058), [AIK-088](#aik-088), [AIK-062](#aik-062), [AIK-063](#aik-063), [AIK-064](#aik-064), [AIK-075](#aik-075), [AIK-089](#aik-089), [AIK-090](#aik-090)
 
-설치·업데이트·한글 UI·접근성·실패 복구·진단 및 동작 측정을 첫 출시 범위로 검증한다.
+설치·업데이트·한글 UI·접근성·실패 복구·진단 및 동작 측정을 첫 출시 지원 플랫폼마다 검증한다.
 
 ### D08
 
@@ -3210,7 +3626,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-003](#aik-003), [AIK-083](#aik-083), [AIK-010](#aik-010), [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-019](#aik-019), [AIK-022](#aik-022), [AIK-086](#aik-086), [AIK-046](#aik-046), [AIK-047](#aik-047), [AIK-057](#aik-057), [AIK-059](#aik-059), [AIK-063](#aik-063), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: 개발 도구 없는 지원 Windows에 설치하고 GUI에서 두 벤더의 필수 API/지원 구독 경로를 연결한 뒤 만료·재인증·계정 교체·해제를 수행한다. 통과: 고정 matrix의 실제 계정/connection binding과 인증 상태가 일치하고 교체 후 다음 실행이 선택 계정으로 전달된다. 차단: 필수 경로 미지원/NOT_RUN, 외부 로그인 변경의 묵시 계정 전환, fixture만의 성공, 수동 CLI 사전 설정. 선택 경로의 unsupported는 별도 표시한다.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: 개발 도구 없는 지원 플랫폼에 설치하고 GUI에서 두 벤더의 필수 API/지원 구독 경로를 연결한 뒤 만료·재인증·계정 교체·해제를 수행한다. 통과: 고정 matrix의 실제 계정/connection binding과 인증 상태가 일치하고 교체 후 다음 실행이 선택 계정으로 전달된다. 차단: 필수 경로 미지원/NOT_RUN, 외부 로그인 변경의 묵시 계정 전환, fixture만의 성공, 수동 CLI 사전 설정. 선택 경로의 unsupported는 별도 표시한다.
 
 ### P02
 
@@ -3219,7 +3635,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-083](#aik-083), [AIK-007](#aik-007), [AIK-021](#aik-021), [AIK-031](#aik-031), [AIK-084](#aik-084), [AIK-085](#aik-085), [AIK-035](#aik-035), [AIK-037](#aik-037), [AIK-087](#aik-087), [AIK-050](#aik-050), [AIK-057](#aik-057), [AIK-059](#aik-059), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: GUI에서 기존 한글/공백 경로 프로젝트를 열고 새 폴더를 만들며 다른 프로젝트로 전환한다. 통과: 화면 workspace, VM project/root, native/API cwd, 허용 입력·선행 산출물의 bytes/digest/revision이 실제 실행과 일치하고 재시작 뒤 유지된다. 차단: 샘플 root 대체, 다른 workspace 쓰기, 누락/변조/stale 입력, 허용 root를 벗어난 경로 또는 해석 불가 참조. 이동·권한 상실은 안내와 재결속 절차로 처리한다.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: GUI에서 기존 한글/공백 경로 프로젝트를 열고 새 폴더를 만들며 다른 프로젝트로 전환한다. 통과: 화면 workspace, VM project/root, native/API cwd, 허용 입력·선행 산출물의 bytes/digest/revision이 실제 실행과 일치하고 재시작 뒤 유지된다. 차단: 샘플 root 대체, 다른 workspace 쓰기, 누락/변조/stale 입력, 허용 root를 벗어난 경로 또는 해석 불가 참조. 이동·권한 상실은 안내와 재결속 절차로 처리한다.
 
 ### P03
 
@@ -3228,7 +3644,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-083](#aik-083), [AIK-019](#aik-019), [AIK-020](#aik-020), [AIK-023](#aik-023), [AIK-024](#aik-024), [AIK-028](#aik-028), [AIK-082](#aik-082), [AIK-033](#aik-033), [AIK-035](#aik-035), [AIK-036](#aik-036), [AIK-086](#aik-086), [AIK-048](#aik-048), [AIK-049](#aik-049), [AIK-059](#aik-059), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: GUI에서 총괄과 개발/검토 역할에 서로 다른 connection/model/지원 effort를 지정하고 실제 목표를 수행한다. 통과: 역할별 요청값과 provider 관측값, Attempt/lease/job/계정 binding이 근거로 대조되며 허용 fallback만 적용된다. 차단: 설정값을 실측으로 표시, 다른 계정/모델로 묵시 routing, 미관측 필드의 추정, 운영 미검증 자원의 qualified 광고. 읽기 전용 분석 역할과 파일/검증 도구를 가진 개발 역할의 지원 능력을 구분한다.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: GUI에서 총괄과 개발/검토 역할에 서로 다른 connection/model/지원 effort를 지정하고 실제 목표를 수행한다. 통과: 역할별 요청값과 provider 관측값, Attempt/lease/job/계정 binding이 근거로 대조되며 허용 fallback만 적용된다. 차단: 설정값을 실측으로 표시, 다른 계정/모델로 묵시 routing, 미관측 필드의 추정, 운영 미검증 자원의 qualified 광고. 읽기 전용 분석 역할과 파일/검증 도구를 가진 개발 역할의 지원 능력을 구분한다.
 
 ### P04
 
@@ -3237,7 +3653,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-083](#aik-083), [AIK-025](#aik-025), [AIK-031](#aik-031), [AIK-084](#aik-084), [AIK-029](#aik-029), [AIK-085](#aik-085), [AIK-026](#aik-026), [AIK-027](#aik-027), [AIK-030](#aik-030), [AIK-033](#aik-033), [AIK-035](#aik-035), [AIK-037](#aik-037), [AIK-086](#aik-086), [AIK-042](#aik-042), [AIK-044](#aik-044), [AIK-087](#aik-087), [AIK-050](#aik-050), [AIK-053](#aik-053), [AIK-054](#aik-054), [AIK-059](#aik-059), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: 사용자가 고른 프로젝트에 RAW Goal 하나를 제출하고 실제 총괄/VM 준비 경로가 A·B 독립 작업과 두 결과를 소비하는 C를 구성한다. 두 벤더 자원이 실제 파일을 생성/수정하고 한정된 검증 명령을 실행한다. 통과: 독립 검사에 의도적으로 한 번 실패한 뒤 기존 인가·VM 재작업 절차로 수정해 최종 Goal Test와 사용 가능한 산출물을 얻는다. 후속 정정도 같은 Goal의 올바른 revision에 반영한다. 차단: 미리 넣은 Plan/Task/완성 출력, 후속 입력 미전달, 검사 생략·기준 임의 수정, 모델 자기선언만의 성공, stale 인가. VM 직렬 기본과 qualification된 병렬 범위를 유지한다.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: 사용자가 고른 프로젝트에 RAW Goal 하나를 제출하고 실제 총괄/VM 준비 경로가 A·B 독립 작업과 두 결과를 소비하는 C를 구성한다. 두 벤더 자원이 실제 파일을 생성/수정하고 한정된 검증 명령을 실행한다. 통과: 독립 검사에 의도적으로 한 번 실패한 뒤 기존 인가·VM 재작업 절차로 수정해 최종 Goal Test와 사용 가능한 산출물을 얻는다. 후속 정정도 같은 Goal의 올바른 revision에 반영한다. 차단: 미리 넣은 Plan/Task/완성 출력, 후속 입력 미전달, 검사 생략·기준 임의 수정, 모델 자기선언만의 성공, stale 인가. VM 직렬 기본과 qualification된 병렬 범위를 유지한다.
 
 ### P05
 
@@ -3246,7 +3662,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-083](#aik-083), [AIK-004](#aik-004), [AIK-009](#aik-009), [AIK-017](#aik-017), [AIK-018](#aik-018), [AIK-020](#aik-020), [AIK-022](#aik-022), [AIK-029](#aik-029), [AIK-085](#aik-085), [AIK-040](#aik-040), [AIK-034](#aik-034), [AIK-035](#aik-035), [AIK-086](#aik-086), [AIK-053](#aik-053), [AIK-055](#aik-055), [AIK-060](#aik-060), [AIK-061](#aik-061), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: 허용된 프로젝트 작업을 실행하고 범위 확대·다른 workspace·예산/동시성 한도·만료 인증을 각각 시도한다. 통과: 기존 인가는 반복 질문 없이 전달되고 확대 또는 stale 요청만 기존 VM/AGS 절차로 중단되며 GUI가 구체 이유와 다음 행동을 표시한다. 합성 비밀을 이용해 prompt/로그/IPC/근거/지원 번들 노출과 실제 OS trust profile을 검사한다. 차단: 우회 도구 실행, 권한 자가 부여, 무제한/0으로 꾸민 unknown usage, 실제보다 강한 native 격리 주장.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: 허용된 프로젝트 작업을 실행하고 범위 확대·다른 workspace·예산/동시성 한도·만료 인증을 각각 시도한다. 통과: 기존 인가는 반복 질문 없이 전달되고 확대 또는 stale 요청만 기존 VM/AGS 절차로 중단되며 GUI가 구체 이유와 다음 행동을 표시한다. 합성 비밀을 이용해 prompt/로그/IPC/근거/지원 번들 노출과 실제 OS trust profile을 검사한다. 차단: 우회 도구 실행, 권한 자가 부여, 무제한/0으로 꾸민 unknown usage, 실제보다 강한 native 격리 주장.
 
 ### P06
 
@@ -3255,7 +3671,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-083](#aik-083), [AIK-031](#aik-031), [AIK-029](#aik-029), [AIK-085](#aik-085), [AIK-035](#aik-035), [AIK-038](#aik-038), [AIK-039](#aik-039), [AIK-086](#aik-086), [AIK-052](#aik-052), [AIK-056](#aik-056), [AIK-059](#aik-059), [AIK-060](#aik-060), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: 실제 임시 프로젝트 파일 변경에서 effect 전 intent, effect 후 receipt, 모델에 도구 결과를 반환하는 각 경계에 중단·취소·늦은 결과를 주입한다. 통과: tool_call/effect identity와 request digest가 Attempt/인가/lease에 연결되고 같은 효과가 중복되지 않으며 기존 결과 재전송 또는 VM unknown/reconciliation으로 수렴한다. 차단: provider job 조회만으로 도구 효과 성공을 추정하거나 불명확한 비멱등 효과를 자동 재실행. 임의 외부 명령에 exactly-once를 주장하지 않는다.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: 실제 임시 프로젝트 파일 변경에서 effect 전 intent, effect 후 receipt, 모델에 도구 결과를 반환하는 각 경계에 중단·취소·늦은 결과를 주입한다. 통과: tool_call/effect identity와 request digest가 Attempt/인가/lease에 연결되고 같은 효과가 중복되지 않으며 기존 결과 재전송 또는 VM unknown/reconciliation으로 수렴한다. 차단: provider job 조회만으로 도구 효과 성공을 추정하거나 불명확한 비멱등 효과를 자동 재실행. 임의 외부 명령에 exactly-once를 주장하지 않는다.
 
 ### P07
 
@@ -3264,7 +3680,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-083](#aik-083), [AIK-017](#aik-017), [AIK-084](#aik-084), [AIK-037](#aik-037), [AIK-038](#aik-038), [AIK-042](#aik-042), [AIK-044](#aik-044), [AIK-054](#aik-054), [AIK-058](#aik-058), [AIK-059](#aik-059), [AIK-063](#aik-063), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: 합성 목표의 최종 파일·검증 근거를 GUI에서 열고 저장/내보낸 뒤 worker 반환과 앱 재시작 후 다시 사용한다. 통과: 사용자가 받은 bytes/digest와 VM verdict의 산출물/검토 근거가 일치하고 약속한 보관 범위에서 유지되며 후속 Task 입력도 같은 권위 참조에 결속된다. 차단: 종료된 임시 worker 경로만 제공, 깨진 다운로드, 표시용 derivative를 원본 근거로 대체, unsafe 결과 콘텐츠의 자동 실행. 보관 만료·외부 파일 변경은 명확히 표시한다.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: 합성 목표의 최종 파일·검증 근거를 GUI에서 열고 저장/내보낸 뒤 worker 반환과 앱 재시작 후 다시 사용한다. 통과: 사용자가 받은 bytes/digest와 VM verdict의 산출물/검토 근거가 일치하고 약속한 보관 범위에서 유지되며 후속 Task 입력도 같은 권위 참조에 결속된다. 차단: 종료된 임시 worker 경로만 제공, 깨진 다운로드, 표시용 derivative를 원본 근거로 대체, unsafe 결과 콘텐츠의 자동 실행. 보관 만료·외부 파일 변경은 명확히 표시한다.
 
 ### P08
 
@@ -3273,7 +3689,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-083](#aik-083), [AIK-006](#aik-006), [AIK-025](#aik-025), [AIK-027](#aik-027), [AIK-040](#aik-040), [AIK-035](#aik-035), [AIK-036](#aik-036), [AIK-038](#aik-038), [AIK-039](#aik-039), [AIK-041](#aik-041), [AIK-043](#aik-043), [AIK-050](#aik-050), [AIK-051](#aik-051), [AIK-052](#aik-052), [AIK-055](#aik-055), [AIK-056](#aik-056), [AIK-059](#aik-059), [AIK-060](#aik-060), [AIK-062](#aik-062), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: 목표 실행 중 창 닫기/재열기, 앱/sidecar 재시작, 일시정지·재개·취소를 수행한다. 통과: 같은 Goal·대화·미처리 지시·진행 job·인가 revision을 복원하고 requested/observed 모델·상태·usage·unknown 이유를 조회한다. 신규 배치 중지와 실제 종료를 구분하며 자체 worker만 종료하고 borrowed host는 lease를 반환한다. 차단: 새 Goal 중복 생성, 미처리 지시 유실, 유휴 무한 모델 호출, 회수되지 않는 lease 또는 사용자 호스트 강제 종료.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: 목표 실행 중 창 닫기/재열기, 앱/sidecar 재시작, 일시정지·재개·취소를 수행한다. 통과: 같은 Goal·대화·미처리 지시·진행 job·인가 revision을 복원하고 requested/observed 모델·상태·usage·unknown 이유를 조회한다. 신규 배치 중지와 실제 종료를 구분하며 자체 worker만 종료하고 borrowed host는 lease를 반환한다. 차단: 새 Goal 중복 생성, 미처리 지시 유실, 유휴 무한 모델 호출, 회수되지 않는 lease 또는 사용자 호스트 강제 종료.
 
 ### P09
 
@@ -3282,20 +3698,20 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-083](#aik-083), [AIK-005](#aik-005), [AIK-007](#aik-007), [AIK-021](#aik-021), [AIK-031](#aik-031), [AIK-037](#aik-037), [AIK-039](#aik-039), [AIK-054](#aik-054), [AIK-056](#aik-056), [AIK-057](#aik-057), [AIK-058](#aik-058), [AIK-088](#aik-088), [AIK-059](#aik-059), [AIK-061](#aik-061), [AIK-063](#aik-063), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: GUI에서 비밀 없는 설정 이동과 제품 상태 백업을 구분해 수행하고, 업데이트 중단 또는 새 Windows 사용자에서 설치본의 복구 화면으로 복원·재인증한다. 통과: AIK 설정, VM Goal/Attempt, AGS 근거, 실제 artifact가 각 소유자의 공개 checkpoint/복원 절차와 공통 manifest로 같은 복구 지점에 맞고 완료 이력이 열린다. 실행 중/unknown 외부 job은 조회·reconciliation 후 처리한다. 차단: 서로 다른 시점의 DB를 참조 문자열만 맞춰 성공 처리, dangling evidence, 자동 중복 효과, CLI/소스 checkout 필수. 앱 부팅 실패 때도 제공되는 복구 진입점이 있다.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: GUI에서 비밀 없는 설정 이동과 제품 상태 백업을 구분해 수행하고, 업데이트 중단 또는 새 OS 사용자에서 설치본의 복구 화면으로 복원·재인증한다. 통과: AIK 설정, VM Goal/Attempt, AGS 근거, 실제 artifact가 각 소유자의 공개 checkpoint/복원 절차와 공통 manifest로 같은 복구 지점에 맞고 완료 이력이 열린다. 실행 중/unknown 외부 job은 조회·reconciliation 후 처리한다. 차단: 서로 다른 시점의 DB를 참조 문자열만 맞춰 성공 처리, dangling evidence, 자동 중복 효과, CLI/소스 checkout 필수. 앱 부팅 실패 때도 제공되는 복구 진입점이 있다.
 
 ### P10
 
-**고정 Windows 설치본의 품질·지원·출시 판정**
+**고정 설치본의 품질·지원·출시 판정(플랫폼별)**
 
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-002](#aik-002), [AIK-003](#aik-003), [AIK-083](#aik-083), [AIK-045](#aik-045), [AIK-057](#aik-057), [AIK-058](#aik-058), [AIK-088](#aik-088), [AIK-059](#aik-059), [AIK-060](#aik-060), [AIK-061](#aik-061), [AIK-062](#aik-062), [AIK-063](#aik-063), [AIK-064](#aik-064)
 
-범위: 첫 Windows 출시. 시나리오: 하나의 commit/installer hash·runtime manifest·지원 matrix 판본에 P01~P09, 깨끗한 설치/제거, 한글/키보드/접근성, 장애·비밀·성능·지원 안내 검증을 연결한다. 통과: AIK-003/083에서 측정 전에 고정한 hardware/부하/지속시간과 응답·메모리·사용량 한도에 대한 독립 결과가 충족되고 release notes/지원 주장과 일치한다. 차단: 필수 FAIL/NOT_RUN/미해결 중대 결함, 다른 빌드의 혼합 근거, 사후 임계값 완화, 개발 환경만의 성공. 우선순위 P1도 첫 출시 범위이면 필수다.
+범위: 첫 출시(지원 플랫폼 각각). 시나리오: 하나의 commit/installer hash·runtime manifest·지원 matrix 판본에 P01~P09, 깨끗한 설치/제거, 한글/키보드/접근성, 장애·비밀·성능·지원 안내 검증을 연결한다. 통과: AIK-003/083에서 측정 전에 고정한 hardware/부하/지속시간과 응답·메모리·사용량 한도에 대한 독립 결과가 충족되고 release notes/지원 주장과 일치한다. 차단: 필수 FAIL/NOT_RUN/미해결 중대 결함, 다른 빌드의 혼합 근거, 사후 임계값 완화, 개발 환경만의 성공. 우선순위 P1도 첫 출시 범위이면 필수다.
 
 ### P11
 
-**연합 기능을 포함한 실제 Windows 후속 출시**
+**연합 기능을 포함한 실제 후속 출시**
 
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-065](#aik-065), [AIK-066](#aik-066), [AIK-067](#aik-067), [AIK-068](#aik-068), [AIK-069](#aik-069), [AIK-070](#aik-070), [AIK-071](#aik-071), [AIK-072](#aik-072), [AIK-073](#aik-073), [AIK-074](#aik-074), [AIK-075](#aik-075), [AIK-089](#aik-089)
@@ -3304,7 +3720,7 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 
 ### P12
 
-**선택한 추가 자원을 포함한 실제 Windows 확장 출시**
+**선택한 추가 자원을 포함한 실제 확장 출시**
 
 - 구분: 설계에서 도출 (`derived`)
 - 개발 태스크: [AIK-075](#aik-075), [AIK-076](#aik-076), [AIK-077](#aik-077), [AIK-078](#aik-078), [AIK-079](#aik-079), [AIK-080](#aik-080), [AIK-090](#aik-090)
@@ -3340,19 +3756,19 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 
 ### U04
 
-**첫 출시 Windows 전용**
+**첫 출시 Windows·Linux**
 
 - 구분: 사용자 요구 (`user`)
 - 개발 태스크: [AIK-002](#aik-002), [AIK-003](#aik-003), [AIK-083](#aik-083), [AIK-009](#aik-009), [AIK-022](#aik-022), [AIK-045](#aik-045), [AIK-087](#aik-087), [AIK-046](#aik-046), [AIK-056](#aik-056), [AIK-057](#aik-057), [AIK-058](#aik-058), [AIK-088](#aik-088), [AIK-059](#aik-059), [AIK-060](#aik-060), [AIK-061](#aik-061), [AIK-063](#aik-063), [AIK-064](#aik-064), [AIK-089](#aik-089), [AIK-090](#aik-090)
 
-첫 제품 배포와 완료조건은 Windows를 대상으로 한다. 다른 OS 출시를 선행조건으로 두지 않는다.
+첫 제품 배포와 완료조건은 지원 플랫폼 Windows x64와 Linux x64를 대상으로 한다. 진행은 Windows를 먼저 하고, Linux에서 VM 실행에 의존하는 부분은 VM POSIX 지원(외부 선행 EXT-VM-POSIX-D1)이 해소될 때까지 차단으로 둔다. macOS 출시는 선행조건으로 두지 않는다.
 
 ### U05
 
 **구독·API·로컬을 장착형 자원으로 통합**
 
 - 구분: 사용자 요구 (`user`)
-- 개발 태스크: [AIK-010](#aik-010), [AIK-011](#aik-011), [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-019](#aik-019), [AIK-020](#aik-020), [AIK-044](#aik-044), [AIK-048](#aik-048), [AIK-064](#aik-064), [AIK-066](#aik-066), [AIK-076](#aik-076), [AIK-077](#aik-077), [AIK-090](#aik-090)
+- 개발 태스크: [AIK-010](#aik-010), [AIK-011](#aik-011), [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-014](#aik-014), [AIK-015](#aik-015), [AIK-019](#aik-019), [AIK-020](#aik-020), [AIK-092](#aik-092), [AIK-044](#aik-044), [AIK-048](#aik-048), [AIK-064](#aik-064), [AIK-066](#aik-066), [AIK-076](#aik-076), [AIK-077](#aik-077), [AIK-090](#aik-090)
 
 구독/API/로컬 모델을 공통 ResourcePool로 다루며 실행 경로별 인증과 능력 차이는 adapter가 보존한다.
 
@@ -3392,19 +3808,37 @@ ACK·실행 성공·검증·GoalVerdict를 구분하고 실제 설치형 경로�
 
 RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구조화한다. JEV가 스킬 선택을 강제하지 않는다.
 
+### U10
+
+**OS 독립 구조**
+
+- 구분: 사용자 요구 (`user`)
+- 개발 태스크: [AIK-003](#aik-003), [AIK-091](#aik-091), [AIK-009](#aik-009), [AIK-016](#aik-016), [AIK-045](#aik-045), [AIK-057](#aik-057)
+
+공통 코드는 운영체제를 모른다. 파일·잠금·프로세스·경로·시크릿·세션 신호 같은 OS 차이는 port 뒤 플랫폼 adapter에만 두고, 새 OS 지원은 adapter 추가로 한다.
+
+### U11
+
+**벤더 독립 구조**
+
+- 구분: 사용자 요구 (`user`)
+- 개발 태스크: [AIK-011](#aik-011), [AIK-092](#aik-092)
+
+공통 계약·저장소·GUI는 특정 벤더를 모른다. 벤더 차이는 adapter에만 두고 공통 코드는 벤더 adapter 모듈을 import하거나 벤더 목록을 하드코딩하지 않는다.
+
 ## 결정 색인
 
 ### DEC01
 
-**첫 제품은 Windows GUI**
+**첫 제품은 데스크톱 GUI(Windows·Linux)**
 
 - 상태: 확정 (`confirmed`)
-- 출처: [S-USER](#s-user)
+- 출처: [S-USER-20261014](#s-user-20261014)
 - 관련 태스크: [AIK-002](#aik-002), [AIK-003](#aik-003), [AIK-083](#aik-083), [AIK-045](#aik-045), [AIK-087](#aik-087), [AIK-088](#aik-088), [AIK-064](#aik-064)
 
-**결정 내용:** Windows 데스크톱 GUI로 첫 출시한다.
+**결정 내용:** Windows x64와 Linux x64 데스크톱 GUI로 첫 출시한다. 진행은 Windows를 먼저 한다.
 
-**이유:** 현재 사용자 요구 3번. Windows 세부 지원버전·CPU·installer는 별도 열린 결정.
+**이유:** 현재 사용자 요구 3번. Windows 세부 지원버전·CPU·installer는 별도 열린 결정. 2026-10-14 사용자 결정으로 Linux를 첫 출시 범위에 추가했다(S-USER-20261014).
 
 ### DEC02
 
@@ -3456,13 +3890,13 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 
 ### DEC06
 
-**첫 Windows 단일 클러스터 이후 연합 확장**
+**첫 단일 클러스터 출시 이후 연합 확장**
 
 - 상태: 제안 (`proposed`)
 - 출처: [S-DESIGN](#s-design)
 - 관련 태스크: [AIK-083](#aik-083), [AIK-064](#aik-064), [AIK-067](#aik-067), [AIK-089](#aik-089), [AIK-090](#aik-090)
 
-**결정 내용:** M0~M4는 Windows 첫 배포, M5는 두 클러스터 연합, M6는 확장으로 단계화한다.
+**결정 내용:** M0~M4는 첫 배포(Windows·Linux), M5는 두 클러스터 연합, M6는 확장으로 단계화한다.
 
 **이유:** GUI/인증/설치형 gate를 먼저 실증하기 위한 개발 순서 제안. 사용자 확정 OS 요구와 구분하며 연합 목표를 제거하지 않음.
 
@@ -3480,27 +3914,27 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 
 ### DEC08
 
-**Windows 지원 범위·설치 형식**
+**지원 플랫폼·설치 형식**
 
 - 상태: 제안 (`proposed`)
 - 출처: [S-HANDOFF-20261012](#s-handoff-20261012)
 - 관련 태스크: [AIK-003](#aik-003), [AIK-083](#aik-083), [AIK-057](#aik-057), [AIK-088](#aik-088)
 
-**결정 내용:** Windows11 x64 지원 후보, 사용자별 NSIS EXE, Electron/Python runtime 포함, 정식 Authenticode·서명 설치본 수동 업데이트와 기본 사용자 데이터 보존 정책을 선택했다.
+**결정 내용:** Windows11 x64 지원 후보, 사용자별 NSIS EXE, Electron/Python runtime 포함, 정식 Authenticode·서명 설치본 수동 업데이트와 기본 사용자 데이터 보존 정책을 선택했다. Linux x64의 지원 배포판과 설치 형식은 미정이며 AIK-003의 LINUX-X64 행에서 정한다.
 
 **이유:** Windows Server2022의 실제 설치·제거, 독립 ZIP 재실행 및 기본 PowerShell5.1 전달 경로는 통과했다. 기존 AIK-003의 깨끗한 후보 Windows·개발 도구 없는 환경 검증은 미완료이며, 지원 qualification과 정식 제품 서명 성공을 주장하지 않는다.
 
 ### DEC09
 
-**Windows 시크릿 backend**
+**플랫폼별 시크릿 backend**
 
 - 상태: 제안 (`proposed`)
 - 출처: [S-DPAPI](#s-dpapi)
 - 관련 태스크: [AIK-009](#aik-009)
 
-**결정 내용:** 사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다.
+**결정 내용:** Windows: 사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다(구현 후보 DPAPI). Linux: Secret Service(`secret-tool` CLI, D-Bus 키링)를 쓰고, 키링이나 D-Bus가 없으면 저장을 거절한다(fail-closed, 사용자 결정 2026-10-14). 플랫폼 선택은 OS port 뒤 adapter에서 한다.
 
-**이유:** 비밀 참조 broker는 앱의 접근 범위를 통제한다. Windows 사용자 vault의 저장/사용자 경계와 trusted same-user native 프로세스의 직접 OS 접근 범위를 별도 명시하고 실제 보장만 검증한다.
+**이유:** 비밀 참조 broker는 앱의 접근 범위를 통제한다. Windows 사용자 vault의 저장/사용자 경계와 trusted same-user native 프로세스의 직접 OS 접근 범위를 별도 명시하고 실제 보장만 검증한다. Linux backend는 사용자가 Secret Service를 골랐다(S-USER-20261014). Windows 선택은 아직 제안 상태다.
 
 ### DEC10
 
@@ -3546,9 +3980,21 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 - 출처: [S-COMPLETE](#s-complete)
 - 관련 태스크: [AIK-001](#aik-001), [AIK-083](#aik-083), [AIK-019](#aik-019), [AIK-022](#aik-022), [AIK-082](#aik-082), [AIK-033](#aik-033), [AIK-044](#aik-044), [AIK-059](#aik-059), [AIK-064](#aik-064), [AIK-067](#aik-067), [AIK-075](#aik-075), [AIK-089](#aik-089), [AIK-080](#aik-080), [AIK-090](#aik-090)
 
-**결정 내용:** P01~P10을 첫 Windows 인수 흐름, P11을 연합, P12를 확장 흐름으로 관리한다. M5 기본 065/067~075와 M6 기본 076~079는 각각 089/090 새 설치본 gate로 판정한다. 선택 066 Cloud/080 Kubernetes는 scope 확정 시 해당 gate의 실제 선행에 추가하고 미선택은 미완료로 유지한다.
+**결정 내용:** P01~P10을 첫 출시(Windows·Linux) 인수 흐름, P11을 연합, P12를 확장 흐름으로 관리한다. M5 기본 065/067~075와 M6 기본 076~079는 각각 089/090 새 설치본 gate로 판정한다. 선택 066 Cloud/080 Kubernetes는 scope 확정 시 해당 gate의 실제 선행에 추가하고 미선택은 미완료로 유지한다.
 
 **이유:** 사용자의 완제품 검증 요구에서 도출한 계획 보강이다. 기능 구현과 실제 제품 인계·후속 배포를 연결하며 선택 route와 선택 기능을 구분한다. 첫 Windows 범위를 모든 미래 기능과 혼동하지 않고 범위 변경의 영향·결정·재검증을 기록한다.
+
+### DEC14
+
+**OS·벤더 port 경계(SOLID)**
+
+- 상태: 확정 (`confirmed`)
+- 출처: [S-USER-20261014](#s-user-20261014)
+- 관련 태스크: [AIK-091](#aik-091), [AIK-009](#aik-009), [AIK-092](#aik-092), [AIK-045](#aik-045)
+
+**결정 내용:** 공통 코드는 OS·벤더를 직접 다루지 않고 concern별 좁은 port(파일·잠금·프로세스·경로·시크릿·세션 신호·HTTP transport)에 의존한다. OS 판별은 플랫폼 계층 한 곳에서만 하고, 새 OS·벤더는 adapter 추가로 지원한다(DIP·OCP·ISP).
+
+**이유:** 사용자 설계 원칙(벤더 독립·OS 독립·SOLID). 2026-10-14 OS 감사에서 같은 디렉터리 동기화 헬퍼 13벌, 원자적 쓰기 패턴 17개 파일, 동일한 프로세스 모듈 2벌의 복제와 공통 코드의 벤더 adapter import가 확인됐다.
 
 ## 출처 색인
 
@@ -3682,6 +4128,16 @@ Windows CI38223818838의 같은 job·같은 frozen engine으로 두 후보 설�
 
 사용자가 개발 태스크를 SQLite로 정리하여 AI-Kubernetes에 push하도록 요청. 3개 추가 요구를 직접 확정.
 
+### S-USER-20261014
+
+**사용자 설계 원칙: 벤더 독립·OS 독립·SOLID와 첫 출시 Windows·Linux**
+
+- 구분: 사용자 제공 (`user`)
+- 기준 버전 / 날짜: `2026-10-14`
+- 원문: 사용자 제공 대화
+
+사용자 원문: "나의 철학은 1. 밴더 독립은 무조건 지킨다 2. 운영체제에도 독립적이어야한다 3. SOLID 원칙을 좋아한다". 출시 OS는 Windows·Linux 둘 다(진행은 Windows 우선), Linux 비밀 저장은 Secret Service, 원장은 스키마까지 개편.
+
 ### S-VISION
 
 **첨부 대화의 AI-Kubernetes 사용자 확정 비전**
@@ -3732,6 +4188,319 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 
 동일 SHA의 engine/application.py·runtime.py·cli.py 및 engine-user-workflow.md 읽기. 단일 runtime 객체 주입 seam과 VM 내부 Attempt/intent 예약을 확인했으며 AIK route/lease/effect의 효과 전 결속은 선행 통합 계약·설치형 검증 대상이다. upstream 코드 import/실행 없음.
 
+## 변경 이력
+
+`change_log`는 digest로 이어진 추가 전용 기록입니다. 긴 값은 80자에서 줄였으며 원문은 DB에 있습니다.
+
+| # | 대상 | 항목 | 이전 | 이후 | 이유 | 시각 |
+|---:|---|---|---|---|---|---|
+| 1 | metadata `schema_version` | value | 1 | 2 | schema v1 -> v2 migration by tools/backlog.py migrate; every v1 row is copied unchanged | `2026-10-14T01:54:45Z` |
+| 2 | source `S-USER-20261014` | created | — | S-USER-20261014 · 사용자 설계 원칙: 벤더 독립·OS 독립·SOLID와 첫 출시 Windows·Linux · user · 202… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 3 | principle `PRN-VENDOR` | created | — | PRN-VENDOR · 벤더 독립 · 벤더 독립은 무조건 지킨다. 공통 계약·저장소·GUI는 특정 벤더를 모르고, 벤더 차이는 adapter에… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 4 | principle `PRN-OS` | created | — | PRN-OS · 운영체제 독립 · 공통 코드는 운영체제를 모른다. 파일·잠금·프로세스·경로·시크릿·세션 신호의 OS 차이는 port 뒤 플랫폼… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 5 | principle `PRN-SOLID` | created | — | PRN-SOLID · SOLID · 단일 책임과 좁은 인터페이스(ISP), 추상에 대한 의존(DIP)을 지키고, 새 OS·벤더는 기존 코드 수… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 6 | platform `WIN-X64` | created | — | WIN-X64 · Windows x64 · windows · first_release · 지원 버전·설치 형식은 DEC08/AIK-003. 진… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 7 | platform `LINUX-X64` | created | — | LINUX-X64 · Linux x64 · linux · first_release · 지원 배포판·설치 형식은 미정(DEC08/AIK-003)… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 8 | external_dependency `EXT-VM-POSIX-D1` | created | — | EXT-VM-POSIX-D1 · vm · VibeMarshal RuntimeJob owner lock의 POSIX 지원 · open · vib… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 9 | external_dependency `EXT-AGS-A2-HOSTINTEGRATION` | created | — | EXT-AGS-A2-HOSTINTEGRATION · ags · AGS host-integration.json(HostIntegration.v1… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 10 | requirement `U04` | title | 첫 출시 Windows 전용 | 첫 출시 Windows·Linux | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 11 | requirement `U04` | description | 첫 제품 배포와 완료조건은 Windows를 대상으로 한다. 다른 OS 출시를 선행조건으로 두지 않는다. | 첫 제품 배포와 완료조건은 지원 플랫폼 Windows x64와 Linux x64를 대상으로 한다. 진행은 Windows를 먼저 하고, Linu… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 12 | requirement `U10` | created | — | U10 · user · OS 독립 구조 · 공통 코드는 운영체제를 모른다. 파일·잠금·프로세스·경로·시크릿·세션 신호 같은 OS 차이는 por… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 13 | requirement `U11` | created | — | U11 · user · 벤더 독립 구조 · 공통 계약·저장소·GUI는 특정 벤더를 모른다. 벤더 차이는 adapter에만 두고 공통 코드는 벤… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 14 | requirement `D01` | description | 실비밀은 Windows 사용자 vault 또는 공식 호스트 저장소에 둔다. 프롬프트·장부·PEER·로그에는 참조와 비민감 metadata만 사… | 실비밀은 OS 사용자 범위 vault(Windows DPAPI·Linux Secret Service) 또는 공식 호스트 저장소에 둔다. 프롬프… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 15 | requirement `D07` | title | Windows 운영성과 배포 품질 | 플랫폼 운영성과 배포 품질 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 16 | requirement `D07` | description | 설치·업데이트·한글 UI·접근성·실패 복구·진단 및 동작 측정을 첫 출시 범위로 검증한다. | 설치·업데이트·한글 UI·접근성·실패 복구·진단 및 동작 측정을 첫 출시 지원 플랫폼마다 검증한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 17 | requirement `P01` | description | 범위: 첫 Windows 출시. 시나리오: 개발 도구 없는 지원 Windows에 설치하고 GUI에서 두 벤더의 필수 API/지원 구독 경로를 … | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 개발 도구 없는 지원 Windows에 설치하고 GUI에서 두 벤더의 필수 API/지원 구독 경… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 18 | requirement `P02` | description | 범위: 첫 Windows 출시. 시나리오: GUI에서 기존 한글/공백 경로 프로젝트를 열고 새 폴더를 만들며 다른 프로젝트로 전환한다. 통과:… | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: GUI에서 기존 한글/공백 경로 프로젝트를 열고 새 폴더를 만들며 다른 프로젝트로 전환한다. … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 19 | requirement `P03` | description | 범위: 첫 Windows 출시. 시나리오: GUI에서 총괄과 개발/검토 역할에 서로 다른 connection/model/지원 effort를 지… | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: GUI에서 총괄과 개발/검토 역할에 서로 다른 connection/model/지원 effort… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 20 | requirement `P04` | description | 범위: 첫 Windows 출시. 시나리오: 사용자가 고른 프로젝트에 RAW Goal 하나를 제출하고 실제 총괄/VM 준비 경로가 A·B 독립 … | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 사용자가 고른 프로젝트에 RAW Goal 하나를 제출하고 실제 총괄/VM 준비 경로가 A·B … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 21 | requirement `P05` | description | 범위: 첫 Windows 출시. 시나리오: 허용된 프로젝트 작업을 실행하고 범위 확대·다른 workspace·예산/동시성 한도·만료 인증을 각… | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 허용된 프로젝트 작업을 실행하고 범위 확대·다른 workspace·예산/동시성 한도·만료 인증… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 22 | requirement `P06` | description | 범위: 첫 Windows 출시. 시나리오: 실제 임시 프로젝트 파일 변경에서 effect 전 intent, effect 후 receipt, 모… | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 실제 임시 프로젝트 파일 변경에서 effect 전 intent, effect 후 receipt… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 23 | requirement `P07` | description | 범위: 첫 Windows 출시. 시나리오: 합성 목표의 최종 파일·검증 근거를 GUI에서 열고 저장/내보낸 뒤 worker 반환과 앱 재시작 … | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 합성 목표의 최종 파일·검증 근거를 GUI에서 열고 저장/내보낸 뒤 worker 반환과 앱 재… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 24 | requirement `P08` | description | 범위: 첫 Windows 출시. 시나리오: 목표 실행 중 창 닫기/재열기, 앱/sidecar 재시작, 일시정지·재개·취소를 수행한다. 통과: … | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 목표 실행 중 창 닫기/재열기, 앱/sidecar 재시작, 일시정지·재개·취소를 수행한다. 통… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 25 | requirement `P09` | description | 범위: 첫 Windows 출시. 시나리오: GUI에서 비밀 없는 설정 이동과 제품 상태 백업을 구분해 수행하고, 업데이트 중단 또는 새 Win… | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: GUI에서 비밀 없는 설정 이동과 제품 상태 백업을 구분해 수행하고, 업데이트 중단 또는 새 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 26 | requirement `P10` | description | 범위: 첫 Windows 출시. 시나리오: 하나의 commit/installer hash·runtime manifest·지원 matrix 판본… | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 하나의 commit/installer hash·runtime manifest·지원 matrix… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 27 | requirement `P01` | description | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 개발 도구 없는 지원 Windows에 설치하고 GUI에서 두 벤더의 필수 API/지원 구독 경… | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: 개발 도구 없는 지원 플랫폼에 설치하고 GUI에서 두 벤더의 필수 API/지원 구독 경로를 연… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 28 | requirement `P09` | description | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: GUI에서 비밀 없는 설정 이동과 제품 상태 백업을 구분해 수행하고, 업데이트 중단 또는 새 … | 범위: 첫 출시(지원 플랫폼 각각). 시나리오: GUI에서 비밀 없는 설정 이동과 제품 상태 백업을 구분해 수행하고, 업데이트 중단 또는 새 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 29 | requirement `P10` | title | 고정 Windows 설치본의 품질·지원·출시 판정 | 고정 설치본의 품질·지원·출시 판정(플랫폼별) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 30 | requirement `P11` | title | 연합 기능을 포함한 실제 Windows 후속 출시 | 연합 기능을 포함한 실제 후속 출시 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 31 | requirement `P12` | title | 선택한 추가 자원을 포함한 실제 Windows 확장 출시 | 선택한 추가 자원을 포함한 실제 확장 출시 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 32 | decision `DEC01` | title | 첫 제품은 Windows GUI | 첫 제품은 데스크톱 GUI(Windows·Linux) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 33 | decision `DEC01` | decision | Windows 데스크톱 GUI로 첫 출시한다. | Windows x64와 Linux x64 데스크톱 GUI로 첫 출시한다. 진행은 Windows를 먼저 한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 34 | decision `DEC01` | rationale | 현재 사용자 요구 3번. Windows 세부 지원버전·CPU·installer는 별도 열린 결정. | 현재 사용자 요구 3번. Windows 세부 지원버전·CPU·installer는 별도 열린 결정. 2026-10-14 사용자 결정으로 Linu… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 35 | decision `DEC01` | source_id | S-USER | S-USER-20261014 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 36 | decision `DEC06` | title | 첫 Windows 단일 클러스터 이후 연합 확장 | 첫 단일 클러스터 출시 이후 연합 확장 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 37 | decision `DEC06` | decision | M0~M4는 Windows 첫 배포, M5는 두 클러스터 연합, M6는 확장으로 단계화한다. | M0~M4는 첫 배포(Windows·Linux), M5는 두 클러스터 연합, M6는 확장으로 단계화한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 38 | decision `DEC08` | title | Windows 지원 범위·설치 형식 | 지원 플랫폼·설치 형식 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 39 | decision `DEC08` | decision | Windows11 x64 지원 후보, 사용자별 NSIS EXE, Electron/Python runtime 포함, 정식 Authenticode… | Windows11 x64 지원 후보, 사용자별 NSIS EXE, Electron/Python runtime 포함, 정식 Authenticode… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 40 | decision `DEC09` | title | Windows 시크릿 backend | 플랫폼별 시크릿 backend | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 41 | decision `DEC09` | decision | 사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다. | Windows: 사용자 범위 Credential Manager 또는 DPAPI 보호 저장소를 검증해 선택한다(구현 후보 DPAPI). Linu… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 42 | decision `DEC09` | rationale | 비밀 참조 broker는 앱의 접근 범위를 통제한다. Windows 사용자 vault의 저장/사용자 경계와 trusted same-user n… | 비밀 참조 broker는 앱의 접근 범위를 통제한다. Windows 사용자 vault의 저장/사용자 경계와 trusted same-user n… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 43 | decision `DEC13` | decision | P01~P10을 첫 Windows 인수 흐름, P11을 연합, P12를 확장 흐름으로 관리한다. M5 기본 065/067~075와 M6 기본 … | P01~P10을 첫 출시(Windows·Linux) 인수 흐름, P11을 연합, P12를 확장 흐름으로 관리한다. M5 기본 065/067~0… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 44 | decision `DEC14` | created | — | DEC14 · OS·벤더 port 경계(SOLID) · confirmed · 공통 코드는 OS·벤더를 직접 다루지 않고 concern별 좁은 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 45 | milestone `M0` | name | 통합 계약·Windows 기반 결정 | 통합 계약·플랫폼 기반 결정 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 46 | milestone `M0` | exit_criteria | 소유권·실제 runtime 주입점·지원 환경과 P01~P12 최소 제품 인수 계약/독립 oracle/측정 조건을 고정하고 GUI·저장 기반을 … | 소유권·실제 runtime 주입점·지원 환경과 P01~P12 최소 제품 인수 계약/독립 oracle/측정 조건을 고정하고 GUI·저장 기반을 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 47 | milestone `M1` | exit_criteria | 후보 adapter 코드를 구현하고, 같은 지원 matrix의 필수 두 벤더 API/지원 구독 인증 경로와 vault를 실제 Windows에서… | 후보 adapter 코드를 구현하고, 같은 지원 matrix의 필수 두 벤더 API/지원 구독 인증 경로와 vault를 지원 플랫폼(Windo… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 48 | milestone `M3` | name | Windows GUI 실제 연결 | 데스크톱 GUI 실제 연결 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 49 | milestone `M3` | exit_criteria | 사용자 프로젝트 선택부터 인증·총괄/worker 모델 지정·RAW Goal/정정·실제 개발 작업·결과 사용·중단/재접속까지 GUI로 수행한다. | 사용자 프로젝트 선택부터 인증·총괄/worker 모델 지정·RAW Goal/정정·실제 개발 작업·결과 사용·중단/재접속까지 GUI로 수행한다.… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 50 | milestone `M4` | name | Windows 첫 배포 검증 | 첫 배포 검증(Windows·Linux) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 51 | milestone `M4` | exit_criteria | 하나의 지원 Windows 설치본에서 P01~P10, 일관 백업/GUI 복원·실패 회복·독립 검토·고정 품질/성능 기준을 모두 통과하고 064… | 같은 source commit의 지원 플랫폼별 설치본에서 각각 P01~P10, 일관 백업/GUI 복원·실패 회복·독립 검토·고정 품질/성능 기… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 52 | milestone `M5` | exit_criteria | 기본 065/067~075와 선택한 066을 089의 실제 선행에 결속하고 새 Windows 설치본에서 P01~P10 회귀와 P11 실제 두 … | 기본 065/067~075와 선택한 066을 089의 실제 선행에 결속하고 새 지원 플랫폼 설치본에서 P01~P10 회귀와 P11 실제 두 클… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 53 | milestone `M6` | exit_criteria | 제안 기본 076~079와 선택한 080을 090의 실제 선행에 결속하고 새 Windows 설치본에서 P01~P11 회귀와 P12 확장별 실제… | 제안 기본 076~079와 선택한 080을 090의 실제 선행에 결속하고 새 지원 플랫폼 설치본에서 P01~P11 회귀와 P12 확장별 실제 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 54 | epic `E08` | name | Windows GUI | 데스크톱 GUI | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 55 | epic `E09` | name | Windows 출시 | 출시·패키징 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 56 | epic `E09` | description | 설치·업데이트·qualification·독립 검토 | 플랫폼별 설치·업데이트·qualification·독립 검토 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 57 | epic `E12` | created | — | E12 · 플랫폼 독립 계층 · OS port·플랫폼 adapter와 공통 코드의 OS·벤더 결합 제거 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 58 | task `AIK-002` | title | Windows GUI 스택과 엔진 sidecar 검증 | 데스크톱 GUI 스택과 엔진 sidecar 검증(Windows 실측) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 59 | task `AIK-003` | title | Windows 지원 환경·설치·서명 방식 결정 | 지원 플랫폼 환경·설치·서명 방식 결정 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 60 | task `AIK-009` | title | Windows 사용자 범위 시크릿 vault 구현 | 사용자 범위 시크릿 vault 구현(플랫폼별 backend) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 61 | task `AIK-022` | title | Windows 멀티벤더 인증·vault qualification | 멀티벤더 인증·vault qualification(플랫폼별) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 62 | task `AIK-045` | title | Windows GUI shell·내비게이션·엔진 연결 | 데스크톱 GUI shell·내비게이션·엔진 연결 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 63 | task `AIK-056` | title | Windows 트레이·재접속·한글·접근성 | 트레이·재접속·한글·접근성(플랫폼별) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 64 | task `AIK-057` | title | Windows installer·runtime bundle·기동 구성 | 플랫폼별 installer·runtime bundle·기동 구성 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 65 | task `AIK-059` | title | Windows GUI 설치본 사용자 E2E | GUI 설치본 사용자 E2E(플랫폼별) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 66 | task `AIK-061` | title | Windows 시크릿·권한·출시 독립 검토 | 시크릿·권한·출시 독립 검토(플랫폼별) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 67 | task `AIK-064` | title | Windows 첫 릴리스 최종 gate·배포 | 첫 릴리스 최종 gate·배포(Windows·Linux) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 68 | task `AIK-089` | title | 연합 Windows 릴리스 패키징·업그레이드·최종 gate | 연합 릴리스 패키징·업그레이드·최종 gate | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 69 | task `AIK-090` | title | 확장 Windows 릴리스 패키징·업그레이드·최종 gate | 확장 릴리스 패키징·업그레이드·최종 gate | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 70 | task `AIK-003` | description | 첫 Windows 배포의 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한다. | 첫 배포의 지원 플랫폼(Windows x64·Linux x64)별 지원 버전, CPU, 설치 형식과 업데이트·서명·사용자 데이터 정책을 선택한… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 71 | task `AIK-003` | deliverable | Windows support matrix와 packaging ADR | 플랫폼별 support matrix와 packaging ADR | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 72 | task `AIK-003` | verification | 깨끗한 후보 Windows 환경의 설치 spike 및 문서 검토 | 플랫폼별 깨끗한 후보 환경의 설치 spike 및 문서 검토 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 73 | task `AIK-009` | description | API 키와 app 소유 비밀을 Windows 사용자 저장소에 보관하고 opaque credential_ref로 접근한다. | API 키와 app 소유 비밀을 OS 사용자 범위 저장소(Windows DPAPI·Linux Secret Service)에 보관하고 opaqu… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 74 | task `AIK-009` | verification | 실제 Windows vault 왕복·다른 사용자·재시작·오류 검증 | 지원 플랫폼별 실제 vault 왕복·다른 사용자·재시작·오류 검증 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 75 | task `AIK-014` | verification | host fixture로 공식 인증 시작·상태·만료·해제·계정 변경 계약 검증; 실제 Windows 인증/실행은 AIK-022/082/086/… | host fixture로 공식 인증 시작·상태·만료·해제·계정 변경 계약 검증; 실제 지원 플랫폼 인증/실행은 AIK-022/082/086/0… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 76 | task `AIK-015` | description | 공식 Claude Code 인증과 기존 VM CLI runtime을 자원 등록·재연결 계약으로 연결하는 bridge를 구현한다. 코드 구현과 … | 공식 Claude Code 인증과 기존 VM CLI runtime을 자원 등록·재연결 계약으로 연결하는 bridge를 구현한다. 코드 구현과 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 77 | task `AIK-015` | verification | host fixture로 공식 인증·실행 요청·만료·해제·계정 변경 계약 검증; 실제 Windows 인증/실행은 AIK-022/082/086/… | host fixture로 공식 인증·실행 요청·만료·해제·계정 변경 계약 검증; 실제 지원 플랫폼 인증/실행은 AIK-022/082/086/0… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 78 | task `AIK-021` | verification | 다른 workspace·다른 Windows 사용자/기기의 복원 검증 | 다른 workspace·다른 OS 사용자/기기의 복원 검증 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 79 | task `AIK-022` | description | AIK-001 지원 matrix의 필수 인증 경로를 실제 Windows 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualif… | AIK-001 지원 matrix의 필수 인증 경로를 지원 플랫폼별 실제 환경에서 검증한다. 후보 adapter 구현과 라이브 인증 qualif… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 80 | task `AIK-022` | verification | 실제 Windows 사용자 환경과 가짜 비밀의 실패 경로 검증 | 지원 플랫폼별 실제 사용자 환경과 가짜 비밀의 실패 경로 검증 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 81 | task `AIK-046` | verification | 처음 사용하는 Windows 사용자의 전체 연결 흐름 검증 | 처음 사용하는 지원 플랫폼 사용자의 전체 연결 흐름 검증 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 82 | task `AIK-056` | description | 일상 운영에서 GUI 창의 수명과 총괄 실행을 구분하고 Windows 입력/표시 품질을 검증한다. | 일상 운영에서 GUI 창의 수명과 총괄 실행을 구분하고 지원 플랫폼별 입력/표시 품질을 검증한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 83 | task `AIK-057` | deliverable | Windows installer build·runtime manifest·hash | 플랫폼별 installer build·runtime manifest·hash | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 84 | task `AIK-057` | verification | 개발 도구 없는 지원 Windows 환경의 설치/제거 검증 | 개발 도구 없는 지원 플랫폼별 환경의 설치/제거 검증 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 85 | task `AIK-058` | verification | 완료 Goal과 실행 중/unknown job을 가진 제품 상태의 업데이트 중단·혼합 checkpoint 거부·새 Windows 사용자 복원 … | 완료 Goal과 실행 중/unknown job을 가진 제품 상태의 업데이트 중단·혼합 checkpoint 거부·새 OS 사용자 복원 검증 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 86 | task `AIK-059` | description | 하나의 Windows 배포 후보에서 P01~P09의 실제 사용자 흐름과 필수 runtime/역할 계약을 GUI로 검증하고 결과를 P10 최종 … | 같은 source commit의 지원 플랫폼별 배포 후보에서 P01~P09의 실제 사용자 흐름과 필수 runtime/역할 계약을 GUI로 검증… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 87 | task `AIK-059` | deliverable | 지원 matrix revision/digest 및 installer identity별 Windows GUI E2E·재현 기록 | 지원 matrix revision/digest 및 installer identity별 플랫폼별 GUI E2E·재현 기록 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 88 | task `AIK-059` | verification | 개발 도구·CLI 사전 준비 없는 지원 Windows 이미지의 P01~P09 및 고정 matrix 실제 GUI 시나리오 | 개발 도구·CLI 사전 준비 없는 지원 플랫폼별 이미지의 P01~P09 및 고정 matrix 실제 GUI 시나리오 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 89 | task `AIK-064` | description | 완료 근거를 하나의 설치본 identity에 묶어 첫 Windows 릴리스 판정을 내린다. | 완료 근거를 하나의 설치본 identity에 묶어 첫 릴리스(Windows·Linux) 판정을 내린다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 90 | task `AIK-087` | description | 사용자가 자신의 프로젝트를 연결하고 어떤 파일 범위에서 목표가 실행되는지 확인·변경하는 Windows GUI를 구현한다. | 사용자가 자신의 프로젝트를 연결하고 어떤 파일 범위에서 목표가 실행되는지 확인·변경하는 데스크톱 GUI를 구현한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 91 | task `AIK-089` | description | M5 연합 기능을 새 Windows 배포 후보에 포함하고 설치/업데이트·기존 제품 회귀·두 클러스터 사용자 흐름을 같은 판본으로 검증해 출시한… | M5 연합 기능을 새 지원 플랫폼 배포 후보에 포함하고 설치/업데이트·기존 제품 회귀·두 클러스터 사용자 흐름을 같은 판본으로 검증해 출시한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 92 | task `AIK-090` | description | 선택한 로컬 모델·추가 vendor/정책/조직/배포 확장을 Windows 설치본에 포함하고 기존 제품·연합 및 확장 사용자 흐름을 함께 검증해… | 선택한 로컬 모델·추가 vendor/정책/조직/배포 확장을 지원 플랫폼 설치본에 포함하고 기존 제품·연합 및 확장 사용자 흐름을 함께 검증해 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 93 | acceptance_criterion `AIK-003#1` | criterion | 지원 Windows 버전·CPU·최소 자원과 선택한 설치 형식을 명시한다. | 플랫폼별 지원 OS 버전·CPU·최소 자원과 선택한 설치 형식을 명시한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 94 | acceptance_criterion `AIK-003#3` | criterion | 서명·업데이트 신뢰·제거 후 데이터 처리 기준을 정하며 macOS/Linux를 첫 출시 gate로 넣지 않는다. | 서명·업데이트 신뢰·제거 후 데이터 처리 기준을 정하며 macOS는 첫 출시 gate로 넣지 않는다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 95 | acceptance_criterion `AIK-009#1` | criterion | Credential Manager 또는 사용자 범위 DPAPI 후보를 검증해 선택하고 머신 공유 범위를 기본으로 사용하지 않는다. 저장 보호·… | 플랫폼별 backend(Windows: Credential Manager 또는 사용자 범위 DPAPI, Linux: Secret Service… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 96 | acceptance_criterion `AIK-016#3` | criterion | 사용자가 설정한 vault 잠금·Windows 세션 잠금 정책이 동작하고 강제 로그아웃을 완료/환불로 간주하지 않는다. | 사용자가 설정한 vault 잠금·OS 세션 잠금(Windows 세션 잠금·Linux logind LockedHint) 정책이 동작하고 강제 로… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 97 | acceptance_criterion `AIK-022#1` | criterion | 동일 matrix revision의 필수 API/지원 구독 인증 경로마다 실제 Windows 등록·호출·회전·해제·재연결을 통과한다. 같은 벤… | 동일 matrix revision의 필수 API/지원 구독 인증 경로마다 지원 플랫폼마다 실제 등록·호출·회전·해제·재연결을 통과한다. 같은 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 98 | acceptance_criterion `AIK-056#2` | criterion | Windows 재접속 때 기존 인스턴스·목표를 복원하고 중복 총괄을 만들지 않는다. | OS 재로그인·재접속 때 기존 인스턴스·목표를 복원하고 중복 총괄을 만들지 않는다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 99 | acceptance_criterion `AIK-063#4` | criterion | 사용자 프로젝트 열기/이동, 지원 개발 도구/검증 범위, 결과 보관/내보내기, 설정-only와 전체 백업 차이, 앱 부팅 실패 시 복구 진입점… | 사용자 프로젝트 열기/이동, 지원 개발 도구/검증 범위, 결과 보관/내보내기, 설정-only와 전체 백업 차이, 앱 부팅 실패 시 복구 진입점… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 100 | acceptance_criterion `AIK-064#4` | criterion | release manifest는 P01~P10별 시나리오·지원 조합·실제 실행 결과·근거 위치/해시·검토자를 포함한다. 이 gate는 M0~M… | release manifest는 P01~P10별 시나리오·지원 조합·실제 실행 결과·근거 위치/해시·검토자를 포함한다. 이 gate는 M0~M… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 101 | acceptance_criterion `AIK-075#4` | criterion | 089의 새 Windows 설치본·업그레이드·첫 출시 회귀에서 실행할 연합 사용자 시나리오와 기능 후보 패키지를 제공한다. 다음 M6 판본의 … | 089의 새 설치본·업그레이드·첫 출시 회귀에서 실행할 연합 사용자 시나리오와 기능 후보 패키지를 제공한다. 다음 M6 판본의 기본 076~0… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 102 | acceptance_criterion `AIK-080#3` | criterion | Windows GUI 첫 출시 의존성에 이 adapter나 Kubernetes 운영을 추가하지 않는다. | 데스크톱 GUI 첫 출시 의존성에 이 adapter나 Kubernetes 운영을 추가하지 않는다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 103 | acceptance_criterion `AIK-083#1` | criterion | P01~P10의 첫 Windows 흐름과 P11 연합/P12 확장의 최소 입력·관찰 가능한 성공·실패 차단을 보존하고 각 항목에 구현·GUI/… | P01~P10의 첫 출시(지원 플랫폼별) 흐름과 P11 연합/P12 확장의 최소 입력·관찰 가능한 성공·실패 차단을 보존하고 각 항목에 구현·… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 104 | acceptance_criterion `AIK-088#3` | criterion | 새 Windows 사용자에서 복원·재인증 후 기존 완료 Goal/근거/실제 파일을 GUI로 열고 active/unknown job을 recon… | 새 OS 사용자에서 복원·재인증 후 기존 완료 Goal/근거/실제 파일을 GUI로 열고 active/unknown job을 reconcilia… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 105 | acceptance_criterion `AIK-089#2` | criterion | 같은 새 설치본으로 깨끗한 지원 Windows 설치와 직전 지원 M4 제품에서 업데이트·중단/일관 복원을 수행하고 P01~P10 회귀를 통과한… | 같은 새 설치본으로 깨끗한 지원 플랫폼 설치와 직전 지원 M4 제품에서 업데이트·중단/일관 복원을 수행하고 P01~P10 회귀를 통과한다. 옛… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 106 | task `AIK-091` | created | — | AIK-091 · OS port 계층·플랫폼 adapter와 공통 헬퍼 통합 · 공통 코드에 흩어진 OS 분기(파일 동기화·원자적 쓰기·잠금·… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 107 | task `AIK-092` | created | — | AIK-092 · 공통 코드의 벤더 결합 제거 · 공통 패키지가 특정 벤더 adapter 모듈을 import하거나 벤더 목록을 하드코딩하지 않… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 108 | acceptance_criterion `AIK-091#1` | criterion | — | 공통 코드의 os.name·sys.platform 분기가 플랫폼 계층 한 곳으로 모이고, 각 concern은 좁은 port로 주입·대체할 수 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 109 | acceptance_criterion `AIK-091#2` | criterion | — | 기존 공개 이름·파일 권한(mode)·오류 코드·잠금 의미가 바뀌지 않음을 기존 전체 회귀가 Windows·Linux CI에서 확인한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 110 | acceptance_criterion `AIK-091#3` | criterion | — | Linux adapter는 거절(fail-closed) 경로를 포함해 실제 Linux에서 검증하고, 미구현 concern은 거절 사유와 함께 … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 111 | acceptance_criterion `AIK-092#1` | criterion | — | aik_adapter_*·aik_host_* 밖의 공통 패키지가 벤더 adapter 모듈을 import하지 않음을 시험으로 고정한다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 112 | acceptance_criterion `AIK-092#2` | criterion | — | 새 벤더 adapter는 공통 코드 수정 없이 등록만으로 진단·선택 대상이 된다. | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 113 | task_link `AIK-091` | task_requirements | — | AIK-091 -> U10 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 114 | task_link `AIK-091` | task_requirements | — | AIK-091 -> D07 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 115 | task_link `AIK-092` | task_requirements | — | AIK-092 -> U11 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 116 | task_link `AIK-092` | task_requirements | — | AIK-092 -> U05 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 117 | task_link `AIK-091` | task_sources | — | AIK-091 -> S-USER-20261014 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 118 | task_link `AIK-091` | task_sources | — | AIK-091 -> S-DESIGN | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 119 | task_link `AIK-092` | task_sources | — | AIK-092 -> S-USER-20261014 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 120 | task_link `AIK-091` | task_decisions | — | AIK-091 -> DEC14 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 121 | task_link `AIK-092` | task_decisions | — | AIK-092 -> DEC14 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 122 | task_link `AIK-091` | task_dependencies | — | AIK-091 -> AIK-001 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 123 | task_link `AIK-092` | task_dependencies | — | AIK-092 -> AIK-011 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 124 | task_link `AIK-009` | task_dependencies | — | AIK-009 -> AIK-091 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 125 | task_link `AIK-016` | task_dependencies | — | AIK-016 -> AIK-091 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 126 | task_link `AIK-045` | task_dependencies | — | AIK-045 -> AIK-091 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 127 | task_link `AIK-057` | task_dependencies | — | AIK-057 -> AIK-091 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 128 | task_link `AIK-022` | task_dependencies | — | AIK-022 -> AIK-092 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 129 | task_link `AIK-003` | task_requirements | — | AIK-003 -> U10 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 130 | task_link `AIK-009` | task_requirements | — | AIK-009 -> U10 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 131 | task_link `AIK-016` | task_requirements | — | AIK-016 -> U10 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 132 | task_link `AIK-045` | task_requirements | — | AIK-045 -> U10 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 133 | task_link `AIK-057` | task_requirements | — | AIK-057 -> U10 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 134 | task_link `AIK-011` | task_requirements | — | AIK-011 -> U11 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 135 | task_link `AIK-045` | task_decisions | — | AIK-045 -> DEC14 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 136 | task_link `AIK-009` | task_decisions | — | AIK-009 -> DEC14 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 137 | task_link `*` | task_principles | — | PRN-SOLID: 모든 feature·integration; PRN-VENDOR: E02·E03·E04+030·035·076·077·078·… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 138 | task_link `AIK-031` | task_external_dependencies | — | AIK-031 -> EXT-VM-POSIX-D1 -> LINUX-X64 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 139 | task_link `AIK-044` | task_external_dependencies | — | AIK-044 -> EXT-VM-POSIX-D1 -> LINUX-X64 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 140 | task_link `AIK-059` | task_external_dependencies | — | AIK-059 -> EXT-VM-POSIX-D1 -> LINUX-X64 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 141 | task_link `AIK-060` | task_external_dependencies | — | AIK-060 -> EXT-VM-POSIX-D1 -> LINUX-X64 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 142 | task_link `AIK-064` | task_external_dependencies | — | AIK-064 -> EXT-VM-POSIX-D1 -> LINUX-X64 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 143 | task_link `AIK-086` | task_external_dependencies | — | AIK-086 -> EXT-VM-POSIX-D1 -> LINUX-X64 | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 144 | task_link `AIK-081` | task_external_dependencies | — | AIK-081 -> EXT-AGS-A2-HOSTINTEGRATION | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 145 | task_link `AIK-086` | task_external_dependencies | — | AIK-086 -> EXT-AGS-A2-HOSTINTEGRATION | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 146 | task_platform `AIK-001/WIN-X64` | status | — | done | v1 완료 승계: 플랫폼 무관 계약 근거 | `2026-10-14T01:54:45Z` |
+| 147 | task_platform `AIK-001/LINUX-X64` | status | — | not_applicable | OS 무관 계약 기준선. Linux의 VM 실행 차이는 EXT-VM-POSIX-D1과 AIK-031·044·059의 LINUX-X64 행에서 추적한다 | `2026-10-14T01:54:45Z` |
+| 148 | task_platform `AIK-002/WIN-X64` | status | — | done | v1 완료 승계: Windows 설치형 실측 근거 | `2026-10-14T01:54:45Z` |
+| 149 | task_platform `AIK-002/LINUX-X64` | status | — | not_applicable | Windows 실측 스택 검증 spike(ADR 확정). Linux 데스크톱 실행 검증은 AIK-045·AIK-091의 LINUX-X64 행에서 다룬다 | `2026-10-14T01:54:45Z` |
+| 150 | task_platform `AIK-003/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 151 | task_platform `AIK-003/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 152 | task_platform `AIK-083/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 153 | task_platform `AIK-083/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 154 | task_platform `AIK-004/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 155 | task_platform `AIK-004/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 156 | task_platform `AIK-005/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 157 | task_platform `AIK-005/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 158 | task_platform `AIK-006/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 159 | task_platform `AIK-006/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 160 | task_platform `AIK-007/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 161 | task_platform `AIK-007/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 162 | task_platform `AIK-008/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 163 | task_platform `AIK-008/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 164 | task_platform `AIK-009/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 165 | task_platform `AIK-009/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 166 | task_platform `AIK-010/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 167 | task_platform `AIK-010/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 168 | task_platform `AIK-011/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 169 | task_platform `AIK-011/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 170 | task_platform `AIK-012/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 171 | task_platform `AIK-012/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 172 | task_platform `AIK-013/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 173 | task_platform `AIK-013/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 174 | task_platform `AIK-014/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 175 | task_platform `AIK-014/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 176 | task_platform `AIK-015/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 177 | task_platform `AIK-015/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 178 | task_platform `AIK-016/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 179 | task_platform `AIK-016/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 180 | task_platform `AIK-017/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 181 | task_platform `AIK-017/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 182 | task_platform `AIK-018/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 183 | task_platform `AIK-018/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 184 | task_platform `AIK-019/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 185 | task_platform `AIK-019/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 186 | task_platform `AIK-020/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 187 | task_platform `AIK-020/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 188 | task_platform `AIK-021/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 189 | task_platform `AIK-021/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 190 | task_platform `AIK-022/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 191 | task_platform `AIK-022/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 192 | task_platform `AIK-023/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 193 | task_platform `AIK-023/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 194 | task_platform `AIK-024/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 195 | task_platform `AIK-024/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 196 | task_platform `AIK-025/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 197 | task_platform `AIK-025/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 198 | task_platform `AIK-031/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 199 | task_platform `AIK-031/LINUX-X64` | status | — | blocked | 외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용) | `2026-10-14T01:54:45Z` |
+| 200 | task_platform `AIK-084/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 201 | task_platform `AIK-084/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 202 | task_platform `AIK-029/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 203 | task_platform `AIK-029/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 204 | task_platform `AIK-085/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 205 | task_platform `AIK-085/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 206 | task_platform `AIK-026/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 207 | task_platform `AIK-026/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 208 | task_platform `AIK-027/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 209 | task_platform `AIK-027/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 210 | task_platform `AIK-028/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 211 | task_platform `AIK-028/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 212 | task_platform `AIK-040/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 213 | task_platform `AIK-040/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 214 | task_platform `AIK-081/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 215 | task_platform `AIK-081/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 216 | task_platform `AIK-082/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 217 | task_platform `AIK-082/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 218 | task_platform `AIK-032/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 219 | task_platform `AIK-032/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 220 | task_platform `AIK-030/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 221 | task_platform `AIK-030/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 222 | task_platform `AIK-033/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 223 | task_platform `AIK-033/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 224 | task_platform `AIK-034/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 225 | task_platform `AIK-034/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 226 | task_platform `AIK-035/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 227 | task_platform `AIK-035/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 228 | task_platform `AIK-036/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 229 | task_platform `AIK-036/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 230 | task_platform `AIK-037/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 231 | task_platform `AIK-037/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 232 | task_platform `AIK-038/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 233 | task_platform `AIK-038/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 234 | task_platform `AIK-039/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 235 | task_platform `AIK-039/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 236 | task_platform `AIK-086/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 237 | task_platform `AIK-086/LINUX-X64` | status | — | blocked | 외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용) | `2026-10-14T01:54:45Z` |
+| 238 | task_platform `AIK-041/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 239 | task_platform `AIK-041/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 240 | task_platform `AIK-042/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 241 | task_platform `AIK-042/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 242 | task_platform `AIK-043/WIN-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 243 | task_platform `AIK-043/LINUX-X64` | status | — | blocked | v1 작업 상태(blocked) 승계: 부분 근거만 있고 플랫폼별 판정 전 | `2026-10-14T01:54:45Z` |
+| 244 | task_platform `AIK-044/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 245 | task_platform `AIK-044/LINUX-X64` | status | — | blocked | 외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용) | `2026-10-14T01:54:45Z` |
+| 246 | task_platform `AIK-045/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 247 | task_platform `AIK-045/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 248 | task_platform `AIK-087/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 249 | task_platform `AIK-087/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 250 | task_platform `AIK-046/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 251 | task_platform `AIK-046/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 252 | task_platform `AIK-047/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 253 | task_platform `AIK-047/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 254 | task_platform `AIK-048/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 255 | task_platform `AIK-048/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 256 | task_platform `AIK-049/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 257 | task_platform `AIK-049/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 258 | task_platform `AIK-050/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 259 | task_platform `AIK-050/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 260 | task_platform `AIK-051/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 261 | task_platform `AIK-051/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 262 | task_platform `AIK-052/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 263 | task_platform `AIK-052/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 264 | task_platform `AIK-053/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 265 | task_platform `AIK-053/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 266 | task_platform `AIK-054/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 267 | task_platform `AIK-054/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 268 | task_platform `AIK-055/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 269 | task_platform `AIK-055/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 270 | task_platform `AIK-056/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 271 | task_platform `AIK-056/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 272 | task_platform `AIK-057/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 273 | task_platform `AIK-057/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 274 | task_platform `AIK-058/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 275 | task_platform `AIK-058/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 276 | task_platform `AIK-088/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 277 | task_platform `AIK-088/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 278 | task_platform `AIK-059/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 279 | task_platform `AIK-059/LINUX-X64` | status | — | blocked | 외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용) | `2026-10-14T01:54:45Z` |
+| 280 | task_platform `AIK-060/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 281 | task_platform `AIK-060/LINUX-X64` | status | — | blocked | 외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용) | `2026-10-14T01:54:45Z` |
+| 282 | task_platform `AIK-061/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 283 | task_platform `AIK-061/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 284 | task_platform `AIK-062/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 285 | task_platform `AIK-062/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 286 | task_platform `AIK-063/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 287 | task_platform `AIK-063/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 288 | task_platform `AIK-064/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 289 | task_platform `AIK-064/LINUX-X64` | status | — | blocked | 외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용) | `2026-10-14T01:54:45Z` |
+| 290 | task_platform `AIK-091/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 291 | task_platform `AIK-091/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 292 | task_platform `AIK-092/WIN-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 293 | task_platform `AIK-092/LINUX-X64` | status | — | todo | schema 2 초기 플랫폼 상태(작업 상태 todo 승계) | `2026-10-14T01:54:45Z` |
+| 294 | task_evidence `EV-002-ELECTRON-20261012` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 295 | task_evidence `EV-002-COMPARISON-20261012` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 296 | task_evidence `EV-003-INSTALL-20261012` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 297 | task_evidence `EV-003-HANDOFF-20261012` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 298 | task_evidence `EV-003-LEGACY-20261012` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 299 | task_evidence `EV-003-CLIENT-INTAKE-WINDOWS-20261012` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 300 | task_evidence `EV-003-USER-WIN11-20261014` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 301 | task_evidence `EV-AIK-022-USER-WIN11-20261014` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 302 | task_evidence `EV-AIK-031-WINE2E-20261013` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 303 | task_evidence `EV-AIK-031-WINGOAL-20261013` | platform_id | — | WIN-X64 | 근거 요약에 Windows 실행 환경이 명시된 근거만 플랫폼을 지정한다 | `2026-10-14T01:54:45Z` |
+| 304 | metadata `scope_policy` | value | Windows GUI confirmed; local-first release staging proposed in DEC06; federatio… | Desktop GUI for Windows x64 and Linux x64 confirmed (DEC01, 2026-10-14); Window… | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 305 | metadata `design_principles` | value | — | PRN-VENDOR, PRN-OS, PRN-SOLID (S-USER-20261014) | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+| 306 | metadata `platform_policy` | value | — | tasks.status is the overall state and task_platforms holds per-platform state. … | 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영 | `2026-10-14T01:54:45Z` |
+
 ## DB 메타데이터
 
 | 키 | 값 |
@@ -3740,10 +4509,12 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `baseline_commit` | 0367932ce2fa9369a3420a4867283167ea319188 |
 | `canonical_data` | planning/backlog.sqlite3 |
 | `created_at` | 2026-10-12T05:36:30Z |
+| `design_principles` | PRN-VENDOR, PRN-OS, PRN-SOLID (S-USER-20261014) |
 | `evidence_policy` | Pinned upstream installed contracts, installed Windows Server 2022 Electron/Tauri comparison, frozen workers/DPAPI, and fresh Windows PowerShell 5.1 handoff execution are verified with preserved raw evidence and independent review. Clean supported Windows without developer tools, real vendor qualification and full product acceptance remain unverified. |
 | `foundation_implementation_commit` | 56523355d9cf3a2437989d1dd26f2e5ced1666d2 |
 | `language` | ko |
 | `ownership_policy` | VM owns Goal/Task/Attempt/verdict; AGS governance/peer; AIK owns pool/placement/lease. |
+| `platform_policy` | tasks.status is the overall state and task_platforms holds per-platform state. A done task needs every platform row done or not_applicable; a done platform row needs evidence for that platform or platform-neutral evidence; an open external prerequisite blocks completion. |
 | `product_acceptance_policy` | P01-P10 define observable first-release journeys; P11 federation; P12 selected extensions. Implementation, GUI/installer and same-build release evidence are required. Planning and structural checks are not product execution evidence. |
 | `product_completeness_baseline_commit` | dc6d60b67c0ccd2e56849992440de2eb639aa36c |
 | `product_status` | foundation_contract_and_stack_tasks_completed; clean_windows_client_validation_blocked; complete_product_incomplete |
@@ -3752,12 +4523,12 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `review_snapshot` | planning/backlog.sql |
 | `reviewed_at` | 2026-10-12T09:06:04Z |
 | `runtime_qualification_policy` | 082 is an actual minimal preflight probe. 019/033 allow explicit test-only candidate bindings under all existing gates for 086. Operational qualified advertising requires 086 PASS. 044 composes a real development goal; 059/064 qualify the final installer. Later resource qualifications reuse the same explicit candidate and live-evidence contract. |
-| `schema_version` | 1 |
-| `scope_policy` | Windows GUI confirmed; local-first release staging proposed in DEC06; federation retained in M5. |
+| `schema_version` | 2 |
+| `scope_policy` | Desktop GUI for Windows x64 and Linux x64 confirmed (DEC01, 2026-10-14); Windows first; Linux work that needs VM execution is blocked on EXT-VM-POSIX-D1; local-first release staging proposed in DEC06; federation retained in M5. |
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-13T17:32:04Z |
+| `updated_at` | 2026-10-14T01:54:45Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

@@ -29,7 +29,7 @@ class BacklogValidationTests(unittest.TestCase):
         self.addCleanup(self.conn.close)
         self.conn.executescript((ROOT / "planning" / "schema.sql").read_text(encoding="utf-8"))
         self.conn.executemany("INSERT INTO metadata VALUES (?, ?)", {
-            "schema_version": "1", "project": "AI-Kubernetes", "created_at": NOW,
+            "schema_version": "2", "project": "AI-Kubernetes", "created_at": NOW,
             "updated_at": NOW, "baseline_commit": "a" * 40,
             "canonical_data": "planning/backlog.sqlite3", "review_snapshot": "planning/backlog.sql",
             "ownership_policy": "VM tasks; AIK placements",
@@ -68,12 +68,13 @@ class BacklogValidationTests(unittest.TestCase):
             "VALUES (?,'status_change',?,?,?,?)", (task_id, old_status, new_status, "Fixture transition", NOW),
         )
 
-    def add_evidence(self, task_id):
-        self.conn.execute("INSERT INTO task_evidence VALUES (?,?,?,?,?,?)",
-                          (f"EV-{task_id}", task_id, "test", "fixture-result", "Observed fixture result", NOW))
+    def add_evidence(self, task_id, platform=None):
+        self.conn.execute("INSERT INTO task_evidence VALUES (?,?,?,?,?,?,?)",
+                          (f"EV-{task_id}", task_id, "test", "fixture-result", "Observed fixture result", NOW,
+                           platform))
 
     def test_baseline_and_schema_version(self):
-        self.assertEqual(self.conn.execute("PRAGMA user_version").fetchone()[0], 1)
+        self.assertEqual(self.conn.execute("PRAGMA user_version").fetchone()[0], 2)
         self.assertEqual(backlog.validate_connection(self.conn), [])
         self.assertEqual([row[0] for row in self.conn.execute("SELECT id FROM v_ready_tasks")], ["AIK-001"])
 
@@ -115,20 +116,20 @@ class BacklogValidationTests(unittest.TestCase):
     def test_ready_view_cannot_advertise_all_todo_tasks(self):
         self.conn.execute("DROP VIEW v_ready_tasks")
         self.conn.execute("CREATE VIEW v_ready_tasks AS SELECT * FROM v_backlog WHERE status='todo'")
-        self.assert_invalid("Schema definition differs from version 1: v_ready_tasks")
+        self.assert_invalid("Schema definition differs from version 2: v_ready_tasks")
 
     def test_same_named_table_without_constraints_is_rejected(self):
         self.conn.execute("DROP TABLE metadata")
         self.conn.execute("CREATE TABLE metadata (key TEXT, value TEXT)")
-        self.assert_invalid("Schema definition differs from version 1: metadata")
+        self.assert_invalid("Schema definition differs from version 2: metadata")
 
     def test_unexpected_trigger_is_rejected(self):
         self.conn.execute("CREATE TRIGGER hidden_change AFTER UPDATE ON tasks BEGIN DELETE FROM task_events; END")
-        self.assert_invalid("Unexpected schema object for version 1: hidden_change")
+        self.assert_invalid("Unexpected schema object for version 2: hidden_change")
 
     def test_user_object_with_similar_sqlite_prefix_is_not_ignored(self):
         self.conn.execute("CREATE TRIGGER sqliteExtra AFTER UPDATE ON tasks BEGIN DELETE FROM task_events; END")
-        self.assert_invalid("Unexpected schema object for version 1: sqliteExtra")
+        self.assert_invalid("Unexpected schema object for version 2: sqliteExtra")
 
     def test_missing_history(self):
         self.conn.execute("DELETE FROM task_events")
@@ -216,6 +217,119 @@ class BacklogValidationTests(unittest.TestCase):
         self.conn.execute("DELETE FROM acceptance_criteria WHERE task_id='AIK-001'")
         self.assert_invalid("AIK-001: fewer than two acceptance criteria")
 
+
+
+class PlatformValidationTests(BacklogValidationTests):
+    """Schema 2 rules: principles, per-platform status, external prerequisites, change log."""
+
+    def setUp(self):
+        super().setUp()
+        self.conn.execute("INSERT INTO platforms VALUES ('WIN-X64','Windows x64','windows','first_release','')")
+        self.conn.execute("INSERT INTO platforms VALUES ('LINUX-X64','Linux x64','linux','first_release','')")
+        self.conn.execute("INSERT INTO principles VALUES ('PRN-OS','OS independence','Ports and adapters','S-USER')")
+        for task_id in ("AIK-001", "AIK-002"):
+            self.conn.execute("INSERT INTO task_principles VALUES (?, 'PRN-OS')", (task_id,))
+            for platform in ("WIN-X64", "LINUX-X64"):
+                self.conn.execute("INSERT INTO task_platforms VALUES (?,?,'todo','',?)", (task_id, platform, NOW))
+        self.conn.commit()
+
+    def set_platform(self, task_id, platform, status, note=""):
+        self.conn.execute("UPDATE task_platforms SET status=?, note=? WHERE task_id=? AND platform_id=?",
+                          (status, note, task_id, platform))
+
+    def complete_first_task(self):
+        self.change_status("AIK-001", "in_progress")
+        self.change_status("AIK-001", "done")
+
+    def test_valid_completion_unlocks_and_allows_next_task(self):
+        # Under schema 2 completion also needs every platform row done or not applicable.
+        self.set_platform("AIK-001", "WIN-X64", "done")
+        self.set_platform("AIK-001", "LINUX-X64", "done")
+        self.change_status("AIK-001", "done")
+        self.add_evidence("AIK-001")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+        self.assertEqual([row[0] for row in self.conn.execute("SELECT id FROM v_ready_tasks")], ["AIK-002"])
+
+    def test_platform_baseline_is_valid(self):
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_done_task_requires_every_platform_done_or_not_applicable(self):
+        self.complete_first_task()
+        self.add_evidence("AIK-001", "WIN-X64")
+        self.set_platform("AIK-001", "WIN-X64", "done")
+        self.assert_invalid("AIK-001: done while platform LINUX-X64 is todo")
+        self.set_platform("AIK-001", "LINUX-X64", "not_applicable", "Windows-only spike")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_platform_done_requires_evidence_for_that_platform(self):
+        self.change_status("AIK-001", "in_progress")
+        self.set_platform("AIK-001", "LINUX-X64", "done")
+        self.assert_invalid("AIK-001: platform LINUX-X64 is done without evidence for that platform")
+        self.add_evidence("AIK-001", "WIN-X64")
+        self.assert_invalid("AIK-001: platform LINUX-X64 is done without evidence for that platform")
+        self.conn.execute("UPDATE task_evidence SET platform_id=NULL")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_todo_task_cannot_have_platform_progress(self):
+        self.set_platform("AIK-001", "WIN-X64", "in_progress")
+        self.assert_invalid("AIK-001: platform WIN-X64 is in_progress while the task is todo")
+
+    def test_blocked_not_applicable_and_cancelled_need_a_note(self):
+        for status in ("blocked", "not_applicable", "cancelled"):
+            with self.subTest(status=status):
+                self.set_platform("AIK-001", "LINUX-X64", status)
+                self.assert_invalid(f"AIK-001: platform LINUX-X64 is {status} without a note")
+                self.set_platform("AIK-001", "LINUX-X64", status, "reason")
+                self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_feature_task_needs_a_principle_once_principles_exist(self):
+        self.conn.execute("DELETE FROM task_principles WHERE task_id='AIK-002'")
+        self.assert_invalid("AIK-002: feature/integration task has no design principle")
+        self.conn.execute("DELETE FROM task_principles")
+        self.assert_invalid("PRN-OS: principle has no task")
+        self.conn.execute("DELETE FROM principles")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_first_release_task_needs_every_first_release_platform(self):
+        self.conn.execute("DELETE FROM task_platforms WHERE task_id='AIK-002' AND platform_id='LINUX-X64'")
+        self.assert_invalid("AIK-002: first release task has no status for first release platform LINUX-X64")
+        self.conn.execute("UPDATE platforms SET release_scope='follow_up' WHERE id='LINUX-X64'")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_open_external_prerequisite_blocks_platform_and_task_completion(self):
+        self.conn.execute("INSERT INTO external_dependencies VALUES ('EXT-VM','vm','VM POSIX','open','','')")
+        self.conn.execute("INSERT INTO task_external_dependencies(task_id,external_id,platform_id) "
+                          "VALUES ('AIK-001','EXT-VM','LINUX-X64')")
+        self.complete_first_task()
+        self.add_evidence("AIK-001")
+        self.set_platform("AIK-001", "WIN-X64", "done")
+        self.set_platform("AIK-001", "LINUX-X64", "done")
+        self.assert_invalid("AIK-001: platform LINUX-X64 is done while external prerequisite EXT-VM is open")
+        self.assert_invalid("AIK-001: done while external prerequisite EXT-VM is open")
+        self.conn.execute("UPDATE external_dependencies SET status='resolved'")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_external_platform_link_needs_a_platform_status(self):
+        self.conn.execute("INSERT INTO platforms VALUES ('MAC','macOS','macos','future','')")
+        self.conn.execute("INSERT INTO external_dependencies VALUES ('EXT-VM','vm','VM POSIX','open','','')")
+        self.conn.execute("INSERT INTO task_external_dependencies(task_id,external_id,platform_id) "
+                          "VALUES ('AIK-001','EXT-VM','MAC')")
+        self.assert_invalid("AIK-001: external prerequisite names platform MAC without a platform status")
+
+    def test_change_log_chain_detects_edit_and_deletion(self):
+        backlog.append_change(self.conn, "task", "AIK-001", "title", "Task 1", "Task one", "rename", NOW)
+        backlog.append_change(self.conn, "task", "AIK-002", "title", "Task 2", "Task two", "rename", NOW)
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+        self.conn.execute("UPDATE change_log SET new_value='Edited' WHERE id=1")
+        self.assert_invalid("change_log 1: digest does not match its content")
+        self.conn.execute("UPDATE change_log SET new_value='Task one' WHERE id=1")
+        self.conn.execute("DELETE FROM change_log WHERE id=1")
+        self.assert_invalid("change_log 2: previous_digest does not continue the chain")
+
+    def test_invalid_platform_status_is_detected_even_with_checks_disabled(self):
+        self.conn.execute("PRAGMA ignore_check_constraints=ON")
+        self.set_platform("AIK-001", "WIN-X64", "almost")
+        self.assert_invalid("invalid status 'almost'")
 
 if __name__ == "__main__":
     unittest.main()

@@ -79,7 +79,7 @@ class BacklogIOTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(prefix='aik-backlog-io-')
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        for relative in ('tools/backlog.py', 'planning/schema.sql'):
+        for relative in ('tools/backlog.py', 'planning/schema.sql', 'planning/schema-v1.sql'):
             target = self.root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / relative, target)
@@ -89,7 +89,7 @@ class BacklogIOTests(unittest.TestCase):
         with closing(sqlite3.connect(self.db)) as conn:
             conn.executescript((self.root / 'planning/schema.sql').read_text(encoding='utf-8'))
             metadata = {
-                'schema_version': '1', 'project': 'AI-Kubernetes',
+                'schema_version': '2', 'project': 'AI-Kubernetes',
                 'created_at': '2026-10-12T00:00:00Z', 'updated_at': '2026-10-12T00:00:00Z',
                 'baseline_commit': 'isolated-test-fixture',
                 'canonical_data': 'planning/backlog.sqlite3', 'review_snapshot': 'planning/backlog.sql',
