@@ -1,6 +1,6 @@
 # AIK-030 — JEV RAW·metadata·AGENT 선택 계약 연결 (AIK 측 bridge)
 
-`src/aik_jev/`는 사용자 RAW 프롬프트와 코드가 확인한 metadata(공통 REQ)를 JEV 분류 서비스에 전달하고, JEV 분류·평가 결과와 실제 AGENT의 최종 스킬 선택을 **서로 다른 기록**으로 남기는 AIK 측 bridge다. Python 표준 라이브러리만 사용한다. 실제 서비스와의 결합은 합성 데이터 한 건으로만 진단했다([실호출 진단](../evidence/jev/2026-10-13-live-probe/README.ko.md)). VM/AGS 내부 편입과 fallback LLM 실행은 검증하지 않았다(NOT_RUN).
+`src/aik_jev/`는 사용자 RAW 프롬프트와 코드가 확인한 metadata(공통 REQ)를 JEV 분류 서비스에 전달하고, JEV 분류·평가 결과와 실제 AGENT의 최종 스킬 선택을 **서로 다른 기록**으로 남기는 AIK 측 bridge다. Python 표준 라이브러리만 사용한다. 실제 서비스와의 결합은 합성 데이터로 두 건만 진단했다([bridge 직접 호출](../evidence/jev/2026-10-13-live-probe/README.ko.md), [controller 선택 단계](../evidence/jev/2026-10-14-controller-step/README.ko.md)). VM/AGS 내부 편입과 fallback LLM 실행은 검증하지 않았다(NOT_RUN).
 
 ## 설계 원칙
 
@@ -116,17 +116,30 @@ bridge는 fallback LLM을 직접 호출하지 않는다. 기존 운영 계약대
 
 **RAW 본문과 토큰은 저장하지 않는다.** REQ에는 작업 모드·대상·스킬 후보 설명·제약이 들어가므로, 호출자는 비밀 값을 metadata에 넣지 않아야 한다.
 
+## controller 선택 단계 (`GoalClassifier`)
+
+`aik_controller.Controller(..., classifier=GoalClassifier(bridge, req_for_raw))`로 총괄의 Goal 준비 경로에 JEV 분류를 붙인다. 기본값은 `classifier=None`이며 이때는 분류 단계 자체가 없다(journal도 만들지 않는다). bridge가 `mode="off"`이면 단계는 실행되지만 JEV를 호출하지 않고 `status="off"`로 기록한다.
+
+- `start_goal`/`revise_goal`마다 VM 요청 ID(`GoalRequest.request_id`)를 그대로 분류의 `request_id`로 쓴다. 순서는 권한 검사 → 분류 → VM `prepare`/`revise`다. 권한 검사가 거절되면 JEV에도 보내지 않는다.
+- 사용자 목표 원문은 RAW로 그대로 보내고, VM에도 바꾸지 않은 원문을 보낸다. `req_for_raw(raw) -> CommonReq`는 호출자가 코드로 확인한 metadata(작업 모드·대상·스킬 후보)로 만든다. AIK가 지어내지 않는다.
+- 결과는 advisory다. 분류 실패(`unavailable`·`failed`·`rejected_response`)나 분류기 예외는 VM 명령을 막지 않는다. 결과는 `controller.goal_classifications`의 `GoalClassificationNote(request_id, command, classification_id, status, error_code)`로 남는다. 예외는 `JevError.code`(예: `RAW_REQ_MISMATCH`), 그 밖에는 `CLASSIFIER_FAILED`, 반환값 형식이 맞지 않으면 `CLASSIFIER_RESULT_INVALID`다.
+- 분류는 스킬·Plan·worker를 고르지 않는다. AGENT의 최종 선택은 지금처럼 `bridge.record_agent_selection`으로 따로 기록한다.
+- 분류는 controller 잠금 안에서 동기로 실행되므로 JEV 응답을 기다리는 동안(client timeout까지) Goal 준비가 늦어진다.
+
+실호출 확인: [`tools/probe_controller_jev.py`](../tools/probe_controller_jev.py)로 `start_goal` 한 건을 ON 모드로 실행했다([근거](../evidence/jev/2026-10-14-controller-step/README.ko.md)). VM 쪽은 로컬 기록용 stub이므로 VM 결합 근거가 아니다.
+
 ## 검증
 
 ```powershell
 python -m unittest discover -s tests -p 'test_jev.py' -v
+python -m unittest discover -s tests -p 'test_controller_jev.py' -v
 ```
 
-단위 시험은 합성 데이터와 fake transport만 사용하고 실제 네트워크·provider·credential·VM/AGS 설치를 쓰지 않는다. RAW 원문 보존과 REQ의 RAW 미포함, `RAW_REQ_MISMATCH`, ON 성공과 provider_observed 필드, alias와 다른 관측 모델 기록, OFF의 호출 0회와 fallback 후보 규칙, 각 HTTP 오류·timeout·not_sent의 status와 재시도 0회, 응답 계약 위반, 토큰 비노출, AGENT 선택 분리, 같은 request_id 재호출, `REQUEST_CONFLICT`, journal 변경 거절·외부 파일 거절, ISO datetime `release_date` 수용을 검사한다.
+단위 시험은 합성 데이터와 fake transport만 사용하고 실제 네트워크·provider·credential·VM/AGS 설치를 쓰지 않는다. RAW 원문 보존과 REQ의 RAW 미포함, `RAW_REQ_MISMATCH`, ON 성공과 provider_observed 필드, alias와 다른 관측 모델 기록, OFF의 호출 0회와 fallback 후보 규칙, 각 HTTP 오류·timeout·not_sent의 status와 재시도 0회, 응답 계약 위반, 토큰 비노출, AGENT 선택 분리, 같은 request_id 재호출, `REQUEST_CONFLICT`, journal 변경 거절·외부 파일 거절, ISO datetime `release_date` 수용을 검사한다. `test_controller_jev.py`(8개)는 실제 `Controller`·`VmBridge`(합성 VM)·`JevBridge`로 기본 단계 없음, OFF의 호출 0회, ON의 원문 보존과 실행 순서, JEV 불가·분류기 예외에서도 VM 명령 진행, 권한 거절 시 JEV 미전송, revise의 별도 request, 잘못된 구성 거절을 검사한다.
 
 ## 한계와 NOT_RUN
 
-- 실제 JEV 호출: `tools/probe_jev.py`로 합성 RAW 한 건과 합성 후보 세 개를 bridge → client → `UrllibTransport` 경로로 보내 `classified`를 관측했다(요청 `jev-latest`, 관측 `jev-1.13.0`). 인증은 egress gateway가 주입했으며 `token_resolver` 경로(Bearer 헤더 직접 부착)는 실제로 실행하지 않았다(NOT_RUN). 실제 사용자 요청·스킬 manifest와의 분류 품질은 평가하지 않았다(NOT_RUN).
+- 실제 JEV 호출: `tools/probe_jev.py`로 합성 RAW 한 건과 합성 후보 세 개를 bridge → client → `UrllibTransport` 경로로 보내 `classified`를 관측했다(요청 `jev-latest`, 관측 `jev-1.13.0`). 2026-10-14에는 `tools/probe_controller_jev.py`로 controller `start_goal` 경로에서 한 건을 더 관측했다(`classified`, 관측 `jev-1.13.0`). 인증은 egress gateway가 주입했으며 `token_resolver` 경로(Bearer 헤더 직접 부착)는 실제로 실행하지 않았다(NOT_RUN). 실제 사용자 요청·스킬 manifest와의 분류 품질은 평가하지 않았다(NOT_RUN).
 - VM/AGS 내부 JEV 편입: 두 저장소에 인터페이스가 없어 수행하지 않았다(NOT_RUN, 고정 계약).
 - fallback LLM 실제 실행과 벤더 품질 기준 판정: 후보 선택 기록만 구현했다(NOT_RUN).
 - 동시성: 두 프로세스가 같은 `request_id`를 동시에 처리하면 JEV가 두 번 호출될 수 있으며, journal에는 먼저 기록된 결과만 남는다.

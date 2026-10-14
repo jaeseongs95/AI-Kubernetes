@@ -1096,3 +1096,16 @@ PR #15(commit `004ae1f`·`5953027`)는 상태를 바꾸지 않고 아래 태스�
 |---|---|---|
 | AIK-039 | recovery 재전송 결합 | 보충: aik_recovery.LoopResendScheduler가 ToolEffectAdapter의 resend를 실제 ApiToolLoop.resume에 연결했다(request당 resume 1회, returned 확인 뒤에만 성공, 미전달은 RESEND_NOT_DELIVERED 등 고정 코드로 reconciler failed 기록). adapter는 같은 request의 resume으로 이미 returned된 sibling을 다시 넘기지 않는다. tests/test_resend_resume.py 8개(실제 loop crash 뒤 새 reconciler로 receipt 재전송 1회·denied·두 call·intent sibling 차단·새 DevTools REPLAY_MISMATCH·context 없음)와 adapter 시험 1개 추가, 세션 Linux PASS. 영속 replay 저장소·resume context 보관소·실제 프로세스 kill·Windows는 NOT_RUN. 상태 변경 없음. |
 | AIK-086 | 재시작 경계 결합 | 보충(기준 3): 도구 intent/receipt/결과 반환 경계에서 재시작 뒤 recovery가 실제 ApiToolLoop.resume으로 같은 결과를 1회 재전송하고(효과 재실행 없음), 전달하지 못한 경우 applied가 아닌 failed로 남김을 tests/test_resend_resume.py로 저장소 안에서 확인했다. 새 프로세스에서는 replay 기억이 없어 실패로 닫힌다(멱등 create_file은 재관측으로 receipt가 한 번 더 전달됨, 고정 시험). 설치본 crash 실측·governed 실행은 NOT_RUN. 상태 변경 없음. |
+
+## 보충 근거: controller 선택형 JEV 단계
+
+`Controller(classifier=GoalClassifier(...))`는 상태를 바꾸지 않고 아래 태스크에 근거를 보충한다. 근거 ID는 `EV-<태스크>-SUPP-JEVSTEP-20261014`이다.
+
+- 시험: `tests/test_controller_jev.py`(8개). 세션 Linux에서 통과했다.
+- 실호출: [JEV controller 단계 근거](../../jev/2026-10-14-controller-step/README.ko.md) 1건.
+- 상세: [JEV 문서의 controller 선택 단계 절](../../../docs/jev.ko.md).
+
+| 태스크 | 주제 | 보충 내용 |
+|---|---|---|
+| AIK-030 | controller 선택형 JEV 단계 | 보충: aik_jev.GoalClassifier와 Controller(classifier=...)로 총괄 Goal 준비 경로(start_goal/revise_goal)에 JEV 분류를 선택 단계로 연결했다(기본 없음, 권한 검사 → 분류 → VM prepare/revise, VM 요청 ID를 분류 request_id로 사용, 원문을 VM·JEV에 그대로 전달, 분류 실패·예외는 VM 명령을 막지 않고 GoalClassificationNote로 기록). tests/test_controller_jev.py 8개(실제 Controller·VmBridge 합성 VM·JevBridge, fake transport) 세션 Linux PASS. tools/probe_controller_jev.py로 실제 JEV 1건 classified 관측(요청 jev-latest, 관측 jev-1.13.0, VM은 로컬 기록 stub, 인증은 egress gateway 주입). 실제 VM prepare·AuthorityGateway·VM/AGS 내부 편입·fallback LLM 실행·분류 품질·Windows는 NOT_RUN. 상태 변경 없음. |
+| AIK-026 | Goal 준비 경로의 선택 단계 | 보충: Controller에 선택 인자 classifier(기본 None)를 추가했다. 권한 검사를 통과한 뒤 VM 명령 직전에 advisory 분류를 실행하고 controller.goal_classifications로 결과를 남긴다. 분류는 Goal·Plan·Task·완료 판정에 쓰이지 않는다. tests/test_controller_jev.py 8개와 기존 tests/test_controller.py 세션 Linux PASS. 실제 모델·VM 설치물·Windows E2E는 NOT_RUN. 상태 변경 없음. |

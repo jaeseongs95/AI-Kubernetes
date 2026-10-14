@@ -1,0 +1,59 @@
+{
+ "tool": "tools/probe_controller_jev.py",
+ "observed_contract_version": "0.2.0",
+ "base_url": "https://api.typesafe.ai",
+ "started_at": "2026-10-14T01:04:59+00:00",
+ "authorization": "egress_gateway_injected",
+ "vm": "local_recording_stub",
+ "qualification": "NOT_RUN",
+ "order": [
+  "authority.prepare",
+  "classify",
+  "vm.prepare"
+ ],
+ "goal_sha256": "37fa3604a052b3fbfd2ad5cc4fb29889199d9cf789c3041be54ed86e36f89243",
+ "vm_received_sha256": [
+  "37fa3604a052b3fbfd2ad5cc4fb29889199d9cf789c3041be54ed86e36f89243"
+ ],
+ "note": {
+  "request_id": "probe-ctl-000001",
+  "command": "prepare",
+  "status": "classified",
+  "error_code": null
+ },
+ "finished_at": "2026-10-14T01:05:00+00:00",
+ "classification": {
+  "request_id": "probe-ctl-000001",
+  "raw_sha256": "37fa3604a052b3fbfd2ad5cc4fb29889199d9cf789c3041be54ed86e36f89243",
+  "status": "classified",
+  "source": "jev",
+  "requested_model": "jev-latest",
+  "observed_model": "jev-1.13.0",
+  "recommended_skill": "write-docs",
+  "confidence": 1.0,
+  "probabilities": [
+   [
+    "refactor",
+    0.0
+   ],
+   [
+    "write-docs",
+    1.0
+   ],
+   [
+    "write-tests",
+    0.0
+   ]
+  ],
+  "usage_input_tokens": 608,
+  "usage_output_tokens": 44,
+  "failure_code": null
+ },
+ "agent_selection": {
+  "selected_skill_id": "write-docs",
+  "provenance": "model_reported",
+  "matches_recommendation": true,
+  "outside_candidates": false,
+  "records": 1
+ }
+}

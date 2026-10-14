@@ -26,8 +26,8 @@ from aik_vm_bridge import (
 
 from .errors import InvalidControllerConfig
 from .models import (
-    HANDOFFS, Action, ActionRecord, Decision, Memory, RunPolicy, RunReport, TaskView, VmView,
-    interpret_final_report, is_identifier, safe_code,
+    HANDOFFS, Action, ActionRecord, Decision, GoalClassificationNote, Memory, RunPolicy, RunReport, TaskView,
+    VmView, interpret_final_report, is_identifier, safe_code,
 )
 from .policy import decide
 
@@ -55,7 +55,8 @@ class Controller:
     """Director control loop for one VM project; it owns no task authority."""
 
     def __init__(self, bridge, *, project_id: str, delegation, authority, wake=None,
-                 policy: RunPolicy | None = None, clock=None, sleep=None, run_id: str | None = None):
+                 policy: RunPolicy | None = None, clock=None, sleep=None, run_id: str | None = None,
+                 classifier=None):
         if any(not callable(getattr(bridge, name, None)) for name in _BRIDGE_METHODS):
             raise InvalidControllerConfig("The bridge does not provide the VM public commands.")
         if not callable(getattr(delegation, "prepare_run", None)):
@@ -64,6 +65,8 @@ class Controller:
             raise InvalidControllerConfig("A command authority with check is required.")
         if wake is not None and not callable(getattr(wake, "poll", None)):
             raise InvalidControllerConfig("The wake source must provide poll().")
+        if classifier is not None and not callable(classifier):
+            raise InvalidControllerConfig("The classifier must be callable(request_id, goal_text).")
         if policy is None:
             policy = RunPolicy()
         if type(policy) is not RunPolicy:
@@ -82,6 +85,8 @@ class Controller:
         self._delegation = delegation
         self._authority = authority
         self._wake = wake
+        self._classifier = classifier
+        self._classifications: list[GoalClassificationNote] = []
         self._clock = clock if clock is not None else (lambda: datetime.now(timezone.utc))
         self._sleep = sleep if sleep is not None else time.sleep
         self._lock = threading.RLock()
@@ -161,22 +166,54 @@ class Controller:
             vm_code=None if vm_code is None else safe_code(vm_code), actions=tuple(trace),
         )
 
-    def _effect(self, command: Command, request, *, task_id: str | None = None):
+    def _effect(self, command: Command, request, *, task_id: str | None = None, before=None):
         """Authority check, then the VM command. Errors propagate to the caller."""
         self._authority.check(command, project_id=self.project_id, request_id=request.request_id, task_id=task_id)
+        if before is not None:
+            before()
         return getattr(self._bridge, command.value)(request)
+
+    def _classify(self, command: Command, request: GoalRequest) -> None:
+        """Optional advisory step: never changes the goal text and never blocks the VM command."""
+        try:
+            record = self._classifier(request.request_id, request.source_request)
+        except Exception as error:
+            note = GoalClassificationNote(request.request_id, command.value, None, None,
+                                          safe_code(getattr(error, "code", None), "CLASSIFIER_FAILED"))
+        else:
+            classification_id = getattr(record, "classification_id", None)
+            status = getattr(record, "status", None)
+            if not is_identifier(classification_id) or type(status) is not str or not status.isidentifier():
+                note = GoalClassificationNote(request.request_id, command.value, None, None,
+                                              "CLASSIFIER_RESULT_INVALID")
+            else:
+                note = GoalClassificationNote(request.request_id, command.value, classification_id, status, None)
+        self._classifications.append(note)
+
+    def _goal_command(self, command: Command, goal_text: str, candidate_count: int | None):
+        request = GoalRequest(self._next_id(), self.project_id, goal_text, candidate_count)
+        before = None if self._classifier is None else (lambda: self._classify(command, request))
+        return self._effect(command, request, before=before)
 
     # ---------------------------------------------------- caller commands
     def start_goal(self, goal_text: str, candidate_count: int | None = None):
-        """Send the natural-language goal to VM prepare (VM creates Goal/Plan/Task)."""
+        """Send the natural-language goal to VM prepare (VM creates Goal/Plan/Task).
+
+        With a classifier, the unchanged goal text is classified after the
+        authority check and before the VM command (see ``goal_classifications``).
+        """
         with self._lock:
-            request = GoalRequest(self._next_id(), self.project_id, goal_text, candidate_count)
-            return self._effect(Command.PREPARE, request)
+            return self._goal_command(Command.PREPARE, goal_text, candidate_count)
 
     def revise_goal(self, goal_text: str, candidate_count: int | None = None):
         with self._lock:
-            request = GoalRequest(self._next_id(), self.project_id, goal_text, candidate_count)
-            return self._effect(Command.REVISE, request)
+            return self._goal_command(Command.REVISE, goal_text, candidate_count)
+
+    @property
+    def goal_classifications(self) -> tuple:
+        """Classifier step outcomes in request order; empty when no classifier is set."""
+        with self._lock:
+            return tuple(self._classifications)
 
     def pause(self, reason: str):
         """Blocks while run() is active; use the GUI -> VM path to pause a running loop."""

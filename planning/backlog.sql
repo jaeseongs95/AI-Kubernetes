@@ -1233,6 +1233,8 @@ INSERT INTO "task_events" VALUES(303,'AIK-003','verification_progress','blocked'
 INSERT INTO "task_events" VALUES(304,'AIK-022','verification_progress','blocked','blocked','사용자 Windows 11 실기 근거 EV-AIK-022-USER-WIN11-20261014 기록. 완료 아님.','2026-10-14T00:45:00Z');
 INSERT INTO "task_events" VALUES(305,'AIK-039','verification_progress','blocked','blocked','보충 근거 EV-AIK-039-SUPP-RESEND-20261014 기록. 완료 아님.','2026-10-14T00:58:46Z');
 INSERT INTO "task_events" VALUES(306,'AIK-086','verification_progress','blocked','blocked','보충 근거 EV-AIK-086-SUPP-RESEND-20261014 기록. 완료 아님.','2026-10-14T00:58:46Z');
+INSERT INTO "task_events" VALUES(307,'AIK-030','verification_progress','blocked','blocked','보충 근거 EV-AIK-030-SUPP-JEVSTEP-20261014 기록. 완료 아님.','2026-10-14T01:06:07Z');
+INSERT INTO "task_events" VALUES(308,'AIK-026','verification_progress','blocked','blocked','보충 근거 EV-AIK-026-SUPP-JEVSTEP-20261014 기록. 완료 아님.','2026-10-14T01:06:07Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1321,6 +1323,8 @@ INSERT INTO "task_evidence" VALUES('EV-003-USER-WIN11-20261014','AIK-003','actua
 INSERT INTO "task_evidence" VALUES('EV-AIK-022-USER-WIN11-20261014','AIK-022','actual_windows11_synthetic_auth_vault','evidence/windows-client/2026-10-14-user-win11-26h2/README.ko.md','같은 Windows 11 Pro 26H2 실기 설치본에서 auth_vault 카드 PASS(AUTH_VAULT_FAILURE_PATHS_OK): 실제 사용자 DPAPI로 잠금·잘못된 참조·손상 blob·외부 blob 모의·삭제 참조·인증 만료·자격 증명 삭제·출력 redaction 10 case가 기대 코드와 일치. 검사기 aik022_auth_vault=PASS_SYNTHETIC_SINGLE_USER. 기준 2 부분(다른 사용자 프로필 NOT_RUN), 기준 1 실계정 경로 NOT_RUN. 승격 관리자 세션 실행.','2026-10-14T00:45:00Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-039-SUPP-RESEND-20261014','AIK-039','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-recovery-재전송과-apitoolloopresume-결합','보충: aik_recovery.LoopResendScheduler가 ToolEffectAdapter의 resend를 실제 ApiToolLoop.resume에 연결했다(request당 resume 1회, returned 확인 뒤에만 성공, 미전달은 RESEND_NOT_DELIVERED 등 고정 코드로 reconciler failed 기록). adapter는 같은 request의 resume으로 이미 returned된 sibling을 다시 넘기지 않는다. tests/test_resend_resume.py 8개(실제 loop crash 뒤 새 reconciler로 receipt 재전송 1회·denied·두 call·intent sibling 차단·새 DevTools REPLAY_MISMATCH·context 없음)와 adapter 시험 1개 추가, 세션 Linux PASS. 영속 replay 저장소·resume context 보관소·실제 프로세스 kill·Windows는 NOT_RUN. 상태 변경 없음.','2026-10-14T00:58:46Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-086-SUPP-RESEND-20261014','AIK-086','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-recovery-재전송과-apitoolloopresume-결합','보충(기준 3): 도구 intent/receipt/결과 반환 경계에서 재시작 뒤 recovery가 실제 ApiToolLoop.resume으로 같은 결과를 1회 재전송하고(효과 재실행 없음), 전달하지 못한 경우 applied가 아닌 failed로 남김을 tests/test_resend_resume.py로 저장소 안에서 확인했다. 새 프로세스에서는 replay 기억이 없어 실패로 닫힌다(멱등 create_file은 재관측으로 receipt가 한 번 더 전달됨, 고정 시험). 설치본 crash 실측·governed 실행은 NOT_RUN. 상태 변경 없음.','2026-10-14T00:58:46Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-030-SUPP-JEVSTEP-20261014','AIK-030','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-controller-선택형-jev-단계','보충: aik_jev.GoalClassifier와 Controller(classifier=...)로 총괄 Goal 준비 경로(start_goal/revise_goal)에 JEV 분류를 선택 단계로 연결했다(기본 없음, 권한 검사 → 분류 → VM prepare/revise, VM 요청 ID를 분류 request_id로 사용, 원문을 VM·JEV에 그대로 전달, 분류 실패·예외는 VM 명령을 막지 않고 GoalClassificationNote로 기록). tests/test_controller_jev.py 8개(실제 Controller·VmBridge 합성 VM·JevBridge, fake transport) 세션 Linux PASS. tools/probe_controller_jev.py로 실제 JEV 1건 classified 관측(요청 jev-latest, 관측 jev-1.13.0, VM은 로컬 기록 stub, 인증은 egress gateway 주입). 실제 VM prepare·AuthorityGateway·VM/AGS 내부 편입·fallback LLM 실행·분류 품질·Windows는 NOT_RUN. 상태 변경 없음.','2026-10-14T01:06:07Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-026-SUPP-JEVSTEP-20261014','AIK-026','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-controller-선택형-jev-단계','보충: Controller에 선택 인자 classifier(기본 None)를 추가했다. 권한 검사를 통과한 뒤 VM 명령 직전에 advisory 분류를 실행하고 controller.goal_classifications로 결과를 남긴다. 분류는 Goal·Plan·Task·완료 판정에 쓰이지 않는다. tests/test_controller_jev.py 8개와 기존 tests/test_controller.py 세션 Linux PASS. 실제 모델·VM 설치물·Windows E2E는 NOT_RUN. 상태 변경 없음.','2026-10-14T01:06:07Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2247,6 +2251,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',306);
+INSERT INTO "sqlite_sequence" VALUES('task_events',308);
 COMMIT;
 PRAGMA foreign_keys = ON;
