@@ -16,3 +16,5 @@ __pycache__/
 /packaging/handoff/
 /spikes/windows-foundation/node_modules/
 /spikes/windows-foundation/dist/
+/apps/desktop/node_modules/
+/apps/desktop/dist/

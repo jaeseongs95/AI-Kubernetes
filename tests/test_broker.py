@@ -293,7 +293,7 @@ class GrantScopeTests(BrokerTestCase):
         match = re.search(r"const COMMANDS = new Set\(\[([^\]]*)\]\)", source.read_text(encoding="utf-8"))
         self.assertIsNotNone(match)
         self.assertEqual(sorted(re.findall(r'"([^"]+)"', match.group(1))),
-                         ["protocol.handshake", "system.status"])
+                         ["engine.info", "protocol.handshake", "readmodel.sources", "system.status"])
 
     def test_unregistered_adapter_handle_loses_access(self) -> None:
         grant = self.grant()
