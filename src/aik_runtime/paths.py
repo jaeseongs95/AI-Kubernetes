@@ -11,6 +11,9 @@ import re
 import stat
 import time
 
+from aik_platform import PlatformUnavailable, is_link_or_reparse_point, lock_ops
+from aik_platform.paths import component_file, is_local_drive
+
 from .errors import StorageBusy, UnsafeStoragePath
 
 
@@ -22,16 +25,15 @@ _LEDGER_NAMES = {"backlog.sqlite3" + suffix for suffix in (
 
 
 def default_database_path() -> Path:
-    """The Windows product default is per-user LocalAppData, never the cwd."""
-    if os.name == "nt":
-        base = os.environ.get("LOCALAPPDATA")
-        if not base:
-            raise UnsafeStoragePath("Windows runtime storage requires LOCALAPPDATA.")
-        return Path(base) / "AIK" / "runtime" / "runtime.sqlite3"
-    # This fallback supports development/tests; it does not qualify Linux as a
-    # supported product OS. An explicit relative XDG value is rejected below.
-    base = os.environ.get("XDG_STATE_HOME")
-    return (Path(base) if base else Path.home() / ".local" / "state") / "aik" / "runtime.sqlite3"
+    """The per-user product default (``aik_platform.paths``), never the cwd.
+
+    Windows uses LocalAppData; Linux uses $XDG_STATE_HOME (or ~/.local/state).
+    An explicit relative XDG value is rejected by ``validate_database_path``.
+    """
+    try:
+        return component_file("runtime", "runtime.sqlite3")
+    except PlatformUnavailable:
+        raise UnsafeStoragePath("Windows runtime storage requires LOCALAPPDATA.") from None
 
 
 def _inspect(path: Path) -> None:
@@ -41,7 +43,7 @@ def _inspect(path: Path) -> None:
         return
     except OSError:
         raise UnsafeStoragePath("The runtime path cannot be inspected.") from None
-    if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+    if is_link_or_reparse_point(info):
         raise UnsafeStoragePath("Runtime paths must not use symlinks or reparse points.")
     if not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)):
         raise UnsafeStoragePath("Runtime paths must use regular files and directories.")
@@ -64,16 +66,8 @@ def _inside_repository(path: Path) -> bool:
 
 
 def _require_local_drive(path: Path) -> None:
-    if os.name == "nt":
-        import ctypes
-
-        function = ctypes.WinDLL("kernel32", use_last_error=True).GetDriveTypeW
-        function.argtypes = [ctypes.c_wchar_p]
-        function.restype = ctypes.c_uint
-        # A mapped network drive also has a drive letter. String-only UNC
-        # rejection would incorrectly treat it as a local SQLite filesystem.
-        if function(path.anchor) not in (2, 3, 6):  # removable, fixed, RAM disk
-            raise UnsafeStoragePath("Runtime storage requires a known local writable drive.")
+    if not is_local_drive(path):
+        raise UnsafeStoragePath("Runtime storage requires a known local writable drive.")
 
 
 def validate_database_path(path: Path | str, *, create_parent: bool = False) -> Path:
@@ -150,24 +144,8 @@ def database_lock(path: Path, timeout: float = 5.0):
         _inspect(lockfile)
         if not os.path.samestat(info, lockfile.stat()):
             raise UnsafeStoragePath("The runtime lockfile changed while opening.")
-        if os.name == "nt":
-            import msvcrt
-
-            def acquire():
-                stream.seek(0)
-                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
-
-            def release():
-                stream.seek(0)
-                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-
-            def acquire():
-                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-
-            def release():
-                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        # Unbuffered stream: the lock ops' own seek on the descriptor is enough.
+        acquire, release = lock_ops(stream.fileno())
 
         deadline = time.monotonic() + timeout
         while True:

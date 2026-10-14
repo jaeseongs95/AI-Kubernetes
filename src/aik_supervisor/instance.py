@@ -22,6 +22,9 @@ import tempfile
 
 from aik_runtime.errors import UnsafeStoragePath
 from aik_runtime.paths import validate_database_path
+from aik_platform import PlatformUnavailable, is_windows, lock_ops
+from aik_platform.fs import sync_directory as _sync_directory
+from aik_platform.paths import component_dir
 
 
 FORMAT_VERSION = 1
@@ -70,17 +73,11 @@ def validate_component(value: object) -> str:
 
 
 def default_state_root(os_name: str | None = None, environ=None) -> Path:
-    """Per-user state root; Windows uses LocalAppData, never the cwd."""
-    os_name = os.name if os_name is None else os_name
-    env = os.environ if environ is None else environ
-    if os_name == "nt":
-        base = env.get("LOCALAPPDATA")
-        if not base:
-            raise UnsafeStoragePath("Windows supervisor state requires LOCALAPPDATA.")
-        return Path(base) / "AIK" / "supervisor"
-    # Development/test fallback only; it does not add Linux product support.
-    base = env.get("XDG_STATE_HOME")
-    return (Path(base) if base else Path.home() / ".local" / "state") / "aik" / "supervisor"
+    """Per-user state root from ``aik_platform.paths``; never the cwd."""
+    try:
+        return component_dir("supervisor", os_name, environ)
+    except PlatformUnavailable:
+        raise UnsafeStoragePath("Windows supervisor state requires LOCALAPPDATA.") from None
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,28 +126,6 @@ class InstanceLock:
             self._descriptor = None
 
 
-def _lock_ops(descriptor: int, os_name: str):
-    if os_name == "nt":
-        import msvcrt
-
-        def acquire():
-            os.lseek(descriptor, 0, os.SEEK_SET)
-            msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
-
-        def release():
-            os.lseek(descriptor, 0, os.SEEK_SET)
-            msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
-    else:
-        import fcntl
-
-        def acquire():
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-
-        def release():
-            fcntl.flock(descriptor, fcntl.LOCK_UN)
-    return acquire, release
-
-
 def try_acquire(paths: InstancePaths, os_name: str | None = None) -> InstanceLock | None:
     """Return the held lock, or None when another live owner holds it.
 
@@ -171,7 +146,7 @@ def try_acquire(paths: InstancePaths, os_name: str | None = None) -> InstanceLoc
             raise UnsafeStoragePath("The supervisor lockfile must be a regular file without aliases.")
         if not os.path.samestat(info, os.stat(paths.lock, follow_symlinks=False)):
             raise UnsafeStoragePath("The supervisor lockfile changed while opening.")
-        acquire, release = _lock_ops(descriptor, os.name if os_name is None else os_name)
+        acquire, release = lock_ops(descriptor, os_name)
         try:
             acquire()
         except OSError as error:
@@ -217,7 +192,7 @@ class Endpoint:
 
 def default_endpoint(paths: InstancePaths, workspace_id: str, component: str, instance_id: str,
                      os_name: str | None = None) -> Endpoint:
-    if (os.name if os_name is None else os_name) == "nt":
+    if is_windows(os_name):
         return Endpoint("named-pipe", f"{_PIPE_PREFIX}{component}-{workspace_id}-{instance_id}")
     return Endpoint("unix-socket", str(paths.socket))
 
@@ -271,20 +246,6 @@ class EndpointRecord:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def _sync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return  # No portable directory fsync on Windows; rename durability is OS-owned.
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def write_endpoint(path: Path, record: EndpointRecord) -> None:

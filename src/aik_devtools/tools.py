@@ -10,13 +10,11 @@ only, with bounded entry count and stored payload bytes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-import errno
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
-import signal
 import stat
 import subprocess
 import tempfile
@@ -41,6 +39,9 @@ from .policy import (
     EFFECT_KINDS, TOOL_CREATE_FILE, TOOL_READ_FILE, TOOL_RUN_VERIFICATION, TOOL_UPDATE_FILE,
     UNSUPPORTED_CAPABILITIES, DevToolPolicy, VerificationCommand, rebuild_policy,
 )
+from aik_platform import process as _process
+from aik_platform.fs import sync_directory as _sync_dir
+from aik_platform import is_link_or_reparse_point
 
 
 _SEGMENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
@@ -252,27 +253,12 @@ def _inspect_component(path: Path) -> None:
         return
     except OSError:
         raise _UnsafePath() from None
-    if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+    if is_link_or_reparse_point(info):
         raise _UnsafePath()
     if not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)):
         raise _UnsafePath()
     if stat.S_ISREG(info.st_mode) and info.st_nlink != 1:
         raise _UnsafePath()
-
-
-def _sync_dir(path: Path) -> None:
-    # Windows exposes no portable directory fsync through Python.
-    if os.name == "nt":
-        return
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def _environment() -> dict:
@@ -298,12 +284,8 @@ def _executable_in_workspace(root: Path, executable: str) -> bool:
 
 
 def _kill(process: subprocess.Popen) -> None:
-    if os.name != "nt":
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-            return
-        except OSError:
-            pass
+    if _process.kill_group(process):
+        return
     try:
         process.kill()
     except OSError:
@@ -865,10 +847,7 @@ class DevTools:
     def _execute(root: Path, command: VerificationCommand, cancel) -> dict:
         options = {"cwd": str(root), "stdin": subprocess.DEVNULL, "shell": False, "env": _environment(),
                    "close_fds": True}
-        if os.name == "nt":
-            options["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-        else:
-            options["start_new_session"] = True
+        options.update(_process.popen_options())
         with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
             started = time.monotonic()
             try:
@@ -900,13 +879,10 @@ class DevTools:
                 if process.poll() is None:
                     _kill(process)
                 raise
-            if status == "completed" and os.name != "nt":
+            if status == "completed":
                 # Background descendants of a normally exited command could keep
                 # changing the workspace after the oracle re-check and receipt.
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except OSError:
-                    pass
+                _process.kill_group(process)
             duration = int((time.monotonic() - started) * 1000)
             stdout, stdout_bytes = _captured(out, command.max_output_bytes)
             stderr, stderr_bytes = _captured(err, command.max_output_bytes)

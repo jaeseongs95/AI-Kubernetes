@@ -686,8 +686,10 @@ class DevToolsTests(unittest.TestCase):
 
     # ------------------------------------------------- review regressions (F10)
     def test_devtools_does_not_bind_private_runtime_helpers(self) -> None:
-        for private in (runtime_paths._inspect, runtime_storage._sync_directory):
-            self.assertFalse(any(value is private for value in vars(devtools_module).values()))
+        self.assertFalse(any(value is runtime_paths._inspect for value in vars(devtools_module).values()))
+        # Directory durability comes from the public OS port (AIK-091).
+        from aik_platform import fs as platform_fs
+        self.assertIs(devtools_module._sync_dir, platform_fs.sync_directory)
 
 
 if __name__ == "__main__":

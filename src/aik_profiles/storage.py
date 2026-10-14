@@ -15,7 +15,6 @@ upgraded in place inside one SQLite transaction (DELETE journal, FULL sync).
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
-import errno
 from functools import lru_cache
 import json
 import math
@@ -34,6 +33,7 @@ from aik_runtime.paths import database_lock, validate_database_path
 from .errors import InvalidProfile
 from .execution import ExecutionDecision, rejected_decision, validate_approval, verify_execution
 from .models import ROLE_NAMES, check_profile_identifier, parse_json, profile_from_dict, profile_to_dict, rebuild_profile
+from aik_platform.fs import sync_file as _sync_file, sync_directory as _sync_directory
 
 
 APPLICATION_ID = 0x41494B50  # AIKP; distinct from runtime (AIKR) and settings (AIKC).
@@ -164,26 +164,6 @@ def _sqlite_failure(error: sqlite3.Error) -> None:
     if getattr(error, "sqlite_errorcode", 0) & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
         raise StorageBusy("SQLite could not acquire the profile database lock.") from None
     raise StorageError("The profile database operation could not be completed.") from None
-
-
-def _sync_file(path: Path) -> None:
-    with path.open("r+b") as stream:
-        stream.flush()
-        os.fsync(stream.fileno())
-
-
-def _sync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return  # No portable directory fsync on Windows; rename durability is OS-owned.
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def _sqlite_names(path: Path) -> set:

@@ -35,7 +35,8 @@ KNOWN_CODES = frozenset((
 ))
 HEX = re.compile(r"^[0-9a-f]{64}$")
 COMMIT = re.compile(r"^[0-9a-f]{40}$")
-SCOPE = {"openai", "anthropic"}
+# Provider IDs are data in the support matrix (DEC12), not a vendor list in code (PRN-VENDOR).
+_PROVIDER = re.compile(r"[a-z][a-z0-9_-]{0,31}\Z")
 ROLES = {"director", "developer", "reviewer"}
 AUTHS = {"api_key", "native_subscription"}
 
@@ -233,7 +234,7 @@ def inspect(
             raise DiagnosticError("INVALID_ROUTE_IDENTITY")
         route_id, provider, auth, role = identity
         if (not re.fullmatch(r"[a-z0-9][a-z0-9_.-]{0,99}", route_id)
-                or provider not in SCOPE or auth not in AUTHS or role not in ROLES):
+                or _PROVIDER.fullmatch(provider) is None or auth not in AUTHS or role not in ROLES):
             raise DiagnosticError("INVALID_ROUTE_IDENTITY")
         flags: set[str] = set()
         if (row.get("baseline_sha256") != baseline_sha or row.get("ags_revision") != ags["revision"]

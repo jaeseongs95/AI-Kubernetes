@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from contextlib import closing, contextmanager
 from dataclasses import fields
-import errno
 import math
 import os
 from pathlib import Path
@@ -22,7 +21,8 @@ import tempfile
 
 from aik_runtime.errors import InvalidDatabase, InvalidRecord, RevisionConflict, StorageBusy, StorageError
 from aik_runtime.models import MAX_INTEGER
-from aik_runtime.paths import database_lock, default_database_path, validate_database_path
+from aik_runtime.errors import UnsafeStoragePath
+from aik_runtime.paths import database_lock, validate_database_path
 
 from . import schema
 from .errors import (
@@ -33,6 +33,9 @@ from .models import (
     AgentProfile, ConnectionProfile, ExecutionTarget, ImportReport, PermissionDefaults, Revisioned,
     Workspace, WorkspaceBinding, WorkspaceLimits, WorkspaceSettings, check_identifier,
 )
+from aik_platform import PlatformUnavailable
+from aik_platform.fs import sync_file as _sync_file, sync_directory as _sync_directory
+from aik_platform.paths import component_file
 
 
 EXPORT_FORMAT = "aik.settings-export"
@@ -58,10 +61,10 @@ _BOOLEAN = frozenset({"needs_authentication"})
 
 def default_settings_path() -> Path:
     """Per-user location next to, but distinct from, the runtime database."""
-    runtime = default_database_path()
-    if os.name == "nt":
-        return runtime.parent.parent / "config" / "settings.sqlite3"
-    return runtime.with_name("settings.sqlite3")
+    try:
+        return component_file("config", "settings.sqlite3")
+    except PlatformUnavailable:
+        raise UnsafeStoragePath("Windows settings storage requires LOCALAPPDATA.") from None
 
 
 def _spec(model) -> tuple:
@@ -108,26 +111,6 @@ def _sqlite_failure(error: sqlite3.Error) -> None:
     if getattr(error, "sqlite_errorcode", 0) & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
         raise StorageBusy("SQLite could not acquire the settings database lock.") from None
     raise StorageError("The settings database operation could not be completed.") from None
-
-
-def _sync_file(path: Path) -> None:
-    with path.open("r+b") as stream:
-        stream.flush()
-        os.fsync(stream.fileno())
-
-
-def _sync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return  # No portable directory fsync on Windows; rename durability is OS-owned.
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 # ---------------------------------------------------------------- export doc

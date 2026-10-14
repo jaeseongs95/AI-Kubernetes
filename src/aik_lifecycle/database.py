@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from contextlib import closing, contextmanager
 from datetime import datetime, timezone
-import errno
 from functools import lru_cache
 import math
 import os
@@ -23,6 +22,7 @@ from aik_runtime.errors import InvalidDatabase, StorageError
 from aik_runtime.paths import database_lock, validate_database_path
 
 from .errors import LifecycleError
+from aik_platform.fs import sync_directory as _sync_directory
 
 
 APPLICATION_ID = 0x41494B4C  # "AIKL"
@@ -111,22 +111,6 @@ def timestamp(clock) -> str:
     if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
         raise LifecycleError("INVALID_CLOCK")
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def _sync_directory(path: Path) -> None:
-    # Windows has no portable directory fsync through Python; rename
-    # power-loss durability there is owned by the OS (not verified here).
-    if os.name == "nt":
-        return
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 class LifecycleDatabase:

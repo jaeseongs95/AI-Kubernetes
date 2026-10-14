@@ -643,6 +643,12 @@ INSERT INTO "change_log" VALUES(303,'task_evidence','EV-AIK-031-WINGOAL-20261013
 INSERT INTO "change_log" VALUES(304,'metadata','scope_policy','value','Windows GUI confirmed; local-first release staging proposed in DEC06; federation retained in M5.','Desktop GUI for Windows x64 and Linux x64 confirmed (DEC01, 2026-10-14); Windows first; Linux work that needs VM execution is blocked on EXT-VM-POSIX-D1; local-first release staging proposed in DEC06; federation retained in M5.','사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영','2026-10-14T01:54:45Z','519e8c4d87dcf737fd46f6d9b0f330effb28532751264ea4c1f64ba5fa23494b','983380340a1819300838f65dfee93d0d578f9d864397fd22a9dc8ee222d05876');
 INSERT INTO "change_log" VALUES(305,'metadata','design_principles','value',NULL,'PRN-VENDOR, PRN-OS, PRN-SOLID (S-USER-20261014)','사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영','2026-10-14T01:54:45Z','983380340a1819300838f65dfee93d0d578f9d864397fd22a9dc8ee222d05876','44e58b4fd554626e2c1dacb9fc1451dfbe8d69edfc20652c54f05566fbe60bb7');
 INSERT INTO "change_log" VALUES(306,'metadata','platform_policy','value',NULL,'tasks.status is the overall state and task_platforms holds per-platform state. A done task needs every platform row done or not_applicable; a done platform row needs evidence for that platform or platform-neutral evidence; an open external prerequisite blocks completion.','사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영','2026-10-14T01:54:45Z','44e58b4fd554626e2c1dacb9fc1451dfbe8d69edfc20652c54f05566fbe60bb7','aa9a92903d718923cb0679c82189f5e46dbf4e541430df8b76c9f9a6f1337a88');
+INSERT INTO "change_log" VALUES(307,'task_evidence','EV-AIK-091-PORTS-20261014','created',NULL,'AIK-091 partial_implementation_validation LINUX-X64','AIK-091/092 OS port·벤더 중립 transport 구현 근거','2026-10-14T02:14:23Z','aa9a92903d718923cb0679c82189f5e46dbf4e541430df8b76c9f9a6f1337a88','59271730de49a65b6b7e0c3781d18710d72cf186ef46eab941dc34e3e130573a');
+INSERT INTO "change_log" VALUES(308,'task_evidence','EV-AIK-092-VENDOR-20261014','created',NULL,'AIK-092 partial_implementation_validation 플랫폼 무관','AIK-091/092 OS port·벤더 중립 transport 구현 근거','2026-10-14T02:14:23Z','59271730de49a65b6b7e0c3781d18710d72cf186ef46eab941dc34e3e130573a','f9e3d31a45bcd3da03e5bf6654f31a8ccfd6d6e365a8257580af76d23c26d819');
+INSERT INTO "change_log" VALUES(309,'task_evidence','EV-AIK-009-SECRETSERVICE-20261014','created',NULL,'AIK-009 partial_implementation_validation LINUX-X64','AIK-091/092 OS port·벤더 중립 transport 구현 근거','2026-10-14T02:14:23Z','f9e3d31a45bcd3da03e5bf6654f31a8ccfd6d6e365a8257580af76d23c26d819','529a0b9c21ff130cf7e47cc43c7447b7f950d862ff55d49272a800e868ea4d48');
+INSERT INTO "change_log" VALUES(310,'task_evidence','EV-AIK-016-LOGIND-20261014','created',NULL,'AIK-016 partial_implementation_validation LINUX-X64','AIK-091/092 OS port·벤더 중립 transport 구현 근거','2026-10-14T02:14:23Z','529a0b9c21ff130cf7e47cc43c7447b7f950d862ff55d49272a800e868ea4d48','c476ead12b01ef4ac0992a874d1a6e7916ce153ce6c133b00bbd46955bc72149');
+INSERT INTO "change_log" VALUES(311,'task_platform','AIK-091/WIN-X64','status','todo','blocked','작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전','2026-10-14T02:14:24Z','c476ead12b01ef4ac0992a874d1a6e7916ce153ce6c133b00bbd46955bc72149','afbf13eba2303b73372d7dff05912b69ecff1a2ae8b99d9ddd8f1ad405de3313');
+INSERT INTO "change_log" VALUES(312,'task_platform','AIK-091/LINUX-X64','status','todo','blocked','작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전','2026-10-14T02:14:24Z','afbf13eba2303b73372d7dff05912b69ecff1a2ae8b99d9ddd8f1ad405de3313','0e6548bcc498f5c034cd81f0c9f69ab0786f722fa178734421d74a0ee6f7aba5');
 CREATE TABLE decisions (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     title TEXT NOT NULL CHECK (length(trim(title)) > 0),
@@ -700,7 +706,7 @@ INSERT INTO "metadata" VALUES('schema_version','2');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-14T01:54:45Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-14T02:14:24Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -1606,6 +1612,14 @@ INSERT INTO "task_events" VALUES(307,'AIK-030','verification_progress','blocked'
 INSERT INTO "task_events" VALUES(308,'AIK-026','verification_progress','blocked','blocked','보충 근거 EV-AIK-026-SUPP-JEVSTEP-20261014 기록. 완료 아님.','2026-10-14T01:06:07Z');
 INSERT INTO "task_events" VALUES(309,'AIK-091','created',NULL,'todo','schema 2 내용 개편에서 등록: 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영','2026-10-14T01:54:45Z');
 INSERT INTO "task_events" VALUES(310,'AIK-092','created',NULL,'todo','schema 2 내용 개편에서 등록: 사용자 설계 원칙(벤더 독립·OS 독립·SOLID)과 첫 출시 Windows·Linux 결정(2026-10-14) 반영','2026-10-14T01:54:45Z');
+INSERT INTO "task_events" VALUES(311,'AIK-091','verification_progress','todo','todo','부분 근거 EV-AIK-091-PORTS-20261014 기록(상태 변경 없음)','2026-10-14T02:14:23Z');
+INSERT INTO "task_events" VALUES(312,'AIK-092','verification_progress','todo','todo','부분 근거 EV-AIK-092-VENDOR-20261014 기록(상태 변경 없음)','2026-10-14T02:14:23Z');
+INSERT INTO "task_events" VALUES(313,'AIK-009','verification_progress','blocked','blocked','부분 근거 EV-AIK-009-SECRETSERVICE-20261014 기록(상태 변경 없음)','2026-10-14T02:14:23Z');
+INSERT INTO "task_events" VALUES(314,'AIK-016','verification_progress','blocked','blocked','부분 근거 EV-AIK-016-LOGIND-20261014 기록(상태 변경 없음)','2026-10-14T02:14:23Z');
+INSERT INTO "task_events" VALUES(315,'AIK-091','status_change','todo','blocked','aik_platform 구현·로컬 Linux 회귀 통과(EV-AIK-091-PORTS-20261014). Windows CI와 실제 Windows·Linux 데스크톱 실행 근거 전이라 완료 판정 보류','2026-10-14T02:14:23Z');
+INSERT INTO "task_events" VALUES(316,'AIK-092','status_change','todo','blocked','aik_http 이전·벤더 import 경계 시험(EV-AIK-092-VENDOR-20261014). OpenAI transport 통합·adapter 등록 기반 선택 남음, 선행 AIK-011 미완료','2026-10-14T02:14:23Z');
+INSERT INTO "task_events" VALUES(317,'AIK-091','platform_status',NULL,NULL,'WIN-X64: todo -> blocked: 작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전','2026-10-14T02:14:24Z');
+INSERT INTO "task_events" VALUES(318,'AIK-091','platform_status',NULL,NULL,'LINUX-X64: todo -> blocked: 작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전','2026-10-14T02:14:24Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1697,6 +1711,10 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-039-SUPP-RESEND-20261014','AIK-039','
 INSERT INTO "task_evidence" VALUES('EV-AIK-086-SUPP-RESEND-20261014','AIK-086','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-recovery-재전송과-apitoolloopresume-결합','보충(기준 3): 도구 intent/receipt/결과 반환 경계에서 재시작 뒤 recovery가 실제 ApiToolLoop.resume으로 같은 결과를 1회 재전송하고(효과 재실행 없음), 전달하지 못한 경우 applied가 아닌 failed로 남김을 tests/test_resend_resume.py로 저장소 안에서 확인했다. 새 프로세스에서는 replay 기억이 없어 실패로 닫힌다(멱등 create_file은 재관측으로 receipt가 한 번 더 전달됨, 고정 시험). 설치본 crash 실측·governed 실행은 NOT_RUN. 상태 변경 없음.','2026-10-14T00:58:46Z',NULL);
 INSERT INTO "task_evidence" VALUES('EV-AIK-030-SUPP-JEVSTEP-20261014','AIK-030','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-controller-선택형-jev-단계','보충: aik_jev.GoalClassifier와 Controller(classifier=...)로 총괄 Goal 준비 경로(start_goal/revise_goal)에 JEV 분류를 선택 단계로 연결했다(기본 없음, 권한 검사 → 분류 → VM prepare/revise, VM 요청 ID를 분류 request_id로 사용, 원문을 VM·JEV에 그대로 전달, 분류 실패·예외는 VM 명령을 막지 않고 GoalClassificationNote로 기록). tests/test_controller_jev.py 8개(실제 Controller·VmBridge 합성 VM·JevBridge, fake transport) 세션 Linux PASS. tools/probe_controller_jev.py로 실제 JEV 1건 classified 관측(요청 jev-latest, 관측 jev-1.13.0, VM은 로컬 기록 stub, 인증은 egress gateway 주입). 실제 VM prepare·AuthorityGateway·VM/AGS 내부 편입·fallback LLM 실행·분류 품질·Windows는 NOT_RUN. 상태 변경 없음.','2026-10-14T01:06:07Z',NULL);
 INSERT INTO "task_evidence" VALUES('EV-AIK-026-SUPP-JEVSTEP-20261014','AIK-026','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-controller-선택형-jev-단계','보충: Controller에 선택 인자 classifier(기본 None)를 추가했다. 권한 검사를 통과한 뒤 VM 명령 직전에 advisory 분류를 실행하고 controller.goal_classifications로 결과를 남긴다. 분류는 Goal·Plan·Task·완료 판정에 쓰이지 않는다. tests/test_controller_jev.py 8개와 기존 tests/test_controller.py 세션 Linux PASS. 실제 모델·VM 설치물·Windows E2E는 NOT_RUN. 상태 변경 없음.','2026-10-14T01:06:07Z',NULL);
+INSERT INTO "task_evidence" VALUES('EV-AIK-091-PORTS-20261014','AIK-091','partial_implementation_validation','docs/platform.ko.md','aik_platform(fs·locks·paths·process·session) 추가와 공통 코드 이전: 복제 _sync_directory 13벌·_sync_file 6벌·reparse 검사 4벌·동일 _process.py 2벌·supervisor _lock_ops·경로 분기 제거. 정적 시험으로 aik_platform 밖 os.name/sys.platform/msvcrt/fcntl 0건(예외: Windows DPAPI adapter의 WinDLL). 로컬 Linux 전체 회귀 1483건 OK(skip 18). Windows CI 결과와 실제 Windows 실행은 이 근거에 없다.','2026-10-14T02:14:23Z','LINUX-X64');
+INSERT INTO "task_evidence" VALUES('EV-AIK-092-VENDOR-20261014','AIK-092','partial_implementation_validation','docs/platform.ko.md','범용 HTTP transport를 벤더 중립 aik_http로 옮기고 aik_jev가 이를 쓰도록 바꿨다. compat 진단의 벤더 목록 하드코딩을 식별자 형식 검사로 바꿨다(벤더 목록은 지원 matrix 데이터). 정적 시험으로 공통 패키지의 aik_adapter_*/aik_host_* import 0건. OpenAI transport 통합과 adapter 등록 기반 선택은 남았다.','2026-10-14T02:14:23Z',NULL);
+INSERT INTO "task_evidence" VALUES('EV-AIK-009-SECRETSERVICE-20261014','AIK-009','partial_implementation_validation','docs/vault.ko.md','Linux SecretServiceVaultBackend(secret-tool, stdin 전달, 절대 timeout, fail-closed)와 open_user_vault 플랫폼 선택 구현. 가짜 secret-tool 단위 시험 PASS. 실제 GNOME Keyring 왕복은 CI platform-linux.yml에서 별도 확인하며 이 근거에는 포함하지 않는다. 데스크톱 세션 키링 잠금·KWallet NOT_RUN.','2026-10-14T02:14:23Z','LINUX-X64');
+INSERT INTO "task_evidence" VALUES('EV-AIK-016-LOGIND-20261014','AIK-016','partial_implementation_validation','docs/auth-lifecycle.ko.md','Linux 세션 잠금 신호(systemd-logind LockedHint via loginctl, 셸 없음, timeout, 답 없음은 잠김 처리) 구현과 os_session_locked 추가. 가짜 loginctl 단위 시험 PASS. 실제 데스크톱 세션 잠금 NOT_RUN.','2026-10-14T02:14:23Z','LINUX-X64');
 CREATE TABLE task_external_dependencies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -1863,8 +1881,8 @@ INSERT INTO "task_platforms" VALUES('AIK-063','WIN-X64','todo','','2026-10-14T01
 INSERT INTO "task_platforms" VALUES('AIK-063','LINUX-X64','todo','','2026-10-14T01:54:45Z');
 INSERT INTO "task_platforms" VALUES('AIK-064','WIN-X64','todo','','2026-10-14T01:54:45Z');
 INSERT INTO "task_platforms" VALUES('AIK-064','LINUX-X64','blocked','외부 선행 EXT-VM-POSIX-D1(VM RuntimeJob owner lock이 Windows 전용)','2026-10-14T01:54:45Z');
-INSERT INTO "task_platforms" VALUES('AIK-091','WIN-X64','todo','','2026-10-14T01:54:45Z');
-INSERT INTO "task_platforms" VALUES('AIK-091','LINUX-X64','todo','','2026-10-14T01:54:45Z');
+INSERT INTO "task_platforms" VALUES('AIK-091','WIN-X64','blocked','작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전','2026-10-14T02:14:24Z');
+INSERT INTO "task_platforms" VALUES('AIK-091','LINUX-X64','blocked','작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전','2026-10-14T02:14:24Z');
 INSERT INTO "task_platforms" VALUES('AIK-092','WIN-X64','todo','','2026-10-14T01:54:45Z');
 INSERT INTO "task_platforms" VALUES('AIK-092','LINUX-X64','todo','','2026-10-14T01:54:45Z');
 CREATE TABLE task_principles (
@@ -2915,8 +2933,8 @@ INSERT INTO "tasks" VALUES('AIK-087','프로젝트 폴더 선택·생성·전환
 INSERT INTO "tasks" VALUES('AIK-088','설정 이동·백업·업데이트 복구의 GUI 진입점','제품 유지보수를 사용자가 설치된 앱 또는 함께 제공한 복구 화면에서 완료하도록 연결한다. 058의 백업/복원 backend와 동일 계약을 사용한다.','maintenance GUI·export/import·backup/restore·installer recovery entry·진행/결과 안내','개발 도구 없는 설치본의 설정 이동·전체 백업·업데이트 실패·부팅 실패·새 사용자 복원/재인증 여정','E09','M4','P1','todo','feature','Desktop maintenance',66,'2026-10-12T06:45:00Z','2026-10-14T01:54:45Z');
 INSERT INTO "tasks" VALUES('AIK-089','연합 릴리스 패키징·업그레이드·최종 gate','M5 연합 기능을 새 지원 플랫폼 배포 후보에 포함하고 설치/업데이트·기존 제품 회귀·두 클러스터 사용자 흐름을 같은 판본으로 검증해 출시한다.','federation release installer/manifest·upgrade/recovery evidence·P01~P11 qualification·release notes','고정 새 installer/matrix의 깨끗한 설치·M4 지원 버전에서 업그레이드·P01~P10 회귀·실제 두 클러스터 P11 GUI 여정','E09','M5','P1','todo','validation','Federation release lead',84,'2026-10-12T06:45:00Z','2026-10-14T01:54:45Z');
 INSERT INTO "tasks" VALUES('AIK-090','확장 릴리스 패키징·업그레이드·최종 gate','선택한 로컬 모델·추가 vendor/정책/조직/배포 확장을 지원 플랫폼 설치본에 포함하고 기존 제품·연합 및 확장 사용자 흐름을 함께 검증해 출시한다.','extension release installer/manifest·selected scope/dependency record·P01~P12 qualification·release notes','고정 새 설치본의 지원 이전 버전 업데이트/복구·기본 제품/연합 회귀·선택 확장별 실제 GUI governed E2E','E09','M6','P2','todo','validation','Extension release lead',90,'2026-10-12T06:45:00Z','2026-10-14T01:54:45Z');
-INSERT INTO "tasks" VALUES('AIK-091','OS port 계층·플랫폼 adapter와 공통 헬퍼 통합','공통 코드에 흩어진 OS 분기(파일 동기화·원자적 쓰기·잠금·프로세스 트리·데이터 경로·세션 신호·시크릿 backend 선택)를 aik_platform의 concern별 port와 Windows·Linux adapter로 모은다. 기존 공개 이름과 동작은 유지한다.','aik_platform 패키지·adapter 주입 시험·복제 헬퍼 제거','adapter 주입 단위 시험, 기존 전체 회귀, Windows·Linux CI matrix','E12','M0','P0','todo','feature','AIK platform',91,'2026-10-14T01:54:45Z','2026-10-14T01:54:45Z');
-INSERT INTO "tasks" VALUES('AIK-092','공통 코드의 벤더 결합 제거','공통 패키지가 특정 벤더 adapter 모듈을 import하거나 벤더 목록을 하드코딩하지 않게 한다. 범용 HTTP transport는 벤더 중립 모듈로 옮기고 진단 범위는 등록된 adapter에서 만든다.','벤더 중립 transport 모듈·adapter 등록 기반 진단 범위·import 경계 시험','공통 패키지의 벤더 adapter import 0건 정적 시험과 전체 회귀','E12','M1','P1','todo','feature','AIK platform',92,'2026-10-14T01:54:45Z','2026-10-14T01:54:45Z');
+INSERT INTO "tasks" VALUES('AIK-091','OS port 계층·플랫폼 adapter와 공통 헬퍼 통합','공통 코드에 흩어진 OS 분기(파일 동기화·원자적 쓰기·잠금·프로세스 트리·데이터 경로·세션 신호·시크릿 backend 선택)를 aik_platform의 concern별 port와 Windows·Linux adapter로 모은다. 기존 공개 이름과 동작은 유지한다.','aik_platform 패키지·adapter 주입 시험·복제 헬퍼 제거','adapter 주입 단위 시험, 기존 전체 회귀, Windows·Linux CI matrix','E12','M0','P0','blocked','feature','AIK platform',91,'2026-10-14T01:54:45Z','2026-10-14T02:14:23Z');
+INSERT INTO "tasks" VALUES('AIK-092','공통 코드의 벤더 결합 제거','공통 패키지가 특정 벤더 adapter 모듈을 import하거나 벤더 목록을 하드코딩하지 않게 한다. 범용 HTTP transport는 벤더 중립 모듈로 옮기고 진단 범위는 등록된 adapter에서 만든다.','벤더 중립 transport 모듈·adapter 등록 기반 진단 범위·import 경계 시험','공통 패키지의 벤더 adapter import 0건 정적 시험과 전체 회귀','E12','M1','P1','blocked','feature','AIK platform',92,'2026-10-14T01:54:45Z','2026-10-14T02:14:23Z');
 CREATE INDEX ix_tasks_milestone_status ON tasks(milestone_id, status, sequence);
 CREATE INDEX ix_tasks_epic ON tasks(epic_id);
 CREATE INDEX ix_dependencies_prerequisite ON task_dependencies(depends_on);
@@ -2987,8 +3005,8 @@ JOIN tasks t ON t.id = d.task_id
 LEFT JOIN task_platforms tp ON tp.task_id = d.task_id AND tp.platform_id = d.platform_id
 WHERE x.status = 'open';
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',310);
-INSERT INTO "sqlite_sequence" VALUES('change_log',306);
+INSERT INTO "sqlite_sequence" VALUES('task_events',318);
+INSERT INTO "sqlite_sequence" VALUES('change_log',312);
 INSERT INTO "sqlite_sequence" VALUES('task_external_dependencies',8);
 COMMIT;
 PRAGMA foreign_keys = ON;

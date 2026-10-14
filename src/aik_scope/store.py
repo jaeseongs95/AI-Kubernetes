@@ -9,7 +9,6 @@ reconnection.
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
-import errno
 from functools import lru_cache
 import json
 import math
@@ -32,6 +31,7 @@ from .errors import ConnectionNotInScope, InvalidScope, TransferBlocked
 from .models import (
     PENDING_KINDS, ConnectionScope, PendingRecord, ScopeDecision, ScopeViolation, check_scope_identifier,
 )
+from aik_platform.fs import sync_file as _sync_file, sync_directory as _sync_directory
 
 
 SCOPES_APPLICATION_ID = 0x41494B57  # AIKW; distinct from AIKR, AIKC, AIKN and AIKP.
@@ -56,26 +56,6 @@ _STATEMENTS = (
 
 # Local copies: aik_runtime keeps these helpers private, so this package does
 # not depend on their names or behaviour staying stable.
-def _sync_file(path: Path) -> None:
-    with path.open("r+b") as stream:
-        stream.flush()
-        os.fsync(stream.fileno())
-
-
-def _sync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return  # No portable directory fsync on Windows; rename durability is OS-owned.
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
-
-
 def _create_schema(connection: sqlite3.Connection) -> None:
     connection.execute("BEGIN IMMEDIATE")
     try:

@@ -20,7 +20,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from aik_adapter_anthropic.transport import (  # noqa: E402
+from aik_http.transport import (  # noqa: E402
     MAX_RESPONSE_BYTES, HttpResponse, TransportNotSent, TransportTimeout,
 )
 from aik_jev import (  # noqa: E402

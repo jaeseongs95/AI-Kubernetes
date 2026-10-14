@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from contextlib import closing, contextmanager
 from dataclasses import fields
-import errno
 import math
 import os
 from pathlib import Path
@@ -25,6 +24,7 @@ from .errors import (
 )
 from .models import MAX_INTEGER, MODEL_TABLES, Pool, Versioned, identifier
 from .paths import database_lock, default_database_path, validate_database_path
+from aik_platform.fs import sync_file as _sync_file, sync_directory as _sync_directory
 
 
 # Copy the allowlist so callers cannot redirect SQL by mutating MODEL_TABLES.
@@ -107,28 +107,6 @@ def _sqlite_failure(error: sqlite3.Error) -> None:
     if getattr(error, "sqlite_errorcode", 0) & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
         raise StorageBusy("SQLite could not acquire the runtime database lock.") from None
     raise StorageError("The runtime database operation could not be completed.") from None
-
-
-def _sync_file(path: Path) -> None:
-    with path.open("r+b") as stream:
-        stream.flush()
-        os.fsync(stream.fileno())
-
-
-def _sync_directory(path: Path) -> None:
-    # Windows does not expose portable directory fsync through Python. File
-    # contents are flushed there, but rename power-loss durability is OS-owned.
-    if os.name == "nt":
-        return
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            if error.errno not in (errno.EINVAL, errno.ENOTSUP):
-                raise
-    finally:
-        os.close(descriptor)
 
 
 def _restore_snapshot(source: Path, destination: Path, staging: Path) -> None:

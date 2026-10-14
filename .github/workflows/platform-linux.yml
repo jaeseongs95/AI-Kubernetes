@@ -1,0 +1,60 @@
+# AIK-091/092: Linux platform adapters against real Linux services.
+# The Secret Service vault runs against a real GNOME Keyring on a private D-Bus
+# session with a synthetic password and synthetic secrets only. A pass shows the
+# adapter works on this runner image; it is not Linux product qualification.
+name: Platform Linux
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/aik_platform/**'
+      - 'src/aik_vault/**'
+      - 'src/aik_auth_lifecycle/**'
+      - 'tests/test_platform.py'
+      - '.github/workflows/platform-linux.yml'
+  pull_request:
+    paths:
+      - 'src/aik_platform/**'
+      - 'src/aik_vault/**'
+      - 'src/aik_auth_lifecycle/**'
+      - 'tests/test_platform.py'
+      - '.github/workflows/platform-linux.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-service:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - name: Checkout the exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Python pinned runtime
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Install the Secret Service tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends libsecret-tools gnome-keyring dbus
+      - name: Platform tests with a real unlocked keyring
+        run: |
+          dbus-run-session -- bash -euo pipefail -c '
+            # Synthetic password for a throwaway login keyring on this runner only.
+            printf "%s" "aik-ci-synthetic-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            AIK_SECRET_SERVICE_LIVE=1 python -m unittest tests.test_platform -v
+          '
+      - name: Platform tests without a keyring stay fail-closed
+        run: python -m unittest tests.test_platform tests.test_vault -v

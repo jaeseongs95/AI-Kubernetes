@@ -1,6 +1,8 @@
-"""Bounded supervision of one live host command and its process tree.
+"""Process port: bounded supervision of one live command and its process tree.
 
-This is a package-private helper that uses only the standard library.
+Part of the OS port layer (AIK-091); it uses only the standard library. The
+host adapters (``aik_host_claude``, ``aik_host_codex``) share this module
+instead of keeping identical private copies.
 
 POSIX
 - Commands start in a new session (``start_new_session=True``). The process
@@ -45,17 +47,21 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import lru_cache
 import os
+from pathlib import Path
 import signal
 import subprocess
+import sys
 import threading
 import time
 import weakref
+
+from ._os import is_windows
 
 GRACE_SECONDS = 5.0
 _CHUNK = 65536
 _POLL = 0.02
 _WAKE = 0.05
-_WINDOWS = os.name == "nt"
+_WINDOWS = is_windows()
 _HAS_WAITID = all(hasattr(os, name) for name in ("waitid", "P_PID", "WEXITED", "WNOHANG", "WNOWAIT"))
 _JOB_BASIC_ACCOUNTING = 1  # JobObjectBasicAccountingInformation
 
@@ -77,6 +83,56 @@ class Supervised:
     streams: tuple[bytes, ...] = field(repr=False)
     complete: bool
     tree_confirmed: bool
+
+
+def no_window_flags() -> int:
+    """Creation flags that keep a console window from appearing (0 outside Windows)."""
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0) if _WINDOWS else 0
+
+
+def new_console_flags() -> int:
+    """Creation flags for a command that needs its own visible console (0 outside Windows)."""
+    return getattr(subprocess, "CREATE_NEW_CONSOLE", 0) if _WINDOWS else 0
+
+
+def still_tracked(process) -> bool:
+    """True while the process is still observable without reaping it.
+
+    Windows: the Popen handle keeps the PID valid. POSIX: never reap here,
+    because a deadline timer may still signal the process group.
+    """
+    if _WINDOWS:
+        return process.poll() is None
+    return _peek_exit(process) is not True
+
+
+def process_cmdline(pid: int) -> bytes | None:
+    """The NUL-separated command line of a live process (Linux ``/proc``).
+
+    Returns None where it cannot be observed: another OS, or the process is gone.
+    """
+    if not sys.platform.startswith("linux"):
+        return None
+    try:
+        return Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return None
+
+
+def kill_group(process) -> bool:
+    """POSIX: send SIGKILL to the process group the command leads (best effort).
+
+    Returns True when the signal was sent. Windows has no group signal here and
+    returns False, so callers fall back to ``process.kill()`` or a job object.
+    Call it only before the leader is reaped, so its PGID cannot be reused.
+    """
+    if _WINDOWS:
+        return False
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+        return True
+    except OSError:
+        return False
 
 
 def popen_options(windows_flags: int = 0) -> dict:

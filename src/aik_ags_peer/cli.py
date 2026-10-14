@@ -18,11 +18,12 @@ import re
 import signal
 import stat
 import subprocess
-import sys
 import time
 
 from .errors import AgsPeerError
 from .models import strict_json_loads
+from aik_platform.process import process_cmdline
+from aik_platform import is_link_or_reparse_point
 
 
 STATE_DIR_ENV = "AGENT_GOVERNANCE_SESSION_MESSAGE_STATE_DIR"
@@ -106,8 +107,7 @@ class AgsSessionCli:
                 raise AgsPeerError("INVALID_PATH") from None
         except OSError:
             raise AgsPeerError("INVALID_PATH") from None
-        if (stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400
-                or not stat.S_ISDIR(info.st_mode)):
+        if is_link_or_reparse_point(info) or not stat.S_ISDIR(info.st_mode):
             raise AgsPeerError("INVALID_PATH")
 
     def _environment(self) -> dict:
@@ -221,12 +221,8 @@ class AgsSessionCli:
         pid = document.get("pid") if isinstance(document, dict) else None
         if type(pid) is not int or pid <= 1 or pid == os.getpid():
             return False
-        if not sys.platform.startswith("linux"):
-            return False
-        proc = Path(f"/proc/{pid}/cmdline")
-        try:
-            cmdline = proc.read_bytes()
-        except OSError:
+        cmdline = process_cmdline(pid)
+        if cmdline is None:  # no /proc observation on this platform, or the process is gone
             return False
         # Only the broker serving this state directory (``--state-directory <dir>``).
         if b"session-message-broker" not in cmdline or os.fsencode(str(self._state_dir)) not in cmdline.split(b"\0"):
@@ -237,10 +233,8 @@ class AgsSessionCli:
             return False
         deadline = time.monotonic() + max(0.0, float(wait))
         while time.monotonic() < deadline:
-            try:
-                if b"session-message-broker" not in proc.read_bytes():
-                    break
-            except OSError:
+            current = process_cmdline(pid)
+            if current is None or b"session-message-broker" not in current:
                 break
             time.sleep(0.05)
         return True

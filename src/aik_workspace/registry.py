@@ -13,9 +13,11 @@ import os
 from pathlib import Path
 import tempfile
 
-from aik_runtime.errors import InvalidDatabase, InvalidRecord, StorageError
-from aik_runtime.paths import database_lock, default_database_path, validate_database_path
-from aik_runtime.storage import _sync_directory
+from aik_platform import PlatformUnavailable
+from aik_platform.fs import sync_directory as _sync_directory
+from aik_platform.paths import component_file
+from aik_runtime.errors import InvalidDatabase, InvalidRecord, StorageError, UnsafeStoragePath
+from aik_runtime.paths import database_lock, validate_database_path
 
 from .errors import WorkspaceError
 from .models import InputRecord, WorkspaceRecord
@@ -29,10 +31,10 @@ _INPUT_KEYS = ("workspace_id", "path", "digest", "size", "revision", "producer_t
 
 
 def default_registry_path() -> Path:
-    runtime = default_database_path()
-    if os.name == "nt":
-        return runtime.parent.parent / "workspace" / "workspaces.json"
-    return runtime.with_name("workspaces.json")
+    try:
+        return component_file("workspace", "workspaces.json")
+    except PlatformUnavailable:
+        raise UnsafeStoragePath("Windows workspace storage requires LOCALAPPDATA.") from None
 
 
 class RegistryState:

@@ -795,7 +795,7 @@ class HostCodexTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
     def test_r1_unconfirmed_tree_termination_is_unknown_not_success(self) -> None:
-        from aik_host_codex import _process
+        from aik_platform import process as _process
 
         live = SubprocessRunner()
         argv = (sys.executable, "-c", "print('ok')")
@@ -832,7 +832,7 @@ class HostCodexTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix" and hasattr(os, "waitid"), POSIX_WAITID_ONLY)
     def test_r2_f1_group_is_reobserved_before_the_leader_is_reaped(self) -> None:
-        from aik_host_codex import _process
+        from aik_platform import process as _process
 
         process = subprocess.Popen([sys.executable, "-c", "pass"], stdin=subprocess.DEVNULL,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -866,7 +866,7 @@ class HostCodexTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
     def test_r2_f1_already_reaped_leader_is_unconfirmed_without_signalling_its_group(self) -> None:
-        from aik_host_codex import _process
+        from aik_platform import process as _process
 
         class ReapedLeader:
             pid = 999999999  # never signalled: the helpers below are mocked
@@ -888,7 +888,7 @@ class HostCodexTests(unittest.TestCase):
         confirm.assert_not_called()
 
     def test_r2_f2_windows_tree_is_confirmed_only_by_job_observation(self) -> None:
-        from aik_host_codex import _process
+        from aik_platform import process as _process
 
         class ExitedChild:
             pid = 4242
@@ -919,7 +919,7 @@ class HostCodexTests(unittest.TestCase):
                 self.assertFalse(_process.terminate_tree(tracked))
 
     def test_r2_f2_spawned_process_is_tracked_for_tree_observation(self) -> None:
-        from aik_host_codex import _process
+        from aik_platform import process as _process
 
         child = mock.Mock(returncode=0)
         with mock.patch.object(runner_module.subprocess, "Popen", return_value=child), \

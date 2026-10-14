@@ -32,7 +32,7 @@ import shutil
 import subprocess
 from typing import Protocol, runtime_checkable
 
-from . import _process
+from aik_platform import process as _process
 
 SOURCES = ("synthetic_fixture", "live")
 MAX_TIMEOUT = 120.0
@@ -40,7 +40,7 @@ MAX_OUTPUT_LIMIT = 1024 * 1024
 _MAX_ARGS = 32
 _MAX_ARG_CHARS = 4096
 _MAX_ENV_VALUE = 32767
-_CREATION_FLAGS = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+_CREATION_FLAGS = _process.no_window_flags()
 
 # Only non-secret process plumbing and the host's own config location are
 # forwarded. OPENAI_API_KEY and every other variable are always dropped, so a

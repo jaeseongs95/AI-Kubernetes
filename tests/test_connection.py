@@ -432,11 +432,10 @@ class ConnectionStoreTests(unittest.TestCase):
                     self.assertEqual(candidate.read_bytes(), before)
 
     def test_sync_helpers_do_not_depend_on_private_runtime_functions(self) -> None:
-        """F9: aik_connection keeps its own durability helpers."""
+        """F9: durability helpers come from the public OS port, not aik_runtime internals."""
         for name in ("_sync_file", "_sync_directory"):
             helper = getattr(connection_store_module, name)
-            self.assertEqual(helper.__module__, "aik_connection.store")
-            self.assertIsNot(helper, getattr(runtime_storage_module, name))
+            self.assertEqual(helper.__module__, "aik_platform.fs")
 
     def test_reference_source_failure_blocks_impact_and_deletion(self) -> None:
         """F10: an unavailable or malformed reference source blocks deletion."""

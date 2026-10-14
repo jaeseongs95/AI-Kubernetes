@@ -25,7 +25,7 @@ fixture 통과는 실제 실행 성공이 아니다. 그렇다고 unsupported만
 | 파일 | 역할 |
 |---|---|
 | `runner.py` | 아래 항목을 제공한다. 표준 라이브러리 `SubprocessRunner`의 실사용은 **NOT_RUN**이다.<br>- 주입형 `CommandRunner` 프로토콜(`source`, `run`, `launch`)<br>- `CommandSpec`/`CommandResult`<br>- `RunnerTimeout`/`RunnerTerminationUnknown`/`RunnerNotStarted`<br>- 환경 변수 allowlist(`build_environment`)<br>- `SubprocessRunner`(실행 경계의 환경 변수 거절 규칙·실행 파일 해석 제한 포함) |
-| `_process.py` | 패키지 내부 helper. 실행 중 출력 상한, 프로세스 트리 종료(POSIX process group / Windows Job Object), 종료 재관측을 담당한다 |
+| `aik_platform/process.py` | OS port(AIK-091). 두 호스트 adapter가 함께 쓴다. 실행 중 출력 상한, 프로세스 트리 종료(POSIX process group / Windows Job Object), 종료 재관측을 담당한다 |
 | `protocol.py` | **미검증 가정**인 호스트 명령(`HostCommands`)과 순수 parser, `HostState`, `AuthMethod`, `HostStatus`, `account_fingerprint` |
 | `bridge.py` | `ClaudeHostBridge`(ProviderAdapter 구현), `HostCall`, `HostResult`, `ConnectionCapability` |
 

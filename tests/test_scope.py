@@ -216,11 +216,13 @@ class ScopeTests(unittest.TestCase):
         with self.assertRaises(InvalidDatabase):
             ScopeStore(self.src.settings, path=self.src.connections.path)
 
-    def test_f10_scope_store_does_not_reuse_runtime_private_sync_helpers(self) -> None:
-        from aik_runtime import storage as runtime_storage
+    def test_f10_scope_store_uses_the_public_platform_sync_port(self) -> None:
+        # F10: no dependence on another package's private helpers; the durability
+        # helpers come from the public OS port (AIK-091) instead.
+        from aik_platform import fs as platform_fs
         from aik_scope import store as scope_store
-        self.assertIsNot(scope_store._sync_file, runtime_storage._sync_file)
-        self.assertIsNot(scope_store._sync_directory, runtime_storage._sync_directory)
+        self.assertIs(scope_store._sync_file, platform_fs.sync_file)
+        self.assertIs(scope_store._sync_directory, platform_fs.sync_directory)
 
     # ----------------------------------------------------------------- export
     def test_export_contains_no_secret_token_verification_or_binding(self) -> None:

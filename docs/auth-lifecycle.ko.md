@@ -172,7 +172,8 @@
 - `ManualLockSignal`
   - 앱의 "vault 잠금" 설정 같은 사용자 스위치다.
   - `lock()`마다 `generation`이 증가한다.
-- `windows_session_locked`
+- `os_session_locked`: 플랫폼 세션 잠금 신호(`aik_platform.session`). Windows는 입력 데스크톱 전환 가능 여부, Linux는 systemd-logind `LockedHint`(`loginctl`, `$XDG_SESSION_ID`)다. 답할 수 없으면 예외를 내고 AuthLifecycle은 잠김으로 처리한다.
+- `windows_session_locked`: 이전 이름. Windows에서만 위 신호를 쓰고 그 밖에서는 예외를 낸다.
   - Windows 전용 휴리스틱(`OpenInputDesktop`/`SwitchDesktop`)이다.
   - 비 Windows에서는 예외를 내므로 잠김으로 처리된다.
   - `generation`이 없다. 따라서 **두 폴링 사이에 시작하고 끝난 세션 잠금은 놓친다.**
@@ -242,7 +243,7 @@ python -m unittest discover -s tests -p 'test_auth_lifecycle.py' -v
 
 ## 한계·미검증(NOT_RUN)
 
-- 실제 Windows 세션 잠금 신호(`windows_session_locked`)는 **NOT_RUN**이다. 이 신호원은 폴링 사이의 잠금을 놓친다. Linux 단위시험 통과는 Windows 지원 증거가 아니다.
+- 실제 Windows 세션 잠금 신호와 실제 Linux 데스크톱 세션의 logind `LockedHint`는 둘 다 **NOT_RUN**이다(Linux는 가짜 `loginctl` 단위 시험만 있다). 이 신호원은 폴링 사이의 잠금을 놓친다. Linux 단위시험 통과는 Windows 지원 증거가 아니다.
 - 실제 공식 호스트·provider의 만료/잠금 관측과 실제 DPAPI vault와의 회전 연동은 **NOT_RUN**이다.
 - 상태·실행 기록은 메모리에만 있어 재시작하면 사라진다. 닫힌 실행 기록도 정리하지 않는다. 영속화와 영속 lease 연동은 후속 범위다.
 - 이전 실행의 실제 관측 루프(`observe_job` 호출)는 이 모듈에 없다. 회수는 외부의 `record_observation` 호출에 의존한다.
