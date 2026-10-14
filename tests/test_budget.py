@@ -27,9 +27,11 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from aik_budget import (  # noqa: E402
     UNKNOWN, AdmissionRequest, Amount, BudgetError, BudgetPolicy, BudgetStore, QuotaUsage, Usage,
-    confirmed, estimated,
+    confirmed, estimated, usage_from_breakdown,
 )
 from aik_budget import storage as budget_storage  # noqa: E402
+from aik_budget.models import usage_from_dict  # noqa: E402
+from aik_provider import Measured, UsageBreakdown  # noqa: E402
 from aik_pool import QualificationLevel, RouteStatus  # noqa: E402
 from aik_profiles import DirectorProfile, ExecutionChoice, RoleProfile  # noqa: E402
 from aik_runtime import InvalidDatabase, RevisionConflict, RuntimeStore, UnsafeStoragePath  # noqa: E402
@@ -426,6 +428,8 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(stored["api_cost_cents"], {"basis": "unknown", "value": None})
         self.assertEqual(stored["output_tokens"], {"basis": "unknown", "value": None})
         self.assertEqual(stored["input_tokens"], {"basis": "confirmed", "value": 120})
+        for name in ("cache_read_tokens", "cache_write_tokens", "reasoning_tokens"):
+            self.assertEqual(stored[name], {"basis": "unknown", "value": None})
         for bad in (lambda: Amount(0), lambda: Amount(-1, "confirmed"), lambda: Amount(True, "confirmed"),
                     lambda: Amount(None, "estimated"), lambda: Usage(quota_used=confirmed(3))):
             with self.assertRaises(BudgetError):
@@ -466,12 +470,14 @@ class BudgetTests(unittest.TestCase):
         self.store.set_policy(BudgetPolicy("goal-1", max_api_cost_cents=60))
         self.admit("r1", scopes=("goal-1",), api_cost_estimate_cents=40)
         report = Usage(api_cost_cents=confirmed(40), input_tokens=confirmed(10), output_tokens=confirmed(5),
-                       quota_used=confirmed(1), quota_unit="messages")
+                       quota_used=confirmed(1), quota_unit="messages", cache_read_tokens=confirmed(3),
+                       cache_write_tokens=confirmed(2), reasoning_tokens=confirmed(4))
         self.assertEqual(self.store.settle("r1", report).kind, "settlement")
         self.assertEqual(self.store.settle("r1", report).kind, "late")
         status = self.store.scope_status("goal-1")
         self.assertEqual((status.api_cost.confirmed_cents, status.state), (40, "open"))
-        self.assertEqual((status.tokens.observed, status.tokens.unknown_records), (15, 0))
+        # input 10 + output 5 + cache read 3 + cache write 2; reasoning 4 is inside output.
+        self.assertEqual((status.tokens.observed, status.tokens.unknown_records), (20, 0))
         self.assertEqual(status.quota_used, (QuotaUsage("messages", 1, 0),))
         self.assertEqual(self.admit("r2", scopes=("goal-1",), api_cost_estimate_cents=20).status, "admitted")
 
@@ -487,6 +493,8 @@ class BudgetTests(unittest.TestCase):
             self.store.settle("missing-reservation", Usage())
 
     def test_token_stop_is_best_effort_on_observed_tokens_only(self) -> None:
+        # tokens observed = input + output + cache read + cache write (AIK-093); a call
+        # missing any of the four is an unknown record, and its known parts still count.
         self.store.set_policy(BudgetPolicy("goal-1", token_stop=100))
         self.admit("r1", scopes=("goal-1",))
         self.store.settle("r1", Usage(input_tokens=confirmed(60)))
@@ -496,6 +504,91 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(stopped.reasons, ("TOKEN_STOP_REACHED@goal-1",))
         tokens = self.store.scope_status("goal-1").tokens
         self.assertEqual((tokens.observed, tokens.unknown_records, tokens.policy), (110, 2, "best_effort_observed"))
+
+    def test_cache_tokens_count_toward_the_token_stop_but_reasoning_is_not_added(self) -> None:
+        self.store.set_policy(BudgetPolicy("goal-1", token_stop=100))
+        self.admit("r1", scopes=("goal-1",))
+        # input + output alone (40) would stay under the stop; cache read and write push it over.
+        self.store.settle("r1", Usage(input_tokens=confirmed(30), output_tokens=confirmed(10),
+                                      cache_read_tokens=confirmed(45), cache_write_tokens=estimated(20),
+                                      reasoning_tokens=confirmed(10)))
+        tokens = self.store.scope_status("goal-1").tokens
+        self.assertEqual((tokens.observed, tokens.unknown_records), (105, 0))
+        stopped = self.admit("r2", scopes=("goal-1",))
+        self.assertEqual((stopped.status, stopped.reasons), ("rejected", ("TOKEN_STOP_REACHED@goal-1",)))
+        self.store.set_policy(BudgetPolicy("goal-2", token_stop=100))
+        self.admit("r3", scopes=("goal-2",))
+        # Reasoning alone is never counted: it is already inside output.
+        self.store.settle("r3", Usage(input_tokens=confirmed(10), output_tokens=confirmed(80),
+                                      cache_read_tokens=confirmed(0), cache_write_tokens=confirmed(0),
+                                      reasoning_tokens=confirmed(80)))
+        self.assertEqual(self.store.scope_status("goal-2").tokens.observed, 90)
+        self.assertEqual(self.admit("r4", scopes=("goal-2",)).status, "admitted")
+
+    def test_stored_usage_written_before_cache_components_still_loads(self) -> None:
+        legacy = {"api_cost_cents": {"value": 7, "basis": "confirmed"},
+                  "input_tokens": {"value": 40, "basis": "confirmed"},
+                  "output_tokens": {"value": 9, "basis": "estimated"},
+                  "quota_used": {"value": None, "basis": "unknown"}, "quota_unit": None}
+        usage = usage_from_dict(legacy)
+        self.assertEqual((usage.input_tokens, usage.output_tokens), (confirmed(40), estimated(9)))
+        for name in ("cache_read_tokens", "cache_write_tokens", "reasoning_tokens"):
+            self.assertEqual(getattr(usage, name), UNKNOWN)
+        self.assertEqual(usage_from_dict(usage.to_dict()), usage)  # rewritten with the full key set
+        self.assertEqual(set(usage.to_dict()), set(legacy) | {"cache_read_tokens", "cache_write_tokens",
+                                                              "reasoning_tokens"})
+        partial = dict(legacy, cache_read_tokens={"value": 1, "basis": "confirmed"})
+        extra = dict(usage.to_dict(), cached_tokens={"value": 1, "basis": "confirmed"})
+        missing = {key: value for key, value in usage.to_dict().items() if key != "input_tokens"}
+        for bad in (partial, extra, missing, dict(legacy, quota_units=None), [], None):
+            with self.subTest(bad=bad), self.assertRaises(BudgetError):
+                usage_from_dict(bad)
+        # The same old document stored by an earlier version is read through the public API.
+        self.store.set_policy(BudgetPolicy("goal-1", token_stop=1000, max_api_cost_cents=100))
+        self.admit("r1", scopes=("goal-1",), api_cost_estimate_cents=10)
+        with closing(sqlite3.connect(self.path)) as connection:
+            connection.execute("UPDATE reservations SET state = 'settled' WHERE id = 'r1'")
+            connection.execute("INSERT INTO usage_records (reservation_id, kind, recorded_at, document) "
+                               "VALUES ('r1', 'settlement', ?, ?)",
+                               (iso(START), json.dumps({"usage": legacy}, sort_keys=True)))
+            connection.commit()
+        (record,) = self.store.usage_records("r1")
+        self.assertEqual((record.kind, record.usage), ("settlement", usage))
+        status = self.store.scope_status("goal-1")
+        # Known input/output still count; the missing components mark the record as a lower bound.
+        self.assertEqual((status.tokens.observed, status.tokens.unknown_records), (49, 1))
+        self.assertEqual(status.api_cost.confirmed_cents, 7)
+        late = self.store.settle("r1", Usage(cache_read_tokens=confirmed(5), cache_write_tokens=confirmed(0)))
+        self.assertEqual(late.kind, "late")
+        self.assertEqual(self.store.scope_status("goal-1").tokens.observed, 54)
+        self.assertEqual([item.usage for item in self.store.usage_records("r1")], [usage, late.usage])
+
+    def test_usage_from_breakdown_maps_components_and_keeps_unknowns(self) -> None:
+        breakdown = UsageBreakdown(
+            input_uncached=Measured.derived(200), cache_write_short=Measured.observed(30),
+            cache_write_long=Measured.observed(12), cache_read=Measured.observed(1000),
+            output=Measured.observed(300), reasoning=Measured.observed(120))
+        usage = usage_from_breakdown(breakdown)
+        self.assertEqual((usage.input_tokens, usage.output_tokens, usage.cache_read_tokens,
+                          usage.cache_write_tokens, usage.reasoning_tokens),
+                         (confirmed(200), confirmed(300), confirmed(1000), confirmed(42), confirmed(120)))
+        self.assertEqual((usage.api_cost_cents, usage.quota_used, usage.quota_unit), (UNKNOWN, UNKNOWN, None))
+        empty = usage_from_breakdown(UsageBreakdown(output=Measured.observed(7)))
+        self.assertEqual(empty.output_tokens, confirmed(7))
+        for name in ("input_tokens", "cache_read_tokens", "cache_write_tokens", "reasoning_tokens"):
+            self.assertEqual(getattr(empty, name), UNKNOWN)  # unknown stays unknown, never 0
+        priced = usage_from_breakdown(UsageBreakdown(), api_cost_cents=estimated(4), quota_used=confirmed(1),
+                                      quota_unit="messages")
+        self.assertEqual((priced.api_cost_cents, priced.quota_used, priced.quota_unit),
+                         (estimated(4), confirmed(1), "messages"))
+        for bad in (None, {"output": 1}, usage):
+            with self.subTest(bad=bad), self.assertRaises(BudgetError):
+                usage_from_breakdown(bad)
+        with self.assertRaises(BudgetError):
+            usage_from_breakdown(UsageBreakdown(), quota_used=confirmed(1))  # quota needs its unit
+        self.admit("r1")
+        self.assertEqual(self.store.settle("r1", usage).usage, usage)
+        self.assertEqual(self.store.profile_status(WORKER).tokens.observed, 200 + 300 + 1000 + 42)
 
     # --------------------------------------------------------------- storage
     def test_settlement_tables_are_append_only_at_the_database_level(self) -> None:

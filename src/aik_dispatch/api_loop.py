@@ -16,6 +16,7 @@ import threading
 from typing import Any, Callable, Mapping
 
 from aik_devtools import DevToolError, EffectUnknown, Invocation
+from aik_provider.turns import OpaqueBlock, UsageBreakdown
 from aik_runtime.errors import InvalidRecord
 from aik_runtime.models import identifier
 
@@ -41,9 +42,13 @@ class ModelToolCall:
 
 @dataclass(frozen=True, slots=True)
 class ModelTurn:
+    """One model answer. ``opaque`` blocks are carried, never read (AIK-093)."""
+
     stop_reason: str
     text: str
     tool_calls: tuple = ()
+    opaque: tuple = ()                      # OpaqueBlock values, sent back on the next call
+    usage: UsageBreakdown | None = None     # None: the port reported no usage
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +61,7 @@ class LoopResult:
     unresolved_tool_calls: tuple
     messages: tuple = ()
     model_stop_reason: str | None = None
+    usage: tuple = ()  # UsageBreakdown | None per model call of this run, in order; never summed here
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,7 +77,7 @@ class _BadArguments(Exception):
 
 
 def assistant_message(turn: ModelTurn) -> dict:
-    return {
+    message = {
         "role": "assistant", "text": turn.text,
         "tool_calls": [
             {"tool_call_id": call.tool_call_id, "tool": call.tool,
@@ -79,6 +85,22 @@ def assistant_message(turn: ModelTurn) -> dict:
             for call in turn.tool_calls
         ],
     }
+    if turn.opaque:
+        # Only when present, so messages and digests of turns without such blocks are unchanged.
+        message["opaque"] = [block.to_document() for block in turn.opaque]
+    return message
+
+
+def opaque_blocks(message: Mapping) -> tuple:
+    """The opaque blocks of one assistant message, validated; () when there are none."""
+    entries = message.get("opaque", ())
+    if isinstance(entries, (str, bytes, Mapping)):
+        raise DispatchError("REPLAY_MISMATCH", subject="opaque")
+    try:
+        return tuple(OpaqueBlock.from_document(dict(entry) if isinstance(entry, Mapping) else entry)
+                     for entry in entries)
+    except (TypeError, ValueError):
+        raise DispatchError("REPLAY_MISMATCH", subject="opaque") from None
 
 
 def tool_message(tool_call_id: str, payload: Mapping[str, Any]) -> dict:
@@ -236,6 +258,9 @@ class ApiToolLoop:
             raise DispatchError("INVALID_STATE", subject="messages") from None
         if any(not isinstance(message, Mapping) for message in items):
             raise DispatchError("INVALID_STATE", subject="messages")
+        for message in items:
+            if message.get("role") == "assistant":
+                opaque_blocks(message)
         return [dict(message) for message in items]
 
     def _gate(self, exceeded: bool, reason: str) -> str | None:
@@ -247,19 +272,21 @@ class ApiToolLoop:
 
     def _loop(self, run: _Run, messages: list, pending: list, model_calls: int, tool_calls: int) -> LoopResult:
         request_id = run.identity.request_id
+        usage: list = []
         while True:
             stop = self._gate(model_calls >= self._max_model_calls, "max_model_calls")
             if stop:
-                return self._result(run, stop, messages, model_calls, tool_calls)
+                return self._result(run, stop, messages, model_calls, tool_calls, usage=usage)
             for call_id in pending:
                 self._journal.tool_event(request_id, call_id, "returned", {})
             pending = []
             turn = self._model.next(request_id, tuple(messages))
             model_calls += 1
             self._check_turn(turn)
+            usage.append(turn.usage)
             messages.append(assistant_message(turn))
             if not turn.tool_calls:
-                return self._result(run, "end_turn", messages, model_calls, tool_calls, turn.stop_reason)
+                return self._result(run, "end_turn", messages, model_calls, tool_calls, turn.stop_reason, usage=usage)
             known = {event.tool_call_id for event in self._journal.tool_events(request_id)}
             seen = set()
             for call in turn.tool_calls:
@@ -270,11 +297,11 @@ class ApiToolLoop:
             for call in turn.tool_calls:
                 stop = self._gate(tool_calls >= self._max_tool_calls, "max_tool_calls")
                 if stop:
-                    return self._result(run, stop, messages, model_calls, tool_calls)
+                    return self._result(run, stop, messages, model_calls, tool_calls, usage=usage)
                 tool_calls += 1
                 payload = self._execute(run, call)
                 if payload is None:
-                    return self._result(run, "effect_unknown", messages, model_calls, tool_calls)
+                    return self._result(run, "effect_unknown", messages, model_calls, tool_calls, usage=usage)
                 messages.append(tool_message(call.tool_call_id, payload))
                 pending.append(call.tool_call_id)
 
@@ -282,7 +309,9 @@ class ApiToolLoop:
     def _check_turn(turn: object) -> None:
         if (type(turn) is not ModelTurn or type(turn.stop_reason) is not str or type(turn.text) is not str
                 or type(turn.tool_calls) is not tuple
-                or any(type(call) is not ModelToolCall for call in turn.tool_calls)):
+                or any(type(call) is not ModelToolCall for call in turn.tool_calls)
+                or type(turn.opaque) is not tuple or any(type(block) is not OpaqueBlock for block in turn.opaque)
+                or (turn.usage is not None and type(turn.usage) is not UsageBreakdown)):
             raise DispatchError("INVALID_STATE", subject="model_turn")
 
     @staticmethod
@@ -404,7 +433,8 @@ class ApiToolLoop:
         return calls
 
     def _result(self, run: _Run, stop_reason: str, messages: list, model_calls: int, tool_calls: int,
-                model_stop_reason: str | None = None) -> LoopResult:
+                model_stop_reason: str | None = None, *, usage=()) -> LoopResult:
         states = self._states(self._journal.tool_events(run.identity.request_id))
         unresolved = tuple(call_id for call_id, seen in states.items() if not (seen.keys() & _RESOLVED))
-        return LoopResult(stop_reason, model_calls, tool_calls, unresolved, tuple(messages), model_stop_reason)
+        return LoopResult(stop_reason, model_calls, tool_calls, unresolved, tuple(messages), model_stop_reason,
+                          tuple(usage))

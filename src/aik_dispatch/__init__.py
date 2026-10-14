@@ -18,7 +18,7 @@ The package contains no real provider/API client. Live behaviour is NOT_RUN.
 
 from .api_loop import (
     STOP_REASONS, TOOL_NAMES, ApiToolLoop, LoopResult, ModelToolCall, ModelTurn,
-    assistant_message, tool_message,
+    assistant_message, opaque_blocks, tool_message,
 )
 from .errors import DISPATCH_ERROR_CODES, DispatchError, DispatchOutcomeUnknown, DispatchRejected
 from .identity import DISPATCH_PATHS, DispatchIdentity
@@ -33,6 +33,6 @@ __all__ = [
     "APPLICATION_ID", "DISPATCH_STATES", "TOOL_STATES",
     "NativeDispatcher", "STARTED_JOB_STATES",
     "ApiToolLoop", "ModelTurn", "ModelToolCall", "LoopResult", "STOP_REASONS", "TOOL_NAMES",
-    "assistant_message", "tool_message",
+    "assistant_message", "tool_message", "opaque_blocks",
     "DispatchError", "DispatchOutcomeUnknown", "DispatchRejected", "DISPATCH_ERROR_CODES",
 ]

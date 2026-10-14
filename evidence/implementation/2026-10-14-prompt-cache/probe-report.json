@@ -1,0 +1,137 @@
+{
+  "format": "aik-prompt-cache-probe-v1",
+  "task": "AIK-093",
+  "started_at": "2026-10-14T03:07:57Z",
+  "requested_model": "claude-opus-5-5",
+  "credential": "injected by egress gateway; adapter x-api-key placeholder removed; no secret handled",
+  "prefix_chars": 37891,
+  "cache": {
+    "status": "observed",
+    "write_then_read": [
+      true,
+      true
+    ],
+    "calls": [
+      {
+        "request": 1,
+        "state": "succeeded",
+        "completion": "complete",
+        "observed_model": "claude-opus-5-5",
+        "reported": {
+          "input_tokens": 4,
+          "output_tokens": 4,
+          "cache_creation_input_tokens": 15614,
+          "cache_read_input_tokens": 0,
+          "cache_creation_5m_input_tokens": 15614,
+          "cache_creation_1h_input_tokens": 0
+        },
+        "cache_write": 15614,
+        "cache_read": 0,
+        "total_input": 15618
+      },
+      {
+        "request": 2,
+        "state": "succeeded",
+        "completion": "complete",
+        "observed_model": "claude-opus-5-5",
+        "reported": {
+          "input_tokens": 4,
+          "output_tokens": 4,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 15614,
+          "cache_creation_5m_input_tokens": 0,
+          "cache_creation_1h_input_tokens": 0
+        },
+        "cache_write": 0,
+        "cache_read": 15614,
+        "total_input": 15618
+      }
+    ]
+  },
+  "thinking": {
+    "status": "round_trip_with_thinking",
+    "thinking_blocks_sent_back": true,
+    "turns": [
+      {
+        "turn": 1,
+        "stop_reason": "tool_use",
+        "tool_calls": 1,
+        "opaque_kinds": [
+          "thinking"
+        ],
+        "opaque_positions": [
+          0
+        ],
+        "cache_read": 0,
+        "cache_write": 16023
+      },
+      {
+        "turn": 2,
+        "stop_reason": "end_turn",
+        "tool_calls": 0,
+        "opaque_kinds": [
+          "thinking"
+        ],
+        "cache_read": 16023,
+        "cache_write": 150
+      }
+    ]
+  },
+  "exchanges": [
+    {
+      "method": "POST",
+      "path": "v1/messages",
+      "header_names": [
+        "accept",
+        "anthropic-version",
+        "content-type",
+        "user-agent"
+      ],
+      "status": 200,
+      "body_bytes": 533
+    },
+    {
+      "method": "POST",
+      "path": "v1/messages",
+      "header_names": [
+        "accept",
+        "anthropic-version",
+        "content-type",
+        "user-agent"
+      ],
+      "status": 200,
+      "body_bytes": 529
+    },
+    {
+      "method": "POST",
+      "path": "v1/messages",
+      "header_names": [
+        "accept",
+        "anthropic-version",
+        "content-type",
+        "user-agent"
+      ],
+      "status": 200,
+      "body_bytes": 1725
+    },
+    {
+      "method": "POST",
+      "path": "v1/messages",
+      "header_names": [
+        "accept",
+        "anthropic-version",
+        "content-type",
+        "user-agent"
+      ],
+      "status": 200,
+      "body_bytes": 2060
+    }
+  ],
+  "finished_at": "2026-10-14T03:08:07Z",
+  "not_verified": [
+    "route qualification (AIK-086)",
+    "other providers",
+    "1h retention (LONG policy)",
+    "Windows host"
+  ]
+}

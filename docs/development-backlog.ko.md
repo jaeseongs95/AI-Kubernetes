@@ -3,12 +3,12 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T02:38:19Z`
+- 수정일 (UTC): `2026-10-14T03:12:43Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
-- 태스크 92개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 317건
-- 상태: 미착수 41개 · 진행 중 0개 · 진행 차단 49개 · 완료 2개 · 취소 0개
+- 태스크 93개 · 요구사항 31개 · 결정 14개 · 출처 19개
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 340건
+- 상태: 미착수 41개 · 진행 중 0개 · 진행 차단 50개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -37,7 +37,7 @@ python tools/backlog.py report
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | M0 · 통합 계약·플랫폼 기반 결정 | 첫 출시 | 10 | 0 | 0 | 8 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 15 | 0 | 0 | 15 | 0 | 0 | 0 |
-| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 27 | 2 | 0 | 25 | 0 | 0 | 0 |
+| M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 28 | 2 | 0 | 26 | 0 | 0 | 0 |
 | M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
 | M4 · 첫 배포 검증(Windows·Linux) | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
@@ -61,7 +61,7 @@ python tools/backlog.py report
 
 단일 책임과 좁은 인터페이스(ISP), 추상에 대한 의존(DIP)을 지키고, 새 OS·벤더는 기존 코드 수정이 아니라 adapter 추가로 지원한다(OCP).
 
-- 출처: [S-USER-20261014](#s-user-20261014) · 연결 태스크 76개
+- 출처: [S-USER-20261014](#s-user-20261014) · 연결 태스크 77개
 
 ### PRN-VENDOR
 
@@ -69,7 +69,7 @@ python tools/backlog.py report
 
 벤더 독립은 무조건 지킨다. 공통 계약·저장소·GUI는 특정 벤더를 모르고, 벤더 차이는 adapter에만 둔다. 공통 코드는 벤더 adapter 모듈을 import하지 않는다.
 
-- 출처: [S-USER-20261014](#s-user-20261014) · 연결 태스크 28개
+- 출처: [S-USER-20261014](#s-user-20261014) · 연결 태스크 29개
 
 ## 플랫폼별 현황
 
@@ -84,8 +84,8 @@ python tools/backlog.py report
 | M0 | WIN-X64 | 10 | 0 | 0 | 8 | 2 | 0 | 0 |
 | M1 | LINUX-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
 | M1 | WIN-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
-| M2 | LINUX-X64 | 27 | 1 | 0 | 26 | 0 | 0 | 0 |
-| M2 | WIN-X64 | 27 | 2 | 0 | 25 | 0 | 0 | 0 |
+| M2 | LINUX-X64 | 28 | 1 | 0 | 27 | 0 | 0 | 0 |
+| M2 | WIN-X64 | 28 | 2 | 0 | 26 | 0 | 0 | 0 |
 | M3 | LINUX-X64 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
 | M3 | WIN-X64 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
 | M4 | LINUX-X64 | 9 | 6 | 0 | 3 | 0 | 0 | 0 |
@@ -2046,7 +2046,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 - **산출물:** 지원 matrix revision/digest별 local E2E·실측 report·설치형 identity
 - **검증 방법:** 사용자 프로젝트에 실제 A/B→C 파일 생성·수정·검증 명령·의도된 실패 후 재작업을 수행하고 외부 고정 oracle로 결과 판정
-- **선행 작업:** [AIK-022](#aik-022), [AIK-026](#aik-026), [AIK-027](#aik-027), [AIK-028](#aik-028), [AIK-030](#aik-030), [AIK-038](#aik-038), [AIK-039](#aik-039), [AIK-040](#aik-040), [AIK-041](#aik-041), [AIK-042](#aik-042), [AIK-043](#aik-043), [AIK-086](#aik-086)
+- **선행 작업:** [AIK-022](#aik-022), [AIK-026](#aik-026), [AIK-027](#aik-027), [AIK-028](#aik-028), [AIK-030](#aik-030), [AIK-038](#aik-038), [AIK-039](#aik-039), [AIK-040](#aik-040), [AIK-041](#aik-041), [AIK-042](#aik-042), [AIK-043](#aik-043), [AIK-086](#aik-086), [AIK-093](#aik-093)
 - **요구사항:** [D06](#d06), [D08](#d08), [P04](#p04), [P07](#p07), [U02](#u02), [U05](#u05), [U06](#u06), [U08](#u08)
 - **출처:** [S-COMPLETE](#s-complete), [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-VM](https://github.com/jaeseongs95/vibemarshal/blob/32bb0f9dd9f024045d24487312b50f5b703573a3/README.md) ([색인](#s-vm))
 - **관련 결정:** [DEC12](#dec12) (제안), [DEC13](#dec13) (제안)
@@ -2063,6 +2063,44 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 **기록된 증거**
 
 기록 없음.
+
+### AIK-093
+
+**벤더 중립 prompt cache·불투명 응답 블록 보존·usage 구성요소**
+
+| 항목 | 내용 |
+|---|---|
+| 상태 | 진행 차단 (`blocked`) |
+| 우선순위 | P0 |
+| 담당 컴포넌트 | AIK provider |
+| 작업 유형 | 기능 개발 (`feature`) |
+| 에픽 | E03 · 자원·provider adapter |
+| 실행 순서 | 93 |
+| 작성 / 수정 | `2026-10-14T03:02:35Z` / `2026-10-14T03:12:43Z` |
+
+공통 port에 캐시 정책·불투명 블록·usage 구성요소를 벤더 문법 없이 정의하고, 벤더 문법(cache_control·thinking·usage 필드)은 adapter에만 둔다. Anthropic thinking 블록을 실패로 처리하던 결함을 고치고 원문 그대로 다시 보내며, 예산 정산이 캐시 토큰을 구분해 센다.
+
+- **산출물:** aik_provider.turns·adapter 캐시/블록/usage 지원·ApiToolLoop opaque·usage·Anthropic model port·예산 확장
+- **검증 방법:** 단위·결합 시험, 정적 벤더 경계 시험, 실제 provider 캐시 적중·thinking 왕복 관측
+- **선행 작업:** [AIK-013](#aik-013), [AIK-035](#aik-035)
+- **요구사항:** [D02](#d02), [D05](#d05), [U11](#u11)
+- **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER-20261014](#s-user-20261014)
+- **관련 결정:** [DEC14](#dec14) (확정)
+- **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 전체 회귀 근거. 작업 선행 미완료), WIN-X64 진행 차단 (Windows CI 결과 대기. 작업 선행 미완료)
+- **외부 선행:** 없음
+
+**완료 기준**
+
+1. 공통 port에 벤더 문법이 없는 캐시 정책·불투명 블록·usage 구성요소 타입이 있고, 공통 패키지는 벤더 adapter를 import하지 않는다(정적 시험).
+2. thinking·redacted_thinking 블록이 있는 응답이 성공으로 처리되고, 그 블록이 다음 턴에 원문 JSON 값 그대로(key 순서·signature 포함) 원래 위치로, tool_use 인자가 원래 key 순서로 다시 전송된다.
+3. usage를 미캐시 입력·캐시 쓰기(보존 등급별)·캐시 읽기·출력·reasoning으로 나눠 기록하고, provider가 주지 않은 값은 0이 아닌 unknown과 provenance로 남기며 예산 정산은 기존 행을 계속 읽는다.
+4. 실제 provider 응답으로 캐시 쓰기→읽기 적중과 thinking 블록 왕복을 관측한다(실행 전 NOT_RUN).
+
+**기록된 증거**
+
+- `EV-AIK-093-IMPL-20261014` · partial_implementation_validation · `docs/prompt-cache.ko.md` · aik_provider.turns(CachePolicy·PromptCacheCapability·OpaqueBlock·Measured·UsageBreakdown), Anthropic adapter cache_control·thinking·effort·thinking/redacted_thinking 보존·tool_use key 순서·보존 기간별 usage, OpenAI cached/reasoning usage, ApiToolLoop opaque·턴별 usage, AnthropicTurnPort, budget·observer 캐시 토큰(옛 문서 읽기 유지) 구현. 가짜 transport로 실제 ApiToolLoop 2턴 thinking 도구 왕복 결합 시험 PASS. 로컬 Linux 전체 회귀 Ran 1521 tests OK(skip 18), 정적 벤더 경계 시험 PASS. Windows CI 결과는 이 근거에 없다. · `2026-10-14T03:12:43Z` · 플랫폼 `LINUX-X64`
+- `EV-AIK-093-LIVE-20261014` · partial_live_probe · `evidence/implementation/2026-10-14-prompt-cache/probe-report.json` · tools/probe_prompt_cache.py를 egress gateway(자격 주입) 경유 claude-opus-5-5로 실행: 같은 system prefix 2회 호출에서 cache write 15,614(5m) → cache read 15,614 적중, thinking adaptive·effort high 도구 1회 왕복에서 thinking 블록(위치 0)을 그대로 다시 보내 end_turn·cache read 16,023. HTTP 4회 200, 재시도 없음. 1시간 보존 적중·다른 provider·route qualification(AIK-086) NOT_RUN. · `2026-10-14T03:12:43Z`
 
 ## M3 · 데스크톱 GUI 실제 연결
 
@@ -2105,6 +2143,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 **기록된 증거**
 
 - `EV-AIK-045-SHELL-LINUX-20261014` · partial_implementation_validation · `docs/desktop-shell.ko.md` · apps/desktop Electron 셸(화면 7개·연결 상태 표시줄)과 src/aik_desktop_engine stdio 엔진 구현. 로컬 Linux (xvfb, 일반 사용자, Electron 44.7.0) smoke 4건: 실제 소스 엔진 연결 PASS(route 7개 스크린샷), 엔진 미구성 BLOCKED/unavailable, 버전 불일치 가짜 엔진 BLOCKED/incompatible, cursor gap read model PASS/stale. 미연결 화면 5개는 NOT_CONNECTED만 표시(예시 데이터 없음). 선행 AIK-004·043·044 미완료, 실제 VM·AGS·벤더 데이터와 패키징(AIK-057) NOT_RUN. Windows 실행은 이 근거에 없다. · `2026-10-14T02:38:19Z` · 플랫폼 `LINUX-X64`
+- `EV-AIK-045-SHELL-WIN-CI-20261014` · partial_implementation_validation · `.github/workflows/desktop-shell.yml` · CI desktop-shell run 38502337776 job 115651959441(windows-2022, head f01a253): 실제 Electron 셸과 python -I 소스 엔진으로 smoke PASS(connected, route 7개 스크린샷), 엔진 미구성 smoke BLOCKED/unavailable 확인, check_desktop_smoke.py 통과. 같은 run의 ubuntu-24.04 job 115651959086도 PASS. Windows Server 러너 범위이며 실제 Windows 11 사용자 실행·패키징 NOT_RUN. · `2026-10-14T03:02:35Z` · 플랫폼 `WIN-X64`
 
 ### AIK-087
 
@@ -3565,7 +3604,7 @@ M5 연합 기능을 새 지원 플랫폼 배포 후보에 포함하고 설치/�
 **설정값·실제 관측값·역할 분리**
 
 - 구분: 설계에서 도출 (`derived`)
-- 개발 태스크: [AIK-011](#aik-011), [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-015](#aik-015), [AIK-019](#aik-019), [AIK-020](#aik-020), [AIK-023](#aik-023), [AIK-024](#aik-024), [AIK-028](#aik-028), [AIK-040](#aik-040), [AIK-082](#aik-082), [AIK-030](#aik-030), [AIK-036](#aik-036), [AIK-086](#aik-086), [AIK-048](#aik-048), [AIK-049](#aik-049), [AIK-052](#aik-052), [AIK-055](#aik-055), [AIK-066](#aik-066), [AIK-070](#aik-070), [AIK-077](#aik-077)
+- 개발 태스크: [AIK-011](#aik-011), [AIK-012](#aik-012), [AIK-013](#aik-013), [AIK-015](#aik-015), [AIK-019](#aik-019), [AIK-020](#aik-020), [AIK-023](#aik-023), [AIK-024](#aik-024), [AIK-028](#aik-028), [AIK-040](#aik-040), [AIK-082](#aik-082), [AIK-030](#aik-030), [AIK-036](#aik-036), [AIK-086](#aik-086), [AIK-093](#aik-093), [AIK-048](#aik-048), [AIK-049](#aik-049), [AIK-052](#aik-052), [AIK-055](#aik-055), [AIK-066](#aik-066), [AIK-070](#aik-070), [AIK-077](#aik-077)
 
 총괄과 worker 프로필을 분리하고 requested/provider_observed/configured_catalog를 혼동하지 않는다.
 
@@ -3592,7 +3631,7 @@ VM Goal/Task/Attempt 권위와 AIK lease/placement 소유권을 유지하고 불
 **자원·예산·쿼터·권한에 따른 배치**
 
 - 구분: 설계에서 도출 (`derived`)
-- 개발 태스크: [AIK-007](#aik-007), [AIK-018](#aik-018), [AIK-019](#aik-019), [AIK-021](#aik-021), [AIK-023](#aik-023), [AIK-029](#aik-029), [AIK-085](#aik-085), [AIK-028](#aik-028), [AIK-040](#aik-040), [AIK-033](#aik-033), [AIK-034](#aik-034), [AIK-086](#aik-086), [AIK-041](#aik-041), [AIK-053](#aik-053), [AIK-055](#aik-055), [AIK-060](#aik-060), [AIK-062](#aik-062), [AIK-065](#aik-065), [AIK-067](#aik-067), [AIK-068](#aik-068), [AIK-070](#aik-070), [AIK-071](#aik-071), [AIK-075](#aik-075), [AIK-076](#aik-076), [AIK-078](#aik-078), [AIK-079](#aik-079)
+- 개발 태스크: [AIK-007](#aik-007), [AIK-018](#aik-018), [AIK-019](#aik-019), [AIK-021](#aik-021), [AIK-023](#aik-023), [AIK-029](#aik-029), [AIK-085](#aik-085), [AIK-028](#aik-028), [AIK-040](#aik-040), [AIK-033](#aik-033), [AIK-034](#aik-034), [AIK-086](#aik-086), [AIK-041](#aik-041), [AIK-093](#aik-093), [AIK-053](#aik-053), [AIK-055](#aik-055), [AIK-060](#aik-060), [AIK-062](#aik-062), [AIK-065](#aik-065), [AIK-067](#aik-067), [AIK-068](#aik-068), [AIK-070](#aik-070), [AIK-071](#aik-071), [AIK-075](#aik-075), [AIK-076](#aik-076), [AIK-078](#aik-078), [AIK-079](#aik-079)
 
 실행 capability, 인가, 동시성, 예산, 데이터 경계를 확인하고 실제 사용량과 예약을 정산한다.
 
@@ -3826,7 +3865,7 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 **벤더 독립 구조**
 
 - 구분: 사용자 요구 (`user`)
-- 개발 태스크: [AIK-011](#aik-011), [AIK-092](#aik-092)
+- 개발 태스크: [AIK-011](#aik-011), [AIK-092](#aik-092), [AIK-093](#aik-093)
 
 공통 계약·저장소·GUI는 특정 벤더를 모른다. 벤더 차이는 adapter에만 두고 공통 코드는 벤더 adapter 모듈을 import하거나 벤더 목록을 하드코딩하지 않는다.
 
@@ -3994,7 +4033,7 @@ RAW를 보존하고 앞단 별도 LLM 정형화 없이 확인된 metadata만 구
 
 - 상태: 확정 (`confirmed`)
 - 출처: [S-USER-20261014](#s-user-20261014)
-- 관련 태스크: [AIK-091](#aik-091), [AIK-009](#aik-009), [AIK-092](#aik-092), [AIK-045](#aik-045)
+- 관련 태스크: [AIK-091](#aik-091), [AIK-009](#aik-009), [AIK-092](#aik-092), [AIK-093](#aik-093), [AIK-045](#aik-045)
 
 **결정 내용:** 공통 코드는 OS·벤더를 직접 다루지 않고 concern별 좁은 port(파일·잠금·프로세스·경로·시크릿·세션 신호·HTTP transport)에 의존한다. OS 판별은 플랫폼 계층 한 곳에서만 하고, 새 OS·벤더는 adapter 추가로 지원한다(DIP·OCP·ISP).
 
@@ -4515,6 +4554,29 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 315 | task_evidence `EV-AIK-091-WINDOWS-CI-20261014` | created | — | AIK-091 partial_implementation_validation WIN-X64 | AIK-045 데스크톱 셸·플랫폼 CI 근거 | `2026-10-14T02:38:19Z` |
 | 316 | task_platform `AIK-045/LINUX-X64` | status | todo | blocked | 로컬 Linux smoke PASS 근거. 작업 선행 미완료 | `2026-10-14T02:38:19Z` |
 | 317 | task_platform `AIK-045/WIN-X64` | status | todo | blocked | desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료 | `2026-10-14T02:38:19Z` |
+| 318 | task `AIK-093` | created | — | AIK-093 · 벤더 중립 prompt cache·불투명 응답 블록 보존·usage 구성요소 · 공통 port에 캐시 정책·불투명 블록·us… | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 319 | acceptance_criterion `AIK-093#1` | criterion | — | 공통 port에 벤더 문법이 없는 캐시 정책·불투명 블록·usage 구성요소 타입이 있고, 공통 패키지는 벤더 adapter를 import하지… | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 320 | acceptance_criterion `AIK-093#2` | criterion | — | thinking·redacted_thinking 블록이 있는 응답이 성공으로 처리되고, 그 블록이 다음 턴에 원문 JSON 값 그대로(key … | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 321 | acceptance_criterion `AIK-093#3` | criterion | — | usage를 미캐시 입력·캐시 쓰기(보존 등급별)·캐시 읽기·출력·reasoning으로 나눠 기록하고, provider가 주지 않은 값은 0이… | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 322 | acceptance_criterion `AIK-093#4` | criterion | — | 실제 provider 응답으로 캐시 쓰기→읽기 적중과 thinking 블록 왕복을 관측한다(실행 전 NOT_RUN). | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 323 | task_link `AIK-093` | task_requirements | — | AIK-093 -> U11 | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 324 | task_link `AIK-093` | task_requirements | — | AIK-093 -> D05 | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 325 | task_link `AIK-093` | task_requirements | — | AIK-093 -> D02 | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 326 | task_link `AIK-093` | task_sources | — | AIK-093 -> S-USER-20261014 | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 327 | task_link `AIK-093` | task_sources | — | AIK-093 -> S-DESIGN | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 328 | task_link `AIK-093` | task_decisions | — | AIK-093 -> DEC14 | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 329 | task_link `AIK-093` | task_principles | — | AIK-093 -> PRN-VENDOR | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 330 | task_link `AIK-093` | task_principles | — | AIK-093 -> PRN-SOLID | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 331 | task_link `AIK-093` | task_dependencies | — | AIK-093 -> AIK-013 | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 332 | task_link `AIK-093` | task_dependencies | — | AIK-093 -> AIK-035 | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 333 | task_link `AIK-044` | task_dependencies | — | AIK-044 -> AIK-093 | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 334 | task_platform `AIK-093/WIN-X64` | status | — | todo | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 335 | task_platform `AIK-093/LINUX-X64` | status | — | todo | 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행 | `2026-10-14T03:02:35Z` |
+| 336 | task_evidence `EV-AIK-045-SHELL-WIN-CI-20261014` | created | — | AIK-045 partial_implementation_validation WIN-X64 | AIK-045 Windows CI smoke 근거 | `2026-10-14T03:02:35Z` |
+| 337 | task_evidence `EV-AIK-093-IMPL-20261014` | created | — | AIK-093 partial_implementation_validation LINUX-X64 | AIK-093 구현·실제 관측 근거 | `2026-10-14T03:12:43Z` |
+| 338 | task_evidence `EV-AIK-093-LIVE-20261014` | created | — | AIK-093 partial_live_probe 플랫폼 무관 | AIK-093 구현·실제 관측 근거 | `2026-10-14T03:12:43Z` |
+| 339 | task_platform `AIK-093/LINUX-X64` | status | todo | blocked | 로컬 Linux 전체 회귀 근거. 작업 선행 미완료 | `2026-10-14T03:12:43Z` |
+| 340 | task_platform `AIK-093/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 작업 선행 미완료 | `2026-10-14T03:12:43Z` |
 
 ## DB 메타데이터
 
@@ -4543,7 +4605,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T02:38:19Z |
+| `updated_at` | 2026-10-14T03:12:43Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

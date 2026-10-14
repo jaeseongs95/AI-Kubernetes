@@ -74,6 +74,10 @@ adapter는 transport와 vault를 **명시적으로 주입받아야** 생성된�
 - **상태**: `queued→accepted`, `in_progress→running`, `completed→succeeded`, `failed`/`incomplete→failed`, `cancelled→cancelled`, 그 외·누락→`unknown`.
 - **model**: 응답의 `model`이 있고 형식이 유효하며 키 반향이 아닐 때만 기록한다. 요청 모델로 채우지 않으며, 없으면 `None`이다.
 - **usage**: `usage.input_tokens/output_tokens/total_tokens` 중 provider가 명시한 정수만 기록한다. 누락은 `None`이며, 합계를 계산해 채우지 않는다.
+  - AIK-093: `usage.input_tokens_details.cached_tokens`와 `usage.output_tokens_details.reasoning_tokens`가 0 이상 정수일 때만 `Usage.cached_input_tokens`·`Usage.reasoning_tokens`로 기록한다. 그 밖(누락·음수·bool·문자열·details가 객체가 아님)은 `None`이다. 두 필드는 dataclass 끝에 기본값 `None`으로 추가해 기존 위치 인자 생성은 그대로다.
+  - `Usage.breakdown()`은 공통 `aik_provider.UsageBreakdown`을 만든다. `cache_read`=`cached_input_tokens`(provider_observed), `input_uncached`=`input_tokens - cached_input_tokens`(두 값이 모두 있을 때만, local_derived), `output`=`output_tokens`, `reasoning`=`reasoning_tokens`(provider_observed)이다.
+  - cached 값이 없으면 provider가 분할을 보고하지 않은 것이므로 `input_uncached`와 `cache_read`를 모두 unknown으로 둔다(0으로 가정하지 않음). cached가 input보다 크면 모순된 보고로 보고 두 값 모두 unknown이며, reasoning이 output보다 크면 reasoning만 unknown이다. 어느 경우도 예외를 내지 않고 원래 보고값은 `Usage`에 그대로 남는다.
+  - 이 provider는 cache write를 보고하지 않으므로 `cache_write_*`는 항상 unknown이다.
 - **도구**:
   - 출력 항목 `function_call`(`call_id`, `name`, `arguments` JSON 문자열)을 `ToolCall`로 변환한다.
   - `arguments`가 JSON 객체가 아니면 `arguments=None, arguments_valid=False`로 둔다.
@@ -118,6 +122,8 @@ adapter는 transport와 vault를 **명시적으로 주입받아야** 생성된�
 
 `resource_view`는 `billing_basis="api_key_metered"`, `subscription_quota="not_applicable"`을 고정 표기한다. `Usage.billing_basis`도 API 과금 외 값을 거부하므로 구독 잔여량과 섞이지 않는다.
 
+`describe()`는 AIK-093 `prompt_cache=PromptCacheCapability(CacheMode.AUTOMATIC_PREFIX, {CachePolicy.PROVIDER_DEFAULT}, None)`을 공개한다. provider가 일치하는 접두사를 스스로 캐시한다는 구현 공개이며 측정된 적중률이 아니다. 요청 본문에는 캐시 관련 필드(`prompt_cache_key` 등)를 넣지 않으므로 요청 본문은 이전과 바이트 단위로 같다.
+
 ## 8. 구현 상태와 qualification 분리
 
 - `describe()`: `implementation_state="implemented"`, `qualification_status="NOT_RUN"`이다(AIK-011 계약상 다른 값 불가). `isolation`은 실측 근거가 없어 `unknown`이다.
@@ -138,7 +144,7 @@ adapter는 transport와 vault를 **명시적으로 주입받아야** 생성된�
 | 모델 확인 | `GET /models/{model}` 응답 `id` |
 | 호출 | `POST /responses`, 본문 `model`·`input`·`tools`(`type: function`)·`previous_response_id`·`max_output_tokens`·`background` |
 | 관측·중단 | `GET /responses/{id}`, `POST /responses/{id}/cancel` |
-| 응답 필드 | `id`, `status`, `model`, `usage.{input,output,total}_tokens`, `output[].type`(`message`/`function_call`), `content[].output_text.text`, `error.code` |
+| 응답 필드 | `id`, `status`, `model`, `usage.{input,output,total}_tokens`, `usage.input_tokens_details.cached_tokens`, `usage.output_tokens_details.reasoning_tokens`, `output[].type`(`message`/`function_call`), `content[].output_text.text`, `error.code` |
 | 도구 결과 | 입력 항목 `{"type":"function_call_output","call_id","output"}` |
 | 오류 의미 | 401/403/404/429/5xx의 의미, 초 단위 `Retry-After`, 429 시 미실행 |
 
@@ -154,6 +160,7 @@ python -m unittest discover -s tests -p 'test_adapter_openai.py' -v
 |---|---|
 | 합성 fake transport·`FakeVaultBackend`(장애 주입 하위 클래스 포함)로 등록·재연결 거절·인증 확인(vault 접근 거부 포함)·모델 확인·호출·관측(401 포함)·중단·교체(다중 인스턴스, vault 실패)·해제(재시도) 검사 | 단위 시험 작성. 이 문서 작성 시점의 실행 결과 기록 없음 |
 | 성공/실패 fixture, `GuardedAdapter` 결합, 식별자 키 반향, 상한(`MAX_STAGED`·`MAX_MODELS`·출력 항목·텍스트 길이), 부분 usage, 평문 비검출 | 위와 같음 |
+| AIK-093 usage details → `UsageBreakdown`(값·provenance), details 누락·형식 오류의 unknown, cached>input·reasoning>output 모순, `prompt_cache` 공개와 요청 본문 불변 | 위와 같음 |
 | 실제 vendor 왕복(`UrllibTransport`) | **NOT_RUN** |
 | 실제 키 인증(AIK-022), runtime/도구 실행(AIK-082/086/044) | **NOT_RUN** |
 | Windows DPAPI vault와 결합한 실행 | **NOT_RUN** (Linux 통과는 Windows 지원 증거가 아님) |
@@ -170,7 +177,8 @@ python -m unittest discover -s tests -p 'test_adapter_openai.py' -v
 - 교체 중 이전 참조 삭제가 불명확하고 새 참조 폐기마저 실패하면, 새 키가 vault에 남을 수 있다(관리 도구 없음).
 - 키 → vendor 계정 대응, 조직·프로젝트 범위, 과금 한도는 관측하지 않는다.
 - 해제는 로컬 vault 삭제이며 vendor 쪽 키 폐기가 아니다.
-- streaming, 파일·이미지 입력, 내장(hosted) 도구, 추론 토큰 세부 usage는 다루지 않는다.
+- streaming, 파일·이미지 입력, 내장(hosted) 도구는 다루지 않는다. 추론 토큰은 provider가 보고한 개수(`reasoning_tokens`)만 기록하며 추론 내용은 다루지 않는다.
+- cache write 토큰과 캐시 보존 기간은 이 provider가 보고하지 않아 unknown이다. `prompt_cache_key` 같은 캐시 요청 필드는 보내지 않는다.
 
 ## 구현 메모
 

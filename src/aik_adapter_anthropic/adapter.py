@@ -25,6 +25,7 @@ from aik_provider.contracts import (
     AuthState, ConnectionBinding, FaultKind, JobReceipt, JobRequest, JobState, Outcome,
     ProviderFault, Support, fault_from_provider,
 )
+from aik_provider.turns import CacheMode, CachePolicy, OpaqueBlock, PromptCacheCapability
 from aik_security.redaction import OutputRedactor, RedactionError
 from aik_vault import CredentialNotFound, InvalidCredentialRef, VaultAccessDenied
 
@@ -61,6 +62,13 @@ _MAX_REVISION = 2**63 - 1
 _MAX_RETRY_MS = 86_400_000
 _FINGERPRINT_DOMAIN = b"AIK-013/anthropic-api-key-fingerprint/v1\x00"
 _USAGE_FIELDS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+_CACHE_TTL_FIELDS = (("ephemeral_5m_input_tokens", "cache_creation_5m_input_tokens"),
+                     ("ephemeral_1h_input_tokens", "cache_creation_1h_input_tokens"))
+# Response blocks kept verbatim and sent back unchanged (AIK-093). Other unknown
+# blocks still make the turn UNKNOWN/FAILED.
+_OPAQUE_KINDS = frozenset({"thinking", "redacted_thinking"})
+_CACHE_CONTROL = {CachePolicy.SHORT: {"type": "ephemeral"}, CachePolicy.LONG: {"type": "ephemeral", "ttl": "1h"}}
+PROMPT_CACHE = PromptCacheCapability(CacheMode.EXPLICIT, frozenset({CachePolicy.SHORT, CachePolicy.LONG}), 4)
 _STOP_MAP = {
     "end_turn": (Completion.COMPLETE, JobState.SUCCEEDED),
     "stop_sequence": (Completion.COMPLETE, JobState.SUCCEEDED),
@@ -134,6 +142,10 @@ def _usage(value: object) -> Usage:
     for name in _USAGE_FIELDS:
         item = value.get(name)
         counters[name] = item if type(item) is int and 0 <= item <= _MAX_REVISION else None
+    by_ttl = value.get("cache_creation")
+    for source, target in _CACHE_TTL_FIELDS:
+        item = by_ttl.get(source) if type(by_ttl) is dict else None
+        counters[target] = item if type(item) is int and 0 <= item <= _MAX_REVISION else None
     return Usage(**counters)
 
 
@@ -148,8 +160,16 @@ def _tool_call(call_id: object, name: object, arguments: object) -> ToolCall | N
     if type(call_id) is not str or type(name) is not str or type(arguments) is not dict:
         return None
     try:
-        return ToolCall.create(call_id, name, arguments)
+        return ToolCall.create(call_id, name, arguments, keep_wire_order=True)
     except ValueError:
+        return None
+
+
+def _opaque_block(position: int, block: dict) -> OpaqueBlock | None:
+    try:
+        raw = json.dumps(block, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+        return OpaqueBlock(PROVIDER, block["type"], position, raw)
+    except (TypeError, ValueError, RecursionError):
         return None
 
 
@@ -157,7 +177,10 @@ def _encode_part(part) -> dict:
     if type(part) is TextPart:
         return {"type": "text", "text": part.text}
     if type(part) is ToolCall:
-        return {"type": "tool_use", "id": part.call_id, "name": part.name, "input": part.arguments}
+        return {"type": "tool_use", "id": part.call_id, "name": part.name, "input": part.wire_arguments}
+    if type(part) is OpaqueBlock:
+        # Only this provider's own blocks, exactly as received (raises on a cross-provider block).
+        return json.loads(part.for_provider(PROVIDER).raw_json)
     return {"type": "tool_result", "tool_use_id": part.call_id, "content": part.content,
             "is_error": part.is_error}
 
@@ -178,7 +201,31 @@ def _encode_call(model: str, call: MessagesCall) -> bytes:
             {"name": tool.name, "description": tool.description, "input_schema": tool.input_schema}
             for tool in call.tools
         ]
+    if call.thinking is not None:
+        body["thinking"] = {"type": call.thinking}
+    if call.effort is not None:
+        body["output_config"] = {"effort": call.effort}
+    control = _CACHE_CONTROL.get(call.cache)
+    if control is not None:
+        _mark_cache_breakpoints(body, control)
     return json.dumps(body, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def _mark_cache_breakpoints(body: dict, control: dict) -> None:
+    """Cache the stable prefix: system, tools and the conversation so far (3 of 4 breakpoints).
+
+    The prefix order is tools -> system -> messages, so each marker caches
+    everything before it. Thinking blocks cannot carry a marker; the last
+    other block of the final message is used instead.
+    """
+    if "system" in body:
+        body["system"] = [{"type": "text", "text": body["system"], "cache_control": dict(control)}]
+    if body.get("tools"):
+        body["tools"][-1]["cache_control"] = dict(control)
+    for block in reversed(body["messages"][-1]["content"]):
+        if block.get("type") not in _OPAQUE_KINDS:
+            block["cache_control"] = dict(control)
+            break
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +272,7 @@ class AnthropicAdapter:
             auth_status=Support.SUPPORTED, sign_in=Support.UNSUPPORTED, sign_out=Support.SUPPORTED,
             job_start=Support.SUPPORTED, job_observe=Support.SUPPORTED, job_interrupt=Support.UNSUPPORTED,
             implementation_state="implemented", qualification_status=ROUTE_QUALIFICATION,
+            prompt_cache=PROMPT_CACHE,
         )
         self.runtime = runtime
         self._vault = vault
@@ -474,6 +522,10 @@ class AnthropicAdapter:
         """Register the conversation for a later start_job with the same request_id."""
         if type(request_id) is not str or _ID.fullmatch(request_id) is None or type(call) is not MessagesCall:
             raise _failure(FaultKind.INVALID_CONTRACT)
+        if any(type(part) is OpaqueBlock and part.provider != PROVIDER
+               for message in call.messages for part in message.parts):
+            # Another provider's opaque block can never be sent here (AIK-093).
+            raise _failure(FaultKind.INVALID_CONTRACT, native="opaque_provider_mismatch")
         with self._lock:
             if request_id in self._prepared or request_id in self._receipts or request_id in self._consumed:
                 raise _failure(FaultKind.DUPLICATE_REQUEST)
@@ -552,7 +604,7 @@ class AnthropicAdapter:
             return None
         parts = []
         unrecognized = False
-        for block in content:
+        for position, block in enumerate(content):
             if type(block) is not dict:
                 return None
             kind = block.get("type")
@@ -565,6 +617,11 @@ class AnthropicAdapter:
                     if part is None:
                         return None
                     parts.append(part)
+            elif kind in _OPAQUE_KINDS:
+                part = _opaque_block(position, block)
+                if part is None:
+                    return None
+                parts.append(part)
             elif kind == "tool_use":
                 call_id = block.get("id")
                 if type(call_id) is not str or redactor.safe_id(call_id) != call_id:

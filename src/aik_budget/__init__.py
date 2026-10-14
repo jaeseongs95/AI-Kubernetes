@@ -17,7 +17,10 @@ the following and returns admitted / wait / rejected with reason codes:
 Usage is recorded only as supplied. A missing value stays unknown and is never
 filled with zero or an estimate. API cost, tokens and subscription quota are
 separate units and are never converted into each other. Settlement is
-append-only.
+append-only. Token usage is split into input (uncached), cache read, cache
+write and output; reasoning is reported as the part of output it is and is
+never added to it. usage_from_breakdown converts an aik_provider
+UsageBreakdown into a usage report (AIK-093).
 
 Every report states the total usage of its call. For each field, the latest
 confirmed value supersedes earlier reports. When no confirmed value exists,
@@ -32,7 +35,7 @@ from .models import (
     ADMISSION_STATUSES, BASES, UNKNOWN, AdmissionDecision, AdmissionRequest, Amount,
     BudgetError, BudgetPolicy, CostTotals, PoolStatus, QuotaObservation, QuotaUsage,
     Reservation, ScopeStatus, SettlementRecord, StoredPolicy, TokenTotals, Usage,
-    confirmed, estimated,
+    confirmed, estimated, usage_from_breakdown,
 )
 from .storage import APPLICATION_ID, BudgetStore, default_budget_path
 
@@ -41,5 +44,5 @@ __all__ = [
     "AdmissionRequest", "AdmissionDecision", "BudgetPolicy", "StoredPolicy",
     "Amount", "Usage", "UNKNOWN", "confirmed", "estimated", "BASES", "ADMISSION_STATUSES",
     "CostTotals", "TokenTotals", "QuotaUsage", "ScopeStatus", "QuotaObservation", "PoolStatus",
-    "SettlementRecord", "Reservation", "BudgetError",
+    "SettlementRecord", "Reservation", "BudgetError", "usage_from_breakdown",
 ]

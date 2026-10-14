@@ -27,9 +27,10 @@ from aik_adapter_openai import (  # noqa: E402
 )
 import aik_adapter_openai.adapter as adapter_module  # noqa: E402
 from aik_provider import (  # noqa: E402
-    AdapterFailure, AuthState, FaultKind, GuardedAdapter, JobRequest, JobState,
-    Outcome, ProviderAdapter, Support,
+    AdapterFailure, AuthState, CacheMode, CachePolicy, FaultKind, GuardedAdapter, JobRequest, JobState,
+    Measured, Outcome, PromptCacheCapability, Provenance, ProviderAdapter, Support,
 )
+from aik_adapter_openai import Usage  # noqa: E402
 from aik_runtime import CredentialRef  # noqa: E402
 from aik_vault import CredentialNotFound, FakeVaultBackend, VaultAccessDenied  # noqa: E402
 
@@ -552,6 +553,85 @@ class OpenAIAdapterTests(unittest.TestCase):
         result = self.adapter.result("req-large-echo")
         self.assertTrue(result.secret_echo_redacted)
         self.assert_no_secret(result)
+
+    # -- AIK-093 usage components -------------------------------------------
+    def test_usage_details_become_vendor_neutral_components_with_provenance(self) -> None:
+        binding = self.ready()
+        request = self.staged(binding, "req-usage-details")
+        body_usage = {"input_tokens": 1200, "output_tokens": 300, "total_tokens": 1500,
+                      "input_tokens_details": {"cached_tokens": 1000},
+                      "output_tokens_details": {"reasoning_tokens": 120}}
+        self.transport.add("POST", "/responses", resp(200, completed("resp_details01", usage=body_usage)))
+        self.adapter.start_job(request)
+        usage = self.adapter.result("req-usage-details").usage
+        self.assertEqual((usage.cached_input_tokens, usage.reasoning_tokens), (1000, 120))
+        self.assertEqual((usage.input_tokens, usage.output_tokens, usage.total_tokens), (1200, 300, 1500))
+        breakdown = usage.breakdown()
+        self.assertEqual(breakdown.input_uncached, Measured(200, Provenance.LOCAL_DERIVED))
+        self.assertEqual(breakdown.cache_read, Measured(1000, Provenance.PROVIDER_OBSERVED))
+        self.assertEqual(breakdown.output, Measured(300, Provenance.PROVIDER_OBSERVED))
+        self.assertEqual(breakdown.reasoning, Measured(120, Provenance.PROVIDER_OBSERVED))
+        for name in ("cache_write_short", "cache_write_long", "cache_write_unspecified"):
+            self.assertFalse(getattr(breakdown, name).known)  # writes are not reported, never 0
+        self.assertIsNone(breakdown.cache_write())
+        self.assertIsNone(breakdown.total_input())
+        zero = Usage(50, 5, 55, cached_input_tokens=0, reasoning_tokens=0).breakdown()
+        self.assertEqual((zero.input_uncached.value, zero.cache_read.value, zero.reasoning.value), (50, 0, 0))
+
+    def test_missing_or_malformed_usage_details_stay_unknown(self) -> None:
+        binding = self.ready()
+        request = self.staged(binding, "req-no-details")
+        self.transport.add("POST", "/responses", resp(200, completed("resp_nodetail01")))
+        self.adapter.start_job(request)
+        usage = self.adapter.result("req-no-details").usage
+        self.assertEqual((usage.cached_input_tokens, usage.reasoning_tokens), (None, None))
+        breakdown = usage.breakdown()
+        # Without the cached split neither part of the input is known; nothing is assumed to be 0.
+        self.assertFalse(breakdown.input_uncached.known)
+        self.assertFalse(breakdown.cache_read.known)
+        self.assertFalse(breakdown.reasoning.known)
+        self.assertEqual(breakdown.output, Measured(7, Provenance.PROVIDER_OBSERVED))
+        for cached, reasoning in (({"cached_tokens": -1}, {"reasoning_tokens": True}), ([5], "3"),
+                                  ({"cached_tokens": "5"}, {"reasoning_tokens": 2.0}), (None, {})):
+            details = {"input_tokens_details": cached, "output_tokens_details": reasoning}
+            with self.subTest(details=details):
+                parsed = adapter_module._usage({"input_tokens": 9, "output_tokens": 4, **details})
+                self.assertEqual((parsed.cached_input_tokens, parsed.reasoning_tokens), (None, None))
+                self.assertEqual((parsed.input_tokens, parsed.output_tokens), (9, 4))
+        self.assertTrue(Usage(cached_input_tokens=3).reported)
+        self.assertEqual(Usage(), Usage(None, None, None))  # positional construction is unchanged
+        for bad in (dict(cached_input_tokens=-1), dict(reasoning_tokens=True), dict(cached_input_tokens=2**63)):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                Usage(**bad)
+
+    def test_inconsistent_usage_details_are_not_trusted_and_do_not_raise(self) -> None:
+        over = adapter_module._usage({"input_tokens": 10, "output_tokens": 4,
+                                      "input_tokens_details": {"cached_tokens": 11},
+                                      "output_tokens_details": {"reasoning_tokens": 5}})
+        self.assertEqual((over.cached_input_tokens, over.reasoning_tokens), (11, 5))  # raw values are kept
+        breakdown = over.breakdown()
+        self.assertFalse(breakdown.input_uncached.known)
+        self.assertFalse(breakdown.cache_read.known)
+        self.assertFalse(breakdown.reasoning.known)
+        self.assertEqual(breakdown.output.value, 4)
+        no_input = Usage(None, None, None, cached_input_tokens=6, reasoning_tokens=2).breakdown()
+        self.assertFalse(no_input.input_uncached.known)
+        self.assertEqual(no_input.cache_read, Measured(6, Provenance.PROVIDER_OBSERVED))
+        self.assertEqual(no_input.reasoning, Measured(2, Provenance.PROVIDER_OBSERVED))
+
+    def test_prompt_cache_is_disclosed_as_automatic_without_changing_the_request(self) -> None:
+        binding = self.ready()
+        caps = self.adapter.describe(binding)
+        self.assertEqual(caps.prompt_cache, PromptCacheCapability(
+            CacheMode.AUTOMATIC_PREFIX, frozenset({CachePolicy.PROVIDER_DEFAULT}), None))
+        self.assertTrue(caps.prompt_cache.supports(CachePolicy.PROVIDER_DEFAULT))
+        self.assertFalse(caps.prompt_cache.supports(CachePolicy.LONG))
+        request = self.staged(binding, "req-cache-body")
+        self.transport.add("POST", "/responses", resp(200, completed("resp_cachebody01")))
+        self.adapter.start_job(request)
+        body = json.loads(self.transport.seen[-1].body)
+        self.assertEqual(body, {"model": MODEL, "input": [{"role": "user", "content": "synthetic prompt"}],
+                                "background": True})
 
     def test_staging_model_and_output_bounds_are_enforced(self) -> None:
         binding = self.ready()

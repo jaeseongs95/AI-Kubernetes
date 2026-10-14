@@ -24,7 +24,10 @@ EVENT_PROVENANCES = ("provider_observed", "model_reported")
 REQUESTED_PROVENANCE = "client_requested"
 NOT_PROVIDED = "NOT_PROVIDED"
 MAX_PAYLOAD_BYTES = 65536
-USAGE_FIELDS = ("api_cost_cents", "input_tokens", "output_tokens", "quota_used")
+# The last three are the AIK-093 token components (cache read, cache write and
+# reasoning, which is already inside output_tokens); same names as aik_budget.Usage.
+USAGE_FIELDS = ("api_cost_cents", "input_tokens", "output_tokens", "quota_used",
+                "cache_read_tokens", "cache_write_tokens", "reasoning_tokens")
 _MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,191}\Z")
 
 
