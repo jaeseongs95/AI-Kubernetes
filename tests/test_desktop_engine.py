@@ -254,6 +254,25 @@ class FramingTests(unittest.TestCase):
         self.assertEqual([answer.get("command") for answer in answers[1:]], ["system.status", "connections.check"])
         self.assertEqual(answers[2]["result"], {"connection_id": "conn-1", "waited": True})
 
+    def test_composition_root_offers_the_vendor_connectors_without_creating_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            import os
+            root = Path(temporary)
+            env = {**os.environ, "XDG_STATE_HOME": str(root / "state"), "XDG_CONFIG_HOME": str(root / "config"),
+                   "LOCALAPPDATA": str(root / "local")}
+            process = subprocess.run(
+                [sys.executable, "-I", str(ROOT / "apps" / "desktop" / "engine" / "aik_engine_entry.py")],
+                input=frames({"kind": "bootstrap", "protocol_version": 1, "nonce": NONCE},
+                             request("connections.catalog"), request("connections.list")).getvalue(),
+                capture_output=True, timeout=60, check=False, env=env)
+            self.assertEqual((process.returncode, process.stderr), (0, b""))
+            answers = {answer.get("command"): answer for answer in map(json.loads, process.stdout.splitlines()[1:])}
+            catalog = {(item["provider"], item["method"]) for item in answers["connections.catalog"]["result"]["connectors"]}
+            self.assertEqual(catalog, {("anthropic", "api_key"), ("anthropic", "host_login"),
+                                       ("openai", "api_key"), ("openai", "host_login")})
+            self.assertEqual(answers["connections.list"]["result"], {"store": "ABSENT", "connections": []})
+            self.assertEqual(list(root.iterdir()), [], "reads must not create settings, details or vault files")
+
     def test_real_process_over_stdio(self):
         process = subprocess.run(
             [sys.executable, "-I", str(ROOT / "apps" / "desktop" / "engine" / "aik_engine_entry.py")],

@@ -541,6 +541,23 @@ class OpenAIApiAdapter:
             self._connections[binding.connection_id] = _Connection(binding)
             self._event("attach", binding=binding, result="attached")
 
+    def detach(self, binding: ConnectionBinding) -> None:
+        """Forget an attached binding in this process; no vault or vendor effect.
+
+        ``attach`` refuses a second binding for the same connection, so a
+        caller whose key was replaced in place under the same reference (a new
+        binding revision) detaches the old binding first. Refused with
+        ACCOUNT_CONFLICT while a job of the connection is not terminal; staged
+        turns of the connection are dropped.
+        """
+        with self._lock:
+            self._lookup(binding, allow_released=True)
+            if self._active(binding.connection_id):
+                raise _failure(FaultKind.ACCOUNT_CONFLICT)
+            del self._connections[binding.connection_id]
+            self._drop_staged(binding.connection_id)
+            self._event("detach", binding=binding, result="detached")
+
     def verify_key(self, binding: ConnectionBinding) -> AuthObservation:
         """Authentication check (GET /models, unverified). Failures become states."""
         with self._lock:

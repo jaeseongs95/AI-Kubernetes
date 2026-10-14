@@ -362,16 +362,18 @@ def _config(argv: list[str]) -> EngineConfig:
     raise ValueError("usage: [--readmodel ABSOLUTE_PATH --user-scope ID]")
 
 
-def main(argv: list[str] | None = None, *, connectors=None) -> int:
-    """``connectors`` comes from the composition root (vendor packages live outside this package)."""
+def main(argv: list[str] | None = None, *, connectors=None, vault_factory=None) -> int:
+    """``connectors`` and ``vault_factory`` come from the composition root, because vendor
+    packages live outside this package and connectors share the vault with the service."""
     try:
         config = _config(sys.argv[1:] if argv is None else argv)
     except ValueError:
         return EXIT_INVALID
-    return serve(sys.stdin.buffer, sys.stdout.buffer, config, connections=_connection_service(connectors))
+    return serve(sys.stdin.buffer, sys.stdout.buffer, config,
+                 connections=_connection_service(connectors, vault_factory))
 
 
-def _connection_service(connectors):
+def _connection_service(connectors, vault_factory=None):
     """The per-user connection service, or None when it cannot be set up here."""
     if connectors is None:
         return None
@@ -380,6 +382,7 @@ def _connection_service(connectors):
     from aik_vault import open_user_vault
 
     try:
-        return ConnectionService(default_settings_path(), connectors, vault_factory=open_user_vault)
+        return ConnectionService(default_settings_path(), connectors,
+                                 vault_factory=vault_factory or open_user_vault)
     except Exception:  # noqa: BLE001 - reported as CONNECTIONS_NOT_CONFIGURED by every command
         return None

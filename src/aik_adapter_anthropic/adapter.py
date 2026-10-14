@@ -429,6 +429,63 @@ class AnthropicAdapter:
         self._record(OutputRedactor(), "register_key", binding)
         return binding
 
+    def attach_key(self, connection_id: str, credential_ref: str, revision: int) -> ConnectionBinding:
+        """Bind a key that someone else already stored in the vault (for example after a restart).
+
+        The fingerprint is taken from the key stored now. ``revision`` becomes
+        the revision this process accepts for ``credential_ref``: an older one
+        is refused (STALE_CONNECTION), and bindings issued with an older
+        revision fail with ACCOUNT_CHANGED afterwards, as after ``rotate_key``.
+        Vault faults: a missing entry is AUTH_REQUIRED, a denied one
+        ACCESS_DENIED; no vault exception text is kept.
+        """
+        try:
+            ConnectionBinding(PROVIDER, self.runtime, connection_id, revision, AuthKind.API_KEY,
+                              credential_ref, "0" * 64)
+            valid = True
+        except ValueError:
+            valid = False
+        if not valid:
+            raise _failure(FaultKind.INVALID_CONTRACT)
+        with self._lock:
+            known = self._revisions.get(credential_ref)
+        if known is not None and revision < known:
+            raise _failure(FaultKind.STALE_CONNECTION)
+        problem = None
+        native = "vault_error"
+        secret = None
+        try:
+            secret = self._vault.resolve(credential_ref)
+        except (CredentialNotFound, InvalidCredentialRef):
+            problem, native = FaultKind.AUTH_REQUIRED, "credential_missing"
+        except VaultAccessDenied:
+            problem = FaultKind.ACCESS_DENIED
+        except Exception:
+            problem = FaultKind.PROVIDER_FAILURE
+        # Raised outside the handler so no vault exception becomes __context__.
+        if problem is None and not _valid_key(secret):
+            problem, native = FaultKind.AUTH_REQUIRED, "invalid_credential_format"
+        if problem is not None:
+            secret = None
+            error = _failure(problem, native=native)
+            self._record(OutputRedactor(), "attach_key", None, fault=error.fault,
+                         extra={"connection_id": connection_id, "revision": revision})
+            raise error
+        binding = ConnectionBinding(PROVIDER, self.runtime, connection_id, revision, AuthKind.API_KEY,
+                                    credential_ref, _fingerprint(secret))
+        del secret
+        with self._lock:
+            known = self._revisions.get(credential_ref)
+            if known is not None and revision < known:
+                stale = True
+            else:
+                stale = False
+                self._revisions[credential_ref] = revision
+        if stale:
+            raise _failure(FaultKind.STALE_CONNECTION)
+        self._record(OutputRedactor(), "attach_key", binding)
+        return binding
+
     def rotate_key(self, binding: ConnectionBinding, secret: str) -> ConnectionBinding:
         """Replace the key under the same reference; returns the next revision."""
         self._check_binding(binding)
