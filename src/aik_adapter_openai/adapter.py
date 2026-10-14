@@ -23,6 +23,7 @@ from aik_provider.contracts import (
     AuthState, ConnectionBinding, FaultKind, JobReceipt, JobRequest, JobState, Outcome,
     ProviderFault, Support, TERMINAL, fault_from_provider,
 )
+from aik_provider.turns import CacheMode, CachePolicy, PromptCacheCapability
 from aik_security.redaction import OMITTED, OutputRedactor
 from aik_vault import (
     CredentialNotFound, InvalidCredentialRef, InvalidSecret, VaultAccessDenied,
@@ -147,9 +148,15 @@ def _usage(value: object) -> Usage:
     def count(item: object) -> int | None:
         return item if type(item) is int and 0 <= item < 2**63 else None
 
+    def detail(name: str, key: str) -> int | None:
+        details = value.get(name)
+        return count(details.get(key)) if type(details) is dict else None
+
     if type(value) is not dict:
         return Usage()
-    return Usage(count(value.get("input_tokens")), count(value.get("output_tokens")), count(value.get("total_tokens")))
+    return Usage(count(value.get("input_tokens")), count(value.get("output_tokens")), count(value.get("total_tokens")),
+                 cached_input_tokens=detail("input_tokens_details", "cached_tokens"),
+                 reasoning_tokens=detail("output_tokens_details", "reasoning_tokens"))
 
 
 def _alias(response_id: str) -> str:
@@ -688,6 +695,9 @@ class OpenAIApiAdapter:
             isolation=AccountIsolation.UNKNOWN,  # not claimed without live evidence
             auth_status=Support.SUPPORTED, sign_in=Support.UNSUPPORTED, sign_out=Support.SUPPORTED,
             job_start=Support.SUPPORTED, job_observe=Support.SUPPORTED, job_interrupt=Support.SUPPORTED,
+            # The provider caches matching prefixes on its own; requests carry no cache field.
+            prompt_cache=PromptCacheCapability(CacheMode.AUTOMATIC_PREFIX,
+                                               frozenset({CachePolicy.PROVIDER_DEFAULT}), None),
         )
 
     def auth_status(self, binding: ConnectionBinding) -> AuthObservation:

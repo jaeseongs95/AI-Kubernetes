@@ -13,6 +13,7 @@ from dataclasses import dataclass, fields
 from datetime import datetime, timezone
 import re
 
+from aik_provider.turns import Measured, UsageBreakdown
 from aik_runtime.errors import InvalidRecord
 from aik_runtime.models import MAX_INTEGER, identifier
 
@@ -113,7 +114,10 @@ def amount_from_dict(value: object) -> Amount:
     return Amount(value["value"], value["basis"])
 
 
-_USAGE_FIELDS = ("api_cost_cents", "input_tokens", "output_tokens", "quota_used")
+_LEGACY_USAGE_FIELDS = ("api_cost_cents", "input_tokens", "output_tokens", "quota_used")
+# AIK-093 token components. A document stored before them has none of these keys.
+_COMPONENT_FIELDS = ("cache_read_tokens", "cache_write_tokens", "reasoning_tokens")
+_USAGE_FIELDS = (*_LEGACY_USAGE_FIELDS, *_COMPONENT_FIELDS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +128,13 @@ class Usage:
     increment. quota_used is the provider-reported subscription quota
     consumption in quota_unit. It is never derived from tokens, prices or
     account usage rates.
+
+    Token components (AIK-093): input_tokens is the input billed at the normal
+    rate (cache reads and writes excluded), cache_read_tokens is input served
+    from a prompt cache, cache_write_tokens is input written to it, and
+    output_tokens is every generated token. reasoning_tokens is the part of
+    output_tokens spent on reasoning; it is already inside output_tokens and
+    is never added to it.
     """
 
     api_cost_cents: Amount = UNKNOWN
@@ -131,6 +142,9 @@ class Usage:
     output_tokens: Amount = UNKNOWN
     quota_used: Amount = UNKNOWN
     quota_unit: str | None = None
+    cache_read_tokens: Amount = UNKNOWN
+    cache_write_tokens: Amount = UNKNOWN
+    reasoning_tokens: Amount = UNKNOWN
 
     def __post_init__(self) -> None:
         for name in _USAGE_FIELDS:
@@ -149,11 +163,54 @@ class Usage:
         return document
 
 
+_LEGACY_USAGE_KEYS = frozenset({*_LEGACY_USAGE_FIELDS, "quota_unit"})
+_USAGE_KEYS = frozenset({*_USAGE_FIELDS, "quota_unit"})
+
+
 def usage_from_dict(value: object) -> Usage:
-    if type(value) is not dict or set(value) != {*_USAGE_FIELDS, "quota_unit"}:
+    """Read a stored usage document.
+
+    Exactly two key sets are accepted: the full current set, or the set written
+    before AIK-093 (no token components), whose components are read as unknown.
+    Any extra key or a partial set of the new keys is refused.
+    """
+    if type(value) is not dict or set(value) not in (_USAGE_KEYS, _LEGACY_USAGE_KEYS):
         raise BudgetError("INVALID_USAGE")
-    return Usage(**{name: amount_from_dict(value[name]) for name in _USAGE_FIELDS},
+    present = _USAGE_FIELDS if set(value) == _USAGE_KEYS else _LEGACY_USAGE_FIELDS
+    return Usage(**{name: amount_from_dict(value[name]) for name in present},
                  quota_unit=value["quota_unit"])
+
+
+def _measured_amount(value: object, field: str) -> Amount:
+    """A known component is a confirmed count; an unknown one stays unknown, never 0."""
+    if type(value) is not Measured:
+        raise BudgetError("INVALID_" + field.upper())
+    return UNKNOWN if value.value is None else confirmed(value.value)
+
+
+def usage_from_breakdown(breakdown: UsageBreakdown, *, api_cost_cents: Amount = UNKNOWN,
+                         quota_used: Amount = UNKNOWN, quota_unit: str | None = None) -> Usage:
+    """Convert an ``aik_provider.UsageBreakdown`` into a budget usage report (AIK-093).
+
+    input_tokens takes the uncached input, cache_write_tokens the sum of the
+    known write components. A provider-observed or locally derived count is
+    confirmed: it comes from the provider's own report, not from an estimate.
+    API cost and quota stay unknown unless the caller supplies them; they are
+    never derived from tokens.
+    """
+    if type(breakdown) is not UsageBreakdown:
+        raise BudgetError("INVALID_USAGE_BREAKDOWN")
+    write = breakdown.cache_write()
+    return Usage(
+        api_cost_cents=api_cost_cents,
+        input_tokens=_measured_amount(breakdown.input_uncached, "input_tokens"),
+        output_tokens=_measured_amount(breakdown.output, "output_tokens"),
+        quota_used=quota_used,
+        quota_unit=quota_unit,
+        cache_read_tokens=_measured_amount(breakdown.cache_read, "cache_read_tokens"),
+        cache_write_tokens=UNKNOWN if write is None else confirmed(write),
+        reasoning_tokens=_measured_amount(breakdown.reasoning, "reasoning_tokens"),
+    )
 
 
 # ------------------------------------------------------------------ policies
@@ -289,7 +346,12 @@ class CostTotals:
 
 @dataclass(frozen=True, slots=True)
 class TokenTotals:
-    """Sum of reported token counts only; unknown_records > 0 makes it a lower bound."""
+    """Sum of reported token counts only; unknown_records > 0 makes it a lower bound.
+
+    observed = input + output + cache read + cache write (AIK-093). Reasoning
+    tokens are inside output and are not added. A call missing any of the four
+    components counts in unknown_records; its known components are still summed.
+    """
 
     observed: int
     unknown_records: int

@@ -7,10 +7,12 @@ errors use fixed codes and never include message content.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 import json
 import re
+
+from aik_provider.turns import CachePolicy, Measured, OpaqueBlock, UsageBreakdown
 
 SOURCES = ("synthetic_fixture", "live")
 MAX_TEXT_CHARS = 1_000_000
@@ -18,6 +20,9 @@ MAX_MESSAGES = 1000
 MAX_PARTS = 256
 MAX_TOOLS = 128
 MAX_OUTPUT_TOKENS = 1_000_000
+THINKING_MODES = ("adaptive",)
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+PROVIDER_NAME = "anthropic"
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _CALL_ID = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]{0,127}\Z")
 _TOOL_NAME = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
@@ -80,26 +85,45 @@ class TextPart:
 
 @dataclass(frozen=True, slots=True)
 class ToolCall:
-    """A model request to run a tool; this adapter never executes tools."""
+    """A model request to run a tool; this adapter never executes tools.
+
+    ``arguments_json`` is canonical (sorted keys) and is what digests use.
+    ``wire_arguments_json`` keeps the provider's own key order so the turn can
+    be sent back exactly as the model wrote it (AIK-093); it is not compared.
+    """
 
     call_id: str
     name: str
     arguments_json: str
+    wire_arguments_json: str | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if type(self.call_id) is not str or _CALL_ID.fullmatch(self.call_id) is None:
             raise ValueError("INVALID_TOOL_CALL_ID")
         if type(self.name) is not str or _TOOL_NAME.fullmatch(self.name) is None:
             raise ValueError("INVALID_TOOL_NAME")
-        if _parse_object(self.arguments_json) is None:
+        arguments = _parse_object(self.arguments_json)
+        if arguments is None:
             raise ValueError("INVALID_TOOL_ARGUMENTS")
+        if self.wire_arguments_json is not None:
+            wire = _parse_object(self.wire_arguments_json)
+            if wire is None or canonical_json_object(wire) != canonical_json_object(arguments):
+                raise ValueError("INVALID_TOOL_ARGUMENTS")
 
     @classmethod
-    def create(cls, call_id: str, name: str, arguments: dict) -> "ToolCall":
+    def create(cls, call_id: str, name: str, arguments: dict, *, keep_wire_order: bool = False) -> "ToolCall":
         text = canonical_json_object(arguments)
         if text is None:
             raise ValueError("INVALID_TOOL_ARGUMENTS")
-        return cls(call_id, name, text)
+        wire = None
+        if keep_wire_order:
+            wire = json.dumps(arguments, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+        return cls(call_id, name, text, wire)
+
+    @property
+    def wire_arguments(self) -> dict:
+        """Arguments in the order to send back: the provider's order when known."""
+        return json.loads(self.wire_arguments_json if self.wire_arguments_json is not None else self.arguments_json)
 
     @property
     def arguments(self) -> dict:
@@ -138,7 +162,7 @@ class Message:
         for part in parts:
             if type(part) is TextPart:
                 continue
-            if type(part) is ToolCall and self.role == "assistant":
+            if type(part) in (ToolCall, OpaqueBlock) and self.role == "assistant":
                 continue
             if type(part) is ToolResult and self.role == "user":
                 continue
@@ -179,6 +203,9 @@ class MessagesCall:
     max_tokens: int
     system: str | None = None
     tools: tuple = ()
+    cache: CachePolicy | None = None   # AIK-093: None keeps the request body unchanged
+    thinking: str | None = None        # "adaptive" or None (provider default)
+    effort: str | None = None          # one of EFFORTS or None (provider default)
 
     def __post_init__(self) -> None:
         for name in ("messages", "tools"):
@@ -199,6 +226,14 @@ class MessagesCall:
             raise ValueError("INVALID_TOOLS")
         if len({tool.name for tool in self.tools}) != len(self.tools):
             raise ValueError("DUPLICATE_TOOL_NAME")
+        if self.cache is not None and not isinstance(self.cache, CachePolicy):
+            raise ValueError("INVALID_CACHE_POLICY")
+        if self.cache is CachePolicy.PROVIDER_DEFAULT:
+            raise ValueError("UNSUPPORTED_CACHE_POLICY")  # explicit caching only (capability)
+        if self.thinking is not None and self.thinking not in THINKING_MODES:
+            raise ValueError("INVALID_THINKING")
+        if self.effort is not None and self.effort not in EFFORTS:
+            raise ValueError("INVALID_EFFORT")
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,20 +244,34 @@ class Usage:
     output_tokens: int | None = None
     cache_creation_input_tokens: int | None = None
     cache_read_input_tokens: int | None = None
+    cache_creation_5m_input_tokens: int | None = None   # cache_creation.ephemeral_5m_input_tokens
+    cache_creation_1h_input_tokens: int | None = None   # cache_creation.ephemeral_1h_input_tokens
 
     def __post_init__(self) -> None:
-        for name in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"):
+        for name in _USAGE_NAMES:
             value = getattr(self, name)
             if value is not None and (type(value) is not int or not 0 <= value <= _MAX_INT):
                 raise ValueError("INVALID_USAGE")
 
     def as_dict(self) -> dict:
-        return {
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
-            "cache_creation_input_tokens": self.cache_creation_input_tokens,
-            "cache_read_input_tokens": self.cache_read_input_tokens,
-        }
+        return {name: getattr(self, name) for name in _USAGE_NAMES}
+
+    def breakdown(self) -> UsageBreakdown:
+        """The vendor-neutral split (AIK-093). Thinking tokens are not reported separately."""
+        short, long_ = self.cache_creation_5m_input_tokens, self.cache_creation_1h_input_tokens
+        by_ttl = short is not None and long_ is not None
+        return UsageBreakdown(
+            input_uncached=Measured.observed(self.input_tokens),
+            cache_write_short=Measured.observed(short) if by_ttl else Measured(),
+            cache_write_long=Measured.observed(long_) if by_ttl else Measured(),
+            cache_write_unspecified=Measured() if by_ttl else Measured.observed(self.cache_creation_input_tokens),
+            cache_read=Measured.observed(self.cache_read_input_tokens),
+            output=Measured.observed(self.output_tokens),
+        )
+
+
+_USAGE_NAMES = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens",
+                "cache_creation_5m_input_tokens", "cache_creation_1h_input_tokens")
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,7 +302,7 @@ class ModelResult:
             raise ValueError("INVALID_STOP_REASON")
         if type(self.completion) is not Completion:
             raise ValueError("INVALID_COMPLETION")
-        if type(self.parts) is not tuple or any(type(p) not in (TextPart, ToolCall) for p in self.parts):
+        if type(self.parts) is not tuple or any(type(p) not in (TextPart, ToolCall, OpaqueBlock) for p in self.parts):
             raise ValueError("INVALID_RESULT_PARTS")
         if type(self.usage) is not Usage:
             raise ValueError("INVALID_USAGE")
@@ -267,6 +316,10 @@ class ModelResult:
     @property
     def text(self) -> str:
         return "".join(part.text for part in self.parts if type(part) is TextPart)
+
+    @property
+    def opaque_blocks(self) -> tuple:
+        return tuple(part for part in self.parts if type(part) is OpaqueBlock)
 
     @property
     def is_final(self) -> bool:
@@ -297,5 +350,5 @@ def tool_results_message(results) -> Message:
 __all__ = [
     "Completion", "TextPart", "ToolCall", "ToolResult", "Message", "ToolSpec", "MessagesCall",
     "Usage", "ModelResult", "assistant_message", "tool_results_message", "SOURCES",
-    "canonical_json_object",
+    "canonical_json_object", "THINKING_MODES", "EFFORTS",
 ]

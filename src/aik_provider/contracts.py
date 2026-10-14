@@ -11,6 +11,8 @@ from enum import StrEnum
 import re
 from typing import Protocol, runtime_checkable
 
+from .turns import PromptCacheCapability
+
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _PROVIDER = re.compile(r"[a-z][a-z0-9_-]{0,63}\Z")
 _FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
@@ -139,9 +141,12 @@ class AdapterCapabilities:
     job_interrupt: Support
     implementation_state: str = "implemented"
     qualification_status: str = "NOT_RUN"
+    prompt_cache: PromptCacheCapability | None = None  # None: not disclosed (AIK-093)
 
     def __post_init__(self) -> None:
         _id(self.provider, "provider", provider=True)
+        if self.prompt_cache is not None and not isinstance(self.prompt_cache, PromptCacheCapability):
+            raise ValueError("INVALID_PROMPT_CACHE")
         _id(self.runtime, "runtime")
         _enum(self.auth_kind, AuthKind, "auth_kind")
         _enum(self.isolation, AccountIsolation, "isolation")

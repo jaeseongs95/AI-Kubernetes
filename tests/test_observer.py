@@ -8,6 +8,7 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
+import json
 from pathlib import Path
 import sqlite3
 import sys
@@ -19,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from aik_budget import UNKNOWN, Usage, confirmed  # noqa: E402
+from aik_observer.models import merge_usage, parse_usage  # noqa: E402
 from aik_provider import AuthKind, ConnectionBinding, JobReceipt, JobRequest, JobState  # noqa: E402
 from aik_observer import (  # noqa: E402
     NOT_PROVIDED, EventConflict, GapRecord, InvalidEvent, ObserverError, ProviderEvent,
@@ -232,6 +234,71 @@ class ObserverTests(unittest.TestCase):
         usage = self.observer.snapshot("lease-1").usage
         self.assertEqual((usage.output_tokens, usage.input_tokens, usage.api_cost_cents),
                          (confirmed(9), confirmed(3), confirmed(4)))
+
+    def test_cache_and_reasoning_components_follow_the_same_usage_rules(self) -> None:
+        parsed = parse_usage({"cache_read_tokens": 40, "cache_write_tokens": 0, "reasoning_tokens": None,
+                              "unrelated": 5})
+        self.assertEqual((parsed.cache_read_tokens, parsed.cache_write_tokens, parsed.reasoning_tokens),
+                         (confirmed(40), confirmed(0), UNKNOWN))  # missing/null is unknown, 0 is confirmed(0)
+        for payload in ({"cache_read_tokens": -1}, {"cache_write_tokens": True}, {"reasoning_tokens": "3"}):
+            with self.subTest(payload=payload), self.assertRaises(InvalidEvent):
+                event(1, "usage", payload)
+        merged = merge_usage(Usage(cache_read_tokens=confirmed(10), reasoning_tokens=confirmed(2)),
+                             parse_usage({"cache_read_tokens": 12, "cache_write_tokens": 3}))
+        self.assertEqual((merged.cache_read_tokens, merged.cache_write_tokens, merged.reasoning_tokens),
+                         (confirmed(12), confirmed(3), confirmed(2)))
+        self.start()
+        self.observer.ingest("lease-1", FakeSource([
+            event(1, "usage", {"input_tokens": 20, "output_tokens": 9, "cache_read_tokens": 100}),
+            event(2, "usage", {"reasoning_tokens": 4}),
+            event(3, "usage", {"cache_read_tokens": 7}, provenance="model_reported"),
+        ]))
+        usage = self.observer.snapshot("lease-1").usage
+        self.assertEqual((usage.input_tokens, usage.output_tokens, usage.cache_read_tokens,
+                          usage.cache_write_tokens, usage.reasoning_tokens),
+                         (confirmed(20), confirmed(9), confirmed(100), UNKNOWN, confirmed(4)))
+        self.observer.poll("lease-1", FakePort([JobState.SUCCEEDED]))
+        self.assertEqual(self.budget.calls, [("lease-1", usage)])
+
+    def test_usage_rows_stored_before_cache_components_are_still_read(self) -> None:
+        legacy = {"api_cost_cents": {"basis": "unknown", "value": None},
+                  "input_tokens": {"basis": "confirmed", "value": 11},
+                  "output_tokens": {"basis": "confirmed", "value": 6},
+                  "quota_used": {"basis": "unknown", "value": None}, "quota_unit": None}
+        legacy_json = json.dumps(legacy, sort_keys=True, separators=(",", ":"))
+        expected = Usage(input_tokens=confirmed(11), output_tokens=confirmed(6))
+        self.start("lease-old")
+        self.start("lease-settled")
+        with closing(sqlite3.connect(self.database)) as connection:
+            connection.execute('UPDATE "observations" SET "usage_json" = ? WHERE "lease_id" = ?',
+                               (legacy_json, "lease-old"))
+            connection.execute('UPDATE "observations" SET "usage_json" = ?, "settled_usage_json" = ?, '
+                               '"job_state" = ? WHERE "lease_id" = ?',
+                               (legacy_json, legacy_json, JobState.SUCCEEDED.value, "lease-settled"))
+            connection.execute('INSERT INTO "settlements" ("lease_id", "usage_json", "budget_kind", "submitted_at") '
+                               "VALUES (?, ?, ?, ?)", ("lease-settled", legacy_json, "settlement",
+                                                       "2030-01-01T00:00:00Z"))
+            connection.commit()
+        # Snapshot read path.
+        self.assertEqual(self.observer.snapshot("lease-old").usage, expected)
+        settled = self.observer.snapshot("lease-settled")
+        self.assertEqual((settled.usage, settled.settlements[0].usage), (expected, expected))
+        # An old terminal row whose settled copy matches is not settled again.
+        self.observer.poll("lease-settled", FakePort())
+        self.assertEqual(self.budget.calls, [])
+        # Event merge path: an old row is merged with a new component report.
+        self.observer.ingest("lease-old", FakeSource([event(1, "usage", {"cache_read_tokens": 30})]))
+        merged = self.observer.snapshot("lease-old").usage
+        self.assertEqual(merged, Usage(input_tokens=confirmed(11), output_tokens=confirmed(6),
+                                       cache_read_tokens=confirmed(30)))
+        # Settlement path reads the stored row and reports the merged total once.
+        self.observer.poll("lease-old", FakePort([JobState.SUCCEEDED]))
+        self.assertEqual(self.budget.calls, [("lease-old", merged)])
+        with closing(sqlite3.connect(self.database)) as connection:
+            stored = json.loads(connection.execute('SELECT "usage_json" FROM "observations" WHERE "lease_id" = ?',
+                                                   ("lease-old",)).fetchone()[0])
+        self.assertEqual(stored["cache_read_tokens"], {"basis": "confirmed", "value": 30})
+        self.assertEqual(stored["reasoning_tokens"], {"basis": "unknown", "value": None})
 
     def test_observed_settings_stay_separate_from_requested_and_model_reported(self) -> None:
         self.start()

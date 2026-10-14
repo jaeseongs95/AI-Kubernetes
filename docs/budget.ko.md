@@ -24,7 +24,7 @@
 | 단위 | 필드 | 의미 |
 | --- | --- | --- |
 | API 비용 | `api_cost_cents` | 정수 최소 화폐 단위 |
-| 토큰 | `input_tokens`, `output_tokens` | provider가 보고한 토큰 수 |
+| 토큰 | `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `reasoning_tokens` | provider가 보고한 토큰 수(AIK-093 구성요소 아래 참조) |
 | 구독 quota | `quota_used` + `quota_unit` | provider가 보고한 구독 quota 소비량. 단위는 보고된 식별자 그대로 쓴다 |
 
 모든 값은 `Amount(value, basis)`로 기록한다. basis는 다음 셋 중 하나다.
@@ -36,6 +36,14 @@
 `Usage()`의 모든 필드는 기본값이 `unknown`이다. 제공된 값만 기록하고, 미제공 항목을 0이나 추정값으로 채우지 않는다. `Amount(0)`처럼 unknown에 값을 넣으면 `BudgetError`로 거절한다.
 
 단위 간 환산은 하지 않는다. 토큰, 가격, 계정 사용률을 구독 quota 차감량으로 바꾸지 않는다. 구독 quota 잔여량은 provider 관측(`record_quota`)으로만 갱신한다.
+
+### 토큰 구성요소 (AIK-093)
+
+- `input_tokens`: 일반 요율로 처리된 입력(캐시 read·write 제외), `cache_read_tokens`: 프롬프트 캐시에서 읽은 입력, `cache_write_tokens`: 캐시에 쓴 입력, `output_tokens`: 생성한 모든 토큰이다.
+- `reasoning_tokens`는 `output_tokens` 중 추론에 쓴 부분이다. 이미 output 안에 있으므로 더하지 않는다.
+- 세 구성요소 필드는 `Usage` 끝에 기본값 unknown으로 추가했다. 기존 키워드 생성은 그대로 동작한다.
+- `usage_from_breakdown(breakdown, *, api_cost_cents=UNKNOWN, quota_used=UNKNOWN, quota_unit=None)`은 `aik_provider.UsageBreakdown`을 `Usage`로 바꾼다. `input_uncached→input_tokens`, `output→output_tokens`, `cache_read→cache_read_tokens`, `breakdown.cache_write()`(알려진 write 구성요소 합, 없으면 unknown)→`cache_write_tokens`, `reasoning→reasoning_tokens`이다. 값이 있는 구성요소(provider_observed·local_derived)는 provider 보고에서 온 값이므로 `confirmed`, 값이 없는 구성요소는 `unknown`이다. 비용과 quota는 주어진 경우에만 기록하며 토큰에서 환산하지 않는다.
+- 저장 문서 호환: `usage_from_dict`는 정확히 두 키 집합만 받는다 — 현재 전체 키 집합, 또는 AIK-093 이전 키 집합(세 구성요소 없음). 이전 문서의 세 구성요소는 unknown으로 읽는다. 다른 키가 섞이거나 새 키 일부만 있는 문서는 `INVALID_USAGE`로 거절한다. 새로 쓰는 문서는 항상 전체 키 집합이다.
 
 ## 정책(scope)
 
@@ -58,7 +66,7 @@
 | `deadline` | 절대 시각 hard stop. 다음 둘을 거절한다 — 현재 시각 ≥ deadline, 또는 현재 시각 + 요청 `max_seconds` > deadline |
 | `max_concurrency` | 활성(`reserved`) 예약 수 상한. 초과 시 대기(wait) |
 | `max_api_cost_cents` | 비용 상한. 요청에 `api_cost_estimate_cents`가 반드시 있어야 하며, 그 값을 hold로 예약한다 |
-| `token_stop` | 사용자가 선택하는 관측량 기반 best-effort 중단. 보고된 토큰 합계만 비교하며 unknown은 세지 않는다 |
+| `token_stop` | 사용자가 선택하는 관측량 기반 best-effort 중단. 보고된 토큰 합계만 비교하며 unknown은 세지 않는다. 합계는 호출별 `input + output + cache_read + cache_write`이고 reasoning은 output 안에 있어 더하지 않는다(AIK-093) |
 
 비용 상한이 나중에 추가되는 경우가 있다. 이전 정책 변경 때문이거나 같은 profile·pool에 정책이 새로 생긴 경우다. 이때 hold 없이 실행된 호출이 이미 있을 수 있으며, 다음과 같이 처리한다.
 
@@ -104,7 +112,7 @@
 - **`settle(reservation_id, usage)`:** `usage`는 그 호출의 **누적 총사용량**이다. 증분이 아니다.
   - 활성 예약이면 첫 기록을 `settlement`로 남기고 상태를 `settled`로 바꾼다.
   - 이미 `settled`/`released`인 예약에 대한 보고는 `late` 기록으로 **추가만** 하며 기존 상태는 바꾸지 않는다.
-- **유효값 산정:** 집계는 호출별·필드별로 유효값 하나만 쓴다. 비용, 입력·출력 토큰, quota 소비량이 각각 해당한다.
+- **유효값 산정:** 집계는 호출별·필드별로 유효값 하나만 쓴다. 비용, 입력·출력·cache read·cache write 토큰, quota 소비량이 각각 해당한다.
   - 가장 최근의 `confirmed` 보고를 쓴다.
   - `confirmed` 보고가 없으면 가장 최근의 `estimated` 보고를 쓴다.
   - 둘 다 없으면 unknown이다. 나중에 들어온 unknown 보고는 이미 알려진 값을 지우지 않는다.
@@ -164,7 +172,8 @@ python -m unittest tests.test_budget -v
 - 비용 hold와 추정값 필수
 - 나중에 추가된 비용 상한에서 hold 없는 unknown 비용 거절과 해제
 - profile `budget_unit` 매핑(`usd_cents`·`tokens`)과 `BUDGET_UNIT_UNSUPPORTED`
-- best-effort token stop
+- best-effort token stop, 캐시 토큰이 token stop을 넘기는 경우와 reasoning 비합산(AIK-093)
+- AIK-093 이전 키 집합으로 저장된 사용량 문서의 직접 해석과 SQLite `usage_records` 경유 조회, 부분·추가 키 거절, `usage_from_breakdown` 변환
 
 **provider 관측**
 - 429 retry와 retry 시각 unknown
@@ -192,6 +201,7 @@ python -m unittest tests.test_budget -v
 - **목표 scope 누락:** 목표 scope는 호출자가 넣지 않으면 검사되지 않는다. 자동 적용은 `pool:`/`profile:` 자원 정책에만 해당한다.
 - **보고 식별자 없음:** 정산 보고에 별도 보고 식별자(report id)는 없다. 재전송 보고도 기록으로는 추가되지만(`usage_records`에 보임) 합계에는 한 번만 반영된다.
 - **token stop:** token stop은 보고된 토큰만 비교하는 best-effort 정책이며, 실행 중인 호출을 중단하지 않는다.
+- **토큰 합계 의미 변경(AIK-093):** `TokenTotals.observed`는 이전에 `input + output`이었고 이제 `input + output + cache_read + cache_write`다. 캐시 토큰을 보고하는 호출은 같은 token stop에 더 빨리 도달한다. 네 구성요소 중 하나라도 unknown인 호출은 `unknown_records`에 세고, 알려진 구성요소는 그대로 합산한다(input·output에 쓰던 규칙과 같다). 따라서 AIK-093 이전에 저장된 기록과 cache write를 보고하지 않는 provider(예: OpenAI)의 기록은 `unknown_records`에 들어가며, 그 합계는 하한이다.
 - **overdue 예약:** 기한이 지난 예약(`overdue`)은 자동으로 해제하지 않는다. 명시적인 정산·release가 있을 때까지 슬롯을 점유한다(fail-closed).
 - **미지원 예산 단위:** `aik_config`의 `BUDGET_UNITS` 중 `usd_cents`·`tokens` 외의 단위는 측정 방법이 없어 admission을 거절한다.
 - **처리량:** 정산 기록이 커질수록 상태 계산 비용이 늘어난다. quota 검사는 pool의 예약 전체를 읽는다. 대규모 처리량은 검증하지 않았다.

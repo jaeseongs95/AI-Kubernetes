@@ -33,6 +33,8 @@ DB 경로는 `aik_runtime.paths` 규칙을 그대로 따른다. 저장소·개�
 ## usage와 완료 판정 (완료 기준 3)
 
 - `usage` 이벤트(`provider_observed`)의 필드만 `aik_budget.Usage`로 바꾼다. 키가 없으면 `UNKNOWN`, 명시적 0이면 `confirmed(0)`이다. 0이나 추정으로 채우지 않는다. 같은 호출의 뒤 보고는 총량 재보고로 다룬다.
+- 읽는 필드는 `api_cost_cents`, `input_tokens`, `output_tokens`, `quota_used`와 AIK-093 구성요소 `cache_read_tokens`, `cache_write_tokens`, `reasoning_tokens`이다(`aik_budget.Usage`와 같은 이름). 구성요소도 같은 규칙(누락·null은 unknown, 0 이상 정수만 허용, 뒤 보고의 알려진 값이 앞 값을 대체)을 따른다. `reasoning_tokens`는 output 안의 일부다. 모르는 키는 무시한다.
+- AIK-093 이전에 저장된 `usage_json`(구성요소 키 없음)도 그대로 읽으며 구성요소는 unknown이다. 새 usage 이벤트를 병합하면 전체 키 집합으로 다시 쓴다. 이때 문자열이 달라져 terminal 기록은 한 번 더 제출될 수 있으나, budget은 이를 `late` 총량 재보고로 받아 두 번 합산하지 않는다.
 - `model_reported` provenance의 usage는 회계 근거로 쓰지 않는다.
 - 완료(terminal)는 `poll()`이 `JobPort.observe`로 받은 provider `JobState`가 `aik_provider.TERMINAL`에 속할 때만이다. `output_delta`나 HTTP 성공만으로는 완료가 아니다.
 - terminal이 관측되면 현재 usage로 `BudgetStore.settle(lease_id, usage)`를 한 번 기록한다. usage가 모두 `UNKNOWN`이어도 0으로 바꾸지 않고 그대로 정산한다. 뒤에 usage가 바뀌면 다시 제출하며, budget이 `late`로 기록한다.

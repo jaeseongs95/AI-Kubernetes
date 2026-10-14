@@ -11,6 +11,7 @@ import json
 import re
 
 from aik_provider.contracts import JobState
+from aik_provider.turns import UNKNOWN, Measured, UsageBreakdown
 
 
 BILLING_BASIS = "api_key_metered"  # API usage billing, never subscription quota
@@ -144,22 +145,56 @@ class TurnInput:
 
 @dataclass(frozen=True, slots=True)
 class Usage:
-    """Only token counts the provider explicitly reported; None means unknown."""
+    """Only token counts the provider explicitly reported; None means unknown.
+
+    ``cached_input_tokens`` is the part of ``input_tokens`` served from the
+    provider's prompt cache; ``reasoning_tokens`` is the part of
+    ``output_tokens`` spent on reasoning (AIK-093). Both are already inside
+    their totals and are never added to them.
+    """
 
     input_tokens: int | None = None
     output_tokens: int | None = None
     total_tokens: int | None = None
     billing_basis: str = BILLING_BASIS
+    cached_input_tokens: int | None = None
+    reasoning_tokens: int | None = None
 
     def __post_init__(self) -> None:
-        for name in ("input_tokens", "output_tokens", "total_tokens"):
+        for name in _USAGE_COUNTS:
             _count(getattr(self, name))
         if self.billing_basis != BILLING_BASIS:
             raise ValueError("INVALID_BILLING_BASIS")
 
     @property
     def reported(self) -> bool:
-        return any(value is not None for value in (self.input_tokens, self.output_tokens, self.total_tokens))
+        return any(getattr(self, name) is not None for name in _USAGE_COUNTS)
+
+    def breakdown(self) -> UsageBreakdown:
+        """Vendor-neutral components (AIK-093). Nothing unreported becomes 0.
+
+        - No cached count: the provider did not report the split, so neither
+          the uncached input nor the cache read is known.
+        - A cached count above the input total contradicts it; both stay unknown.
+        - Cache writes are not reported by this provider and stay unknown.
+        - A reasoning count above the output total is dropped (unknown).
+        """
+        input_uncached = cache_read = UNKNOWN
+        cached = self.cached_input_tokens
+        if cached is not None and (self.input_tokens is None or cached <= self.input_tokens):
+            cache_read = Measured.observed(cached)
+            if self.input_tokens is not None:
+                input_uncached = Measured.derived(self.input_tokens - cached)
+        reasoning = self.reasoning_tokens
+        if reasoning is not None and self.output_tokens is not None and reasoning > self.output_tokens:
+            reasoning = None
+        return UsageBreakdown(
+            input_uncached=input_uncached, cache_read=cache_read,
+            output=Measured.observed(self.output_tokens), reasoning=Measured.observed(reasoning),
+        )
+
+
+_USAGE_COUNTS = ("input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "reasoning_tokens")
 
 
 @dataclass(frozen=True, slots=True)

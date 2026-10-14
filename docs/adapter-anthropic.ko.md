@@ -90,12 +90,15 @@ guard.sign_out(binding2)                                               # 해제:
 
 `ModelResult.model`은 응답의 `model` 값을 그대로 기록한다. 값이 없거나 형식이 맞지 않으면 `None`이며, 요청한 모델 ID로 대체하지 않는다.
 
-`Usage`는 다음 네 counter를 기록한다. 0 이상의 정수로 명시된 값만 기록하고, 나머지는 `None`(unknown)이다.
+`Usage`는 다음 counter를 기록한다. 0 이상의 정수로 명시된 값만 기록하고, 나머지는 `None`(unknown)이다.
 
 - `input_tokens`
 - `output_tokens`
 - `cache_creation_input_tokens`
 - `cache_read_input_tokens`
+- `cache_creation_5m_input_tokens`, `cache_creation_1h_input_tokens`: `cache_creation`의 보존 기간별 내역(AIK-093)
+
+`Usage.breakdown()`은 이 값을 벤더 중립 `UsageBreakdown`으로 나눈다. thinking 토큰은 provider가 따로 보고하지 않으므로 `reasoning`은 unknown이다. 자세한 내용은 [prompt-cache](prompt-cache.ko.md)에 있다.
 
 모델 이름은 코드에 고정하지 않으며 호출자가 설정값으로 전달한다.
 
@@ -108,7 +111,7 @@ guard.sign_out(binding2)                                               # 해제:
 | `max_tokens` (ToolCall이 있어도 동일) | `truncated` | `failed` |
 | `refusal` | `refused` | `failed` |
 | `pause_turn` | `incomplete` | `failed` |
-| 기타·누락, 알 수 없는 content block, ToolCall 없는 `tool_use` | `unknown` | `failed` |
+| 기타·누락, 알 수 없는 content block(`thinking`·`redacted_thinking` 제외), ToolCall 없는 `tool_use` | `unknown` | `failed` |
 
 `succeeded`는 provider 호출을 관측했다는 뜻이며, VM Goal/Task/Attempt 완료 판정이 아니다.
 
@@ -135,6 +138,12 @@ AIK-035 loop는 `assistant_message(result)`와 `tool_results_message([ToolResult
 | `ToolSpec` | `tools[]`(`name`, `description`, `input_schema`) |
 
 `truncated`/`refused`/`unknown` 결과는 `assistant_message`가 거절한다.
+
+AIK-093부터 다음이 추가됐다.
+- `thinking`·`redacted_thinking` block은 해석하지 않는 `OpaqueBlock`(원래 index와 원문 JSON)으로 보존하고, 다음 요청에 같은 위치로 그대로 보낸다. 다른 provider의 블록이 섞인 대화는 `prepare`가 `INVALID_CONTRACT`(native `opaque_provider_mismatch`)로 거절한다.
+- `ToolCall.wire_arguments_json`은 모델이 낸 인자의 key 순서를 보존한다. 다시 보낼 때는 이 순서를 쓰고, digest는 기존 canonical 값을 쓴다.
+- `MessagesCall`의 `cache`·`thinking`·`effort`가 None이면 요청 본문은 이전과 같다. 값이 있을 때의 문법(`cache_control`, `thinking`, `output_config`)은 이 adapter에만 있다.
+- `AnthropicTurnPort`(`loop_port.py`)가 ApiToolLoop의 model port를 이 adapter로 구현한다.
 
 ### 5.4 fixture와 실측 구분
 
@@ -218,7 +227,7 @@ Linux 시험 통과는 개발 검증이며 Windows 지원 증거가 아니다. f
 
 ## 9. 한계
 
-- streaming, 재시도, 실행 중 취소, extended thinking 등 다른 content block 형식은 구현하지 않았다(알 수 없는 block은 `unknown`).
+- streaming, 재시도, 실행 중 취소는 구현하지 않았다. thinking 외의 다른 content block 형식(`server_tool_use` 등)은 여전히 `unknown`이다.
 - 다음 상태는 프로세스 메모리에만 있다. 재시작 뒤 reconciliation은 AIK-031/033/035/038 범위다.
   - 준비된 대화, 소비된 request_id, receipt, 결과, credential별 현재 revision, 감사 기록
   - 재시작 후 또는 다른 adapter 인스턴스에서는 revision 기억이 없으므로 이전 binding 거절이 fingerprint 비교에만 의존한다. 따라서 A→B→A 교체 뒤의 옛 binding을 그 경우에는 거절하지 못한다.

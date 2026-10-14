@@ -250,6 +250,9 @@ def _latest_known(items) -> tuple | None:
     return chosen.get("confirmed", chosen.get("estimated"))
 
 
+_TOKEN_TOTAL_FIELDS = ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens")
+
+
 def _tally(connection: sqlite3.Connection, rows: list) -> _Tally:
     tally = _Tally()
     try:
@@ -290,8 +293,10 @@ def _tally(connection: sqlite3.Connection, rows: list) -> _Tally:
                     tally.cost_unknown_held += hold
                 else:
                     tally.cost_unknown_unheld += 1
+            # Tokens observed = input + output + cache read + cache write (AIK-093).
+            # reasoning_tokens is inside output_tokens and is never added again.
             token_unknown = False
-            for name in ("input_tokens", "output_tokens"):
+            for name in _TOKEN_TOTAL_FIELDS:
                 token = _latest_known((getattr(usage, name), None) for usage in reports)
                 if token is None:
                     token_unknown = True
