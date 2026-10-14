@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "AIK-002 Windows foundation spike",
+  "platform": "win32",
+  "window_visible": true,
+  "renderer_node_access": false,
+  "checks": {
+    "health": {
+      "status": "PASS",
+      "code": "SIDECAR_READY",
+      "pid": 6380,
+      "platform": "win32",
+      "python_version": "3.14.8",
+      "frozen": true,
+      "product_integration": "NOT_RUN"
+    },
+    "worker": {
+      "status": "PASS",
+      "code": "WORKER_PROBE_OK",
+      "pid": 12428,
+      "parent_pid": 6380,
+      "artifact_bytes": 42,
+      "artifact_sha256": "82b2d2ffd52c4fcda74566e4950be2d32f128d466444883442aee643d34c10ee",
+      "temporary_artifact_removed": true
+    },
+    "vault": {
+      "status": "PASS",
+      "backend": "windows-user-dpapi",
+      "code": "VAULT_ROUNDTRIP_OK"
+    },
+    "auth_vault": {
+      "status": "PASS",
+      "backend": "windows-user-dpapi",
+      "code": "AUTH_VAULT_FAILURE_PATHS_OK",
+      "cases": {
+        "dpapi_round_trip": "ROUND_TRIP_OK",
+        "lock_contention": "VAULT_BUSY",
+        "malformed_reference": "INVALID_REFERENCE",
+        "truncated_blob": "VAULT_CORRUPT",
+        "foreign_blob_simulated": "ACCESS_DENIED",
+        "deleted_reference": "CREDENTIAL_NOT_FOUND",
+        "auth_clock_expiry": "EXPIRED_NOT_PLACEABLE",
+        "credential_removed": "REFERENCE_UNAVAILABLE_NOT_PLACEABLE",
+        "output_redaction": "REDACTED",
+        "other_user_profile": "NOT_RUN_SINGLE_USER_SESSION"
+      }
+    }
+  },
+  "metrics": {
+    "elapsed_ms": 1498,
+    "main_rss_bytes": 117309440,
+    "renderer_working_set_kb": 82012
+  },
+  "electron_version": "44.7.0",
+  "packaged": true,
+  "product_integration": "NOT_RUN"
+}

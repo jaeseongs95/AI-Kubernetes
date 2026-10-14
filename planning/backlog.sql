@@ -1229,6 +1229,8 @@ INSERT INTO "task_events" VALUES(299,'AIK-043','verification_progress','blocked'
 INSERT INTO "task_events" VALUES(300,'AIK-025','verification_progress','blocked','blocked','보충 근거 EV-AIK-025-SUPP-AGSPEER-20261013 기록. 완료 아님.','2026-10-13T16:45:26Z');
 INSERT INTO "task_events" VALUES(301,'AIK-086','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-086-MODULE-20261013). 완료 아님. 차단: AIK-022 Windows 멀티벤더 인증 qualification 미완료; AIK-081 AGS A2 plugin 미확보(host-integration.json·A2는 AGS 3.x 미병합); 실제 governed 실행·실계정 미실행','2026-10-13T16:58:36Z');
 INSERT INTO "task_events" VALUES(302,'AIK-022','status_change','todo','blocked','부분 구현과 Linux 합성 단위 검증을 기록했다(EV-AIK-022-MODULE-20261013). 완료 아님. 차단: 실계정 인증 경로(기준 1) 미실행: 사용자 key 입력 UI·실행 필요; 다른 Windows 사용자 프로필 조건 NOT_RUN(두 번째 계정 필요); Windows 11 표준 사용자 실기 결과 대기(AIK-003 handoff와 같은 실행)','2026-10-13T17:32:04Z');
+INSERT INTO "task_events" VALUES(303,'AIK-003','verification_progress','blocked','blocked','사용자 Windows 11 실기 근거 EV-003-USER-WIN11-20261014 기록. 완료 아님.','2026-10-14T00:45:00Z');
+INSERT INTO "task_events" VALUES(304,'AIK-022','verification_progress','blocked','blocked','사용자 Windows 11 실기 근거 EV-AIK-022-USER-WIN11-20261014 기록. 완료 아님.','2026-10-14T00:45:00Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1313,6 +1315,8 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-043-SUPP-AGSPEER-20261013','AIK-043',
 INSERT INTO "task_evidence" VALUES('EV-AIK-025-SUPP-AGSPEER-20261013','AIK-025','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-ags-peer-bridge','보충: src/aik_ags_peer가 AGS 세션 메시징으로 총괄↔worker 메시지를 보내고 result를 claim한다(전달 불명은 send_unknown, 자동 재전송 없음, ACK는 완료 아님). 실제 AGS 2.9.0 CLI 계약 시험 PASS. aik_inbox 큐·wake와의 연결은 아직 없어 NOT_RUN. 상태 변경 없음.','2026-10-13T16:45:26Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-086-MODULE-20261013','AIK-086','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-086','부분 구현: commit PR #16 aik_governance_env, tests/test_governance_env.py 26개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 2(이 환경 검증 불가), 3(부분), 4(이 환경 검증 불가); 차단: AIK-022 Windows 멀티벤더 인증 qualification 미완료; AIK-081 AGS A2 plugin 미확보(host-integration.json·A2는 AGS 3.x 미병합); 실제 governed 실행·실계정 미실행. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN.','2026-10-13T16:58:36Z');
 INSERT INTO "task_evidence" VALUES('EV-AIK-022-MODULE-20261013','AIK-022','partial_implementation_validation','evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-022','부분 구현: PR #17(f731b1e, merge e025f41) 설치형 Windows 앱 auth_vault 카드가 제품 aik_vault DPAPI·aik_auth_lifecycle·aik_connection으로 합성 비밀 실패 경로 10개를 실행. Linux 시험(test_auth_vault.py 5개 등) PASS, GitHub Actions Windows Server installed-spike job 115434838577에서 실제 DPAPI 설치본 auth_vault PASS(로그 판정). 남은 기준 1(미충족: 실계정 경로 NOT_RUN), 2(부분: 다른 사용자 프로필 NOT_RUN), 3(부분). Windows 11 표준 사용자 실기 NOT_RUN.','2026-10-13T17:32:04Z');
+INSERT INTO "task_evidence" VALUES('EV-003-USER-WIN11-20261014','AIK-003','actual_windows11_client_run','evidence/windows-client/2026-10-14-user-win11-26h2/README.ko.md','사용자 PC Windows 11 Pro 26H2(build 26300) 실기에서 handoff 패키지(e025f41, CI 38439252870 attempt 2, manifest b85ee7ce…a66) 실행: handoff 8개 검사·설치·GUI·frozen Python·worker·DPAPI·제거 PASS. review_windows_client.py 판정 BLOCKED(무결성 오류 0): 승격 관리자 토큰, 개발 도구 9건(node·npm·git), 준비 기록 없음. 청정 Windows 11 표준 사용자·개발 도구 부재·서명은 NOT_RUN. 첨부 ZIP sha256 0c4df266…993b.','2026-10-14T00:45:00Z');
+INSERT INTO "task_evidence" VALUES('EV-AIK-022-USER-WIN11-20261014','AIK-022','actual_windows11_synthetic_auth_vault','evidence/windows-client/2026-10-14-user-win11-26h2/README.ko.md','같은 Windows 11 Pro 26H2 실기 설치본에서 auth_vault 카드 PASS(AUTH_VAULT_FAILURE_PATHS_OK): 실제 사용자 DPAPI로 잠금·잘못된 참조·손상 blob·외부 blob 모의·삭제 참조·인증 만료·자격 증명 삭제·출력 redaction 10 case가 기대 코드와 일치. 검사기 aik022_auth_vault=PASS_SYNTHETIC_SINGLE_USER. 기준 2 부분(다른 사용자 프로필 NOT_RUN), 기준 1 실계정 경로 NOT_RUN. 승격 관리자 세션 실행.','2026-10-14T00:45:00Z');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2239,6 +2243,6 @@ FROM milestones m
 LEFT JOIN v_backlog t ON t.milestone_id = m.id
 GROUP BY m.id, m.name, m.sequence, m.scope;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',302);
+INSERT INTO "sqlite_sequence" VALUES('task_events',304);
 COMMIT;
 PRAGMA foreign_keys = ON;

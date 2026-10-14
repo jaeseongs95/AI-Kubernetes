@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "task_id": "AIK-003",
+  "status": "BLOCKED",
+  "scope": "Evidence integrity and readiness for independent clean-client review",
+  "checked_at": "2026-10-14T00:44:02.927450+00:00",
+  "expected_manifest_sha256": "b85ee7ce8d0d4dcdb95fdbc578bf12f8f07f511a61bbf486d253ee1a92f78a66",
+  "files": [
+    {
+      "path": "handoff-manifest.json",
+      "sha256": "b85ee7ce8d0d4dcdb95fdbc578bf12f8f07f511a61bbf486d253ee1a92f78a66",
+      "bytes": 6843
+    },
+    {
+      "path": "handoff-validation.json",
+      "sha256": "f6abc023d0bc49ebc70b13417600a662bea03b28ae9372363d294da3fef0e265",
+      "bytes": 6176
+    },
+    {
+      "path": "installed-check/packaging/evidence/installed-spike.json",
+      "sha256": "ecdcbbdc4202187ccfbb269f690b890c26de28588a3c73bb97b12fb43a1a8aee",
+      "bytes": 4170
+    },
+    {
+      "path": "installed-check/packaging/evidence/application-report.json",
+      "sha256": "4429d16fb746fda3188b9e086fe541df4dd949a7609a5444fb97b47bddb2a683",
+      "bytes": 1690
+    },
+    {
+      "path": "installed-check/packaging/evidence/screenshot.png",
+      "sha256": "e9a1f3b2aba47095bc37c8e321faface2e7f011a1f093474ed173ab9478e8028",
+      "bytes": 61531
+    },
+    {
+      "path": "client-environment.json",
+      "sha256": "6062ed8443535a05dbf1930568272aacb1b48389c6efa7821b30f642955cb9ae",
+      "bytes": 7194
+    }
+  ],
+  "blockers": [
+    "ELEVATED_OR_UNKNOWN_USER",
+    "NOT_CONFIRMED_STANDARD_USER",
+    "DEVELOPER_TOOLS_DETECTED",
+    "MISSING_CLEAN_PREPARATION_RECORD"
+  ],
+  "errors": [],
+  "qualification": {
+    "windows11_standard_user_clean_machine": "NOT_RUN",
+    "developer_tools_absence": "NOT_RUN",
+    "release_signing": "NOT_RUN",
+    "product_integration": "NOT_RUN"
+  },
+  "manual_review_required": [
+    "Verify the operator's clean-machine preparation records and image provenance.",
+    "Inspect the fresh screenshot and actual installation results.",
+    "Review hardware, current Windows support/security updates, paths and offline conditions against the pinned ADR.",
+    "Record independent AIK-003 acceptance evidence before changing task status."
+  ],
+  "package_source_commit": "e025f41c97753ee464e11ec5e21282018d2c6d40",
+  "aik022_auth_vault": "PASS_SYNTHETIC_SINGLE_USER",
+  "execution_id": "2f1c944b554e4031bdfc745bbf7cb3b7",
+  "tool_detection_count": 9,
+  "tool_inventory_limit": "No detections in targeted probes is not proof of a clean machine."
+}

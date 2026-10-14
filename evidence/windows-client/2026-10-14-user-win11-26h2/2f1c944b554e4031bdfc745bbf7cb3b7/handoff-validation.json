@@ -1,0 +1,101 @@
+﻿{
+    "schema_version":  2,
+    "execution_id":  "2f1c944b554e4031bdfc745bbf7cb3b7",
+    "scope":  "Independent AIK foundation installer handoff verification",
+    "started_at":  "2026-10-14T00:39:07.5977321Z",
+    "status":  "PASS",
+    "evidence_directory":  "C:\\Users\\Lenovo\\AppData\\Local\\AIK\\ClientHandoffEvidence\\2f1c944b554e4031bdfc745bbf7cb3b7",
+    "package_source_commit":  "e025f41c97753ee464e11ec5e21282018d2c6d40",
+    "observed_execution":  {
+                               "github_actions":  false,
+                               "github_sha":  null,
+                               "github_run_id":  null,
+                               "github_run_attempt":  null,
+                               "powershell_version":  "5.1.26100.9549",
+                               "powershell_edition":  "Desktop",
+                               "default_encoding_code_page":  949,
+                               "default_encoding_web_name":  "ks_c_5601-1987",
+                               "culture":  "ko-KR",
+                               "ui_culture":  "ko-KR",
+                               "os_version":  "Microsoft Windows NT 10.0.26300.0",
+                               "platform":  "Win32NT",
+                               "process_architecture":  "AMD64",
+                               "is_64_bit_process":  true
+                           },
+    "checks":  {
+                   "package_member_hashes":  "PASS",
+                   "verifier_bom_conversion":  "PASS",
+                   "legacy_powershell_51":  "PASS",
+                   "delivered_script_parse":  "PASS",
+                   "installed_gui_worker_dpapi_uninstall":  "PASS",
+                   "installed_engine_identity":  "PASS",
+                   "installed_python_dll_identity":  "PASS",
+                   "actual_gui_evidence":  "PASS"
+               },
+    "qualification":  {
+                          "windows11_standard_user_clean_machine":  "NOT_RUN",
+                          "developer_tools_absence":  "NOT_RUN",
+                          "release_signing":  "NOT_RUN",
+                          "product_integration":  "NOT_RUN"
+                      },
+    "limits":  [
+                   "PASS applies to this package and the actual bounded foundation checks only.",
+                   "This is an unsigned development spike; the complete product is not implemented.",
+                   "An unsigned manifest verifies member consistency, not publisher authenticity.",
+                   "Observed Windows and user properties do not prove a clean machine or absent developer tools.",
+                   "A Server administrator CI execution does not qualify Windows 11 standard-user support.",
+                   "GitHub identity variables are inherited as observed; local execution does not synthesize them."
+               ],
+    "manifest_sha256":  "b85ee7ce8d0d4dcdb95fdbc578bf12f8f07f511a61bbf486d253ee1a92f78a66",
+    "legacy_script_parse":  {
+                                "original":  {
+                                                 "status":  "PASS",
+                                                 "error_count":  0,
+                                                 "errors":  [
+
+                                                            ]
+                                             },
+                                "delivered_bom_copy":  {
+                                                           "status":  "PASS",
+                                                           "error_count":  0,
+                                                           "errors":  [
+
+                                                                      ]
+                                                       },
+                                "original_failure_required":  false
+                            },
+    "client_environment_report":  "client-environment.json",
+    "client_environment_sha256":  "6062ed8443535a05dbf1930568272aacb1b48389c6efa7821b30f642955cb9ae",
+    "client_environment_status":  "COMPLETE",
+    "child_environment":  {
+                              "path":  "C:\\WINDOWS\\System32;C:\\WINDOWS",
+                              "powershell":  "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                              "external_python_and_node_path":  "EXCLUDED",
+                              "installed_tooling_absence":  "NOT_RUN",
+                              "execution_policy_scope":  "child process only; no persistent policy change or elevation"
+                          },
+    "verifier_pid":  35292,
+    "verifier_exit_code":  0,
+    "installed_report":  "installed-check/packaging/evidence/installed-spike.json",
+    "installed_report_sha256":  "ecdcbbdc4202187ccfbb269f690b890c26de28588a3c73bb97b12fb43a1a8aee",
+    "observed_windows_environment":  {
+                                         "platform":  "win32",
+                                         "architecture":  "AMD64",
+                                         "os_caption":  "Microsoft Windows 11 Pro",
+                                         "os_version":  "10.0.26300",
+                                         "os_build":  "26300",
+                                         "os_product_type":  1,
+                                         "logical_processors":  16,
+                                         "memory_bytes":  31854321664,
+                                         "cpu_names":  [
+                                                           "AMD Ryzen 7 250 w/ Radeon 780M Graphics        "
+                                                       ],
+                                         "administrator":  true,
+                                         "github_actions":  false,
+                                         "runner_image":  null,
+                                         "runner_image_version":  null
+                                     },
+    "screenshot":  "installed-check/packaging/evidence/screenshot.png",
+    "visual_review":  "NOT_RUN",
+    "completed_at":  "2026-10-14T00:39:33.0804223Z"
+}

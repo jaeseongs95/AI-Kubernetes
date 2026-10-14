@@ -30,7 +30,7 @@
 
 ### 1.1 실제 PASS로 기록된 증거
 
-PASS 범위는 모두 **Windows Server 2022 관리자 CI**입니다.
+PASS 범위는 `EV-003-USER-WIN11-20261014`(사용자 PC Windows 11 실기, 승격 관리자)를 빼면 모두 **Windows Server 2022 관리자 CI**입니다.
 
 | 증거 ID | 위치 | PASS 범위 |
 |---|---|---|
@@ -40,10 +40,11 @@ PASS 범위는 모두 **Windows Server 2022 관리자 CI**입니다.
 | `EV-003-LEGACY-20261012` | `evidence/reviews/2026-10-12-powershell-legacy-encoding.json` | 인코딩 결함 재현(원본 오류 2 / BOM 사본 오류 0), `Get-FileHash` 실패를 .NET SHA256으로 수정. 환경 qualification과 분리됨 |
 | `EV-003-CLIENT-INTAKE-20261012` | `evidence/windows-client-intake/2026-10-12/local-validation.json` | 수집기·검사기 구현, 로컬 113 tests PASS. 보존된 Server 증거는 무결성 PASS, 청정 클라이언트 판정은 BLOCKED |
 | `EV-003-CLIENT-INTAKE-WINDOWS-20261012` | `evidence/windows-client-intake/2026-10-12/windows-ci-validation.json` | commit `312fa94…` / CI 38247899230 전체 성공: 회귀 41, Python 엔진 23, Node 8, PowerShell 5.1 수집 6 probe, 설치·GUI·worker·DPAPI·제거 PASS. 개발 도구 146개 관측으로 BLOCKED 판정이 정상 동작함 |
+| `EV-003-USER-WIN11-20261014` | `evidence/windows-client/2026-10-14-user-win11-26h2/README.ko.md` | **사용자 PC Windows 11 Pro 26H2(build 26300) 실기**(위 Server CI와 별개): 패키지 e025f41의 8개 검사·설치·GUI·worker·DPAPI·제거와 AIK-022 auth_vault PASS. 검사기 BLOCKED(무결성 오류 0): 승격 관리자 토큰·개발 도구 9건·준비 기록 없음 |
 
 ### 1.2 NOT_RUN 또는 미충족 항목
 
-- 깨끗한 Windows 11에서 표준 사용자로 실행한 기록 없음. NOT_RUN (`EV-003-CLIENT-INTAKE-WINDOWS`, handoff README "Windows 지원 판정 범위")
+- 깨끗한 Windows 11에서 표준 사용자로 실행한 기록 없음. NOT_RUN. 사용자 PC Windows 11 실기 실행(`EV-003-USER-WIN11-20261014`)은 승격 관리자·개발 도구 환경이라 이 조건을 충족하지 않음 (`EV-003-CLIENT-INTAKE-WINDOWS`, handoff README "Windows 지원 판정 범위")
 - `qualification.windows11_standard_user_clean_machine`, `qualification.developer_tools_absence`: NOT_RUN
 - 게시자 서명, 업데이트 신뢰, 제품 통합, 완제품 데이터 제거 검증: NOT_RUN (ADR §4, handoff README)
 - verification의 "문서 검토" 수행 기록: **자료에 없음**

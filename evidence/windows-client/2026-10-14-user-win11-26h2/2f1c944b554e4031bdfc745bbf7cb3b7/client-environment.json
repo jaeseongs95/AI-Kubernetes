@@ -1,0 +1,114 @@
+﻿{
+    "schema_version":  1,
+    "execution_id":  "2f1c944b554e4031bdfc745bbf7cb3b7",
+    "manifest_sha256":  "b85ee7ce8d0d4dcdb95fdbc578bf12f8f07f511a61bbf486d253ee1a92f78a66",
+    "observed_at":  "2026-10-14T00:39:08.4976010Z",
+    "status":  "COMPLETE",
+    "os":  {
+               "platform":  "win32",
+               "version":  "10.0.26300",
+               "build":  26300,
+               "product_type":  1,
+               "architecture":  "AMD64",
+               "edition_id":  "Professional",
+               "display_version":  "26H2"
+           },
+    "user":  {
+                 "elevated":  true,
+                 "administrator_group_member":  true
+             },
+    "hardware":  {
+                     "logical_processors":  16,
+                     "memory_bytes":  31854321664
+                 },
+    "tool_inventory":  {
+                           "status":  "COMPLETE",
+                           "scope":  "Read-only original PATH executable names; HKLM/HKCU 32/64-bit uninstall registrations; bounded conventional install directories for Python, Node/npm, Git, Rust, Visual Studio/MSBuild, Java and .NET SDK. No detected program is launched. No whole-disk, other-user, package-manager or remote-directory inventory. An empty result does not establish tool absence or a clean machine. WindowsApps Python aliases are reported separately and do not establish whether their target is installed. A dotnet host or shipped .NET runtime alone is excluded.",
+                           "probes":  [
+                                          {
+                                              "name":  "operating_system",
+                                              "status":  "PASS"
+                                          },
+                                          {
+                                              "name":  "user_token",
+                                              "status":  "PASS"
+                                          },
+                                          {
+                                              "name":  "hardware",
+                                              "status":  "PASS"
+                                          },
+                                          {
+                                              "name":  "path_commands",
+                                              "status":  "PASS"
+                                          },
+                                          {
+                                              "name":  "uninstall_registry",
+                                              "status":  "PASS"
+                                          },
+                                          {
+                                              "name":  "known_locations",
+                                              "status":  "PASS"
+                                          }
+                                      ],
+                           "detections":  [
+                                              {
+                                                  "tool":  "node",
+                                                  "source":  "path_commands",
+                                                  "location":  "C:\\Program Files\\nodejs\\node.exe"
+                                              },
+                                              {
+                                                  "tool":  "npm",
+                                                  "source":  "path_commands",
+                                                  "location":  "C:\\Program Files\\nodejs\\npm.cmd"
+                                              },
+                                              {
+                                                  "tool":  "npm",
+                                                  "source":  "path_commands",
+                                                  "location":  "C:\\Program Files\\nodejs\\npm.ps1"
+                                              },
+                                              {
+                                                  "tool":  "git",
+                                                  "source":  "path_commands",
+                                                  "location":  "C:\\Program Files\\Git\\cmd\\git.exe"
+                                              },
+                                              {
+                                                  "tool":  "git",
+                                                  "source":  "uninstall_registry",
+                                                  "location":  "LocalMachine/Registry64/SOFTWARE/Microsoft/Windows/CurrentVersion/Uninstall/Git_is1"
+                                              },
+                                              {
+                                                  "tool":  "node",
+                                                  "source":  "uninstall_registry",
+                                                  "location":  "LocalMachine/Registry64/SOFTWARE/Microsoft/Windows/CurrentVersion/Uninstall/{89850E15-F7D6-476D-972E-F8F5215E4498}"
+                                              },
+                                              {
+                                                  "tool":  "node",
+                                                  "source":  "known_locations",
+                                                  "location":  "C:\\Program Files\\nodejs\\node.exe"
+                                              },
+                                              {
+                                                  "tool":  "npm",
+                                                  "source":  "known_locations",
+                                                  "location":  "C:\\Program Files\\nodejs\\npm.cmd"
+                                              },
+                                              {
+                                                  "tool":  "git",
+                                                  "source":  "known_locations",
+                                                  "location":  "C:\\Program Files\\Git\\cmd\\git.exe"
+                                              }
+                                          ],
+                           "app_execution_aliases":  [
+                                                         {
+                                                             "tool":  "python",
+                                                             "location":  "C:\\Users\\Lenovo\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe"
+                                                         },
+                                                         {
+                                                             "tool":  "python",
+                                                             "location":  "C:\\Users\\Lenovo\\AppData\\Local\\Microsoft\\WindowsApps\\python3.exe"
+                                                         }
+                                                     ]
+                       },
+    "errors":  [
+
+               ]
+}
