@@ -1,5 +1,7 @@
-// AIK-045 렌더러 계약: preload(src/aik_ipc/preload.cjs)가 노출하는 읽기 전용 bridge의 타입과
-// 실패를 던지지 않는 호출 helper. 렌더러는 엔진 상태를 바꾸는 명령을 갖지 않는다.
+// AIK-045·046·047 렌더러 계약: preload(src/aik_ipc/preload.cjs)가 노출하는 bridge의 타입과
+// 실패를 던지지 않는 호출 helper. 엔진 상태 조회와 고정 payload의 연결 관리 명령만 있으며,
+// 어떤 명령도 비밀 값을 싣지 않는다. API 키는 main이 여는 별도 키 입력 창에만 입력하고
+// 렌더러는 그 창을 요청(requestKeyEntry)해 비밀 없는 결과만 받는다.
 
 /** 단일 로컬 workspace (AIK-087 전까지 고정). */
 export const WORKSPACE_ID = "local";
@@ -15,7 +17,7 @@ export type SourceName = "vm" | "aik_runtime" | "dispatch" | "lifecycle" | "evid
 
 export type HandshakeResult = {
   ipc_version: number;
-  boundary: "RENDERER_READ_ONLY";
+  boundary: "RENDERER_NO_SECRETS";
   backend_state: string;
 };
 
@@ -50,6 +52,49 @@ export type ReadmodelSourcesResult = {
   sources: SourceRow[];
 };
 
+// -- AIK-046·047 연결 관리 DTO (src/aik_ipc/connections.cjs가 검증·고정한 형태) --------------------
+
+export type ExecutionKind = "api" | "subscription";
+export type AuthMethod = "api_key" | "host_login";
+export type ConnectionStateValue = "verified" | "unverified" | "unauthenticated" | "locked" | "account_changed" | "unknown" | "unsupported";
+export type CheckStateValue = "verified" | "unauthenticated" | "locked" | "account_changed" | "unknown";
+export type LoginStateValue = "idle" | "pending" | "signed_in" | "failed" | "cancelled";
+
+export type Connector = {provider: string; execution_kind: ExecutionKind; method: AuthMethod; display_name: string};
+export type ConnectionCatalog = {connectors: Connector[]};
+
+export type CheckSnapshot = {state: CheckStateValue; code: string | null};
+export type LastCheck = {state: CheckStateValue; code: string | null; checked_at: string};
+/** references가 null이면 사용처를 확인하지 못한 것이다. external_checked는 VM 실행 작업까지 확인했는지 뜻한다. */
+export type ConnectionUsage = {references: number | null; blocking: number | null; external_checked: boolean};
+
+export type Connection = {
+  connection_id: string;
+  account_label: string;
+  provider: string;
+  display_name: string;
+  execution_kind: ExecutionKind;
+  method: AuthMethod;
+  state: ConnectionStateValue;
+  verified_at: string | null;
+  revision: number;
+  binding_revision: number;
+  last_check: LastCheck | null;
+  usage: ConnectionUsage;
+};
+
+export type ConnectionList = {store: "ABSENT" | "READY"; connections: Connection[]};
+export type ImpactReference = {kind: string; id: string; removable: boolean};
+export type ConnectionImpact = {connection_id: string; references: ImpactReference[]; external_checked: boolean};
+export type LoginState = {state: LoginStateValue; provider: string | null; cancel_supported: boolean; code: string | null; connection_id: string | null};
+export type CancelLoginResult = {cancelled: boolean; login: LoginState};
+export type ConnectionWithCheck = {connection: Connection; check: CheckSnapshot};
+export type ConnectionOnly = {connection: Connection};
+export type DeleteResult = {connection_id: string; removed_references: number; secret_deleted: boolean | null};
+export type KeyEntryResult =
+  | {outcome: "saved"; connection: Connection; check: CheckSnapshot}
+  | {outcome: "cancelled"; connection: null; check: null};
+
 export type EnvelopeError = {
   code: string;
   message: string;
@@ -79,6 +124,19 @@ export interface AikDesktopBridge {
   status(workspaceId: string): Promise<Envelope<StatusResult>>;
   engineInfo(workspaceId: string): Promise<Envelope<EngineInfo>>;
   readmodelSources(workspaceId: string): Promise<Envelope<ReadmodelSourcesResult>>;
+  connectionCatalog(workspaceId: string): Promise<Envelope<ConnectionCatalog>>;
+  connections(workspaceId: string): Promise<Envelope<ConnectionList>>;
+  connectionImpact(workspaceId: string, connectionId: string): Promise<Envelope<ConnectionImpact>>;
+  loginState(workspaceId: string): Promise<Envelope<LoginState>>;
+  checkConnection(workspaceId: string, connectionId: string): Promise<Envelope<ConnectionWithCheck>>;
+  renameConnection(workspaceId: string, connectionId: string, expectedRevision: number, accountLabel: string): Promise<Envelope<ConnectionOnly>>;
+  deleteConnection(workspaceId: string, connectionId: string, expectedRevision: number, acknowledgeImpact: boolean): Promise<Envelope<DeleteResult>>;
+  logoutConnection(workspaceId: string, connectionId: string, expectedRevision: number): Promise<Envelope<ConnectionOnly>>;
+  startLogin(workspaceId: string, provider: string | null, accountLabel: string | null, connectionId: string | null): Promise<Envelope<LoginState>>;
+  cancelLogin(workspaceId: string): Promise<Envelope<CancelLoginResult>>;
+  completeLogin(workspaceId: string): Promise<Envelope<ConnectionWithCheck>>;
+  requestKeyEntry(workspaceId: string, mode: "add" | "rotate", provider: string | null, accountLabel: string | null,
+    connectionId: string | null, expectedRevision: number | null): Promise<Envelope<KeyEntryResult>>;
 }
 
 declare global {
@@ -136,4 +194,72 @@ export function fetchEngineInfo(workspaceId: string = WORKSPACE_ID): Promise<Env
 
 export function fetchReadmodelSources(workspaceId: string = WORKSPACE_ID): Promise<Envelope<ReadmodelSourcesResult>> {
   return call((bridge) => bridge.readmodelSources(workspaceId));
+}
+
+// -- 연결 관리 (AIK-046·047) ---------------------------------------------------------------
+
+export function fetchConnectionCatalog(workspaceId: string = WORKSPACE_ID): Promise<Envelope<ConnectionCatalog>> {
+  return call((bridge) => bridge.connectionCatalog(workspaceId));
+}
+
+export function fetchConnections(workspaceId: string = WORKSPACE_ID): Promise<Envelope<ConnectionList>> {
+  return call((bridge) => bridge.connections(workspaceId));
+}
+
+export function fetchConnectionImpact(connectionId: string, workspaceId: string = WORKSPACE_ID): Promise<Envelope<ConnectionImpact>> {
+  return call((bridge) => bridge.connectionImpact(workspaceId, connectionId));
+}
+
+export function fetchLoginState(workspaceId: string = WORKSPACE_ID): Promise<Envelope<LoginState>> {
+  return call((bridge) => bridge.loginState(workspaceId));
+}
+
+export function checkConnection(connectionId: string, workspaceId: string = WORKSPACE_ID): Promise<Envelope<ConnectionWithCheck>> {
+  return call((bridge) => bridge.checkConnection(workspaceId, connectionId));
+}
+
+export function renameConnection(connectionId: string, expectedRevision: number, accountLabel: string,
+  workspaceId: string = WORKSPACE_ID): Promise<Envelope<ConnectionOnly>> {
+  return call((bridge) => bridge.renameConnection(workspaceId, connectionId, expectedRevision, accountLabel));
+}
+
+/** acknowledgeImpact는 사용자가 영향 범위를 보고 확인했을 때만 true로 보낸다. */
+export function deleteConnection(connectionId: string, expectedRevision: number, acknowledgeImpact: boolean,
+  workspaceId: string = WORKSPACE_ID): Promise<Envelope<DeleteResult>> {
+  return call((bridge) => bridge.deleteConnection(workspaceId, connectionId, expectedRevision, acknowledgeImpact));
+}
+
+/** 구독 로그인 연결만 해당한다. API 키 연결은 삭제가 곧 키 제거다. */
+export function logoutConnection(connectionId: string, expectedRevision: number,
+  workspaceId: string = WORKSPACE_ID): Promise<Envelope<ConnectionOnly>> {
+  return call((bridge) => bridge.logoutConnection(workspaceId, connectionId, expectedRevision));
+}
+
+/** 새 구독 연결의 공식 로그인을 시작한다. */
+export function startNewLogin(provider: string, accountLabel: string, workspaceId: string = WORKSPACE_ID): Promise<Envelope<LoginState>> {
+  return call((bridge) => bridge.startLogin(workspaceId, provider, accountLabel, null));
+}
+
+/** 기존 구독 연결의 재인증을 시작한다. */
+export function startReauthentication(connectionId: string, workspaceId: string = WORKSPACE_ID): Promise<Envelope<LoginState>> {
+  return call((bridge) => bridge.startLogin(workspaceId, null, null, connectionId));
+}
+
+export function cancelLogin(workspaceId: string = WORKSPACE_ID): Promise<Envelope<CancelLoginResult>> {
+  return call((bridge) => bridge.cancelLogin(workspaceId));
+}
+
+export function completeLogin(workspaceId: string = WORKSPACE_ID): Promise<Envelope<ConnectionWithCheck>> {
+  return call((bridge) => bridge.completeLogin(workspaceId));
+}
+
+/** main이 소유한 키 입력 창을 열어 새 API 키 연결을 등록한다. 창이 닫히면 비밀 없는 결과로 끝난다. */
+export function requestKeyAdd(provider: string, accountLabel: string, workspaceId: string = WORKSPACE_ID): Promise<Envelope<KeyEntryResult>> {
+  return call((bridge) => bridge.requestKeyEntry(workspaceId, "add", provider, accountLabel, null, null));
+}
+
+/** main이 소유한 키 입력 창을 열어 기존 API 키 연결의 키를 교체한다. */
+export function requestKeyRotate(connectionId: string, expectedRevision: number,
+  workspaceId: string = WORKSPACE_ID): Promise<Envelope<KeyEntryResult>> {
+  return call((bridge) => bridge.requestKeyEntry(workspaceId, "rotate", null, null, connectionId, expectedRevision));
 }

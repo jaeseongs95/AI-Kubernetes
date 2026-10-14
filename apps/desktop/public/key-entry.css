@@ -1,0 +1,18 @@
+:root{font-family:"Segoe UI","Malgun Gothic",sans-serif;color:#dbe7e4;background:#0c1716;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:#0c1716}
+.key-entry{padding:26px 28px;max-width:560px}
+.eyebrow{font-size:11px;font-weight:650;letter-spacing:1.5px;color:#82c9b6}
+h1{font-size:20px;font-weight:600;margin:8px 0 8px;overflow-wrap:anywhere}
+.intro,.hint{font-size:12px;color:#a7b9b2;line-height:1.6;margin:0 0 14px}
+label{display:block;font-size:12px;color:#a7b9b2;margin-bottom:6px}
+input{font:inherit;font-size:14px;width:100%;color:#dbe7e4;background:#0f1d1a;border:1px solid #355046;border-radius:8px;padding:9px 11px;margin-bottom:8px}
+input:focus-visible,button:focus-visible{outline:2px solid #f2fff8;outline-offset:2px}
+.status{min-height:20px;font-size:12px;margin:0 0 6px;line-height:1.6}
+.status[data-tone="error"]{color:#ffb2a8}
+.status[data-tone="ok"]{color:#9ce2ba}
+.status[data-tone="info"]{color:#b9cdc5}
+.actions{display:flex;justify-content:flex-end;gap:8px}
+button{font:inherit;font-size:13px;color:#d3e4dd;background:#183029;border:1px solid #2f5a4c;border-radius:8px;padding:7px 16px;cursor:pointer}
+button.primary{background:#2a6b58;border-color:#3c8e7f;color:#f2fff8;font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}

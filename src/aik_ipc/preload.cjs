@@ -2,20 +2,49 @@
 // Sandboxed Electron preload: use Web Crypto from the secure app origin;
 // do not import Node builtins or provide a generic renderer invoke method.
 // AIK-045 adds the read-only engine.info and readmodel.sources queries.
+// AIK-046/047 add connection commands with fixed payload shapes; none carries a
+// secret (API keys are typed only into the main-owned key entry window).
 const {contextBridge, ipcRenderer} = require("electron");
 const CHANNEL = "aik:desktop:v1";
-function send(command, workspaceId) {
+function send(command, workspaceId, payload = {}) {
   return ipcRenderer.invoke(CHANNEL, {
     protocol_version: 1,
     request_id: globalThis.crypto.randomUUID(),
     workspace_id: workspaceId,
     command,
-    payload: {}
+    payload
   });
 }
+const text = (value) => (value === null || value === undefined ? null : String(value));
+const revision = (value) => (value === null || value === undefined ? null : Number(value));
 contextBridge.exposeInMainWorld("aikDesktop", Object.freeze({
   handshake: () => send("protocol.handshake", "unbound"),
   status: (workspaceId) => send("system.status", workspaceId),
   engineInfo: (workspaceId) => send("engine.info", workspaceId),
-  readmodelSources: (workspaceId) => send("readmodel.sources", workspaceId)
+  readmodelSources: (workspaceId) => send("readmodel.sources", workspaceId),
+  connectionCatalog: (workspaceId) => send("connections.catalog", workspaceId),
+  connections: (workspaceId) => send("connections.list", workspaceId),
+  connectionImpact: (workspaceId, connectionId) =>
+    send("connections.impact", workspaceId, {connection_id: text(connectionId)}),
+  loginState: (workspaceId) => send("connections.login_state", workspaceId),
+  checkConnection: (workspaceId, connectionId) =>
+    send("connections.check", workspaceId, {connection_id: text(connectionId)}),
+  renameConnection: (workspaceId, connectionId, expectedRevision, accountLabel) =>
+    send("connections.rename", workspaceId, {connection_id: text(connectionId),
+      expected_revision: revision(expectedRevision), account_label: text(accountLabel)}),
+  deleteConnection: (workspaceId, connectionId, expectedRevision, acknowledgeImpact) =>
+    send("connections.delete", workspaceId, {connection_id: text(connectionId),
+      expected_revision: revision(expectedRevision), acknowledge_impact: acknowledgeImpact === true}),
+  logoutConnection: (workspaceId, connectionId, expectedRevision) =>
+    send("connections.logout", workspaceId, {connection_id: text(connectionId),
+      expected_revision: revision(expectedRevision)}),
+  startLogin: (workspaceId, provider, accountLabel, connectionId) =>
+    send("connections.start_login", workspaceId, {provider: text(provider), account_label: text(accountLabel),
+      connection_id: text(connectionId)}),
+  cancelLogin: (workspaceId) => send("connections.cancel_login", workspaceId),
+  completeLogin: (workspaceId) => send("connections.complete_login", workspaceId),
+  requestKeyEntry: (workspaceId, mode, provider, accountLabel, connectionId, expectedRevision) =>
+    send("connections.request_key_entry", workspaceId, {mode: text(mode), provider: text(provider),
+      account_label: text(accountLabel), connection_id: text(connectionId),
+      expected_revision: revision(expectedRevision)})
 }));

@@ -27,7 +27,7 @@ test("real request routing validates scope, unique IDs, and strict sanitized sta
   assert.deepEqual(first.result, {state: "READY", director_state: "STOPPED"});
   assert.equal(first.ok, true);
   const handshake = await f.handler(f.event, f.request("protocol.handshake", "unbound"));
-  assert.deepEqual(handshake.result, {ipc_version: 1, boundary: "RENDERER_READ_ONLY", backend_state: "NOT_QUALIFIED"});
+  assert.deepEqual(handshake.result, {ipc_version: 1, boundary: "RENDERER_NO_SECRETS", backend_state: "NOT_QUALIFIED"});
   const wrong = await f.handler(f.event, f.request("system.status", "other"));
   assert.equal(wrong.error.code, "UNKNOWN_WORKSPACE");
   const replay = f.request();
@@ -110,7 +110,11 @@ test("sandboxed preload exposes only closed operations without Node builtins", a
     },
     globalThis: {crypto: {randomUUID}}
   });
-  assert.deepEqual(Object.keys(exposed).sort(), ["engineInfo", "handshake", "readmodelSources", "status"]);
+  assert.deepEqual(Object.keys(exposed).sort(), ["cancelLogin", "checkConnection", "completeLogin",
+    "connectionCatalog", "connectionImpact", "connections", "deleteConnection", "engineInfo", "handshake",
+    "loginState", "logoutConnection", "readmodelSources", "renameConnection", "requestKeyEntry", "startLogin",
+    "status"]);
+  assert.equal(/add_key|rotate_key/.test(source), false, "the app preload never names a key-bearing command");
   assert.equal(Object.isFrozen(exposed), true);
   await exposed.handshake();
   await exposed.status("workspace-1");

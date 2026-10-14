@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'; worker-src 'none';" />
+    <title>API 키 입력 — AI-Kubernetes</title>
+    <link rel="stylesheet" href="./key-entry.css" />
+  </head>
+  <body>
+    <main class="key-entry">
+      <span class="eyebrow">보안 입력 창</span>
+      <h1 id="key-title">API 키 입력</h1>
+      <p class="intro">이 창은 앱 화면과 분리되어 있습니다. 입력한 키는 비밀 저장소에 저장되고 다시 표시되지 않습니다.</p>
+      <form id="key-form" novalidate>
+        <label for="key-input">API 키</label>
+        <input id="key-input" name="key" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" aria-describedby="key-hint key-status" disabled />
+        <p id="key-hint" class="hint">Enter로 저장, Esc로 취소합니다. 앞뒤 공백 없이 붙여 넣으세요.</p>
+        <p id="key-status" class="status" role="status" aria-live="polite"></p>
+        <div class="actions">
+          <button type="button" id="key-cancel" disabled>취소</button>
+          <button type="submit" id="key-save" class="primary" disabled>저장</button>
+        </div>
+      </form>
+    </main>
+    <script src="./key-entry.js"></script>
+  </body>
+</html>

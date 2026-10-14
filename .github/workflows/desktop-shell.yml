@@ -1,6 +1,8 @@
 # AIK-045: desktop GUI shell on each first-release platform. The smoke starts the
 # real Electron shell with the real source engine (python -I), visits all seven
-# routes and saves one screenshot per route. Synthetic state only; no vendor
+# routes and saves one screenshot per route. AIK-046/047: it also opens the
+# main-owned API key entry window from the renderer bridge, checks its isolation,
+# captures it and cancels it without typing a key. Synthetic state only; no vendor
 # login, credential, VM or AGS. The packaged frozen engine is AIK-057 (NOT_RUN).
 name: Desktop shell
 
@@ -12,6 +14,11 @@ on:
       - 'src/aik_desktop_engine/**'
       - 'src/aik_ipc/**'
       - 'src/aik_platform/**'
+      - 'src/aik_connect/**'
+      - 'src/aik_connection/**'
+      - 'src/aik_vault/**'
+      - 'src/aik_adapter_*/connector.py'
+      - 'src/aik_host_*/connector.py'
       - 'tests/test_desktop_engine.py'
       - '.github/workflows/desktop-shell.yml'
   pull_request:
@@ -20,6 +27,11 @@ on:
       - 'src/aik_desktop_engine/**'
       - 'src/aik_ipc/**'
       - 'src/aik_platform/**'
+      - 'src/aik_connect/**'
+      - 'src/aik_connection/**'
+      - 'src/aik_vault/**'
+      - 'src/aik_adapter_*/connector.py'
+      - 'src/aik_host_*/connector.py'
       - 'tests/test_desktop_engine.py'
       - '.github/workflows/desktop-shell.yml'
   workflow_dispatch:

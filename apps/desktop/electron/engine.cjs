@@ -10,13 +10,21 @@ const path = require("node:path");
 const PROTOCOL_VERSION = 1;
 const MAX_FRAME = 65536;
 const MAX_INFLIGHT = 4;
-const COMMANDS = new Set(["system.status", "engine.info", "readmodel.sources"]);
+const COMMANDS = new Set(["system.status", "engine.info", "readmodel.sources",
+  "connections.catalog", "connections.list", "connections.impact", "connections.login_state",
+  "connections.add_key", "connections.rotate_key", "connections.check", "connections.rename", "connections.delete",
+  "connections.start_login", "connections.cancel_login", "connections.complete_login", "connections.logout"]);
+// The engine runs connection commands one at a time on its own lane, so one may
+// wait behind a vendor check or official login; status queries are not delayed.
+const SLOW_TIMEOUT_MS = 150000;
 const ERROR_CODE = /^[A-Z][A-Z0-9_]{1,63}$/;
 
 class EngineError extends Error {
-  constructor(code) {
+  // ``detail`` is the engine's own fixed code when the engine answered with an error.
+  constructor(code, detail = null) {
     super(code);
     this.code = code;
+    this.detail = detail;
   }
 }
 
@@ -104,27 +112,30 @@ class EngineClient {
       outcome = {result: message.result};
     } else if (message.ok === false && exact(message, ["protocol_version", "request_id", "command", "ok", "error"]) &&
         exact(message.error, ["code"]) && typeof message.error.code === "string" && ERROR_CODE.test(message.error.code)) {
-      outcome = {error: message.error.code === "INCOMPATIBLE_PROTOCOL" ? "ENGINE_INCOMPATIBLE" : "ENGINE_REJECTED"};
+      outcome = {error: message.error.code === "INCOMPATIBLE_PROTOCOL" ? "ENGINE_INCOMPATIBLE" : "ENGINE_REJECTED",
+        detail: message.error.code};
     } else {
       return this.fail("ENGINE_INVALID_RESPONSE");
     }
     clearTimeout(pending.timer);
     this.pending.delete(message.request_id);
-    if (outcome.error) pending.reject(new EngineError(outcome.error));
+    if (outcome.error) pending.reject(new EngineError(outcome.error, outcome.detail));
     else pending.resolve(outcome.result);
   }
 
-  async request(command) {
+  async request(command, payload = {}) {
     if (!COMMANDS.has(command)) throw new EngineError("ENGINE_UNSUPPORTED_COMMAND");
+    if (!plain(payload)) throw new EngineError("ENGINE_INVALID_PAYLOAD");
     await this.ready.catch(() => { throw new EngineError(this.failure ?? "ENGINE_UNAVAILABLE"); });
     if (this.state !== "ready") throw new EngineError(this.failure ?? "ENGINE_UNAVAILABLE");
     if (this.pending.size >= MAX_INFLIGHT) throw new EngineError("ENGINE_BUSY");
     const requestId = randomUUID();
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => this.fail("ENGINE_REQUEST_TIMEOUT"), this.timeoutMs);
+      const timeoutMs = command.startsWith("connections.") ? Math.max(this.timeoutMs, SLOW_TIMEOUT_MS) : this.timeoutMs;
+      const timer = setTimeout(() => this.fail("ENGINE_REQUEST_TIMEOUT"), timeoutMs);
       this.pending.set(requestId, {command, resolve, reject, timer});
       this.child.stdin.write(JSON.stringify({protocol_version: this.protocolVersion, request_id: requestId, command,
-        payload: {}, capability: this.nonce}) + "\n");
+        payload, capability: this.nonce}) + "\n");
     });
   }
 
@@ -196,8 +207,8 @@ class EngineSupervisor {
     return this.client;
   }
 
-  async request(command) {
-    return this.current().request(command);
+  async request(command, payload = {}) {
+    return this.current().request(command, payload);
   }
 
   async close() {

@@ -22,6 +22,7 @@ import type {
   StatusResult,
   SystemState
 } from "./api";
+import {ConnectionsRoute} from "./connections";
 import "./style.css";
 
 const POLL_INTERVAL_MS = 5000;
@@ -31,7 +32,7 @@ type RouteId = "connections" | "overview" | "goals" | "workers" | "evidence" | "
 type Route = {id: RouteId; label: string; group: "engine" | "pending"};
 
 const ROUTES: readonly Route[] = [
-  {id: "connections", label: "연결 관리", group: "pending"},
+  {id: "connections", label: "연결 관리", group: "engine"},
   {id: "overview", label: "총괄", group: "engine"},
   {id: "goals", label: "Goal", group: "pending"},
   {id: "workers", label: "worker", group: "pending"},
@@ -41,8 +42,7 @@ const ROUTES: readonly Route[] = [
 ];
 const DEFAULT_ROUTE: RouteId = "overview";
 
-const PENDING_ROUTES: Record<Exclude<RouteId, "overview" | "settings">, {title: string; description: string; tasks: string}> = {
-  connections: {title: "연결 관리", description: "벤더 계정·모델 공급자 연결을 관리하는 화면입니다.", tasks: "AIK-046·AIK-047"},
+const PENDING_ROUTES: Record<Exclude<RouteId, "overview" | "settings" | "connections">, {title: string; description: string; tasks: string}> = {
   goals: {title: "Goal", description: "Goal과 Task 진행 상태를 보여 주는 화면입니다. VM 연결이 필요합니다.", tasks: "AIK-051 (VM 연결 필요)"},
   workers: {title: "worker", description: "worker 실행 상태를 보여 주는 화면입니다.", tasks: "AIK-052"},
   evidence: {title: "근거", description: "검증 근거와 판정 기록을 보여 주는 화면입니다.", tasks: "AIK-054"},
@@ -294,7 +294,7 @@ function Nav({current}: {current: RouteId}) {
         </a>
       </li>)}
     </ul>
-    <p className="nav-note">화면은 엔진 상태를 읽기만 합니다.</p>
+    <p className="nav-note">API 키 등 비밀 값은 앱 화면에 입력·표시하지 않습니다.</p>
   </nav>;
 }
 
@@ -429,6 +429,12 @@ function PendingRoute({id}: {id: keyof typeof PENDING_ROUTES}) {
 function App() {
   const route = useHashRoute();
   const snapshot = useEnginePolling();
+  const [connectionsLoaded, setConnectionsLoaded] = useState(false);
+
+  // 연결 화면을 떠나면 다음 방문의 첫 응답까지 data-loaded를 다시 0으로 둔다.
+  useEffect(() => {
+    if (route !== "connections") setConnectionsLoaded(false);
+  }, [route]);
 
   useEffect(() => {
     document.body.dataset.ready = "1";
@@ -439,6 +445,9 @@ function App() {
   if (route === "overview") {
     view = <OverviewRoute snapshot={snapshot} />;
     loaded = snapshot.sources.answered;
+  } else if (route === "connections") {
+    view = <ConnectionsRoute onLoadedChange={setConnectionsLoaded} />;
+    loaded = connectionsLoaded;
   } else if (route === "settings") {
     view = <SettingsRoute snapshot={snapshot} />;
     loaded = snapshot.engine.answered;
@@ -454,7 +463,7 @@ function App() {
       <main id="route-view" data-route={route} data-loaded={loaded ? "1" : "0"}>
         {view}
       </main>
-      <footer><span>읽기 전용 화면 · 원장이 권위</span><span>workspace {WORKSPACE_ID}</span></footer>
+      <footer><span>비밀 값 비표시 · 원장이 권위</span><span>workspace {WORKSPACE_ID}</span></footer>
     </div>
   </div>;
 }

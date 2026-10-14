@@ -10,9 +10,18 @@ Framing:
   and exits with code 3 when the protocol versions differ.
 - Every later line is one request; every answer is one line. A line longer
   than ``MAX_FRAME`` bytes or a malformed line ends the session (exit 2).
+- ``connections.*`` requests run one at a time on a separate worker thread, so a
+  slow vendor check never delays a status query. Answers may therefore arrive
+  out of request order; the client matches them by ``request_id``.
 
-The engine does not write product state. Its status is what it observed now:
-an absent state directory or an unconfigured read model is reported as such.
+Status and read-model queries observe only; they never create state. The
+``connections.*`` commands (AIK-046/047) go to an injected
+``aik_connect.ConnectionService``: reads stay side-effect free, writes change
+connection metadata and the per-user vault. Requests that carry an API key
+(``connections.add_key``/``rotate_key``) are sent only by the main process from
+its own key entry window; the engine never echoes a payload and answers every
+failure with a fixed code. Without a configured service the connection
+commands answer ``CONNECTIONS_NOT_CONFIGURED``.
 This is a pipe between processes of one user, not an OS security boundary.
 """
 
@@ -23,8 +32,10 @@ import hmac
 import json
 import os
 from pathlib import Path
+import queue
 import re
 import sys
+import threading
 from typing import Any, BinaryIO
 
 from aik_platform import PlatformError, family
@@ -33,7 +44,26 @@ from aik_platform.paths import state_root
 PROTOCOL_VERSION = 1
 ENGINE_VERSION = "0.1.0"
 MAX_FRAME = 65536
-COMMANDS = frozenset({"system.status", "engine.info", "readmodel.sources"})
+_READ_COMMANDS = {"system.status": (), "engine.info": (), "readmodel.sources": ()}
+# Exact payload keys per connection command (values are checked by the service).
+CONNECTION_COMMANDS = {
+    "connections.catalog": (),
+    "connections.list": (),
+    "connections.impact": ("connection_id",),
+    "connections.login_state": (),
+    "connections.add_key": ("provider", "account_label", "secret"),
+    "connections.rotate_key": ("connection_id", "expected_revision", "secret"),
+    "connections.check": ("connection_id",),
+    "connections.rename": ("connection_id", "expected_revision", "account_label"),
+    "connections.delete": ("connection_id", "expected_revision", "acknowledge_impact"),
+    "connections.start_login": ("provider", "account_label", "connection_id"),
+    "connections.cancel_login": (),
+    "connections.complete_login": (),
+    "connections.logout": ("connection_id", "expected_revision"),
+}
+PAYLOAD_FIELDS = {**_READ_COMMANDS, **CONNECTION_COMMANDS}
+COMMANDS = frozenset(PAYLOAD_FIELDS)
+_MAX_TEXT = 16384
 EXIT_INVALID = 2
 EXIT_INCOMPATIBLE = 3
 _UUID4 = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z")
@@ -83,13 +113,14 @@ def parse_frame(raw: bytes) -> dict:
 class Engine:
     """Answers validated requests. One instance serves one bootstrap session."""
 
-    def __init__(self, nonce: str, config: EngineConfig | None = None, *, environ=None):
+    def __init__(self, nonce: str, config: EngineConfig | None = None, *, environ=None, connections=None):
         if type(nonce) is not str or not _NONCE.fullmatch(nonce):
             raise ValueError("A 64 hex digit nonce is required.")
         self._nonce = nonce
         self._config = config or EngineConfig()
         self._environ = environ
         self._readmodel = None
+        self._connections = connections
 
     # -- observations ------------------------------------------------------------
 
@@ -200,8 +231,40 @@ class Engine:
             raise ProtocolError("UNAUTHORIZED")
         if type(request["command"]) is not str or request["command"] not in COMMANDS:
             raise ProtocolError("UNSUPPORTED_COMMAND")
-        if type(request["payload"]) is not dict or request["payload"]:
+        payload = request["payload"]
+        if type(payload) is not dict or set(payload) != set(PAYLOAD_FIELDS[request["command"]]):
             raise ProtocolError("INVALID_REQUEST")
+        for value in payload.values():
+            if not (value is None or type(value) in (bool, int) or (type(value) is str and len(value) <= _MAX_TEXT)):
+                raise ProtocolError("INVALID_REQUEST")
+
+    def _connection_command(self, command: str, payload: dict) -> dict:
+        from aik_connect import ConnectError
+
+        service = self._connections
+        if service is None:
+            raise ConnectError("CONNECTIONS_NOT_CONFIGURED")
+        name = command.split(".", 1)[1]
+        if name in ("catalog", "list", "login_state", "cancel_login", "complete_login"):
+            return getattr(service, name)()
+        if name == "impact":
+            return service.impact(payload["connection_id"])
+        if name == "add_key":
+            return service.add_api_key(payload["provider"], payload["account_label"], payload["secret"])
+        if name == "rotate_key":
+            return service.rotate_key(payload["connection_id"], payload["expected_revision"], payload["secret"])
+        if name == "check":
+            return service.check(payload["connection_id"])
+        if name == "rename":
+            return service.rename(payload["connection_id"], payload["expected_revision"], payload["account_label"])
+        if name == "delete":
+            return service.delete(payload["connection_id"], payload["expected_revision"],
+                                  payload["acknowledge_impact"])
+        if name == "start_login":
+            return service.start_login(payload["provider"], payload["account_label"], payload["connection_id"])
+        if name == "logout":
+            return service.logout(payload["connection_id"], payload["expected_revision"])
+        raise ProtocolError("UNSUPPORTED_COMMAND")
 
     def dispatch(self, request: dict) -> dict:
         request_id = request.get("request_id")
@@ -215,12 +278,21 @@ class Engine:
             self._validate(request)
         except ProtocolError as error:
             return {**envelope, "ok": False, "error": {"code": str(error)}}
-        handler = {"system.status": self.system_status, "engine.info": self.engine_info,
-                   "readmodel.sources": self.readmodel_sources}[command]
+        from aik_connect import ConnectError
+
+        payload = request["payload"]
         try:
-            result = handler()
+            if command in CONNECTION_COMMANDS:
+                result = self._connection_command(command, payload)
+            else:
+                result = {"system.status": self.system_status, "engine.info": self.engine_info,
+                          "readmodel.sources": self.readmodel_sources}[command]()
+        except ConnectError as error:
+            return {**envelope, "ok": False, "error": {"code": error.code}}
         except Exception:  # noqa: BLE001 - a fixed code, never a traceback, crosses the pipe
             return {**envelope, "ok": False, "error": {"code": "INTERNAL_ERROR"}}
+        finally:
+            payload.clear()  # drop this frame's only reference to a submitted key
         return {**envelope, "ok": True, "result": result}
 
 
@@ -229,7 +301,8 @@ def _write(stream: BinaryIO, value: dict) -> None:
     stream.flush()
 
 
-def serve(stdin: BinaryIO, stdout: BinaryIO, config: EngineConfig | None = None, *, environ=None) -> int:
+def serve(stdin: BinaryIO, stdout: BinaryIO, config: EngineConfig | None = None, *, environ=None,
+          connections=None) -> int:
     try:
         bootstrap = parse_frame(stdin.readline(MAX_FRAME + 1))
     except (ProtocolError, OSError):
@@ -240,18 +313,45 @@ def serve(stdin: BinaryIO, stdout: BinaryIO, config: EngineConfig | None = None,
     if type(bootstrap["protocol_version"]) is not int or bootstrap["protocol_version"] != PROTOCOL_VERSION:
         _write(stdout, {"kind": "incompatible", "supported_versions": [PROTOCOL_VERSION]})
         return EXIT_INCOMPATIBLE
-    engine = Engine(bootstrap["nonce"], config, environ=environ)
-    _write(stdout, {"kind": "ready", "protocol_version": PROTOCOL_VERSION, "pid": os.getpid(),
-                    "engine_version": ENGINE_VERSION})
-    while True:
-        raw = stdin.readline(MAX_FRAME + 1)
-        if not raw:
-            return 0
-        try:
-            request = parse_frame(raw)
-        except ProtocolError:
-            return EXIT_INVALID
-        _write(stdout, engine.dispatch(request))
+    engine = Engine(bootstrap["nonce"], config, environ=environ, connections=connections)
+    output = threading.Lock()
+
+    def emit(value: dict) -> None:
+        with output:
+            _write(stdout, value)
+
+    pending: queue.Queue = queue.Queue()
+
+    def connection_lane() -> None:
+        while (request := pending.get()) is not None:
+            try:
+                emit(engine.dispatch(request))
+            except OSError:
+                return  # the client closed the pipe; nobody is left to answer
+
+    lane = threading.Thread(target=connection_lane, name="aik-engine-connections", daemon=True)
+    emit({"kind": "ready", "protocol_version": PROTOCOL_VERSION, "pid": os.getpid(),
+          "engine_version": ENGINE_VERSION})
+    lane.start()
+    code = 0
+    try:
+        while True:
+            raw = stdin.readline(MAX_FRAME + 1)
+            if not raw:
+                break
+            try:
+                request = parse_frame(raw)
+            except ProtocolError:
+                code = EXIT_INVALID
+                break
+            if request.get("command") in CONNECTION_COMMANDS:
+                pending.put(request)
+            else:
+                emit(engine.dispatch(request))
+    finally:
+        pending.put(None)
+        lane.join()  # finish (and answer) connection work already accepted
+    return code
 
 
 def _config(argv: list[str]) -> EngineConfig:
@@ -262,9 +362,27 @@ def _config(argv: list[str]) -> EngineConfig:
     raise ValueError("usage: [--readmodel ABSOLUTE_PATH --user-scope ID]")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, connectors=None, vault_factory=None) -> int:
+    """``connectors`` and ``vault_factory`` come from the composition root, because vendor
+    packages live outside this package and connectors share the vault with the service."""
     try:
         config = _config(sys.argv[1:] if argv is None else argv)
     except ValueError:
         return EXIT_INVALID
-    return serve(sys.stdin.buffer, sys.stdout.buffer, config)
+    return serve(sys.stdin.buffer, sys.stdout.buffer, config,
+                 connections=_connection_service(connectors, vault_factory))
+
+
+def _connection_service(connectors, vault_factory=None):
+    """The per-user connection service, or None when it cannot be set up here."""
+    if connectors is None:
+        return None
+    from aik_config.storage import default_settings_path
+    from aik_connect import ConnectionService
+    from aik_vault import open_user_vault
+
+    try:
+        return ConnectionService(default_settings_path(), connectors,
+                                 vault_factory=vault_factory or open_user_vault)
+    except Exception:  # noqa: BLE001 - reported as CONNECTIONS_NOT_CONFIGURED by every command
+        return None

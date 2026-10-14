@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 import uuid
 
@@ -18,10 +19,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from aik_desktop_engine import COMMANDS, ENGINE_VERSION, PROTOCOL_VERSION, Engine, EngineConfig, serve  # noqa: E402
-from aik_desktop_engine.server import MAX_FRAME  # noqa: E402
+from aik_desktop_engine.server import CONNECTION_COMMANDS, MAX_FRAME, PAYLOAD_FIELDS  # noqa: E402
+from aik_connect import CheckResult, CheckState, ConnectionService, ConnectorInfo  # noqa: E402
+from aik_vault import FakeVaultBackend  # noqa: E402
 from aik_readmodel import ReadModel, SourceEvent  # noqa: E402
 
 NONCE = "ab" * 32
+SECRET = "sk-synthetic-engine-key-must-not-echo"
+STATUS_COMMANDS = ("engine.info", "readmodel.sources", "system.status")
 SCOPE = "os-user-synthetic-1"
 
 
@@ -124,6 +129,75 @@ class EngineTests(unittest.TestCase):
             EngineConfig(self.root / "a.sqlite3", None)
 
 
+class Verifier:
+    info = ConnectorInfo("vendor-a", "api", "vendor-a-api", "default", "Vendor A API")
+
+    def accepts(self, secret):
+        return secret.startswith("sk-")
+
+    def verify(self, connection):
+        return CheckResult(CheckState.VERIFIED)
+
+
+class ConnectionCommandTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        vault = FakeVaultBackend(self.root / "vault", key=bytes(range(32)))
+        self.service = ConnectionService(self.root / "config" / "settings.sqlite3", (Verifier(),),
+                                         vault_factory=lambda: vault)
+        self.engine = Engine(NONCE, environ={"XDG_STATE_HOME": str(self.root / "state")}, connections=self.service)
+
+    def call(self, command, **payload):
+        return self.engine.dispatch(request(command, payload=payload))
+
+    def test_payload_keys_are_exact_per_command(self):
+        self.assertEqual(COMMANDS, frozenset(PAYLOAD_FIELDS))
+        for command, fields in CONNECTION_COMMANDS.items():
+            with self.subTest(command=command):
+                extra = self.call(command, **{name: None for name in fields}, unexpected=1)
+                self.assertEqual(extra["error"], {"code": "INVALID_REQUEST"})
+                if fields:
+                    missing = self.call(command, **{name: None for name in fields[1:]})
+                    self.assertEqual(missing["error"], {"code": "INVALID_REQUEST"})
+        nested = self.call("connections.check", connection_id={"a": 1})
+        self.assertEqual(nested["error"], {"code": "INVALID_REQUEST"})
+        long = self.call("connections.check", connection_id="x" * 20000)
+        self.assertEqual(long["error"], {"code": "INVALID_REQUEST"})
+
+    def test_add_list_rename_delete_round_trip_without_echoing_the_key(self):
+        self.assertEqual(self.call("connections.list")["result"], {"store": "ABSENT", "connections": []})
+        added = self.call("connections.add_key", provider="vendor-a", account_label="키", secret=SECRET)
+        self.assertTrue(added["ok"], added)
+        self.assertNotIn(SECRET, json.dumps(added))
+        connection = added["result"]["connection"]
+        renamed = self.call("connections.rename", connection_id=connection["connection_id"],
+                            expected_revision=connection["revision"], account_label="새 이름")
+        self.assertEqual(renamed["result"]["connection"]["account_label"], "새 이름")
+        conflict = self.call("connections.delete", connection_id=connection["connection_id"],
+                             expected_revision=connection["revision"], acknowledge_impact=False)
+        self.assertEqual(conflict["error"], {"code": "REVISION_CONFLICT"})
+        deleted = self.call("connections.delete", connection_id=connection["connection_id"],
+                            expected_revision=renamed["result"]["connection"]["revision"], acknowledge_impact=False)
+        self.assertEqual(deleted["result"]["secret_deleted"], True)
+        self.assertEqual(self.call("connections.list")["result"]["connections"], [])
+
+    def test_service_errors_are_fixed_codes(self):
+        rejected = self.call("connections.add_key", provider="vendor-a", account_label="키", secret="bad")
+        self.assertEqual(rejected["error"], {"code": "INVALID_SECRET"})
+        self.assertNotIn("bad", json.dumps(rejected["error"]))
+        unknown = self.call("connections.check", connection_id="conn-none")
+        self.assertEqual(unknown["error"], {"code": "UNKNOWN_CONNECTION"})
+        login = self.call("connections.start_login", provider="vendor-a", account_label="x", connection_id=None)
+        self.assertEqual(login["error"], {"code": "UNSUPPORTED_PROVIDER"})
+
+    def test_without_a_service_every_connection_command_says_so(self):
+        engine = Engine(NONCE, environ={"XDG_STATE_HOME": str(self.root / "s2")})
+        answer = engine.dispatch(request("connections.list"))
+        self.assertEqual(answer["error"], {"code": "CONNECTIONS_NOT_CONFIGURED"})
+
+
 class FramingTests(unittest.TestCase):
     def run_serve(self, *values, raw=None):
         stdin = io.BytesIO(raw) if raw is not None else frames(*values)
@@ -133,11 +207,11 @@ class FramingTests(unittest.TestCase):
 
     def test_session_answers_each_request_on_one_line(self):
         code, answers = self.run_serve({"kind": "bootstrap", "protocol_version": 1, "nonce": NONCE},
-                                       *(request(command) for command in sorted(COMMANDS)))
+                                       *(request(command) for command in STATUS_COMMANDS))
         self.assertEqual(code, 0)
         self.assertEqual(answers[0]["kind"], "ready")
         self.assertEqual(answers[0]["engine_version"], ENGINE_VERSION)
-        self.assertEqual([answer["command"] for answer in answers[1:]], sorted(COMMANDS))
+        self.assertEqual([answer["command"] for answer in answers[1:]], list(STATUS_COMMANDS))
         self.assertTrue(all(answer["ok"] for answer in answers[1:]))
 
     def test_version_mismatch_is_announced_then_the_engine_exits(self):
@@ -156,6 +230,48 @@ class FramingTests(unittest.TestCase):
         self.assertEqual(self.run_serve(raw=oversized)[0], 2)
         duplicate = b'{"kind":"bootstrap","kind":"bootstrap","protocol_version":1,"nonce":"' + NONCE.encode() + b'"}\n'
         self.assertEqual(self.run_serve(raw=duplicate), (2, []))
+
+    def test_a_slow_connection_command_does_not_hold_back_status(self):
+        released = threading.Event()
+
+        class SlowService:
+            def check(self, connection_id):
+                waited = released.wait(10)
+                return {"connection_id": connection_id, "waited": waited}
+
+        class Output(io.BytesIO):
+            def write(self, data):
+                if b'"command":"system.status"' in data:
+                    released.set()  # the status answer went out while the check was still running
+                return super().write(data)
+
+        stdout = Output()
+        stdin = frames({"kind": "bootstrap", "protocol_version": 1, "nonce": NONCE},
+                       request("connections.check", payload={"connection_id": "conn-1"}), request("system.status"))
+        code = serve(stdin, stdout, environ={"XDG_STATE_HOME": "/nonexistent-aik-test"}, connections=SlowService())
+        answers = lines(stdout)
+        self.assertEqual(code, 0)
+        self.assertEqual([answer.get("command") for answer in answers[1:]], ["system.status", "connections.check"])
+        self.assertEqual(answers[2]["result"], {"connection_id": "conn-1", "waited": True})
+
+    def test_composition_root_offers_the_vendor_connectors_without_creating_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            import os
+            root = Path(temporary)
+            env = {**os.environ, "XDG_STATE_HOME": str(root / "state"), "XDG_CONFIG_HOME": str(root / "config"),
+                   "LOCALAPPDATA": str(root / "local")}
+            process = subprocess.run(
+                [sys.executable, "-I", str(ROOT / "apps" / "desktop" / "engine" / "aik_engine_entry.py")],
+                input=frames({"kind": "bootstrap", "protocol_version": 1, "nonce": NONCE},
+                             request("connections.catalog"), request("connections.list")).getvalue(),
+                capture_output=True, timeout=60, check=False, env=env)
+            self.assertEqual((process.returncode, process.stderr), (0, b""))
+            answers = {answer.get("command"): answer for answer in map(json.loads, process.stdout.splitlines()[1:])}
+            catalog = {(item["provider"], item["method"]) for item in answers["connections.catalog"]["result"]["connectors"]}
+            self.assertEqual(catalog, {("anthropic", "api_key"), ("anthropic", "host_login"),
+                                       ("openai", "api_key"), ("openai", "host_login")})
+            self.assertEqual(answers["connections.list"]["result"], {"store": "ABSENT", "connections": []})
+            self.assertEqual(list(root.iterdir()), [], "reads must not create settings, details or vault files")
 
     def test_real_process_over_stdio(self):
         process = subprocess.run(
