@@ -1,12 +1,14 @@
 # AIK-004 — 데스크톱 IPC 경계 (부분 구현)
 
-renderer와 Electron main 사이의 제한된 읽기 IPC를 제공한다. `protocol.handshake`와 `system.status`만 허용하며, 제품 GUI·VM/AGS·vault broker 전체 연결을 완료한 상태는 아니다.
+renderer와 Electron main 사이의 제한된 읽기 IPC를 제공한다. 허용하는 명령은 `protocol.handshake`, `system.status`와 AIK-045가 더한 읽기 전용 `engine.info`·`readmodel.sources` 네 개다. 제품 GUI·VM/AGS·vault broker 전체 연결을 완료한 상태는 아니다. 데스크톱 셸 연결은 [desktop-shell](desktop-shell.ko.md)에 있다.
 
 ## 요청·응답의 소유권
 
-`src/aik_ipc/desktop.cjs`는 정확한 다섯 요청 필드, 빈 payload, UUID v4, workspace, 앱 window/main frame/URL을 검증한다. 검증 직후 원시 객체를 버리고 동결한 primitive snapshot을 사용한다. 응답도 `state`·`director_state` 두 필드만 복사·동결해 반환한다. 원본이 비동기 처리 중 또는 반환 후 변경되어도 검증 결과에 반영되지 않는다.
+`src/aik_ipc/desktop.cjs`는 정확한 다섯 요청 필드, 빈 payload, UUID v4, workspace, 앱 window/main frame/URL을 검증한다. 검증 직후 원시 객체를 버리고 동결한 primitive snapshot을 사용한다. 응답도 명령별로 정해진 필드만 하나씩 복사·동결해 반환한다(`system.status`는 `state`·`director_state`, `engine.info`는 엔진 버전·플랫폼 family·상태 저장소·read model 상태 등 8개, `readmodel.sources`는 source별 cursor·gap·conflict·stale). `stale`과 `open_gaps`가 서로 맞지 않거나 `authoritative`가 false가 아닌 응답은 `INVALID_RESPONSE`다. 원본이 비동기 처리 중 또는 반환 후 변경되어도 검증 결과에 반영되지 않는다.
 
-Proxy·accessor·추가 필드·사용자 정의 thenable을 거절하며, 요청의 `toJSON`을 실행하지 않는다. backend 오류는 고정 코드/문구로 바꾸고 원시 예외·stack·민감 필드를 반환하지 않는다. 잘못된 protocol version은 `INCOMPATIBLE_PROTOCOL`과 `supported_versions=[1]`로 표시한다.
+Proxy·accessor·추가 필드·사용자 정의 thenable을 거절하며, 요청의 `toJSON`을 실행하지 않는다. backend 오류는 고정 코드/문구로 바꾸고 원시 예외·stack·민감 필드를 반환하지 않는다. 잘못된 protocol version은 `INCOMPATIBLE_PROTOCOL`과 `supported_versions=[1]`로 표시한다. main의 reader가 `BackendError("BACKEND_INCOMPATIBLE")`를 던지면 엔진과 앱의 버전 불일치로 그대로 전달한다. 다른 예외는 모두 `BACKEND_UNAVAILABLE`이다.
+
+앱 문서는 `aik://app/index.html`이며, 같은 문서의 in-page fragment(`#/overview` 같은 hash route)는 같은 발신자로 인정한다. query string·다른 경로·다른 origin은 계속 `UNTRUSTED_SENDER`다.
 
 ## 응답 기한과 물리적 동시성
 
@@ -26,7 +28,7 @@ UUID 대소문자는 같은 request identity로 정규화한다. 미종료 요�
 
 | 경로 | 책임 및 실제 범위 |
 |---|---|
-| sandboxed renderer | `preload.cjs`의 handshake/status만 호출. Node·shell·전체 filesystem·raw secret API 없음 |
+| sandboxed renderer | `preload.cjs`의 handshake·status·engineInfo·readmodelSources만 호출. Node·shell·전체 filesystem·raw secret API 없음 |
 | trusted Electron main | 실제 webContents/frame/URL/활성 workspace와 readStatus callback 소유 |
 | Python·총괄·worker·vault | 이번 모듈에서 제품 전체 미연결. 동일 Windows 사용자 native 경로의 OS 권한은 IPC 제한과 별개 |
 
@@ -35,7 +37,7 @@ UUID 대소문자는 같은 request identity로 정규화한다. 미종료 요�
 ## 검증·원장
 
 ```bash
-node --test tests/test_desktop_ipc.cjs tests/test_desktop_ipc_lifecycle.cjs
+node --test tests/test_desktop_ipc.cjs tests/test_desktop_ipc_lifecycle.cjs tests/test_desktop_ipc_queries.cjs
 python tools/backlog.py validate
 ```
 

@@ -1,0 +1,114 @@
+# AIK-045: desktop GUI shell on each first-release platform. The smoke starts the
+# real Electron shell with the real source engine (python -I), visits all seven
+# routes and saves one screenshot per route. Synthetic state only; no vendor
+# login, credential, VM or AGS. The packaged frozen engine is AIK-057 (NOT_RUN).
+name: Desktop shell
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+      - 'src/aik_desktop_engine/**'
+      - 'src/aik_ipc/**'
+      - 'src/aik_platform/**'
+      - 'tests/test_desktop_engine.py'
+      - '.github/workflows/desktop-shell.yml'
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - 'src/aik_desktop_engine/**'
+      - 'src/aik_ipc/**'
+      - 'src/aik_platform/**'
+      - 'tests/test_desktop_engine.py'
+      - '.github/workflows/desktop-shell.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-shell-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shell:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout the exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Use the pinned build Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Use the pinned CPython
+        id: python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14.8'
+          architecture: x64
+      - name: Install the locked shell dependencies
+        working-directory: apps/desktop
+        run: npm ci --no-audit --no-fund
+      - name: Linux display and Chromium sandbox helper
+        if: runner.os == 'Linux'
+        working-directory: apps/desktop
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends xvfb
+          # The shell keeps app.enableSandbox(); the setuid helper is how Chromium sandboxes on this image.
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+      - name: Engine protocol tests
+        run: python -m unittest tests.test_desktop_engine -v
+      - name: Renderer typecheck and build
+        working-directory: apps/desktop
+        run: npm run build
+      - name: Main-process unit tests
+        working-directory: apps/desktop
+        run: npm test
+      - name: Smoke with the real source engine (must PASS)
+        working-directory: apps/desktop
+        env:
+          AIK_DESKTOP_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          report="$RUNNER_TEMP/desktop-smoke/connected"
+          if [ "$RUNNER_OS" = "Linux" ]; then run=(xvfb-run -a); else run=(); fi
+          "${run[@]}" npx --no-install electron . --smoke "--report-dir=$report"
+          python -I ../../tools/check_desktop_smoke.py "$report/report.json" --expect PASS --connection connected
+      - name: Smoke without an engine shows it as unavailable
+        working-directory: apps/desktop
+        run: |
+          report="$RUNNER_TEMP/desktop-smoke/no-engine"
+          if [ "$RUNNER_OS" = "Linux" ]; then run=(xvfb-run -a); else run=(); fi
+          set +e
+          env -u AIK_DESKTOP_PYTHON "${run[@]}" npx --no-install electron . --smoke "--report-dir=$report"
+          code=$?
+          set -e
+          test "$code" = 2
+          python -I ../../tools/check_desktop_smoke.py "$report/report.json" --expect BLOCKED --connection unavailable
+      - name: Keep the smoke reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: desktop-smoke-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/desktop-smoke
+            !${{ runner.temp }}/desktop-smoke/*/profile
+            !${{ runner.temp }}/desktop-smoke/*/crash-dumps
+          if-no-files-found: error
+          retention-days: 14

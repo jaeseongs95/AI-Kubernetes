@@ -44,7 +44,7 @@ jobs:
           python-version: '3.14.8'
           architecture: x64
       - name: Verify IPC boundary and asynchronous lifecycle
-        run: node --test tests/test_desktop_ipc.cjs tests/test_desktop_ipc_lifecycle.cjs
+        run: node --test tests/test_desktop_ipc.cjs tests/test_desktop_ipc_lifecycle.cjs tests/test_desktop_ipc_queries.cjs
       - name: Validate the canonical ledger
         run: python tools/backlog.py validate
       - name: Verify ledger regression tests

@@ -2,6 +2,8 @@
 
 // AIK-004: read-only renderer IPC. Native main owns caller/workspace binding.
 // Do not expose this router or a generic invoke method through the preload.
+// AIK-045 adds two read-only queries (engine.info, readmodel.sources). Every
+// backend result is copied field by field into a frozen DTO before it leaves.
 const {performance} = require("node:perf_hooks");
 const {types} = require("node:util");
 
@@ -11,9 +13,16 @@ const MAX_FRAME_BYTES = 16384;
 const REQUEST_FIELDS = ["protocol_version", "request_id", "workspace_id", "command", "payload"];
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKSPACE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/;
-const COMMANDS = new Set(["protocol.handshake", "system.status"]);
+const COMMANDS = new Set(["protocol.handshake", "system.status", "engine.info", "readmodel.sources"]);
+const READ_COMMANDS = Object.freeze(["system.status", "engine.info", "readmodel.sources"]);
 const STATES = new Set(["READY", "DEGRADED", "BLOCKED"]);
 const DIRECTOR_STATES = new Set(["NOT_CONFIGURED", "STOPPED", "RUNNING", "UNAVAILABLE"]);
+const PLATFORM_FAMILIES = new Set(["windows", "linux", "macos"]);
+const STATE_ROOT_STATES = new Set(["WRITABLE", "ABSENT", "NOT_WRITABLE", "UNAVAILABLE"]);
+const READMODEL_STATES = new Set(["NOT_CONFIGURED", "ABSENT", "READY", "BUSY", "INVALID", "SCOPE_MISMATCH"]);
+const READMODEL_SOURCES = new Set(["vm", "aik_runtime", "dispatch", "lifecycle", "evidence", "ags_peer"]);
+const VERSION_TEXT = /^\d{1,4}\.\d{1,4}\.\d{1,6}$/;
+const BACKEND_CODES = new Set(["BACKEND_UNAVAILABLE", "BACKEND_INCOMPATIBLE", "BACKEND_TIMEOUT"]);
 const MESSAGES = Object.freeze({
   INVALID_REQUEST: "The IPC request shape is invalid.",
   INCOMPATIBLE_PROTOCOL: "Frontend and backend IPC protocol versions differ.",
@@ -22,6 +31,7 @@ const MESSAGES = Object.freeze({
   UNSUPPORTED_COMMAND: "The IPC command is not available to the renderer.",
   DUPLICATE_REQUEST: "The request identifier was already used.",
   BACKEND_UNAVAILABLE: "The backend cannot provide the requested state.",
+  BACKEND_INCOMPATIBLE: "The engine speaks a different protocol version than this app.",
   BACKEND_TIMEOUT: "The backend did not respond within the request deadline.",
   INVALID_RESPONSE: "The backend returned an invalid response.",
   ROUTER_BUSY: "The IPC router has reached its bounded concurrency limit."
@@ -87,29 +97,108 @@ function statusSnapshot(value) {
   return Object.freeze({state, director_state: director});
 }
 
+function safeCount(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
+function engineInfoSnapshot(value) {
+  const fields = ["engine_version", "protocol_version", "platform_family", "python_version", "frozen",
+    "state_root", "readmodel", "director_state"];
+  if (!exactPlain(value, fields)) return null;
+  const copy = Object.fromEntries(fields.map(key => [key, ownData(value, key)]));
+  if (typeof copy.engine_version !== "string" || !VERSION_TEXT.test(copy.engine_version) ||
+      copy.protocol_version !== VERSION || !PLATFORM_FAMILIES.has(copy.platform_family) ||
+      typeof copy.python_version !== "string" || !VERSION_TEXT.test(copy.python_version) ||
+      typeof copy.frozen !== "boolean" || !STATE_ROOT_STATES.has(copy.state_root) ||
+      !READMODEL_STATES.has(copy.readmodel) || !DIRECTOR_STATES.has(copy.director_state)) return null;
+  return Object.freeze(copy);
+}
+
+function sourceSnapshot(value) {
+  const fields = ["source", "applied_cursor", "max_seen_cursor", "open_gaps", "conflicts", "stale"];
+  if (!exactPlain(value, fields)) return null;
+  const copy = Object.fromEntries(fields.map(key => [key, ownData(value, key)]));
+  if (!READMODEL_SOURCES.has(copy.source) || !safeCount(copy.applied_cursor) || !safeCount(copy.max_seen_cursor) ||
+      copy.max_seen_cursor < copy.applied_cursor || !safeCount(copy.open_gaps) || !safeCount(copy.conflicts) ||
+      typeof copy.stale !== "boolean" || copy.stale !== copy.open_gaps > 0) return null;
+  return Object.freeze(copy);
+}
+
+function readmodelSourcesSnapshot(value) {
+  if (!exactPlain(value, ["readmodel", "authoritative", "sources"])) return null;
+  const readmodel = ownData(value, "readmodel"), list = ownData(value, "sources");
+  if (!READMODEL_STATES.has(readmodel) || ownData(value, "authoritative") !== false) return null;
+  if (!Array.isArray(list) || types.isProxy(list) || Object.getPrototypeOf(list) !== Array.prototype ||
+      list.length > READMODEL_SOURCES.size || (readmodel !== "READY" && list.length !== 0)) return null;
+  const sources = [], seen = new Set();
+  for (let index = 0; index < list.length; index++) {
+    const item = sourceSnapshot(ownData(list, String(index)));
+    if (!item || seen.has(item.source)) return null;
+    seen.add(item.source);
+    sources.push(item);
+  }
+  return Object.freeze({readmodel, authoritative: false, sources: Object.freeze(sources)});
+}
+
+const SNAPSHOTS = Object.freeze({
+  "system.status": statusSnapshot,
+  "engine.info": engineInfoSnapshot,
+  "readmodel.sources": readmodelSourcesSnapshot
+});
+
+class BackendError extends Error {
+  // Trusted main-process readers throw this to name why the backend cannot answer.
+  constructor(code) {
+    super(BACKEND_CODES.has(code) ? code : "BACKEND_UNAVAILABLE");
+    this.code = BACKEND_CODES.has(code) ? code : "BACKEND_UNAVAILABLE";
+  }
+}
+
+function backendCode(error) {
+  // Never touch a Proxy: instanceof and property reads would run its traps.
+  try {
+    if (error === null || typeof error !== "object" || types.isProxy(error) || !(error instanceof BackendError)) {
+      return "BACKEND_UNAVAILABLE";
+    }
+    const code = ownData(error, "code");
+    return BACKEND_CODES.has(code) ? code : "BACKEND_UNAVAILABLE";
+  } catch { return "BACKEND_UNAVAILABLE"; }
+}
+
 function validStatus(value) {
   try { return statusSnapshot(value) !== null; }
   catch { return false; }
 }
 
+function sameDocument(url, appUrl) {
+  // The app document, optionally with an in-page #fragment (AIK-045 hash routes).
+  // Query strings, other paths and other origins stay untrusted.
+  return typeof url === "string" && typeof appUrl === "string" &&
+    (url === appUrl || (url.startsWith(appUrl + "#") && !url.includes("?")));
+}
+
 function trustedSender(event, webContents, appUrl) {
   try {
     return Boolean(webContents && !webContents.isDestroyed() && event && event.sender === webContents &&
-      event.senderFrame === webContents.mainFrame && event.senderFrame?.url === appUrl &&
+      event.senderFrame === webContents.mainFrame && sameDocument(event.senderFrame?.url, appUrl) &&
       !event.senderFrame?.isDestroyed?.());
   } catch { return false; }
 }
 
 class DesktopRouter {
-  constructor({readStatus = null, maxInflight = 8, replayLimit = 4096, replayWindowMs = 600000,
+  constructor({readStatus = null, readers = {}, maxInflight = 8, replayLimit = 4096, replayWindowMs = 600000,
     requestTimeoutMs = 5000, clock = () => performance.now()} = {}) {
     if (readStatus !== null && typeof readStatus !== "function") throw new TypeError("readStatus must be a function");
+    if (readers === null || typeof readers !== "object" || types.isProxy(readers) ||
+      Object.getPrototypeOf(readers) !== Object.prototype || Object.keys(readers).some(key =>
+      !READ_COMMANDS.includes(key) || typeof readers[key] !== "function") ||
+      (readStatus !== null && Object.hasOwn(readers, "system.status"))) throw new TypeError("readers");
     if (!Number.isInteger(maxInflight) || maxInflight < 1 || maxInflight > 64) throw new RangeError("maxInflight");
     if (!Number.isInteger(replayLimit) || replayLimit < maxInflight || replayLimit > 65536) throw new RangeError("replayLimit");
     if (!Number.isSafeInteger(replayWindowMs) || replayWindowMs < 1000 || replayWindowMs > 86400000 ||
         typeof clock !== "function") throw new RangeError("replayWindowMs");
     if (!Number.isInteger(requestTimeoutMs) || requestTimeoutMs < 1 || requestTimeoutMs > 60000) throw new RangeError("requestTimeoutMs");
-    this.readStatus = readStatus;
+    this.readers = Object.freeze({...readers, ...(readStatus === null ? {} : {"system.status": readStatus})});
     this.maxInflight = maxInflight;
     this.replayLimit = replayLimit;
     this.replayWindowMs = replayWindowMs;
@@ -134,7 +223,8 @@ class DesktopRouter {
     catch { entry.expires = Infinity; } // unknown time cannot justify deleting a fence
   }
 
-  async readBounded(request, workspaceId, entry) {
+  async readBounded(reader, request, workspaceId, entry) {
+    const snapshot = SNAPSHOTS[request.command];
     this.inflight++;
     const controller = new AbortController();
     let timedOut = false, finished = false;
@@ -146,24 +236,24 @@ class DesktopRouter {
     const success = value => {
       try {
         if (timedOut) return {code: "BACKEND_TIMEOUT"}; // do not read a late result's properties
-        const result = statusSnapshot(value);
+        const result = snapshot(value);
         return result ? {result} : {code: "INVALID_RESPONSE"};
       } catch { return {code: "INVALID_RESPONSE"}; }
       finally { finish(); }
     };
-    const failure = () => { finish(); return {code: "BACKEND_UNAVAILABLE"}; };
+    const failure = error => { finish(); return {code: timedOut ? "BACKEND_TIMEOUT" : backendCode(error)}; };
     let returned;
     try {
-      returned = this.readStatus(workspaceId, Object.freeze({
+      returned = reader(workspaceId, Object.freeze({
         signal: controller.signal, requestId: request.request_id
       }));
-    } catch { return failure(); }
+    } catch (error) { return failure(error); }
     // Only native Promises or a plain status DTO are supported. Arbitrary
     // thenables/Proxies cannot run code through Promise assimilation.
     if (!types.isPromise(returned)) return success(returned);
     let operation;
     try { operation = Promise.prototype.then.call(returned, success, failure); }
-    catch { return failure(); }
+    catch (error) { return failure(error); }
     let timer;
     const timeout = new Promise(resolve => {
       timer = setTimeout(() => {
@@ -205,11 +295,11 @@ class DesktopRouter {
       if (handshake) {
         outcome = {result: Object.freeze({ipc_version: VERSION, boundary: "RENDERER_READ_ONLY", backend_state: "NOT_QUALIFIED"})};
         this.complete(entry);
-      } else if (this.readStatus === null) {
+      } else if (!Object.hasOwn(this.readers, request.command)) {
         this.complete(entry);
         outcome = {code: "BACKEND_UNAVAILABLE"};
       } else {
-        outcome = await this.readBounded(request, workspaceId, entry);
+        outcome = await this.readBounded(this.readers[request.command], request, workspaceId, entry);
       }
       if (!trustedSender(caller, getWindow()?.webContents, appUrl)) return failed(request, "UNTRUSTED_SENDER");
       if (!handshake && getWorkspaceId() !== workspaceId) return failed(request, "UNKNOWN_WORKSPACE");
@@ -227,5 +317,5 @@ function makeRendererHandler({router, getWindow, getWorkspaceId, appUrl}) {
   return (event, request) => router.dispatch(event, request, {getWindow, getWorkspaceId, appUrl});
 }
 
-module.exports = {CHANNEL, VERSION, MAX_FRAME_BYTES, requestCode, failed, validStatus,
-  trustedSender, DesktopRouter, makeRendererHandler};
+module.exports = {CHANNEL, VERSION, MAX_FRAME_BYTES, READ_COMMANDS, requestCode, failed, validStatus,
+  trustedSender, BackendError, DesktopRouter, makeRendererHandler};

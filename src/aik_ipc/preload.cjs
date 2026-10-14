@@ -1,6 +1,7 @@
 "use strict";
 // Sandboxed Electron preload: use Web Crypto from the secure app origin;
 // do not import Node builtins or provide a generic renderer invoke method.
+// AIK-045 adds the read-only engine.info and readmodel.sources queries.
 const {contextBridge, ipcRenderer} = require("electron");
 const CHANNEL = "aik:desktop:v1";
 function send(command, workspaceId) {
@@ -14,5 +15,7 @@ function send(command, workspaceId) {
 }
 contextBridge.exposeInMainWorld("aikDesktop", Object.freeze({
   handshake: () => send("protocol.handshake", "unbound"),
-  status: (workspaceId) => send("system.status", workspaceId)
+  status: (workspaceId) => send("system.status", workspaceId),
+  engineInfo: (workspaceId) => send("engine.info", workspaceId),
+  readmodelSources: (workspaceId) => send("readmodel.sources", workspaceId)
 }));

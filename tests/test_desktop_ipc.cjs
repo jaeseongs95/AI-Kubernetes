@@ -110,11 +110,15 @@ test("sandboxed preload exposes only closed operations without Node builtins", a
     },
     globalThis: {crypto: {randomUUID}}
   });
-  assert.deepEqual(Object.keys(exposed).sort(), ["handshake", "status"]);
+  assert.deepEqual(Object.keys(exposed).sort(), ["engineInfo", "handshake", "readmodelSources", "status"]);
   assert.equal(Object.isFrozen(exposed), true);
   await exposed.handshake();
   await exposed.status("workspace-1");
-  assert.equal(calls.length, 2);
+  await exposed.engineInfo("workspace-1");
+  await exposed.readmodelSources("workspace-1");
+  assert.equal(calls.length, 4);
+  assert.deepEqual(calls.slice(2).map(([, request]) => [request.command, request.workspace_id]),
+    [["engine.info", "workspace-1"], ["readmodel.sources", "workspace-1"]]);
   assert.equal(calls[0][0], CHANNEL);
   assert.equal(calls[0][1].command, "protocol.handshake");
   assert.equal(calls[1][1].command, "system.status");
