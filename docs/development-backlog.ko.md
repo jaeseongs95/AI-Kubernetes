@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T03:12:43Z`
+- 수정일 (UTC): `2026-10-14T03:25:08Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
 - 태스크 93개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 340건
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 342건
 - 상태: 미착수 41개 · 진행 중 0개 · 진행 차단 50개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
@@ -2087,7 +2087,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER-20261014](#s-user-20261014)
 - **관련 결정:** [DEC14](#dec14) (확정)
 - **설계 원칙:** [PRN-SOLID](#prn-solid), [PRN-VENDOR](#prn-vendor)
-- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 전체 회귀 근거. 작업 선행 미완료), WIN-X64 진행 차단 (Windows CI 결과 대기. 작업 선행 미완료)
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 전체 회귀 근거. 작업 선행 미완료), WIN-X64 진행 차단 (Windows CI(windows-2022) 전체 회귀 근거 EV-AIK-093-WIN-CI-20261014. 작업 선행 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2101,6 +2101,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 - `EV-AIK-093-IMPL-20261014` · partial_implementation_validation · `docs/prompt-cache.ko.md` · aik_provider.turns(CachePolicy·PromptCacheCapability·OpaqueBlock·Measured·UsageBreakdown), Anthropic adapter cache_control·thinking·effort·thinking/redacted_thinking 보존·tool_use key 순서·보존 기간별 usage, OpenAI cached/reasoning usage, ApiToolLoop opaque·턴별 usage, AnthropicTurnPort, budget·observer 캐시 토큰(옛 문서 읽기 유지) 구현. 가짜 transport로 실제 ApiToolLoop 2턴 thinking 도구 왕복 결합 시험 PASS. 로컬 Linux 전체 회귀 Ran 1521 tests OK(skip 18), 정적 벤더 경계 시험 PASS. Windows CI 결과는 이 근거에 없다. · `2026-10-14T03:12:43Z` · 플랫폼 `LINUX-X64`
 - `EV-AIK-093-LIVE-20261014` · partial_live_probe · `evidence/implementation/2026-10-14-prompt-cache/probe-report.json` · tools/probe_prompt_cache.py를 egress gateway(자격 주입) 경유 claude-opus-5-5로 실행: 같은 system prefix 2회 호출에서 cache write 15,614(5m) → cache read 15,614 적중, thinking adaptive·effort high 도구 1회 왕복에서 thinking 블록(위치 0)을 그대로 다시 보내 end_turn·cache read 16,023. HTTP 4회 200, 재시도 없음. 1시간 보존 적중·다른 provider·route qualification(AIK-086) NOT_RUN. · `2026-10-14T03:12:43Z`
+- `EV-AIK-093-WIN-CI-20261014` · partial_ci_validation · `https://github.com/jaeseongs95/AI-Kubernetes/actions/runs/38505135469` · PR #25 head bf20d1d의 GitHub Actions windows-2022 job: modules 전체 회귀(provider turns·Anthropic cache·loop port·OpenAI usage·budget·observer 시험 포함), provider-contract·redaction·acceptance-candidate·desktop-ipc·upstream-conformance 모두 success. 실제 provider 호출·1시간 보존 적중·Windows 실기 NOT_RUN. · `2026-10-14T03:24:55Z` · 플랫폼 `WIN-X64`
 
 ## M3 · 데스크톱 GUI 실제 연결
 
@@ -4577,6 +4578,8 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 338 | task_evidence `EV-AIK-093-LIVE-20261014` | created | — | AIK-093 partial_live_probe 플랫폼 무관 | AIK-093 구현·실제 관측 근거 | `2026-10-14T03:12:43Z` |
 | 339 | task_platform `AIK-093/LINUX-X64` | status | todo | blocked | 로컬 Linux 전체 회귀 근거. 작업 선행 미완료 | `2026-10-14T03:12:43Z` |
 | 340 | task_platform `AIK-093/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 작업 선행 미완료 | `2026-10-14T03:12:43Z` |
+| 341 | task_evidence `EV-AIK-093-WIN-CI-20261014` | created | — | AIK-093 partial_ci_validation WIN-X64 | AIK-093 Windows CI 근거 | `2026-10-14T03:24:55Z` |
+| 342 | task_platform `AIK-093/WIN-X64` | note | Windows CI 결과 대기. 작업 선행 미완료 | Windows CI(windows-2022) 전체 회귀 근거 EV-AIK-093-WIN-CI-20261014. 작업 선행 미완료 | Windows CI 근거 기록 | `2026-10-14T03:25:08Z` |
 
 ## DB 메타데이터
 
@@ -4605,7 +4608,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T03:12:43Z |
+| `updated_at` | 2026-10-14T03:25:08Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |
