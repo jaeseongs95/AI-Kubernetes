@@ -325,6 +325,10 @@ INSERT INTO "acceptance_criteria" VALUES('AIK-091',2,'기존 공개 이름·파�
 INSERT INTO "acceptance_criteria" VALUES('AIK-091',3,'Linux adapter는 거절(fail-closed) 경로를 포함해 실제 Linux에서 검증하고, 미구현 concern은 거절 사유와 함께 표시한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-092',1,'aik_adapter_*·aik_host_* 밖의 공통 패키지가 벤더 adapter 모듈을 import하지 않음을 시험으로 고정한다.');
 INSERT INTO "acceptance_criteria" VALUES('AIK-092',2,'새 벤더 adapter는 공통 코드 수정 없이 등록만으로 진단·선택 대상이 된다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-093',1,'공통 port에 벤더 문법이 없는 캐시 정책·불투명 블록·usage 구성요소 타입이 있고, 공통 패키지는 벤더 adapter를 import하지 않는다(정적 시험).');
+INSERT INTO "acceptance_criteria" VALUES('AIK-093',2,'thinking·redacted_thinking 블록이 있는 응답이 성공으로 처리되고, 그 블록이 다음 턴에 원문 JSON 값 그대로(key 순서·signature 포함) 원래 위치로, tool_use 인자가 원래 key 순서로 다시 전송된다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-093',3,'usage를 미캐시 입력·캐시 쓰기(보존 등급별)·캐시 읽기·출력·reasoning으로 나눠 기록하고, provider가 주지 않은 값은 0이 아닌 unknown과 provenance로 남기며 예산 정산은 기존 행을 계속 읽는다.');
+INSERT INTO "acceptance_criteria" VALUES('AIK-093',4,'실제 provider 응답으로 캐시 쓰기→읽기 적중과 thinking 블록 왕복을 관측한다(실행 전 NOT_RUN).');
 CREATE TABLE change_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     entity_type TEXT NOT NULL CHECK (entity_type IN ('metadata', 'source', 'requirement', 'decision', 'milestone', 'epic', 'task', 'acceptance_criterion', 'task_link', 'task_platform', 'task_evidence', 'principle', 'platform', 'external_dependency')),
@@ -654,6 +658,29 @@ INSERT INTO "change_log" VALUES(314,'task_evidence','EV-AIK-009-SECRETSERVICE-CI
 INSERT INTO "change_log" VALUES(315,'task_evidence','EV-AIK-091-WINDOWS-CI-20261014','created',NULL,'AIK-091 partial_implementation_validation WIN-X64','AIK-045 데스크톱 셸·플랫폼 CI 근거','2026-10-14T02:38:19Z','b0dbf1b937b1319ad928dd124f4644dd6e9abd08c52f0aeb5d86f765f650d20f','d2d22af8a849ce482578e5a2c2748d9e0d520b6c25e2914c984f4c2801464868');
 INSERT INTO "change_log" VALUES(316,'task_platform','AIK-045/LINUX-X64','status','todo','blocked','로컬 Linux smoke PASS 근거. 작업 선행 미완료','2026-10-14T02:38:19Z','d2d22af8a849ce482578e5a2c2748d9e0d520b6c25e2914c984f4c2801464868','ac69e9b21e46d76c98ac6f921606cefc4b9994bdac27e5c82efd86bcc0ddae28');
 INSERT INTO "change_log" VALUES(317,'task_platform','AIK-045/WIN-X64','status','todo','blocked','desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료','2026-10-14T02:38:19Z','ac69e9b21e46d76c98ac6f921606cefc4b9994bdac27e5c82efd86bcc0ddae28','2aa26f6e5b7764130e4cefe8521a505a45c28fd62ad0d579d2b2759d23731140');
+INSERT INTO "change_log" VALUES(318,'task','AIK-093','created',NULL,'AIK-093 · 벤더 중립 prompt cache·불투명 응답 블록 보존·usage 구성요소 · 공통 port에 캐시 정책·불투명 블록·usage 구성요소를 벤더 문법 없이 정의하고, 벤더 문법(cache_control·thinking·usage 필드)은 adapter에만 둔다. Anthropic thinking 블록을 실패로 처리하던 결함을 고치고 원문 그대로 다시 보내며, 예산 정산이 캐시 토큰을 구분해 센다. · aik_provider.turns·adapter 캐시/블록/usage 지원·ApiToolLoop opaque·usage·Anthropic model port·예산 확장 · 단위·결합 시험, 정적 벤더 경계 시험, 실제 provider 캐시 적중·thinking 왕복 관측 · E03 · M2 · P0 · todo · feature · AIK provider · 93 · 2026-10-14T03:02:35Z · 2026-10-14T03:02:35Z','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','2aa26f6e5b7764130e4cefe8521a505a45c28fd62ad0d579d2b2759d23731140','d52cd78d27384ec3839ae2f691dca6bba746a0d5410747ecc0a2d55308a3180f');
+INSERT INTO "change_log" VALUES(319,'acceptance_criterion','AIK-093#1','criterion',NULL,'공통 port에 벤더 문법이 없는 캐시 정책·불투명 블록·usage 구성요소 타입이 있고, 공통 패키지는 벤더 adapter를 import하지 않는다(정적 시험).','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','d52cd78d27384ec3839ae2f691dca6bba746a0d5410747ecc0a2d55308a3180f','4bec185c265daf3dc3343467533422cae6c41580c1017f179f40f887f3e252a8');
+INSERT INTO "change_log" VALUES(320,'acceptance_criterion','AIK-093#2','criterion',NULL,'thinking·redacted_thinking 블록이 있는 응답이 성공으로 처리되고, 그 블록이 다음 턴에 원문 JSON 값 그대로(key 순서·signature 포함) 원래 위치로, tool_use 인자가 원래 key 순서로 다시 전송된다.','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','4bec185c265daf3dc3343467533422cae6c41580c1017f179f40f887f3e252a8','d37a6d3798883356b00fdd65940e476fe07663b3359180b9594c120845c774e3');
+INSERT INTO "change_log" VALUES(321,'acceptance_criterion','AIK-093#3','criterion',NULL,'usage를 미캐시 입력·캐시 쓰기(보존 등급별)·캐시 읽기·출력·reasoning으로 나눠 기록하고, provider가 주지 않은 값은 0이 아닌 unknown과 provenance로 남기며 예산 정산은 기존 행을 계속 읽는다.','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','d37a6d3798883356b00fdd65940e476fe07663b3359180b9594c120845c774e3','4b9388036f3db4ca62bbf3677fde303ae959fb0186c9c80f0535c49b773daa3c');
+INSERT INTO "change_log" VALUES(322,'acceptance_criterion','AIK-093#4','criterion',NULL,'실제 provider 응답으로 캐시 쓰기→읽기 적중과 thinking 블록 왕복을 관측한다(실행 전 NOT_RUN).','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','4b9388036f3db4ca62bbf3677fde303ae959fb0186c9c80f0535c49b773daa3c','9c85ac3d222941e5a482df499285265833f586031497a12a8bed84b9e50126f7');
+INSERT INTO "change_log" VALUES(323,'task_link','AIK-093','task_requirements',NULL,'AIK-093 -> U11','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','9c85ac3d222941e5a482df499285265833f586031497a12a8bed84b9e50126f7','c7fbdadacb80b1c3b3a271adb2f1c03d7bc1eeec354d74ad362c3b69379b723e');
+INSERT INTO "change_log" VALUES(324,'task_link','AIK-093','task_requirements',NULL,'AIK-093 -> D05','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','c7fbdadacb80b1c3b3a271adb2f1c03d7bc1eeec354d74ad362c3b69379b723e','3589edcc0f3ed3c691423356393cf88124c5c7117a7ef3745fce624802ce10c1');
+INSERT INTO "change_log" VALUES(325,'task_link','AIK-093','task_requirements',NULL,'AIK-093 -> D02','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','3589edcc0f3ed3c691423356393cf88124c5c7117a7ef3745fce624802ce10c1','f9e7ef5ad078992060548bd85614528dfceadfd214015b32d8fafa024b1ffc59');
+INSERT INTO "change_log" VALUES(326,'task_link','AIK-093','task_sources',NULL,'AIK-093 -> S-USER-20261014','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','f9e7ef5ad078992060548bd85614528dfceadfd214015b32d8fafa024b1ffc59','bfe0ccf668a32821deaf7771fcd25b0c3a26d4d1c12ea2e562eda03a945106b6');
+INSERT INTO "change_log" VALUES(327,'task_link','AIK-093','task_sources',NULL,'AIK-093 -> S-DESIGN','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','bfe0ccf668a32821deaf7771fcd25b0c3a26d4d1c12ea2e562eda03a945106b6','bf6a6044330c670a9b62fac2a8ca71b142cb7a14ff643fa3e1f8d7d65f86295f');
+INSERT INTO "change_log" VALUES(328,'task_link','AIK-093','task_decisions',NULL,'AIK-093 -> DEC14','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','bf6a6044330c670a9b62fac2a8ca71b142cb7a14ff643fa3e1f8d7d65f86295f','71f2cdff92f4313fbec2cfb5bbdb1fe35f6e387fa8890406ab877e5aaa516281');
+INSERT INTO "change_log" VALUES(329,'task_link','AIK-093','task_principles',NULL,'AIK-093 -> PRN-VENDOR','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','71f2cdff92f4313fbec2cfb5bbdb1fe35f6e387fa8890406ab877e5aaa516281','72b1584cb833ac33e7790229eb3f4c779e57f483b8e7813c5c448b0cbf8b2dad');
+INSERT INTO "change_log" VALUES(330,'task_link','AIK-093','task_principles',NULL,'AIK-093 -> PRN-SOLID','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','72b1584cb833ac33e7790229eb3f4c779e57f483b8e7813c5c448b0cbf8b2dad','8b2de95363b74bd3a1c5ee09ad7baf4bd8a1d17558907297f7989262915d22e2');
+INSERT INTO "change_log" VALUES(331,'task_link','AIK-093','task_dependencies',NULL,'AIK-093 -> AIK-013','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','8b2de95363b74bd3a1c5ee09ad7baf4bd8a1d17558907297f7989262915d22e2','b1a6ff4cc7a485437bdc7c2cd2cf19d71814817dd6902c7219b1ebfe91244b81');
+INSERT INTO "change_log" VALUES(332,'task_link','AIK-093','task_dependencies',NULL,'AIK-093 -> AIK-035','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','b1a6ff4cc7a485437bdc7c2cd2cf19d71814817dd6902c7219b1ebfe91244b81','20f87b07a2fc75e000c7e4b549f6d6db55ab5b85d28bdbe48fb28d7a8f808bde');
+INSERT INTO "change_log" VALUES(333,'task_link','AIK-044','task_dependencies',NULL,'AIK-044 -> AIK-093','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','20f87b07a2fc75e000c7e4b549f6d6db55ab5b85d28bdbe48fb28d7a8f808bde','1ade9243ecac799e9db0124bfc232794c1ddaf1d09b8654b49a1de77d66c7220');
+INSERT INTO "change_log" VALUES(334,'task_platform','AIK-093/WIN-X64','status',NULL,'todo','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','1ade9243ecac799e9db0124bfc232794c1ddaf1d09b8654b49a1de77d66c7220','ee2cd18ef347c917710a2daab30c05b57ff254be3c86b2a1a37c950ce0987921');
+INSERT INTO "change_log" VALUES(335,'task_platform','AIK-093/LINUX-X64','status',NULL,'todo','사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z','ee2cd18ef347c917710a2daab30c05b57ff254be3c86b2a1a37c950ce0987921','fdf8eed6d2955c778debaff24a8eaefca400afe77c20f51034a9584738b5066f');
+INSERT INTO "change_log" VALUES(336,'task_evidence','EV-AIK-045-SHELL-WIN-CI-20261014','created',NULL,'AIK-045 partial_implementation_validation WIN-X64','AIK-045 Windows CI smoke 근거','2026-10-14T03:02:35Z','fdf8eed6d2955c778debaff24a8eaefca400afe77c20f51034a9584738b5066f','6e59f96ab2a5c81340c00d85c6863e42f656210e7ed633fc98e46954b1c58b13');
+INSERT INTO "change_log" VALUES(337,'task_evidence','EV-AIK-093-IMPL-20261014','created',NULL,'AIK-093 partial_implementation_validation LINUX-X64','AIK-093 구현·실제 관측 근거','2026-10-14T03:12:43Z','6e59f96ab2a5c81340c00d85c6863e42f656210e7ed633fc98e46954b1c58b13','16f2e091aad815d8d6e0441f891160071eab46de6ef9326747cc60ac7d7c0735');
+INSERT INTO "change_log" VALUES(338,'task_evidence','EV-AIK-093-LIVE-20261014','created',NULL,'AIK-093 partial_live_probe 플랫폼 무관','AIK-093 구현·실제 관측 근거','2026-10-14T03:12:43Z','16f2e091aad815d8d6e0441f891160071eab46de6ef9326747cc60ac7d7c0735','96c2d40ba57619f9da8a510044f7af199f10c98b15817d0c60380c32d40d6204');
+INSERT INTO "change_log" VALUES(339,'task_platform','AIK-093/LINUX-X64','status','todo','blocked','로컬 Linux 전체 회귀 근거. 작업 선행 미완료','2026-10-14T03:12:43Z','96c2d40ba57619f9da8a510044f7af199f10c98b15817d0c60380c32d40d6204','ae31d4a27ca83b074de4c1f9dcbb27979ff83c218ca544d8806e452fce860645');
+INSERT INTO "change_log" VALUES(340,'task_platform','AIK-093/WIN-X64','status','todo','blocked','Windows CI 결과 대기. 작업 선행 미완료','2026-10-14T03:12:43Z','ae31d4a27ca83b074de4c1f9dcbb27979ff83c218ca544d8806e452fce860645','4d8d704dddeb230628d642c1862d1aba95203812cf4a69b4d439d86432c745fc');
 CREATE TABLE decisions (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     title TEXT NOT NULL CHECK (length(trim(title)) > 0),
@@ -711,7 +738,7 @@ INSERT INTO "metadata" VALUES('schema_version','2');
 INSERT INTO "metadata" VALUES('project','AI-Kubernetes');
 INSERT INTO "metadata" VALUES('language','ko');
 INSERT INTO "metadata" VALUES('created_at','2026-10-12T05:36:30Z');
-INSERT INTO "metadata" VALUES('updated_at','2026-10-14T02:38:19Z');
+INSERT INTO "metadata" VALUES('updated_at','2026-10-14T03:12:43Z');
 INSERT INTO "metadata" VALUES('reviewed_at','2026-10-12T09:06:04Z');
 INSERT INTO "metadata" VALUES('user_request_date','2026-10-12');
 INSERT INTO "metadata" VALUES('baseline_commit','0367932ce2fa9369a3420a4867283167ea319188');
@@ -920,6 +947,7 @@ INSERT INTO "task_decisions" VALUES('AIK-091','DEC14');
 INSERT INTO "task_decisions" VALUES('AIK-092','DEC14');
 INSERT INTO "task_decisions" VALUES('AIK-045','DEC14');
 INSERT INTO "task_decisions" VALUES('AIK-009','DEC14');
+INSERT INTO "task_decisions" VALUES('AIK-093','DEC14');
 CREATE TABLE task_dependencies (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     depends_on TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1298,6 +1326,9 @@ INSERT INTO "task_dependencies" VALUES('AIK-016','AIK-091');
 INSERT INTO "task_dependencies" VALUES('AIK-045','AIK-091');
 INSERT INTO "task_dependencies" VALUES('AIK-057','AIK-091');
 INSERT INTO "task_dependencies" VALUES('AIK-022','AIK-092');
+INSERT INTO "task_dependencies" VALUES('AIK-093','AIK-013');
+INSERT INTO "task_dependencies" VALUES('AIK-093','AIK-035');
+INSERT INTO "task_dependencies" VALUES('AIK-044','AIK-093');
 CREATE TABLE task_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1631,6 +1662,13 @@ INSERT INTO "task_events" VALUES(321,'AIK-091','verification_progress','blocked'
 INSERT INTO "task_events" VALUES(322,'AIK-045','status_change','todo','blocked','셸·엔진·IPC 연결 구현(부분 근거 EV-AIK-045-SHELL-LINUX-20261014). 선행 AIK-004·043·044 미완료, 실제 VM·AGS·벤더 데이터와 패키징 NOT_RUN이라 완료 불가','2026-10-14T02:38:19Z');
 INSERT INTO "task_events" VALUES(323,'AIK-045','platform_status',NULL,NULL,'LINUX-X64: todo -> blocked: 로컬 Linux smoke PASS 근거. 작업 선행 미완료','2026-10-14T02:38:19Z');
 INSERT INTO "task_events" VALUES(324,'AIK-045','platform_status',NULL,NULL,'WIN-X64: todo -> blocked: desktop-shell.yml windows-2022 smoke 대기. 작업 선행 미완료','2026-10-14T02:38:19Z');
+INSERT INTO "task_events" VALUES(325,'AIK-093','created',NULL,'todo','등록: 사용자 지시(2026-10-14): 캐시 작업을 원장에 등록하고 GUI 후속보다 먼저 진행','2026-10-14T03:02:35Z');
+INSERT INTO "task_events" VALUES(326,'AIK-045','verification_progress','blocked','blocked','부분 근거 EV-AIK-045-SHELL-WIN-CI-20261014 기록(상태 변경 없음)','2026-10-14T03:02:35Z');
+INSERT INTO "task_events" VALUES(327,'AIK-093','verification_progress','todo','todo','부분 근거 EV-AIK-093-IMPL-20261014 기록(상태 변경 없음)','2026-10-14T03:12:43Z');
+INSERT INTO "task_events" VALUES(328,'AIK-093','verification_progress','todo','todo','부분 근거 EV-AIK-093-LIVE-20261014 기록(상태 변경 없음)','2026-10-14T03:12:43Z');
+INSERT INTO "task_events" VALUES(329,'AIK-093','status_change','todo','blocked','구현·결합 시험·실제 캐시 적중과 thinking 왕복 관측 완료(EV-AIK-093-IMPL/LIVE-20261014). 선행 AIK-013·035 미완료, Windows CI·1시간 보존·다른 provider 관측 NOT_RUN이라 완료 판정 보류','2026-10-14T03:12:43Z');
+INSERT INTO "task_events" VALUES(330,'AIK-093','platform_status',NULL,NULL,'LINUX-X64: todo -> blocked: 로컬 Linux 전체 회귀 근거. 작업 선행 미완료','2026-10-14T03:12:43Z');
+INSERT INTO "task_events" VALUES(331,'AIK-093','platform_status',NULL,NULL,'WIN-X64: todo -> blocked: Windows CI 결과 대기. 작업 선행 미완료','2026-10-14T03:12:43Z');
 CREATE TABLE task_evidence (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -1729,6 +1767,9 @@ INSERT INTO "task_evidence" VALUES('EV-AIK-016-LOGIND-20261014','AIK-016','parti
 INSERT INTO "task_evidence" VALUES('EV-AIK-045-SHELL-LINUX-20261014','AIK-045','partial_implementation_validation','docs/desktop-shell.ko.md','apps/desktop Electron 셸(화면 7개·연결 상태 표시줄)과 src/aik_desktop_engine stdio 엔진 구현. 로컬 Linux (xvfb, 일반 사용자, Electron 44.7.0) smoke 4건: 실제 소스 엔진 연결 PASS(route 7개 스크린샷), 엔진 미구성 BLOCKED/unavailable, 버전 불일치 가짜 엔진 BLOCKED/incompatible, cursor gap read model PASS/stale. 미연결 화면 5개는 NOT_CONNECTED만 표시(예시 데이터 없음). 선행 AIK-004·043·044 미완료, 실제 VM·AGS·벤더 데이터와 패키징(AIK-057) NOT_RUN. Windows 실행은 이 근거에 없다.','2026-10-14T02:38:19Z','LINUX-X64');
 INSERT INTO "task_evidence" VALUES('EV-AIK-009-SECRETSERVICE-CI-20261014','AIK-009','partial_implementation_validation','.github/workflows/platform-linux.yml','CI platform-linux run 38500153983 job 115644934084(ubuntu-24.04): dbus-run-session 위 실제 GNOME Keyring(합성 암호, 합성 비밀)에서 SecretServiceVaultBackend 저장·조회·교체·삭제 왕복 시험 PASS, 같은 job의 키링 없는 실행은 live 시험 skip·나머지 PASS. 러너 이미지 범위의 확인이며 데스크톱 세션 키링·KWallet NOT_RUN.','2026-10-14T02:38:19Z','LINUX-X64');
 INSERT INTO "task_evidence" VALUES('EV-AIK-091-WINDOWS-CI-20261014','AIK-091','partial_implementation_validation','docs/platform.ko.md','PR #23 head b6294a0 CI run 38501246286의 modules (windows-2022) 전체 회귀 PASS: aik_platform port(msvcrt 잠금, Job Object 프로세스, LOCALAPPDATA 경로, DPAPI adapter)로 바꾼 공통 코드가 Windows Server에서 통과. 첫 실행(d564344)은 시험의 POSIX 전용 가짜 경로로 6건 실패했고 시험만 고쳐 재실행했다. 실제 Windows 11 실행은 이 근거에 없다.','2026-10-14T02:38:19Z','WIN-X64');
+INSERT INTO "task_evidence" VALUES('EV-AIK-045-SHELL-WIN-CI-20261014','AIK-045','partial_implementation_validation','.github/workflows/desktop-shell.yml','CI desktop-shell run 38502337776 job 115651959441(windows-2022, head f01a253): 실제 Electron 셸과 python -I 소스 엔진으로 smoke PASS(connected, route 7개 스크린샷), 엔진 미구성 smoke BLOCKED/unavailable 확인, check_desktop_smoke.py 통과. 같은 run의 ubuntu-24.04 job 115651959086도 PASS. Windows Server 러너 범위이며 실제 Windows 11 사용자 실행·패키징 NOT_RUN.','2026-10-14T03:02:35Z','WIN-X64');
+INSERT INTO "task_evidence" VALUES('EV-AIK-093-IMPL-20261014','AIK-093','partial_implementation_validation','docs/prompt-cache.ko.md','aik_provider.turns(CachePolicy·PromptCacheCapability·OpaqueBlock·Measured·UsageBreakdown), Anthropic adapter cache_control·thinking·effort·thinking/redacted_thinking 보존·tool_use key 순서·보존 기간별 usage, OpenAI cached/reasoning usage, ApiToolLoop opaque·턴별 usage, AnthropicTurnPort, budget·observer 캐시 토큰(옛 문서 읽기 유지) 구현. 가짜 transport로 실제 ApiToolLoop 2턴 thinking 도구 왕복 결합 시험 PASS. 로컬 Linux 전체 회귀 Ran 1521 tests OK(skip 18), 정적 벤더 경계 시험 PASS. Windows CI 결과는 이 근거에 없다.','2026-10-14T03:12:43Z','LINUX-X64');
+INSERT INTO "task_evidence" VALUES('EV-AIK-093-LIVE-20261014','AIK-093','partial_live_probe','evidence/implementation/2026-10-14-prompt-cache/probe-report.json','tools/probe_prompt_cache.py를 egress gateway(자격 주입) 경유 claude-opus-5-5로 실행: 같은 system prefix 2회 호출에서 cache write 15,614(5m) → cache read 15,614 적중, thinking adaptive·effort high 도구 1회 왕복에서 thinking 블록(위치 0)을 그대로 다시 보내 end_turn·cache read 16,023. HTTP 4회 200, 재시도 없음. 1시간 보존 적중·다른 provider·route qualification(AIK-086) NOT_RUN.','2026-10-14T03:12:43Z',NULL);
 CREATE TABLE task_external_dependencies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -1899,6 +1940,8 @@ INSERT INTO "task_platforms" VALUES('AIK-091','WIN-X64','blocked','작업 상태
 INSERT INTO "task_platforms" VALUES('AIK-091','LINUX-X64','blocked','작업 상태 blocked와 같음: 부분 근거만 있고 플랫폼별 판정 전','2026-10-14T02:14:24Z');
 INSERT INTO "task_platforms" VALUES('AIK-092','WIN-X64','todo','','2026-10-14T01:54:45Z');
 INSERT INTO "task_platforms" VALUES('AIK-092','LINUX-X64','todo','','2026-10-14T01:54:45Z');
+INSERT INTO "task_platforms" VALUES('AIK-093','WIN-X64','blocked','Windows CI 결과 대기. 작업 선행 미완료','2026-10-14T03:12:43Z');
+INSERT INTO "task_platforms" VALUES('AIK-093','LINUX-X64','blocked','로컬 Linux 전체 회귀 근거. 작업 선행 미완료','2026-10-14T03:12:43Z');
 CREATE TABLE task_principles (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     principle_id TEXT NOT NULL REFERENCES principles(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2049,6 +2092,8 @@ INSERT INTO "task_principles" VALUES('AIK-091','PRN-SOLID');
 INSERT INTO "task_principles" VALUES('AIK-092','PRN-VENDOR');
 INSERT INTO "task_principles" VALUES('AIK-092','PRN-OS');
 INSERT INTO "task_principles" VALUES('AIK-092','PRN-SOLID');
+INSERT INTO "task_principles" VALUES('AIK-093','PRN-VENDOR');
+INSERT INTO "task_principles" VALUES('AIK-093','PRN-SOLID');
 CREATE TABLE task_requirements (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2586,6 +2631,9 @@ INSERT INTO "task_requirements" VALUES('AIK-016','U10');
 INSERT INTO "task_requirements" VALUES('AIK-045','U10');
 INSERT INTO "task_requirements" VALUES('AIK-057','U10');
 INSERT INTO "task_requirements" VALUES('AIK-011','U11');
+INSERT INTO "task_requirements" VALUES('AIK-093','U11');
+INSERT INTO "task_requirements" VALUES('AIK-093','D05');
+INSERT INTO "task_requirements" VALUES('AIK-093','D02');
 CREATE TABLE task_sources (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON UPDATE CASCADE ON DELETE CASCADE,
     source_id TEXT NOT NULL REFERENCES sources(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -2841,6 +2889,8 @@ INSERT INTO "task_sources" VALUES('AIK-082','S-VM-RUNTIME');
 INSERT INTO "task_sources" VALUES('AIK-091','S-USER-20261014');
 INSERT INTO "task_sources" VALUES('AIK-091','S-DESIGN');
 INSERT INTO "task_sources" VALUES('AIK-092','S-USER-20261014');
+INSERT INTO "task_sources" VALUES('AIK-093','S-USER-20261014');
+INSERT INTO "task_sources" VALUES('AIK-093','S-DESIGN');
 CREATE TABLE tasks (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(id)) > 0),
     title TEXT NOT NULL CHECK (length(trim(title)) > 0),
@@ -2949,6 +2999,7 @@ INSERT INTO "tasks" VALUES('AIK-089','연합 릴리스 패키징·업그레이�
 INSERT INTO "tasks" VALUES('AIK-090','확장 릴리스 패키징·업그레이드·최종 gate','선택한 로컬 모델·추가 vendor/정책/조직/배포 확장을 지원 플랫폼 설치본에 포함하고 기존 제품·연합 및 확장 사용자 흐름을 함께 검증해 출시한다.','extension release installer/manifest·selected scope/dependency record·P01~P12 qualification·release notes','고정 새 설치본의 지원 이전 버전 업데이트/복구·기본 제품/연합 회귀·선택 확장별 실제 GUI governed E2E','E09','M6','P2','todo','validation','Extension release lead',90,'2026-10-12T06:45:00Z','2026-10-14T01:54:45Z');
 INSERT INTO "tasks" VALUES('AIK-091','OS port 계층·플랫폼 adapter와 공통 헬퍼 통합','공통 코드에 흩어진 OS 분기(파일 동기화·원자적 쓰기·잠금·프로세스 트리·데이터 경로·세션 신호·시크릿 backend 선택)를 aik_platform의 concern별 port와 Windows·Linux adapter로 모은다. 기존 공개 이름과 동작은 유지한다.','aik_platform 패키지·adapter 주입 시험·복제 헬퍼 제거','adapter 주입 단위 시험, 기존 전체 회귀, Windows·Linux CI matrix','E12','M0','P0','blocked','feature','AIK platform',91,'2026-10-14T01:54:45Z','2026-10-14T02:14:23Z');
 INSERT INTO "tasks" VALUES('AIK-092','공통 코드의 벤더 결합 제거','공통 패키지가 특정 벤더 adapter 모듈을 import하거나 벤더 목록을 하드코딩하지 않게 한다. 범용 HTTP transport는 벤더 중립 모듈로 옮기고 진단 범위는 등록된 adapter에서 만든다.','벤더 중립 transport 모듈·adapter 등록 기반 진단 범위·import 경계 시험','공통 패키지의 벤더 adapter import 0건 정적 시험과 전체 회귀','E12','M1','P1','blocked','feature','AIK platform',92,'2026-10-14T01:54:45Z','2026-10-14T02:14:23Z');
+INSERT INTO "tasks" VALUES('AIK-093','벤더 중립 prompt cache·불투명 응답 블록 보존·usage 구성요소','공통 port에 캐시 정책·불투명 블록·usage 구성요소를 벤더 문법 없이 정의하고, 벤더 문법(cache_control·thinking·usage 필드)은 adapter에만 둔다. Anthropic thinking 블록을 실패로 처리하던 결함을 고치고 원문 그대로 다시 보내며, 예산 정산이 캐시 토큰을 구분해 센다.','aik_provider.turns·adapter 캐시/블록/usage 지원·ApiToolLoop opaque·usage·Anthropic model port·예산 확장','단위·결합 시험, 정적 벤더 경계 시험, 실제 provider 캐시 적중·thinking 왕복 관측','E03','M2','P0','blocked','feature','AIK provider',93,'2026-10-14T03:02:35Z','2026-10-14T03:12:43Z');
 CREATE INDEX ix_tasks_milestone_status ON tasks(milestone_id, status, sequence);
 CREATE INDEX ix_tasks_epic ON tasks(epic_id);
 CREATE INDEX ix_dependencies_prerequisite ON task_dependencies(depends_on);
@@ -3019,8 +3070,8 @@ JOIN tasks t ON t.id = d.task_id
 LEFT JOIN task_platforms tp ON tp.task_id = d.task_id AND tp.platform_id = d.platform_id
 WHERE x.status = 'open';
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('task_events',324);
-INSERT INTO "sqlite_sequence" VALUES('change_log',317);
+INSERT INTO "sqlite_sequence" VALUES('task_events',331);
+INSERT INTO "sqlite_sequence" VALUES('change_log',340);
 INSERT INTO "sqlite_sequence" VALUES('task_external_dependencies',8);
 COMMIT;
 PRAGMA foreign_keys = ON;
