@@ -16,8 +16,9 @@ Design principles (user-confirmed design):
 
 VM (vibemarshal) and AGS (agent-governance-suite) expose no JEV integration
 interface and are fixed contracts. This package therefore implements only the
-AIK-side bridge. Real JEV round trips, VM/AGS embedding and fallback LLM
-execution are NOT_RUN.
+AIK-side bridge. ``GoalClassifier`` is the optional step that the AIK
+controller runs before VM prepare/revise (``Controller(classifier=...)``).
+VM/AGS embedding and fallback LLM execution are NOT_RUN.
 """
 
 from .bridge import SKILL_INSTRUCTIONS, SKILL_QUESTION, JevBridge
@@ -26,6 +27,7 @@ from .client import (
     SystemOneResult, UrllibTransport,
 )
 from .errors import JevError
+from .goal_step import GoalClassifier
 from .journal import APPLICATION_ID, SCHEMA_VERSION, JevJournal
 from .models import (
     LOCAL_DERIVED, MAX_RAW_BYTES, METADATA_PROVENANCES, MODEL_REPORTED, PROVIDER_OBSERVED,
@@ -34,7 +36,7 @@ from .models import (
 )
 
 __all__ = [
-    "JevBridge", "JevClient", "JevJournal", "JevError",
+    "JevBridge", "GoalClassifier", "JevClient", "JevJournal", "JevError",
     "RawPrompt", "SkillCandidate", "CommonReq", "JevAnswer", "Classification",
     "FallbackCandidate", "select_fallback", "selection_flags",
     "AgentSelection", "AgentSelectionRecord", "ModelInfo", "SystemOneResult", "UrllibTransport",

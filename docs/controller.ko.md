@@ -39,7 +39,7 @@
 
 ## 사용 흐름
 
-1. `controller.start_goal(text)`: 권한 검사를 통과하면 VM `prepare`를 보낸다. VM이 Goal·Plan·Task를 만든다.
+1. `controller.start_goal(text)`: 권한 검사를 통과하면 VM `prepare`를 보낸다. VM이 Goal·Plan·Task를 만든다. 선택 인자 `classifier`(기본 없음, 예: `aik_jev.GoalClassifier`)가 있으면 권한 검사와 VM 명령 사이에 원문을 advisory로 분류하고 `controller.goal_classifications`에 남긴다. 분류 실패는 VM 명령을 막지 않는다([JEV 문서](jev.ko.md#controller-선택-단계-goalclassifier)).
 2. `controller.run()`: VM이 사용자 인가를 기다리면 `awaiting_authorization`으로 멈춘다.
 3. 사용자가 GUI에서 승인한다. 이때 VM `authorize`가 호출되며, 총괄이 호출하지 않는다.
 4. `controller.run()`을 다시 호출한다. 이후 tick 반복으로 A/B를 위임하고, VM이 C를 ready로 바꾸면 VM이 준 입력 참조와 함께 C를 위임한다. 독립 검증이 실패하면 `replan`을 보내고, VM이 만든 새 attempt를 위임한다. VM이 만든 Goal Test 작업도 위임하고, GoalVerdict가 준비되면 `final_report`를 조회해 `RunReport`로 사용자에게 인계한다.
@@ -120,6 +120,7 @@
 
 ```bash
 python -m unittest discover -s tests -p 'test_controller.py' -v
+python -m unittest discover -s tests -p 'test_controller_jev.py' -v
 ```
 
 실제 `VmBridge`를 fake EngineApplication port 위에서 사용한다. fake VM이 DAG, ready 판정, 독립 검증 실패, GoalVerdict를 소유한다. 위임·authority·wake·시계는 fake이며 데이터는 모두 합성 ID다. 일부 시험은 실제 `VmBridge`를 감싸 지정 명령에서 합성 `VmBridgeError`(분류된 outcome·코드)를 던지거나, 고정 status payload를 돌려주는 최소 stub bridge를 사용한다. 검사 항목은 다음과 같다.
@@ -139,6 +140,7 @@ python -m unittest discover -s tests -p 'test_controller.py' -v
 - status 실패와 final_report 실패 시 대기, wake 실패의 trace 기록
 - 무진전 한도, 절대 deadline, naive 시계
 - 순수 `decide` 결정, status 해석의 fail-closed, gateway adapter 매핑·정책 없음·READ_ONLY·거절 반환값·`decision_check`
+- 선택형 JEV 분류 단계(`test_controller_jev.py`): 기본 단계 없음, 권한 검사 → 분류 → VM 명령 순서, 원문 보존, 분류 실패에도 VM 명령 진행, 권한 거절 시 JEV 미전송
 
 이 문서 작성 시점의 실행 결과 기록은 없다.
 

@@ -1114,6 +1114,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 **기록된 증거**
 
 - `EV-AIK-026-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-026` · 부분 구현: commit 7ec1c93/6de6faa, tests/test_controller.py 42개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 없음(단위 범위); 차단: 선행 AIK-025는 부분 구현이고 AIK-029·AIK-031의 완료 근거가 문서에 없음; 실제 VM status는 aik_vm_bridge.engine_port 정규화로 고정 revision(32bb0f9) 소스와 대조했으나 final_report·전체 Goal 흐름은 실제 VM에서 미검증; 실제 AuthorityGateway ExecutionDecision 반환 계약 미확인; 미해결 effect 기억이 메모리 전용이라 재시작 내구성 없음. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T10:15:05Z`
+- `EV-AIK-026-SUPP-JEVSTEP-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-controller-선택형-jev-단계` · 보충: Controller에 선택 인자 classifier(기본 None)를 추가했다. 권한 검사를 통과한 뒤 VM 명령 직전에 advisory 분류를 실행하고 controller.goal_classifications로 결과를 남긴다. 분류는 Goal·Plan·Task·완료 판정에 쓰이지 않는다. tests/test_controller_jev.py 8개와 기존 tests/test_controller.py 세션 Linux PASS. 실제 모델·VM 설치물·Windows E2E는 NOT_RUN. 상태 변경 없음. · `2026-10-14T01:06:07Z`
 
 ### AIK-027
 
@@ -1345,6 +1346,7 @@ GUI와 총괄이 VM façade로 Goal 준비·인가·실행·관측·상태·보�
 **기록된 증거**
 
 - `EV-AIK-030-MODULE-20261013` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#aik-030` · 부분 구현: commit e228314, tests/test_jev.py 18개 합성·fake 단위 시험이 세션 Linux 로컬 전체 회귀에서 PASS. 남은 완료 기준 1(부분), 3(부분); 차단: VM/AGS 고정 계약에 JEV 연동 경계 없음(편입 불가, upstream 요청 안 함); fallback 분류 후보의 벤더 품질 기준 판정·실행 경로 미연결; 선행 AIK-031·AIK-032의 실제 governed 실행 미검증. 실제 Windows·provider·VM/AGS 설치형 검증 NOT_RUN. · `2026-10-13T15:51:04Z`
+- `EV-AIK-030-SUPP-JEVSTEP-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-13-api-modules/README.ko.md#보충-근거-controller-선택형-jev-단계` · 보충: aik_jev.GoalClassifier와 Controller(classifier=...)로 총괄 Goal 준비 경로(start_goal/revise_goal)에 JEV 분류를 선택 단계로 연결했다(기본 없음, 권한 검사 → 분류 → VM prepare/revise, VM 요청 ID를 분류 request_id로 사용, 원문을 VM·JEV에 그대로 전달, 분류 실패·예외는 VM 명령을 막지 않고 GoalClassificationNote로 기록). tests/test_controller_jev.py 8개(실제 Controller·VmBridge 합성 VM·JevBridge, fake transport) 세션 Linux PASS. tools/probe_controller_jev.py로 실제 JEV 1건 classified 관측(요청 jev-latest, 관측 jev-1.13.0, VM은 로컬 기록 stub, 인증은 egress gateway 주입). 실제 VM prepare·AuthorityGateway·VM/AGS 내부 편입·fallback LLM 실행·분류 품질·Windows는 NOT_RUN. 상태 변경 없음. · `2026-10-14T01:06:07Z`
 
 ### AIK-033
 

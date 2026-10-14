@@ -225,6 +225,22 @@ class ActionRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class GoalClassificationNote:
+    """Outcome of the optional classifier step for one prepare/revise request.
+
+    The classification is advisory and never changes the goal text, the VM
+    command or the skill choice. ``classification_id`` and ``status`` are set
+    when the classifier returned a record; ``error_code`` when it raised.
+    """
+
+    request_id: str
+    command: str
+    classification_id: str | None
+    status: str | None
+    error_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class RunReport:
     """goal_complete is True only for a VM GoalVerdict 'passed' with evidence."""
 
