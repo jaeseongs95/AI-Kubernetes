@@ -1,0 +1,14 @@
+﻿{
+    "schema_version":  1,
+    "execution_id":  "2f1c944b554e4031bdfc745bbf7cb3b7",
+    "manifest_sha256":  "b85ee7ce8d0d4dcdb95fdbc578bf12f8f07f511a61bbf486d253ee1a92f78a66",
+    "client_environment_sha256":  "6062ed8443535a05dbf1930568272aacb1b48389c6efa7821b30f642955cb9ae",
+    "operator":  null,
+    "prepared_at":  null,
+    "method":  null,
+    "description":  null,
+    "development_tools_installed":  null,
+    "records":  [
+
+                ]
+}

@@ -1,0 +1,76 @@
+﻿{
+    "schema_version":  1,
+    "scope":  "AIK-002 packaged Windows foundation spike",
+    "source_commit":  null,
+    "workflow_run_id":  null,
+    "workflow_attempt":  null,
+    "started_at":  "2026-10-14T00:39:11.4719495Z",
+    "status":  "PASS",
+    "development_artifact":  true,
+    "support_qualification":  "NOT_RUN",
+    "product_integration":  "NOT_RUN",
+    "checks":  {
+                   "install":  "PASS",
+                   "runtime_bundle":  "PASS",
+                   "packaged_gui":  "PASS",
+                   "uninstall":  "PASS"
+               },
+    "limits":  [
+                   "This installer contains an AIK-002 foundation spike, not the complete product.",
+                   "A GitHub Server runner does not qualify Windows 11 client support.",
+                   "Removing developer tools from the child PATH does not make the runner a clean computer.",
+                   "No real vendor, AGS, or VM product integration is exercised.",
+                   "Windows 11 standard-user installation, publisher signing, update trust, and product data removal remain separate release gates."
+               ],
+    "environment":  {
+                        "platform":  "win32",
+                        "architecture":  "AMD64",
+                        "os_caption":  "Microsoft Windows 11 Pro",
+                        "os_version":  "10.0.26300",
+                        "os_build":  "26300",
+                        "os_product_type":  1,
+                        "logical_processors":  16,
+                        "memory_bytes":  31854321664,
+                        "cpu_names":  [
+                                          "AMD Ryzen 7 250 w/ Radeon 780M Graphics        "
+                                      ],
+                        "administrator":  true,
+                        "github_actions":  false,
+                        "runner_image":  null,
+                        "runner_image_version":  null
+                    },
+    "installer":  {
+                      "file":  "AIK-Foundation-Spike-win-x64-dev-unsigned.exe",
+                      "bytes":  120706994,
+                      "sha256":  "a29f32bb52799857268d41e235463ea87a07a3fb1b927afc41546bf2d408b475",
+                      "signature_status":  "NotSigned",
+                      "release_publisher_qualified":  false
+                  },
+    "runtime_bundle":  {
+                           "gui_sha256":  "eb6514f76bc3cf47cd02cdeb0660d995f2a44f8689a25ae24b84a80260008c77",
+                           "engine_sha256":  "2e3c7f983b914ecb4bb86f587de58b689073f98749cf7f29120608161993844f",
+                           "python_runtime_libraries":  [
+                                                            {
+                                                                "file":  "python314.dll",
+                                                                "sha256":  "854fe7549eb4b2ac478935a38ae2ca1b774c6fdc3d87f0263fbd697ff86d7149"
+                                                            }
+                                                        ],
+                           "installed_outside_source_tree":  true,
+                           "unicode_and_space_paths":  true
+                       },
+    "child_environment":  {
+                              "path":  "C:\\WINDOWS\\System32;C:\\WINDOWS",
+                              "pythonhome_removed":  true,
+                              "pythonpath_removed":  true,
+                              "node_options_removed":  true,
+                              "electron_run_as_node_removed":  true,
+                              "working_directory_outside_source_tree":  true,
+                              "installed_tooling_absence":  "NOT_RUN"
+                          },
+    "application_pid":  18076,
+    "application_exit_code":  0,
+    "application_report_sha256":  "4429d16fb746fda3188b9e086fe541df4dd949a7609a5444fb97b47bddb2a683",
+    "screenshot_sha256":  "e9a1f3b2aba47095bc37c8e321faface2e7f011a1f093474ed173ab9478e8028",
+    "completed_at":  "2026-10-14T00:39:32.9373476Z",
+    "elapsed_ms":  21470
+}
