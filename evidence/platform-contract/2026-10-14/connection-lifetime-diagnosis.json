@@ -1,0 +1,6 @@
+{
+  "before_explicit_close": "HANDLE_RETAINED",
+  "after_explicit_close": "REMOVED",
+  "confirmed_cause": "sqlite3.Connection context manager commits/rolls back but does not close; Windows retains the file handle",
+  "rejected_hypothesis": "permanent directory permission failure, because explicit close allows removal"
+}

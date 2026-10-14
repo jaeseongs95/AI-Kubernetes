@@ -3,11 +3,11 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T06:22:19Z`
+- 수정일 (UTC): `2026-10-14T07:36:58Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
 - 태스크 93개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 358건
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 363건
 - 상태: 미착수 38개 · 진행 중 0개 · 진행 차단 53개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
@@ -282,6 +282,8 @@ VM GUI 자산을 검토하고 Windows에서 GUI·런타임·시크릿 호출이 
 **기록된 증거**
 
 - `EV-AIK-083-FILE-SNAPSHOTS-20261013` · partial_implementation_validation · `evidence/product-acceptance/2026-10-13-snapshots/README.ko.md` · AIK-083 파일 oracle 보강: 검증·계산·digest를 동일한 bounded byte snapshot에 결속, 검사 중 파일 변경/교체 감지, JSON object 키 순서 오판 수정, 비정상 Unicode·숫자 overflow·중첩/크기 제한. 기존12+신규24=36/36 PASS, 이전 source 선택 반례8개 실패 재현. 검증 source 387aa4b32f2cbbfc60739890a29c04e2272abff3; 생성 checker의 정확한 해시는 증거에 기록. AIK-003 및 실제 VM/AGS·설치본·인수계약 승인 미완료로 blocked 기록. · `2026-10-13T06:24:36Z`
+- `EV-AIK-083-PLATFORM-ACCEPTANCE-20261014` · partial_implementation_validation · `evidence/platform-contract/2026-10-14/verification.json` · Linux를 포함한 M4/M5/M6 계약을 원장 플랫폼과 대조하고 플랫폼별 installer·host·journey·metric·독립 검토 근거를 요구한다. Linux 지원 정의 pending_AIK-003 유지. Windows 단독 녹색 보고서의 출시 준비 오판을 반례로 고정했다. 로컬 표적 회귀 122건 PASS(Windows Python 3.12.14); 기존 결함 버전의 선택 반례 3건은 실패. 실제 제품 인수·지원 환경·Linux VM/AGS 선행은 미완료이며 blocked 유지. · `2026-10-14T07:36:58Z`
+- `EV-AIK-083-PLATFORM-PREREQUISITES-20261014` · partial_implementation_validation · `evidence/platform-contract/2026-10-14/verification.json` · 플랫폼 in_progress/done의 같은 플랫폼 내부 선행 및 외부 선행 검사와 --ready --platform 조회를 정합화했다. 다른 플랫폼 완료·missing 행은 대체하지 않는다. 전체 완료 기준·task/platform 상태는 유지한다. 로컬 표적 회귀 122건 PASS(Windows Python 3.12.14); 기존 결함 버전의 선택 반례 3건은 실패. 실제 제품 인수·지원 환경·Linux VM/AGS 선행은 미완료이며 blocked 유지. · `2026-10-14T07:36:58Z`
 
 ### AIK-004
 
@@ -4599,6 +4601,11 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 356 | task_platform `AIK-087/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 선행 작업 미완료 | `2026-10-14T05:40:33Z` |
 | 357 | task_evidence `EV-AIK-087-SHELL-WIN-CI-20261014` | created | — | AIK-087 partial_ci_validation WIN-X64 | AIK-087 Windows CI 근거 | `2026-10-14T06:22:19Z` |
 | 358 | task_platform `AIK-087/WIN-X64` | note | Windows CI 결과 대기. 선행 작업 미완료 | Windows CI smoke PASS(엔진 연결)·BLOCKED(엔진 없음), 폴더 선택 창 시험 pass 근거 EV-AIK-087-SHEL… | Windows CI 근거 기록 | `2026-10-14T06:22:19Z` |
+| 359 | metadata `platform_policy` | value | tasks.status is the overall state and task_platforms holds per-platform state. … | tasks.status is the overall state and task_platforms holds per-platform state. … | 2026-10-14 사용자 요청: Linux 인수 계약·플랫폼별 내부 선행 검사 불일치 수정; 기존 완료 기준과 상태 보존 | `2026-10-14T07:36:58Z` |
+| 360 | metadata `product_acceptance_policy` | value | P01-P10 define observable first-release journeys; P11 federation; P12 selected … | P01-P10 define observable first-release journeys; P11 federation; P12 selected … | 2026-10-14 사용자 요청: Linux 인수 계약·플랫폼별 내부 선행 검사 불일치 수정; 기존 완료 기준과 상태 보존 | `2026-10-14T07:36:58Z` |
+| 361 | task_evidence `EV-AIK-083-PLATFORM-ACCEPTANCE-20261014` | record | — | {"id": "EV-AIK-083-PLATFORM-ACCEPTANCE-20261014", "kind": "partial_implementati… | 2026-10-14 사용자 요청: Linux 인수 계약·플랫폼별 내부 선행 검사 불일치 수정; 기존 완료 기준과 상태 보존 | `2026-10-14T07:36:58Z` |
+| 362 | task_evidence `EV-AIK-083-PLATFORM-PREREQUISITES-20261014` | record | — | {"id": "EV-AIK-083-PLATFORM-PREREQUISITES-20261014", "kind": "partial_implement… | 2026-10-14 사용자 요청: Linux 인수 계약·플랫폼별 내부 선행 검사 불일치 수정; 기존 완료 기준과 상태 보존 | `2026-10-14T07:36:58Z` |
+| 363 | metadata `updated_at` | value | 2026-10-14T06:22:19Z | 2026-10-14T07:36:58Z | 2026-10-14 사용자 요청: Linux 인수 계약·플랫폼별 내부 선행 검사 불일치 수정; 기존 완료 기준과 상태 보존 | `2026-10-14T07:36:58Z` |
 
 ## DB 메타데이터
 
@@ -4613,8 +4620,8 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `foundation_implementation_commit` | 56523355d9cf3a2437989d1dd26f2e5ced1666d2 |
 | `language` | ko |
 | `ownership_policy` | VM owns Goal/Task/Attempt/verdict; AGS governance/peer; AIK owns pool/placement/lease. |
-| `platform_policy` | tasks.status is the overall state and task_platforms holds per-platform state. A done task needs every platform row done or not_applicable; a done platform row needs evidence for that platform or platform-neutral evidence; an open external prerequisite blocks completion. |
-| `product_acceptance_policy` | P01-P10 define observable first-release journeys; P11 federation; P12 selected extensions. Implementation, GUI/installer and same-build release evidence are required. Planning and structural checks are not product execution evidence. |
+| `platform_policy` | tasks.status is the overall state and task_platforms holds per-platform state. A done task needs every platform row done or not_applicable; a done platform row needs evidence for that platform or platform-neutral evidence; an open external prerequisite blocks completion. Platform in_progress/done requires done/not_applicable prerequisites on the same platform; a prerequisite with no platform rows may use overall done. Missing or another platform status cannot substitute. Open applicable external prerequisites block platform start/completion. --ready --platform queries those same rules; overall completion still requires every platform. |
+| `product_acceptance_policy` | P01-P10 define observable first-release journeys; P11 federation; P12 selected extensions. Implementation, GUI/installer and same-build release evidence are required. Planning and structural checks are not product execution evidence. M4/M5/M6 require WIN-X64 and LINUX-X64 evidence separately at one source commit and each platform installer digest. Missing Linux support definition, host/journey/metric/qualified-route evidence blocks release preflight. Contract remains proposed/candidate_not_qualified. |
 | `product_completeness_baseline_commit` | dc6d60b67c0ccd2e56849992440de2eb639aa36c |
 | `product_status` | foundation_contract_and_stack_tasks_completed; clean_windows_client_validation_blocked; complete_product_incomplete |
 | `project` | AI-Kubernetes |
@@ -4627,7 +4634,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T06:22:19Z |
+| `updated_at` | 2026-10-14T07:36:58Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "engineering-run-receipt",
+  "argv": [
+    "C:\\Users\\Lenovo\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+    "-m",
+    "unittest",
+    "tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release",
+    "tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites",
+    "tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion",
+    "-v"
+  ],
+  "snapshot": {
+    "schemaVersion": "1.0.0",
+    "kind": "engineering-snapshot",
+    "files": [
+      {
+        "path": "contracts/product-acceptance/v1.json",
+        "digest": "sha256:e173f48a368193fc481ba596e2ba5fd908c9ccc258b9bb710ebc8b2b4fdeb366",
+        "size": 15299,
+        "lineCount": 517
+      },
+      {
+        "path": "tests/test_backlog_validation.py",
+        "digest": "sha256:7118389758ab0ada6a558f88529daf483ea6a7277f62d0a376cdf07601ddd1f9",
+        "size": 23049,
+        "lineCount": 411
+      },
+      {
+        "path": "tests/test_product_acceptance.py",
+        "digest": "sha256:635c4523bfd132ce400aa1aa0ce30d39c3c78822d55369d85b94db19188ae185",
+        "size": 17178,
+        "lineCount": 297
+      },
+      {
+        "path": "tools/backlog.py",
+        "digest": "sha256:126a8dda249b841a4f248c7c9bd9f46f2c45ad154d738ca11bc611d4183ee894",
+        "size": 72197,
+        "lineCount": 1436
+      },
+      {
+        "path": "tools/product_acceptance.py",
+        "digest": "sha256:884e2c875e8ed69e52f03a794ac5f873b60f3dbefd757cd2944acb435117ae53",
+        "size": 21559,
+        "lineCount": 385
+      }
+    ],
+    "digest": "sha256:5ff8622835b1b087cbdde0a6373ac9caa907751ab0d69f662d755ae96b7bccfe"
+  },
+  "afterDigest": "sha256:5ff8622835b1b087cbdde0a6373ac9caa907751ab0d69f662d755ae96b7bccfe",
+  "startedAt": "2026-10-14T07:46:07.101Z",
+  "finishedAt": "2026-10-14T07:46:07.498Z",
+  "status": "PASS",
+  "exitCode": 0,
+  "signal": null,
+  "stdout": "",
+  "stderr": "test_approved_windows_only_report_still_blocks_linux_release (tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release) ... ok\r\ntest_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) ... ok\r\ntest_external_prerequisite_blocks_platform_start_as_well_as_completion (tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion) ... ok\r\n\r\n----------------------------------------------------------------------\r\nRan 3 tests in 0.213s\r\n\r\nOK\r\n",
+  "stdoutDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrDigest": "sha256:ed6413451b43c70d20df65ef4dc8837f0eccd8ebdaa8321590f11a2fb1d3353b",
+  "timeoutMs": 30000,
+  "executable": "C:\\Users\\Lenovo\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "nodeVersion": "24.19.0",
+  "platform": "win32",
+  "environmentNote": "Inherited process environment; undeclared environmental inputs are not captured. Child NODE_TEST_CONTEXT is cleared to avoid nested-runner suppression.",
+  "digest": "sha256:1239850147e122a1f85fd23a03b9c20f2b67cf307d2d7c5a0b45d4bafccd714c"
+}

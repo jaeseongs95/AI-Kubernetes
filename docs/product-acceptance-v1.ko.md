@@ -4,13 +4,13 @@
 
 이 문서와 `contracts/product-acceptance/v1.json`은 **AIK-083의 실제 초기 구현 산출물**이다. 구현 전 계약을 고정하기 위한 **제안 판본**이며 현재 상태 `proposed / candidate_not_qualified`다. AIK-003의 실제 클린 Windows 11 일반 사용자 검증이 완료되지 않았으므로 **태스크 상태를 완료로 변경하지 않으며** 이 도구 결과를 출시 판정으로 쓰지 않는다. Windows Server CI는 Windows 11 설치본 인수 근거가 아니다.
 
-입력 기준은 `planning/backlog.sqlite3`의 기존 P01~P12, 생성 보고서 `docs/development-backlog.ko.md`, `contracts/upstream/support-matrix.json` revision 1이다. 위 정본과 충돌하면 본 후보 계약이 아니라 원장의 기준과 소유자 결정을 따르며, 갱신 시 결정·범위·재검증 근거를 기록해야 한다.
+입력 기준은 `planning/backlog.sqlite3`의 P01~P12와 첫 출시 플랫폼, 생성 보고서 `docs/development-backlog.ko.md`, `contracts/upstream/support-matrix.json` revision 1이다. 위 정본과 충돌하면 본 후보 계약이 아니라 원장의 기준과 소유자 결정을 따르며, 갱신 시 결정·범위·재검증 근거를 기록해야 한다.
 
 ## 제품 흐름 매핑
 
 계약 JSON은 P01~P10을 M4 `AIK-064`, P11을 M5 `AIK-089`, P12를 M6 `AIK-090`으로 매핑하고, M5는 P01~P11, M6는 P01~P12의 **동일 새 설치본 회귀**를 요구한다. 각 항목에는 최소 사용자 입력, 관측 가능한 성공, 필수 차단 사유, 구현 담당 태스크, GUI 담당 태스크, 검증 태스크를 기록했다. 단순 체크리스트만으로 판정을 내리지 않는다. 첫 출시 지원 조합은 matrix git blob `b563f9f63b88f2a6e52a77f3e67acc871a98b88e`, revision 1에 고정된다. DEC12 지원 범위는 여전히 `proposed`, 각 필수 경로의 운영 적합성은 `NOT_RUN`이며 이를 건너뛰지 않는다.
 
-개발 흐름은 001의 설치형 계약 확인→031 VM 공개 seam 확보/085 도구 효과 계약/082 실제 사전 probe→035 실행 결속→086 후보 governed qualification→044 독립 합성 E2E→059 설치형 GUI 검증→064 Windows 릴리스 게이트 순서다. 082의 사전 probe를 완료된 086 운영 적합성으로 간주하지 않는다. M5/M6 추가 자원은 선택했을 때 해당 실제 gate 의존성에 넣으며, 미선택 태스크를 done 처리하지 않는다.
+개발 흐름은 001의 설치형 계약 확인→031 VM 공개 seam 확보/085 도구 효과 계약/082 실제 사전 probe→035 실행 결속→086 후보 governed qualification→044 독립 합성 E2E→059 설치형 GUI 검증→064 Windows·Linux 릴리스 게이트 순서다. 082의 사전 probe를 완료된 086 운영 적합성으로 간주하지 않는다. M5/M6 추가 자원은 선택했을 때 해당 실제 gate 의존성에 넣으며, 미선택 태스크를 done 처리하지 않는다.
 
 ## 고정 제안 부하·성능 한계
 
@@ -41,8 +41,16 @@ python -m unittest discover -s tests -p test_product_acceptance.py -v
 
 oracle의 기본 합성 정산에서 **net 41,510원 / line-by-line VAT 4,152원 / gross 45,662원**이 요구된다. 입력/정책·행의 금액형·합계·행 순서와 결과의 SHA-256을 검증하며 원시 비밀이나 VM 원장에는 접근하지 않는다. 원본 `settlement.py`는 전체 net에 VAT를 한 번 적용하고 행을 생략하므로 그대로 실행한 첫 시험은 **FAIL**이어야 한다. 그러나 예제용 정답 JSON만 직접 써서 독립 oracle에 통과하는 것으로 **AGS/VM의 실제 goal 수행, 첫 실패→재작업, 모델 A/B/C와 tool effect를 증명할 수는 없다.** 그 확인에는 서로 다른 벤더·모델 요청과 VM Task/Attempt, lease, effect intent/receipt, 실제 검증·독립 review 기록이 추가로 필요하다.
 
+## 플랫폼별 출시 증거
+
+M4·M5·M6는 모두 `WIN-X64`·`LINUX-X64`의 근거를 요구한다. 검사기는 계약의 플랫폼 집합을 SQLite 원장의 첫 출시 플랫폼과 대조한다. Linux 배포판·설치 형식은 AIK-003에서 아직 정하지 않았으므로 `support_status=pending_AIK-003`, OS 후보는 빈 목록이며 출시 사전검사를 차단한다. 지원 범위를 확인한 근거 없이 Linux 후보나 완료 상태를 만들지 않는다.
+
+보고서의 최상위에는 `scope`, `gate`, `build_commit`, `contract_blob_sha`, `matrix_blob_sha`, `platforms`를 둔다. `platforms`에는 양쪽 ID가 모두 있어야 하며, 각 항목에는 자신의 `platform_id`, 같은 `build_commit`, 자신의 `installer_sha256`, `gate`, `host_qualification`, `journeys`, `metrics`, `provenance`, `critical_or_high_defects`, `threshold_approval_evidence_ref`, `live_required_routes_qualified`, `selected_optional_dependencies_qualified`를 넣는다. 각 여정도 플랫폼 ID·commit·그 플랫폼 설치본 digest·matrix·독립 oracle·증거 참조에 결속한다. M5·M6의 이전 gate 판정도 각 플랫폼에서 같은 빌드로 확인한다.
+
+`host_qualification`은 플랫폼 ID, `family`, `architecture=x64`, 지원 OS 후보와 일치하는 `os`, `status=PASS`, `standard_user=true`, `development_tools_absent=true`, `support_definition_evidence_ref`를 요구한다. 플랫폼별 지원 정의는 `confirmed`여야 한다. 공통 측정 부하와 임계값은 양쪽에서 각각 적용하며 이전 값을 낮추지 않는다. 한 플랫폼의 누락·실패·NOT_RUN이나 다른 플랫폼의 설치본·여정 재사용은 전체 결과를 차단한다. 기존 Windows 단독 보고서도 양쪽 근거로 간주하지 않는다.
+
 ## 출시 사전검사 한계
 
-`release-preflight`는 후보 계약 승인 여부, 같은 installer SHA/commit/matrix, 필수 P 흐름 PASS, 독립 심사 근거의 존재, Windows 11 일반 사용자·도구 없음 상태, 동일 빌드 회귀, 고정된 성능 임계값을 보수적으로 점검한다. 필수 `FAIL/NOT_RUN/BLOCKED/SKIP/UNKNOWN`, 미승인 scope/threshold/route, 중대 결함은 **BLOCKED**다. 결과가 `READY_FOR_INDEPENDENT_RELEASE_REVIEW`라도 **출시 승인과 같지 않다**. 이 검사기는 evidence JSON의 독립 서명을 검증하지 않으므로 실제 CI artifact/원본 해시·권위 receipt를 별도의 감사관이 대조해야 한다.
+`release-preflight`는 후보 계약 승인 여부, 같은 installer SHA/commit/matrix, 필수 P 흐름 PASS, 독립 심사 근거의 존재, 플랫폼별 일반 사용자·개발 도구 없음 상태, 동일 빌드 회귀, 고정된 성능 임계값을 보수적으로 점검한다. 필수 `FAIL/NOT_RUN/BLOCKED/SKIP/UNKNOWN`, 미승인 scope/threshold/route, 중대 결함은 **BLOCKED**다. 결과가 `READY_FOR_INDEPENDENT_RELEASE_REVIEW`라도 **출시 승인과 같지 않다**. 이 검사기는 evidence JSON의 독립 서명을 검증하지 않으므로 실제 CI artifact/원본 해시·권위 receipt를 별도의 감사관이 대조해야 한다.
 
 현 계약이 `proposed`이므로 임의의 녹색 JSON을 넣어도 사전검사가 출시를 통과시킬 수 없다. 정본 원장과 상충하는 상태 변경·선행 관계 변경도 하지 않는다.

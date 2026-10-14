@@ -27,7 +27,6 @@
   "phases": {
     "M4": {
       "gate": "AIK-064",
-      "platform": "Windows 11 x64",
       "journeys": [
         "P01",
         "P02",
@@ -40,11 +39,14 @@
         "P09",
         "P10"
       ],
-      "required_previous_gate": null
+      "required_previous_gate": null,
+      "platforms": [
+        "WIN-X64",
+        "LINUX-X64"
+      ]
     },
     "M5": {
       "gate": "AIK-089",
-      "platform": "Windows 11 x64",
       "journeys": [
         "P01",
         "P02",
@@ -58,11 +60,14 @@
         "P10",
         "P11"
       ],
-      "required_previous_gate": "AIK-064"
+      "required_previous_gate": "AIK-064",
+      "platforms": [
+        "WIN-X64",
+        "LINUX-X64"
+      ]
     },
     "M6": {
       "gate": "AIK-090",
-      "platform": "Windows 11 x64",
       "journeys": [
         "P01",
         "P02",
@@ -77,7 +82,11 @@
         "P11",
         "P12"
       ],
-      "required_previous_gate": "AIK-089"
+      "required_previous_gate": "AIK-089",
+      "platforms": [
+        "WIN-X64",
+        "LINUX-X64"
+      ]
     }
   },
   "fixed_measurement_candidate": {
@@ -177,12 +186,14 @@
     "require_matrix_bound_live_evidence": true,
     "require_independent_oracle": true,
     "no_cross_phase_evidence_reuse": true,
-    "selected_optional_capabilities_must_be_in_gate_dependencies": true
+    "selected_optional_capabilities_must_be_in_gate_dependencies": true,
+    "require_all_platforms": true,
+    "require_platform_bound_evidence": true
   },
   "journeys": [
     {
       "id": "P01",
-      "title": "Windows 설치 후 멀티벤더 인증 수명주기",
+      "title": "지원 플랫폼 설치 후 멀티벤더 인증 수명주기",
       "scope": "M4",
       "gate": "AIK-064",
       "input": "GUI에서 두 벤더 API/지원 구독 연결을 만들고 만료·재인증·계정 교체·해제",
@@ -395,7 +406,7 @@
       "title": "GUI 제품 설정 및 전체 상태 백업·복원·업데이트 실패 복구",
       "scope": "M4",
       "gate": "AIK-064",
-      "input": "GUI 설정 이동과 전체 백업 구별, 새 Windows 사용자·업데이트 중단 복원",
+      "input": "GUI 설정 이동과 전체 백업 구별, 새 OS 사용자·업데이트 중단 복원",
       "observable_success": "AIK·VM·AGS·artifact가 같은 checkpoint, 재인증과 미확인 job reconciliation, 독립 복구 화면",
       "blocking_failure": "서로 다른 시점 DB 혼합, dangling evidence, CLI/checkout 필수",
       "owners": {
@@ -417,7 +428,7 @@
     },
     {
       "id": "P10",
-      "title": "단일 고정 Windows 설치본의 출시 판정",
+      "title": "단일 고정 지원 플랫폼 설치본의 출시 판정",
       "scope": "M4",
       "gate": "AIK-064",
       "input": "동일 installer/commit/matrix로 P01~09·설치·접근성·장애·서명·성능·장기 실행 검증",
@@ -439,7 +450,7 @@
     },
     {
       "id": "P11",
-      "title": "두 독립 클러스터의 연합 포함 후속 Windows 출시",
+      "title": "두 독립 클러스터의 연합 포함 후속 지원 플랫폼 출시",
       "scope": "M5",
       "gate": "AIK-089",
       "input": "새 설치본으로 업그레이드 후 2개 클러스터 PEER·실제 입력 전송·의존 쓰기/회수",
@@ -463,7 +474,7 @@
     },
     {
       "id": "P12",
-      "title": "선택 확장 자원의 실제 Windows 출시",
+      "title": "선택 확장 자원의 실제 지원 플랫폼 출시",
       "scope": "M6",
       "gate": "AIK-090",
       "input": "새 설치본에서 선언한 로컬 LLM/adapter/조직 정책 기능을 GUI로 실행·복구",
@@ -485,5 +496,22 @@
         ]
       }
     }
-  ]
+  ],
+  "platforms": {
+    "WIN-X64": {
+      "family": "windows",
+      "architecture": "x64",
+      "support_status": "proposed",
+      "supported_os_candidates": [
+        "Windows 11 25H2 x64",
+        "Windows 11 26H2 x64"
+      ]
+    },
+    "LINUX-X64": {
+      "family": "linux",
+      "architecture": "x64",
+      "support_status": "pending_AIK-003",
+      "supported_os_candidates": []
+    }
+  }
 }

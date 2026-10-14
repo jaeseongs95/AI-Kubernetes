@@ -1,0 +1,22 @@
+{
+  "sql_snapshot_matches": true,
+  "generated_report_matches": true,
+  "README_matches_counts": true,
+  "counts": {
+    "tasks": 93,
+    "acceptance_criteria": 320,
+    "task_dependencies": 375,
+    "task_evidence": 101
+  },
+  "status_counts": {
+    "blocked": 53,
+    "done": 2,
+    "todo": 38
+  },
+  "gate_closure_counts": {
+    "AIK-064": 75,
+    "AIK-089": 86,
+    "AIK-090": 91
+  },
+  "schema_version": 2
+}

@@ -1,0 +1,43 @@
+{
+  "baseline_commit": "83f347577ef418e1288551591dd72aa6c8c7b336",
+  "checked_at": "2026-10-14T07:36:58Z",
+  "task_count": 93,
+  "acceptance_criteria": 320,
+  "dependencies": 375,
+  "original_evidence_preserved": 99,
+  "added_evidence": 2,
+  "task_statuses_preserved": true,
+  "platform_statuses_preserved": true,
+  "requirements_preserved": true,
+  "acceptance_criteria_preserved": true,
+  "performance_workloads_and_thresholds_preserved": true,
+  "oracle_and_fixture_preserved": true,
+  "original_release_policy_preserved": true,
+  "product_qualification": "NOT_RUN",
+  "release_approved": false,
+  "targeted_tests_initial": {
+    "total": 122,
+    "exit_code": 0
+  },
+  "targeted_tests_final": {
+    "total": 124,
+    "exit_code": 0
+  },
+  "full_regression": {
+    "total": 1595,
+    "passed": 1545,
+    "skipped": 50,
+    "exit_code": 0,
+    "seconds": 492.22
+  },
+  "regression_sequence": "Full regression plus final targeted verification of touched modules after the cancelled-ready guard and SQLite-error boundary changes.",
+  "engineering_test_verdict": "CONSISTENT",
+  "source_hashes": {
+    "tools/backlog.py": "sha256:126a8dda249b841a4f248c7c9bd9f46f2c45ad154d738ca11bc611d4183ee894",
+    "tools/product_acceptance.py": "sha256:884e2c875e8ed69e52f03a794ac5f873b60f3dbefd757cd2944acb435117ae53",
+    "contracts/product-acceptance/v1.json": "sha256:e173f48a368193fc481ba596e2ba5fd908c9ccc258b9bb710ebc8b2b4fdeb366",
+    "tests/test_backlog_validation.py": "sha256:7118389758ab0ada6a558f88529daf483ea6a7277f62d0a376cdf07601ddd1f9",
+    "tests/test_product_acceptance.py": "sha256:635c4523bfd132ce400aa1aa0ce30d39c3c78822d55369d85b94db19188ae185"
+  },
+  "validation_scope": "Development contract and ledger checks; no provider or product qualification"
+}

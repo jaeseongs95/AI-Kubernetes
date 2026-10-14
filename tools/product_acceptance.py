@@ -2,7 +2,7 @@
 """AIK-083 candidate acceptance contract and independent file oracle.
 
 This checker is a fail-closed contract/evidence preflight, NOT a substitute for
-live VM/AGS, Windows qualification, or an independent human release audit.
+live VM/AGS, platform qualification, or an independent human release audit.
 No provider, credential, task, or model is invoked.
 """
 from __future__ import annotations
@@ -13,6 +13,8 @@ import hashlib
 import io
 import json
 import re
+import sqlite3
+from contextlib import closing
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
@@ -25,6 +27,7 @@ PHASE_IDS = {
     "M6": [f"P{x:02d}" for x in range(1, 13)],
 }
 GATES = {"M4": "AIK-064", "M5": "AIK-089", "M6": "AIK-090"}
+PLATFORMS = {"WIN-X64": "windows", "LINUX-X64": "linux"}
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -75,6 +78,19 @@ def validate_contract(root: Path = ROOT) -> dict:
     require(contract.get("decision_status") in ("proposed", "confirmed") and
             contract.get("authority") in ("candidate_not_qualified", "qualified"),
             "DECISION_STATUS")
+    with closing(sqlite3.connect((root / "planning/backlog.sqlite3").resolve().as_uri() + "?mode=ro", uri=True)) as conn:
+        release_platforms = dict(conn.execute("SELECT id, family FROM platforms WHERE release_scope='first_release'"))
+    require(release_platforms == PLATFORMS, "LEDGER_PLATFORM_SCOPE")
+    platforms = contract.get("platforms")
+    require(type(platforms) is dict and set(platforms) == set(release_platforms), "PLATFORM_COVERAGE")
+    for platform_id, family in release_platforms.items():
+        item = platforms[platform_id]
+        require(type(item) is dict and item.get("family") == family and item.get("architecture") == "x64" and
+                item.get("support_status") in ("proposed", "confirmed", "pending_AIK-003") and
+                type(item.get("supported_os_candidates")) is list and
+                all(type(os_name) is str and os_name.strip() for os_name in item["supported_os_candidates"]) and
+                (item["support_status"] != "confirmed" or bool(item["supported_os_candidates"])),
+                "PLATFORM_SUPPORT_DEFINITION")
     matrix_spec = contract.get("matrix")
     require(type(matrix_spec) is dict and matrix_spec.get("path") == "contracts/upstream/support-matrix.json" and
             matrix_spec.get("decision_id") == "DEC12" and matrix_spec.get("git_blob_sha") and
@@ -106,7 +122,7 @@ def validate_contract(root: Path = ROOT) -> dict:
     for phase, ids_needed in PHASE_IDS.items():
         value = phases[phase]
         require(type(value) is dict and value.get("gate") == GATES[phase] and
-                value.get("journeys") == ids_needed and value.get("platform") == "Windows 11 x64",
+                value.get("journeys") == ids_needed and value.get("platforms") == list(PLATFORMS),
                 "PHASE_GATE_OR_COVERAGE")
         previous = None if phase == "M4" else GATES["M4" if phase == "M5" else "M5"]
         require(value.get("required_previous_gate") == previous, "PHASE_ORDER")
@@ -171,7 +187,8 @@ def validate_contract(root: Path = ROOT) -> dict:
             all(policy.get(key) is True for key in
                 ("require_same_build_and_installer_digest", "require_matrix_bound_live_evidence",
                  "require_independent_oracle", "no_cross_phase_evidence_reuse",
-                 "selected_optional_capabilities_must_be_in_gate_dependencies")),
+                 "selected_optional_capabilities_must_be_in_gate_dependencies",
+                 "require_all_platforms", "require_platform_bound_evidence")),
             "RELEASE_POLICY")
     return contract
 
@@ -255,28 +272,26 @@ def check_oracle(workspace: Path, root: Path = ROOT) -> dict:
             "independent_file_oracle": True, "governed_agent_e2e": "NOT_RUN"}
 
 
-def release_preflight(report: dict, contract: dict) -> dict:
+def _platform_preflight(report: dict, contract: dict, platform_id: str, commit: str, scope: str) -> list[str]:
     reasons = []
     def need(ok, code):
         if not ok:
             reasons.append(code)
-    scope = report.get("scope")
-    need(scope in PHASE_IDS, "UNKNOWN_SCOPE")
-    need(contract["decision_status"] == "confirmed" and
-         contract["matrix"]["decision_status"] == "confirmed", "UNAPPROVED_SCOPE_OR_MATRIX")
-    need(contract["authority"] == "qualified", "CONTRACT_NOT_QUALIFIED")
-    need(report.get("contract_blob_sha") == blob_sha(
-        (ROOT / "contracts/product-acceptance/v1.json").read_bytes()), "CONTRACT_IDENTITY_MISMATCH")
-    need(report.get("matrix_blob_sha") == contract["matrix"]["git_blob_sha"], "MATRIX_IDENTITY_MISMATCH")
-    commit, installer = report.get("build_commit"), report.get("installer_sha256")
-    need(type(commit) is str and HEX40.fullmatch(commit) is not None, "BUILD_IDENTITY")
+    installer = report.get("installer_sha256")
+    need(report.get("platform_id") == platform_id and report.get("build_commit") == commit, "PLATFORM_BUILD_IDENTITY")
     need(type(installer) is str and HEX64.fullmatch(installer) is not None, "INSTALLER_IDENTITY")
+    support = contract["platforms"][platform_id]
+    need(support["support_status"] == "confirmed", "PLATFORM_SUPPORT_NOT_CONFIRMED")
     host = report.get("host_qualification", {})
     need(type(host) is dict and host.get("status") == "PASS" and
-         type(host.get("os")) is str and host["os"].startswith("Windows 11") and
+         host.get("platform_id") == platform_id and host.get("family") == support["family"] and
+         host.get("architecture") == "x64" and type(host.get("os")) is str and
+         host["os"] in support["supported_os_candidates"] and
+         (support["family"] != "windows" or host["os"].startswith("Windows 11")) and
+         type(host.get("support_definition_evidence_ref")) is str and bool(host["support_definition_evidence_ref"].strip()) and
          host.get("standard_user") is True and host.get("development_tools_absent") is True,
          "CLEAN_CLIENT_NOT_PROVEN")
-    need(report.get("critical_or_high_defects") == 0, "CRITICAL_DEFECT")
+    need(type(report.get("critical_or_high_defects")) is int and report["critical_or_high_defects"] == 0, "CRITICAL_DEFECT")
     provenance = report.get("provenance", {})
     need(type(provenance) is dict and provenance.get("independent_review") is True and
          type(provenance.get("review_evidence_ref")) is str and
@@ -288,7 +303,7 @@ def release_preflight(report: dict, contract: dict) -> dict:
         if type(rows) is dict:
             for jid in PHASE_IDS[scope]:
                 row = rows.get(jid, {})
-                need(type(row) is dict and row.get("status") == "PASS" and
+                need(type(row) is dict and row.get("status") == "PASS" and row.get("platform_id") == platform_id and
                      row.get("build_commit") == commit and row.get("installer_sha256") == installer and
                      row.get("matrix_blob_sha") == contract["matrix"]["git_blob_sha"] and
                      type(row.get("evidence_ref")) is str and bool(row["evidence_ref"].strip()) and
@@ -303,11 +318,43 @@ def release_preflight(report: dict, contract: dict) -> dict:
              not isinstance(metric.get(key.replace("_max", "")), bool) and
              0 <= metric[key.replace("_max", "")] <= maximum
              for key, maximum in threshold.items()), "PERFORMANCE_NOT_QUALIFIED")
-    need(report.get("threshold_approval_evidence_ref"), "THRESHOLD_APPROVAL_MISSING")
+    need(type(report.get("threshold_approval_evidence_ref")) is str and
+         bool(report["threshold_approval_evidence_ref"].strip()), "THRESHOLD_APPROVAL_MISSING")
     need(report.get("live_required_routes_qualified") is True, "REQUIRED_ROUTES_UNQUALIFIED")
     need(report.get("selected_optional_dependencies_qualified") is True, "OPTIONAL_SCOPE_UNQUALIFIED")
+    return reasons
+
+
+def release_preflight(report: dict, contract: dict) -> dict:
+    reasons = []
+    scope, commit = report.get("scope"), report.get("build_commit")
+    valid_scope = type(scope) is str and scope in PHASE_IDS
+    def need(ok, code):
+        if not ok:
+            reasons.append(code)
+    need(valid_scope, "UNKNOWN_SCOPE")
+    need(contract["decision_status"] == "confirmed" and
+         contract["matrix"]["decision_status"] == "confirmed", "UNAPPROVED_SCOPE_OR_MATRIX")
+    need(contract["authority"] == "qualified", "CONTRACT_NOT_QUALIFIED")
+    need(report.get("contract_blob_sha") == blob_sha(
+        (ROOT / "contracts/product-acceptance/v1.json").read_bytes()), "CONTRACT_IDENTITY_MISMATCH")
+    need(report.get("matrix_blob_sha") == contract["matrix"]["git_blob_sha"], "MATRIX_IDENTITY_MISMATCH")
+    need(type(commit) is str and HEX40.fullmatch(commit) is not None, "BUILD_IDENTITY")
+    if valid_scope:
+        need(report.get("gate") == GATES[scope], "GATE_MISMATCH")
+    platforms = report.get("platforms")
+    need(type(platforms) is dict and set(platforms) == set(PLATFORMS), "PLATFORM_EVIDENCE_COVERAGE")
+    platform_results = {}
+    for platform_id in PLATFORMS:
+        row = platforms.get(platform_id) if type(platforms) is dict else None
+        if type(row) is not dict:
+            platform_results[platform_id] = ["PLATFORM_EVIDENCE_MISSING"]
+        else:
+            platform_results[platform_id] = _platform_preflight(row, contract, platform_id, commit,
+                                                                scope if valid_scope else "")
+        reasons.extend(platform_id + ":" + code for code in platform_results[platform_id])
     return {"status": "BLOCKED" if reasons else "READY_FOR_INDEPENDENT_RELEASE_REVIEW",
-            "reasons": reasons, "scope": scope, "release_approved": False}
+            "reasons": reasons, "platform_reasons": platform_results, "scope": scope, "release_approved": False}
 
 
 def main(argv=None) -> int:
@@ -328,7 +375,7 @@ def main(argv=None) -> int:
             result = check_oracle(args.workspace)
         else:
             result = release_preflight(load_json(args.report), contract)
-    except (ContractError, OSError, KeyError, TypeError, ValueError) as exc:
+    except (ContractError, OSError, sqlite3.Error, KeyError, TypeError, ValueError) as exc:
         result = {"status": "FAIL", "code": str(exc) if isinstance(exc, ContractError) else "CHECKER_ERROR"}
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if result["status"] in ("VALID_DRAFT", "PASS") else 2 if result["status"] == "BLOCKED" else 1

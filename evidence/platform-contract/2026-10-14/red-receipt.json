@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "engineering-run-receipt",
+  "argv": [
+    "C:\\Users\\Lenovo\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+    "-m",
+    "unittest",
+    "tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release",
+    "tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites",
+    "tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion",
+    "-v"
+  ],
+  "snapshot": {
+    "schemaVersion": "1.0.0",
+    "kind": "engineering-snapshot",
+    "files": [
+      {
+        "path": "contracts/product-acceptance/v1.json",
+        "digest": "sha256:44abed83a6c1da37306892aaa923cf35f41a96676cc3532f9f77f9b33998cd7d",
+        "size": 14689,
+        "lineCount": 489
+      },
+      {
+        "path": "tests/test_backlog_validation.py",
+        "digest": "sha256:7118389758ab0ada6a558f88529daf483ea6a7277f62d0a376cdf07601ddd1f9",
+        "size": 23049,
+        "lineCount": 411
+      },
+      {
+        "path": "tests/test_product_acceptance.py",
+        "digest": "sha256:635c4523bfd132ce400aa1aa0ce30d39c3c78822d55369d85b94db19188ae185",
+        "size": 17178,
+        "lineCount": 297
+      },
+      {
+        "path": "tools/backlog.py",
+        "digest": "sha256:9f3dafff980df661a2c0905afa1264fe327bc1c2b0e01184061b643ea73e3108",
+        "size": 69242,
+        "lineCount": 1394
+      },
+      {
+        "path": "tools/product_acceptance.py",
+        "digest": "sha256:342cd2b7da9d10909c1298e854cadfbb37db3db677906de6a137fd16f58ebec6",
+        "size": 18393,
+        "lineCount": 338
+      }
+    ],
+    "digest": "sha256:cfdd0f333156f7a482d76415d7920139df3eaa76914828c37d7f08dcc9aa19d1"
+  },
+  "afterDigest": "sha256:cfdd0f333156f7a482d76415d7920139df3eaa76914828c37d7f08dcc9aa19d1",
+  "startedAt": "2026-10-14T07:40:21.073Z",
+  "finishedAt": "2026-10-14T07:40:21.491Z",
+  "status": "FAIL",
+  "exitCode": 1,
+  "signal": null,
+  "stdout": "",
+  "stderr": "test_approved_windows_only_report_still_blocks_linux_release (tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release) ... FAIL\r\ntest_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) ... \r\n  test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) (status='in_progress') ... FAIL\r\n  test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) (status='done') ... FAIL\r\ntest_external_prerequisite_blocks_platform_start_as_well_as_completion (tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion) ... FAIL\r\n\r\n======================================================================\r\nFAIL: test_approved_windows_only_report_still_blocks_linux_release (tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"D:\\codex\\독립감사관\\work\\aik-fix-20261014\\defect-version\\tests\\test_product_acceptance.py\", line 201, in test_approved_windows_only_report_still_blocks_linux_release\r\n    self.assertEqual(result[\"status\"], \"BLOCKED\")\r\nAssertionError: 'READY_FOR_INDEPENDENT_RELEASE_REVIEW' != 'BLOCKED'\r\n- READY_FOR_INDEPENDENT_RELEASE_REVIEW\r\n+ BLOCKED\r\n\r\n\r\n======================================================================\r\nFAIL: test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) (status='in_progress')\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"D:\\codex\\독립감사관\\work\\aik-fix-20261014\\defect-version\\tests\\test_backlog_validation.py\", line 265, in test_platform_completion_requires_same_platform_prerequisites\r\n    self.assert_invalid(f\"AIK-002: platform WIN-X64 is {status} while prerequisite AIK-001 on that platform is todo\")\r\n  File \"D:\\codex\\독립감사관\\work\\aik-fix-20261014\\defect-version\\tests\\test_backlog_validation.py\", line 64, in assert_invalid\r\n    self.assertTrue(any(expected in issue for issue in issues), issues)\r\nAssertionError: False is not true : []\r\n\r\n======================================================================\r\nFAIL: test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) (status='done')\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"D:\\codex\\독립감사관\\work\\aik-fix-20261014\\defect-version\\tests\\test_backlog_validation.py\", line 265, in test_platform_completion_requires_same_platform_prerequisites\r\n    self.assert_invalid(f\"AIK-002: platform WIN-X64 is {status} while prerequisite AIK-001 on that platform is todo\")\r\n  File \"D:\\codex\\독립감사관\\work\\aik-fix-20261014\\defect-version\\tests\\test_backlog_validation.py\", line 64, in assert_invalid\r\n    self.assertTrue(any(expected in issue for issue in issues), issues)\r\nAssertionError: False is not true : []\r\n\r\n======================================================================\r\nFAIL: test_external_prerequisite_blocks_platform_start_as_well_as_completion (tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"D:\\codex\\독립감사관\\work\\aik-fix-20261014\\defect-version\\tests\\test_backlog_validation.py\", line 330, in test_external_prerequisite_blocks_platform_start_as_well_as_completion\r\n    self.assert_invalid(\"platform LINUX-X64 is in_progress while external prerequisite EXT-VM is open\")\r\n  File \"D:\\codex\\독립감사관\\work\\aik-fix-20261014\\defect-version\\tests\\test_backlog_validation.py\", line 64, in assert_invalid\r\n    self.assertTrue(any(expected in issue for issue in issues), issues)\r\nAssertionError: False is not true : []\r\n\r\n----------------------------------------------------------------------\r\nRan 3 tests in 0.229s\r\n\r\nFAILED (failures=4)\r\n",
+  "stdoutDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrDigest": "sha256:5437270957cb7ccf4e4ee1a3b1b8ea62dc4e7b67dd8c2b94ad07f970a3284954",
+  "timeoutMs": 30000,
+  "executable": "C:\\Users\\Lenovo\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "nodeVersion": "24.19.0",
+  "platform": "win32",
+  "environmentNote": "Inherited process environment; undeclared environmental inputs are not captured. Child NODE_TEST_CONTEXT is cleared to avoid nested-runner suppression.",
+  "digest": "sha256:fc1301f59b7f30d37d0047d5ab9a75a1c3cb17d05b7f0595ca0f1d3c59e67899"
+}

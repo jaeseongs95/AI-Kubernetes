@@ -6,6 +6,9 @@ upstream project, real credentials, or checked-in backlog data are modified.
 from __future__ import annotations
 
 import importlib.util
+import argparse
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -252,6 +255,79 @@ class PlatformValidationTests(BacklogValidationTests):
 
     def test_platform_baseline_is_valid(self):
         self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_platform_completion_requires_same_platform_prerequisites(self):
+        self.change_status("AIK-002", "blocked")
+        self.add_evidence("AIK-002", "WIN-X64")
+        for status in ("in_progress", "done"):
+            with self.subTest(status=status):
+                self.set_platform("AIK-002", "WIN-X64", status)
+                self.assert_invalid(f"AIK-002: platform WIN-X64 is {status} while prerequisite AIK-001 on that platform is todo")
+
+    def test_windows_progress_does_not_require_linux_completion(self):
+        self.change_status("AIK-001", "blocked")
+        self.change_status("AIK-002", "blocked")
+        self.set_platform("AIK-001", "WIN-X64", "done")
+        self.set_platform("AIK-001", "LINUX-X64", "blocked", "VM POSIX unavailable")
+        self.add_evidence("AIK-001", "WIN-X64")
+        self.set_platform("AIK-002", "WIN-X64", "in_progress")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+        self.set_platform("AIK-002", "LINUX-X64", "in_progress")
+        self.assert_invalid("AIK-002: platform LINUX-X64 is in_progress while prerequisite AIK-001 on that platform is blocked")
+
+    def test_missing_platform_prerequisite_never_falls_back_to_another_platform(self):
+        self.change_status("AIK-001", "blocked")
+        self.change_status("AIK-002", "blocked")
+        self.set_platform("AIK-001", "LINUX-X64", "done")
+        self.add_evidence("AIK-001", "LINUX-X64")
+        self.conn.execute("DELETE FROM task_platforms WHERE task_id='AIK-001' AND platform_id='WIN-X64'")
+        self.set_platform("AIK-002", "WIN-X64", "in_progress")
+        self.assert_invalid("prerequisite AIK-001 on that platform is missing")
+
+    def test_completed_neutral_or_not_applicable_prerequisite_is_valid(self):
+        self.change_status("AIK-001", "blocked")
+        self.change_status("AIK-002", "blocked")
+        self.set_platform("AIK-001", "WIN-X64", "not_applicable", "Neutral contract")
+        self.set_platform("AIK-002", "WIN-X64", "in_progress")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+        self.conn.execute("DELETE FROM task_platforms WHERE task_id='AIK-001'")
+        self.conn.execute("UPDATE milestones SET scope='follow_up'")
+        self.assert_invalid("prerequisite AIK-001 on that platform is missing")
+        self.change_status("AIK-001", "done")
+        self.add_evidence("AIK-001")
+        self.assertEqual(backlog.validate_connection(self.conn), [])
+
+    def test_platform_ready_listing_uses_platform_dependencies_and_external_blocks(self):
+        self.change_status("AIK-001", "blocked")
+        self.set_platform("AIK-001", "WIN-X64", "done")
+        self.set_platform("AIK-001", "LINUX-X64", "blocked", "VM POSIX unavailable")
+        self.add_evidence("AIK-001", "WIN-X64")
+        self.conn.commit()
+        def listing(platform):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                backlog.command_list(argparse.Namespace(db=self.database, ready=True, milestone=None, platform=platform))
+            return output.getvalue()
+        self.assertIn("AIK-002\tP0\ttodo\tM0\t0", listing("WIN-X64"))
+        self.assertNotIn("AIK-002", listing("LINUX-X64"))
+        self.assertNotIn("AIK-002", listing(None))
+        self.conn.execute("INSERT INTO external_dependencies VALUES ('EXT-VM','vm','VM Windows','open','','')")
+        self.conn.execute("INSERT INTO task_external_dependencies(task_id,external_id,platform_id) VALUES ('AIK-002','EXT-VM','WIN-X64')")
+        self.conn.commit()
+        self.assertNotIn("AIK-002", listing("WIN-X64"))
+        self.conn.execute("UPDATE external_dependencies SET status='resolved'")
+        self.conn.commit()
+        self.assertIn("AIK-002", listing("WIN-X64"))
+        self.change_status("AIK-002", "cancelled")
+        self.conn.commit()
+        self.assertNotIn("AIK-002", listing("WIN-X64"))
+
+    def test_external_prerequisite_blocks_platform_start_as_well_as_completion(self):
+        self.change_status("AIK-001", "blocked")
+        self.set_platform("AIK-001", "LINUX-X64", "in_progress")
+        self.conn.execute("INSERT INTO external_dependencies VALUES ('EXT-VM','vm','VM POSIX','open','','')")
+        self.conn.execute("INSERT INTO task_external_dependencies(task_id,external_id,platform_id) VALUES ('AIK-001','EXT-VM','LINUX-X64')")
+        self.assert_invalid("platform LINUX-X64 is in_progress while external prerequisite EXT-VM is open")
 
     def test_done_task_requires_every_platform_done_or_not_applicable(self):
         self.complete_first_task()

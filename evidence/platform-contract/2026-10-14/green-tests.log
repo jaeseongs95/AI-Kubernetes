@@ -1,0 +1,8 @@
+test_approved_windows_only_report_still_blocks_linux_release (tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release) ... ok
+test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) ... ok
+test_external_prerequisite_blocks_platform_start_as_well_as_completion (tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.213s
+
+OK

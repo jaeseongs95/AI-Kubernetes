@@ -449,6 +449,20 @@ def validate_connection(conn: sqlite3.Connection, version: int = SCHEMA_VERSION)
     return issues
 
 
+def open_platform_dependencies(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Use the same platform; only a prerequisite with no platform rows is neutral."""
+    return conn.execute(
+        "SELECT tp.task_id, tp.platform_id, p.id AS prerequisite, "
+        "coalesce(prior.status, 'missing') AS prerequisite_status "
+        "FROM task_platforms tp JOIN task_dependencies d ON d.task_id = tp.task_id "
+        "JOIN tasks p ON p.id = d.depends_on "
+        "LEFT JOIN task_platforms prior ON prior.task_id = p.id AND prior.platform_id = tp.platform_id "
+        "WHERE (prior.task_id IS NOT NULL AND prior.status NOT IN ('done', 'not_applicable')) "
+        "OR (prior.task_id IS NULL AND (p.status <> 'done' OR EXISTS "
+        "(SELECT 1 FROM task_platforms other WHERE other.task_id = p.id)))"
+    ).fetchall()
+
+
 def platform_issues(conn: sqlite3.Connection) -> list[str]:
     """Version 2 rules for principles, per-platform status and external prerequisites."""
     checks = (
@@ -488,12 +502,12 @@ def platform_issues(conn: sqlite3.Connection) -> list[str]:
             "{0}: principle has no task",
         ),
         (
-            "SELECT tp.task_id, tp.platform_id, d.external_id FROM task_platforms tp "
+            "SELECT tp.task_id, tp.platform_id, tp.status, d.external_id FROM task_platforms tp "
             "JOIN task_external_dependencies d ON d.task_id = tp.task_id "
             "AND (d.platform_id IS NULL OR d.platform_id = tp.platform_id) "
             "JOIN external_dependencies x ON x.id = d.external_id "
-            "WHERE x.status = 'open' AND tp.status = 'done'",
-            "{0}: platform {1} is done while external prerequisite {2} is open",
+            "WHERE x.status = 'open' AND tp.status IN ('in_progress', 'done')",
+            "{0}: platform {1} is {2} while external prerequisite {3} is open",
         ),
         (
             "SELECT t.id, d.external_id FROM tasks t "
@@ -519,6 +533,12 @@ def platform_issues(conn: sqlite3.Connection) -> list[str]:
     issues: list[str] = []
     for query, message in checks:
         issues.extend(message.format(*row) for row in conn.execute(query))
+    active = {(row[0], row[1]): row[2] for row in conn.execute(
+        "SELECT task_id, platform_id, status FROM task_platforms WHERE status IN ('in_progress', 'done')")}
+    for task_id, platform_id, prerequisite, prior_status in open_platform_dependencies(conn):
+        if (task_id, platform_id) in active:
+            issues.append(f"{task_id}: platform {platform_id} is {active[task_id, platform_id]} "
+                          f"while prerequisite {prerequisite} on that platform is {prior_status}")
     return issues
 
 
@@ -1226,7 +1246,8 @@ def command_migrate(args: argparse.Namespace) -> None:
 
 
 def command_list(args: argparse.Namespace) -> None:
-    view = "v_ready_tasks" if args.ready else "v_backlog"
+    platform = getattr(args, "platform", None)
+    view = "v_ready_tasks" if args.ready and platform is None else "v_backlog"
     with closing(connect_database(args.db)) as conn:
         conn.execute("BEGIN")
         require_valid(conn)
@@ -1235,16 +1256,36 @@ def command_list(args: argparse.Namespace) -> None:
         ).fetchone():
             raise BacklogError(f"Unknown milestone: {args.milestone}")
         query = f"SELECT * FROM {view}"
-        parameters = ()
+        conditions, parameters = [], []
+        if platform is not None:
+            if not conn.execute("SELECT 1 FROM platforms WHERE id = ?", (platform,)).fetchone():
+                raise BacklogError(f"Unknown platform: {platform}")
+            query = "SELECT t.*, tp.status AS platform_status FROM v_backlog t JOIN task_platforms tp ON tp.task_id=t.id"
+            conditions.append("tp.platform_id = ?")
+            parameters.append(platform)
         if args.milestone:
-            query += " WHERE milestone_id = ?"
-            parameters = (args.milestone,)
+            conditions.append("milestone_id = ?")
+            parameters.append(args.milestone)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
         rows = conn.execute(query + " ORDER BY milestone_sequence, sequence", parameters).fetchall()
+        open_counts = {}
+        external = set()
+        if platform is not None:
+            for task_id, platform_id, _, _ in open_platform_dependencies(conn):
+                if platform_id == platform:
+                    open_counts[task_id] = open_counts.get(task_id, 0) + 1
+            external = {row[0] for row in conn.execute(
+                "SELECT d.task_id FROM task_external_dependencies d JOIN external_dependencies x ON x.id=d.external_id "
+                "WHERE x.status='open' AND (d.platform_id IS NULL OR d.platform_id=?)", (platform,))}
+            if args.ready:
+                rows = [row for row in rows if row["status"] not in ("done", "cancelled") and row["platform_status"] == "todo" and
+                        open_counts.get(row["id"], 0) == 0 and row["id"] not in external]
     print("ID\tPRIORITY\tSTATUS\tMILESTONE\tOPEN_DEPS\tTITLE")
     for row in rows:
         values = (
-            row["id"], row["priority"], row["status"], row["milestone_id"],
-            str(row["open_dependency_count"]), row["title"],
+            row["id"], row["priority"], row["platform_status"] if platform else row["status"], row["milestone_id"],
+            str(open_counts.get(row["id"], 0) if platform else row["open_dependency_count"]), row["title"],
         )
         print("\t".join(value.replace("\t", " ").replace("\n", " ") for value in values))
     print(f"{len(rows)} task(s)")
@@ -1371,6 +1412,7 @@ def build_parser() -> argparse.ArgumentParser:
     listing = command("list", "List tasks in milestone and execution order", command_list)
     listing.add_argument("--ready", action="store_true", help="Only todo tasks whose prerequisites are done")
     listing.add_argument("--milestone", help="Filter by milestone ID")
+    listing.add_argument("--platform", help="Use this platform's status and prerequisites (for example WIN-X64)")
     status = command("status", "Change status, record an event, and refresh snapshots", command_status)
     status.add_argument("task_id")
     status.add_argument("new_status", choices=PLATFORM_STATUSES)

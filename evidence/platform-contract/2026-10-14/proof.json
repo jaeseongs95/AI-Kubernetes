@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "engineering-test-proof",
+  "planDigest": "sha256:1b95c6aa655ac188d91d6c7a9d405c00d8fef26e35c46c7327467535b28486a3",
+  "candidate": {
+    "schemaVersion": "1.0.0",
+    "kind": "engineering-snapshot",
+    "files": [
+      {
+        "path": "contracts/product-acceptance/v1.json",
+        "digest": "sha256:e173f48a368193fc481ba596e2ba5fd908c9ccc258b9bb710ebc8b2b4fdeb366",
+        "size": 15299,
+        "lineCount": 517
+      },
+      {
+        "path": "tests/test_backlog_validation.py",
+        "digest": "sha256:7118389758ab0ada6a558f88529daf483ea6a7277f62d0a376cdf07601ddd1f9",
+        "size": 23049,
+        "lineCount": 411
+      },
+      {
+        "path": "tests/test_product_acceptance.py",
+        "digest": "sha256:635c4523bfd132ce400aa1aa0ce30d39c3c78822d55369d85b94db19188ae185",
+        "size": 17178,
+        "lineCount": 297
+      },
+      {
+        "path": "tools/backlog.py",
+        "digest": "sha256:126a8dda249b841a4f248c7c9bd9f46f2c45ad154d738ca11bc611d4183ee894",
+        "size": 72197,
+        "lineCount": 1436
+      },
+      {
+        "path": "tools/product_acceptance.py",
+        "digest": "sha256:884e2c875e8ed69e52f03a794ac5f873b60f3dbefd757cd2944acb435117ae53",
+        "size": 21559,
+        "lineCount": 385
+      }
+    ],
+    "digest": "sha256:5ff8622835b1b087cbdde0a6373ac9caa907751ab0d69f662d755ae96b7bccfe"
+  },
+  "proofs": [
+    {
+      "caseId": "BUG-REGRESSIONS",
+      "status": "DEMONSTRATED",
+      "red": {
+        "path": "evidence/platform-contract/2026-10-14/red-receipt.json",
+        "digest": "sha256:84d31b2048ffd9750ae86cc648dc49297fbe3f8e6cf68e52d679f2890c56bd31"
+      },
+      "green": {
+        "path": "evidence/platform-contract/2026-10-14/green-receipt.json",
+        "digest": "sha256:a9955edaa876cd402c70ab3176b416864320dc7bcc4452045c9dee1e4e0b1cb9"
+      },
+      "mutationPaths": [
+        "tools/product_acceptance.py",
+        "tools/backlog.py",
+        "contracts/product-acceptance/v1.json"
+      ],
+      "assertionWitness": "'READY_FOR_INDEPENDENT_RELEASE_REVIEW' != 'BLOCKED'",
+      "reason": "Original defects fail assertions; current fixes pass the same tests. Additional validation issue assertions distinguish both platform states."
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+test_approved_windows_only_report_still_blocks_linux_release (tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release) ... FAIL
+test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) ... 
+  test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) (status='in_progress') ... FAIL
+  test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) (status='done') ... FAIL
+test_external_prerequisite_blocks_platform_start_as_well_as_completion (tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion) ... FAIL
+
+======================================================================
+FAIL: test_approved_windows_only_report_still_blocks_linux_release (tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\codex\독립감사관\work\aik-fix-20261014\defect-version\tests\test_product_acceptance.py", line 201, in test_approved_windows_only_report_still_blocks_linux_release
+    self.assertEqual(result["status"], "BLOCKED")
+AssertionError: 'READY_FOR_INDEPENDENT_RELEASE_REVIEW' != 'BLOCKED'
+- READY_FOR_INDEPENDENT_RELEASE_REVIEW
++ BLOCKED
+
+
+======================================================================
+FAIL: test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) (status='in_progress')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\codex\독립감사관\work\aik-fix-20261014\defect-version\tests\test_backlog_validation.py", line 265, in test_platform_completion_requires_same_platform_prerequisites
+    self.assert_invalid(f"AIK-002: platform WIN-X64 is {status} while prerequisite AIK-001 on that platform is todo")
+  File "D:\codex\독립감사관\work\aik-fix-20261014\defect-version\tests\test_backlog_validation.py", line 64, in assert_invalid
+    self.assertTrue(any(expected in issue for issue in issues), issues)
+AssertionError: False is not true : []
+
+======================================================================
+FAIL: test_platform_completion_requires_same_platform_prerequisites (tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites) (status='done')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\codex\독립감사관\work\aik-fix-20261014\defect-version\tests\test_backlog_validation.py", line 265, in test_platform_completion_requires_same_platform_prerequisites
+    self.assert_invalid(f"AIK-002: platform WIN-X64 is {status} while prerequisite AIK-001 on that platform is todo")
+  File "D:\codex\독립감사관\work\aik-fix-20261014\defect-version\tests\test_backlog_validation.py", line 64, in assert_invalid
+    self.assertTrue(any(expected in issue for issue in issues), issues)
+AssertionError: False is not true : []
+
+======================================================================
+FAIL: test_external_prerequisite_blocks_platform_start_as_well_as_completion (tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\codex\독립감사관\work\aik-fix-20261014\defect-version\tests\test_backlog_validation.py", line 330, in test_external_prerequisite_blocks_platform_start_as_well_as_completion
+    self.assert_invalid("platform LINUX-X64 is in_progress while external prerequisite EXT-VM is open")
+  File "D:\codex\독립감사관\work\aik-fix-20261014\defect-version\tests\test_backlog_validation.py", line 64, in assert_invalid
+    self.assertTrue(any(expected in issue for issue in issues), issues)
+AssertionError: False is not true : []
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.229s
+
+FAILED (failures=4)

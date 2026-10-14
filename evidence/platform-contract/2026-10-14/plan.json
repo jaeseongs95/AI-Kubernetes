@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "engineering-test-plan",
+  "taskId": "AIK-PLATFORM-CONTRACT-FIX-20261014",
+  "contractDigest": "sha256:245b1e62f2ad5465ef530eada76e1333bed9686a4f333db4b400fa3e1227cb69",
+  "requirements": [
+    "R-RELEASE-PLATFORMS",
+    "R-PLATFORM-PREREQUISITES"
+  ],
+  "scopeFiles": [
+    "tools/product_acceptance.py",
+    "tools/backlog.py",
+    "contracts/product-acceptance/v1.json",
+    "tests/test_product_acceptance.py",
+    "tests/test_backlog_validation.py"
+  ],
+  "runner": "Python unittest",
+  "environment": "Windows Python 3.12.14, temporary fixture and no external services",
+  "cases": [
+    {
+      "id": "BUG-REGRESSIONS",
+      "requirementIds": [
+        "R-RELEASE-PLATFORMS",
+        "R-PLATFORM-PREREQUISITES"
+      ],
+      "scenario": "Approved Windows-only release and started/completed platform with unfinished prerequisites",
+      "entryPoint": "release_preflight / validate_connection",
+      "level": "integration",
+      "expectedBehavior": "Windows-only evidence and unfulfilled platform prerequisites are rejected",
+      "oracle": "U04/DEC01 and preserved prerequisite policy; explicit BLOCKED or validation issue expected",
+      "testFiles": [
+        "tests/test_product_acceptance.py",
+        "tests/test_backlog_validation.py"
+      ],
+      "required": true,
+      "sensitivity": "red-green",
+      "sensitivityReason": "Exact two observed defects and external start guard, with identical tests on isolated candidates",
+      "argv": [
+        "C:\\Users\\Lenovo\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+        "-m",
+        "unittest",
+        "tests.test_product_acceptance.AcceptanceContractTests.test_approved_windows_only_report_still_blocks_linux_release",
+        "tests.test_backlog_validation.PlatformValidationTests.test_platform_completion_requires_same_platform_prerequisites",
+        "tests.test_backlog_validation.PlatformValidationTests.test_external_prerequisite_blocks_platform_start_as_well_as_completion",
+        "-v"
+      ]
+    }
+  ],
+  "exclusions": [
+    "Real provider, product install and full release qualification"
+  ]
+}
