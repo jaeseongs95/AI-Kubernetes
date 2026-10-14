@@ -13,9 +13,11 @@ const MAX_INFLIGHT = 4;
 const COMMANDS = new Set(["system.status", "engine.info", "readmodel.sources",
   "connections.catalog", "connections.list", "connections.impact", "connections.login_state",
   "connections.add_key", "connections.rotate_key", "connections.check", "connections.rename", "connections.delete",
-  "connections.start_login", "connections.cancel_login", "connections.complete_login", "connections.logout"]);
-// The engine runs connection commands one at a time on its own lane, so one may
-// wait behind a vendor check or official login; status queries are not delayed.
+  "connections.start_login", "connections.cancel_login", "connections.complete_login", "connections.logout",
+  "workspaces.list", "workspaces.scope", "workspaces.open", "workspaces.create", "workspaces.select",
+  "workspaces.rebind_root", "workspaces.archive", "workspaces.restore"]);
+// The engine runs connection and workspace commands one at a time on its own lane, so one
+// may wait behind a vendor check or official login; status queries are not delayed.
 const SLOW_TIMEOUT_MS = 150000;
 const ERROR_CODE = /^[A-Z][A-Z0-9_]{1,63}$/;
 
@@ -131,7 +133,8 @@ class EngineClient {
     if (this.pending.size >= MAX_INFLIGHT) throw new EngineError("ENGINE_BUSY");
     const requestId = randomUUID();
     return new Promise((resolve, reject) => {
-      const timeoutMs = command.startsWith("connections.") ? Math.max(this.timeoutMs, SLOW_TIMEOUT_MS) : this.timeoutMs;
+      const laned = command.startsWith("connections.") || command.startsWith("workspaces.");
+      const timeoutMs = laned ? Math.max(this.timeoutMs, SLOW_TIMEOUT_MS) : this.timeoutMs;
       const timer = setTimeout(() => this.fail("ENGINE_REQUEST_TIMEOUT"), timeoutMs);
       this.pending.set(requestId, {command, resolve, reject, timer});
       this.child.stdin.write(JSON.stringify({protocol_version: this.protocolVersion, request_id: requestId, command,

@@ -14,7 +14,7 @@
 
 - 실제 VM 설치물 호출
 - Windows 실행
-- GUI 연결
+- GUI 연결: AIK-087이 데스크톱 엔진 명령·폴더 선택 창·설정 화면으로 이 패키지를 연결했다([workspaces-gui](workspaces-gui.ko.md)). VM project 생성 seam이 없어 실제 앱의 등록은 `VM_NOT_CONFIGURED`로 막히며, 흐름은 fake VM port로만 확인했다.
 - 설치형 검증
 
 이 문서와 테스트 통과를 qualified 또는 완료 판정으로 해석하지 않는다. `planning/` 장부 상태는 변경하지 않았다.

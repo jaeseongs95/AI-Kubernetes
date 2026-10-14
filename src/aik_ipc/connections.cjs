@@ -311,4 +311,5 @@ const CONNECTION_SNAPSHOTS = Object.freeze({
 });
 
 module.exports = {CONNECTION_CODES, PAYLOADS, READ_CONNECTION_COMMANDS, WRITE_CONNECTION_COMMANDS,
-  CONNECTION_SNAPSHOTS, readPayload, connectionWithCheck, isLabel, isId, isRevision};
+  CONNECTION_SNAPSHOTS, readPayload, connectionWithCheck, isLabel, isId, isRevision, isCode,
+  exact, copy, own, plainArray, nullable};

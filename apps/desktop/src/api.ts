@@ -1,9 +1,13 @@
-// AIK-045·046·047 렌더러 계약: preload(src/aik_ipc/preload.cjs)가 노출하는 bridge의 타입과
-// 실패를 던지지 않는 호출 helper. 엔진 상태 조회와 고정 payload의 연결 관리 명령만 있으며,
-// 어떤 명령도 비밀 값을 싣지 않는다. API 키는 main이 여는 별도 키 입력 창에만 입력하고
-// 렌더러는 그 창을 요청(requestKeyEntry)해 비밀 없는 결과만 받는다.
+// AIK-045·046·047·087 렌더러 계약: preload(src/aik_ipc/preload.cjs)가 노출하는 bridge의 타입과
+// 실패를 던지지 않는 호출 helper. 엔진 상태 조회와 고정 payload의 연결·프로젝트 폴더 관리 명령만 있으며,
+// 어떤 명령도 비밀 값이나 폴더 경로를 싣지 않는다. API 키는 main이 여는 별도 키 입력 창에만 입력하고
+// 렌더러는 그 창을 요청(requestKeyEntry)해 비밀 없는 결과만 받는다. 프로젝트 폴더도 main이 여는
+// OS 폴더 선택 창(requestFolder)에서만 고르며, 렌더러는 경로를 보내거나 입력받지 않는다.
 
-/** 단일 로컬 workspace (AIK-087 전까지 고정). */
+/**
+ * 이 앱 창의 IPC 라우팅 범위(고정). 사용자가 고른 프로젝트 폴더(AIK-087)가 아니다:
+ * 선택한 프로젝트는 엔진 데이터(workspaces.select)이며 모든 호출은 이 범위로 보낸다.
+ */
 export const WORKSPACE_ID = "local";
 
 export const SUPPORTED_IPC_VERSION = 1;
@@ -95,6 +99,57 @@ export type KeyEntryResult =
   | {outcome: "saved"; connection: Connection; check: CheckSnapshot}
   | {outcome: "cancelled"; connection: null; check: null};
 
+// -- AIK-087 프로젝트 폴더 DTO (src/aik_ipc/workspaces.cjs가 검증·고정한 형태) -------------------
+
+export type WorkspaceStatus = "ready" | "archived" | "root_missing" | "root_replaced" | "root_unsafe" | "access_denied" |
+  "unsupported_host" | "vm_project_missing" | "vm_project_mismatch" | "vm_project_unknown";
+export type WorkspaceAction = "none" | "restore_workspace" | "reselect_folder" | "confirm_rebind_root" |
+  "restore_access_or_reselect" | "not_executable" | "rebind_vm_project" | "retry_vm_query";
+
+/** root는 사용자가 고른 프로젝트 폴더의 절대 경로다. active는 현재 선택된 프로젝트인지 뜻한다. */
+export type Workspace = {
+  workspace_id: string;
+  name: string;
+  root: string;
+  state: "active" | "archived";
+  status: WorkspaceStatus;
+  required_action: WorkspaceAction;
+  revision: number;
+  active: boolean;
+};
+
+/** 현재 선택. cwd는 등록된 선택이 ready일 때만 있다. registered=false면 status는 null이다. */
+export type ActiveWorkspace = {
+  workspace_id: string;
+  registered: boolean;
+  status: WorkspaceStatus | null;
+  required_action: WorkspaceAction;
+  cwd: string | null;
+  selection_revision: number;
+};
+
+export type WorkspaceList = {
+  vm: "CONFIGURED" | "NOT_CONFIGURED";
+  registry: "ABSENT" | "READY";
+  active: ActiveWorkspace | null;
+  workspaces: Workspace[];
+};
+
+export type ScopeReason = "NO_SCOPE" | "NOT_ALLOWED" | "RECONNECTION_REQUIRED" | "UNKNOWN_CONNECTION" | "NOT_SHARED";
+export type ScopeConnection = {
+  connection_id: string;
+  provider: string;
+  owner_workspace_id: string;
+  allowed: boolean;
+  reason: string | null;
+};
+export type WorkspaceScope = {workspace_id: string; scope: "ABSENT" | "READY"; connections: ScopeConnection[]};
+
+export type FolderMode = "open" | "create" | "rebind";
+export type FolderResult =
+  | {outcome: "cancelled"; workspace: null}
+  | {outcome: "saved"; workspace: Workspace};
+
 export type EnvelopeError = {
   code: string;
   message: string;
@@ -137,6 +192,13 @@ export interface AikDesktopBridge {
   completeLogin(workspaceId: string): Promise<Envelope<ConnectionWithCheck>>;
   requestKeyEntry(workspaceId: string, mode: "add" | "rotate", provider: string | null, accountLabel: string | null,
     connectionId: string | null, expectedRevision: number | null): Promise<Envelope<KeyEntryResult>>;
+  workspaces(workspaceId: string): Promise<Envelope<WorkspaceList>>;
+  workspaceScope(workspaceId: string, targetId: string): Promise<Envelope<WorkspaceScope>>;
+  selectWorkspace(workspaceId: string, targetId: string): Promise<Envelope<ActiveWorkspace>>;
+  archiveWorkspace(workspaceId: string, targetId: string, expectedRevision: number): Promise<Envelope<Workspace>>;
+  restoreWorkspace(workspaceId: string, targetId: string, expectedRevision: number): Promise<Envelope<Workspace>>;
+  requestFolder(workspaceId: string, mode: FolderMode, name: string | null, folderName: string | null,
+    targetId: string | null, expectedRevision: number | null): Promise<Envelope<FolderResult>>;
 }
 
 declare global {
@@ -262,4 +324,46 @@ export function requestKeyAdd(provider: string, accountLabel: string, workspaceI
 export function requestKeyRotate(connectionId: string, expectedRevision: number,
   workspaceId: string = WORKSPACE_ID): Promise<Envelope<KeyEntryResult>> {
   return call((bridge) => bridge.requestKeyEntry(workspaceId, "rotate", null, null, connectionId, expectedRevision));
+}
+
+// -- 프로젝트 폴더 (AIK-087) ---------------------------------------------------------------
+// workspaceId 인자는 IPC 라우팅 범위(WORKSPACE_ID)이고, targetId가 대상 프로젝트 폴더다.
+
+export function fetchWorkspaces(workspaceId: string = WORKSPACE_ID): Promise<Envelope<WorkspaceList>> {
+  return call((bridge) => bridge.workspaces(workspaceId));
+}
+
+export function fetchWorkspaceScope(targetId: string, workspaceId: string = WORKSPACE_ID): Promise<Envelope<WorkspaceScope>> {
+  return call((bridge) => bridge.workspaceScope(workspaceId, targetId));
+}
+
+export function selectWorkspace(targetId: string, workspaceId: string = WORKSPACE_ID): Promise<Envelope<ActiveWorkspace>> {
+  return call((bridge) => bridge.selectWorkspace(workspaceId, targetId));
+}
+
+export function archiveWorkspace(targetId: string, expectedRevision: number,
+  workspaceId: string = WORKSPACE_ID): Promise<Envelope<Workspace>> {
+  return call((bridge) => bridge.archiveWorkspace(workspaceId, targetId, expectedRevision));
+}
+
+export function restoreWorkspace(targetId: string, expectedRevision: number,
+  workspaceId: string = WORKSPACE_ID): Promise<Envelope<Workspace>> {
+  return call((bridge) => bridge.restoreWorkspace(workspaceId, targetId, expectedRevision));
+}
+
+/** main이 OS 폴더 선택 창을 열어 기존 폴더를 새 프로젝트로 등록한다. 경로는 렌더러를 거치지 않는다. */
+export function requestFolderOpen(name: string, workspaceId: string = WORKSPACE_ID): Promise<Envelope<FolderResult>> {
+  return call((bridge) => bridge.requestFolder(workspaceId, "open", name, null, null, null));
+}
+
+/** main이 OS 폴더 선택 창에서 고른 위치 아래에 folderName 폴더를 만들어 등록한다. */
+export function requestFolderCreate(name: string, folderName: string,
+  workspaceId: string = WORKSPACE_ID): Promise<Envelope<FolderResult>> {
+  return call((bridge) => bridge.requestFolder(workspaceId, "create", name, folderName, null, null));
+}
+
+/** 옮겼거나 바뀐 프로젝트 폴더를 OS 폴더 선택 창에서 다시 골라 연결한다. */
+export function requestFolderRebind(targetId: string, expectedRevision: number,
+  workspaceId: string = WORKSPACE_ID): Promise<Envelope<FolderResult>> {
+  return call((bridge) => bridge.requestFolder(workspaceId, "rebind", null, null, targetId, expectedRevision));
 }

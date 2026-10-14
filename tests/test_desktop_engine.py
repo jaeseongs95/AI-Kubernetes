@@ -263,7 +263,8 @@ class FramingTests(unittest.TestCase):
             process = subprocess.run(
                 [sys.executable, "-I", str(ROOT / "apps" / "desktop" / "engine" / "aik_engine_entry.py")],
                 input=frames({"kind": "bootstrap", "protocol_version": 1, "nonce": NONCE},
-                             request("connections.catalog"), request("connections.list")).getvalue(),
+                             request("connections.catalog"), request("connections.list"),
+                             request("workspaces.list")).getvalue(),
                 capture_output=True, timeout=60, check=False, env=env)
             self.assertEqual((process.returncode, process.stderr), (0, b""))
             answers = {answer.get("command"): answer for answer in map(json.loads, process.stdout.splitlines()[1:])}
@@ -271,7 +272,9 @@ class FramingTests(unittest.TestCase):
             self.assertEqual(catalog, {("anthropic", "api_key"), ("anthropic", "host_login"),
                                        ("openai", "api_key"), ("openai", "host_login")})
             self.assertEqual(answers["connections.list"]["result"], {"store": "ABSENT", "connections": []})
-            self.assertEqual(list(root.iterdir()), [], "reads must not create settings, details or vault files")
+            self.assertEqual(answers["workspaces.list"]["result"],
+                             {"vm": "NOT_CONFIGURED", "registry": "ABSENT", "active": None, "workspaces": []})
+            self.assertEqual(list(root.iterdir()), [], "reads must not create settings, details, vault or registry files")
 
     def test_real_process_over_stdio(self):
         process = subprocess.run(

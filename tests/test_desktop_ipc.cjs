@@ -110,11 +110,13 @@ test("sandboxed preload exposes only closed operations without Node builtins", a
     },
     globalThis: {crypto: {randomUUID}}
   });
-  assert.deepEqual(Object.keys(exposed).sort(), ["cancelLogin", "checkConnection", "completeLogin",
-    "connectionCatalog", "connectionImpact", "connections", "deleteConnection", "engineInfo", "handshake",
-    "loginState", "logoutConnection", "readmodelSources", "renameConnection", "requestKeyEntry", "startLogin",
-    "status"]);
+  assert.deepEqual(Object.keys(exposed).sort(), ["archiveWorkspace", "cancelLogin", "checkConnection",
+    "completeLogin", "connectionCatalog", "connectionImpact", "connections", "deleteConnection", "engineInfo",
+    "handshake", "loginState", "logoutConnection", "readmodelSources", "renameConnection", "requestFolder",
+    "requestKeyEntry", "restoreWorkspace", "selectWorkspace", "startLogin", "status", "workspaceScope", "workspaces"]);
   assert.equal(/add_key|rotate_key/.test(source), false, "the app preload never names a key-bearing command");
+  assert.equal(/workspaces\.(open|create|rebind_root)/.test(source), false,
+    "the app preload never names a path-bearing workspace command");
   assert.equal(Object.isFrozen(exposed), true);
   await exposed.handshake();
   await exposed.status("workspace-1");

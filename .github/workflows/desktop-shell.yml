@@ -19,7 +19,11 @@ on:
       - 'src/aik_vault/**'
       - 'src/aik_adapter_*/connector.py'
       - 'src/aik_host_*/connector.py'
+      - 'src/aik_workspace/**'
+      - 'src/aik_config/**'
+      - 'src/aik_scope/**'
       - 'tests/test_desktop_engine.py'
+      - 'tests/test_desktop_workspaces.py'
       - '.github/workflows/desktop-shell.yml'
   pull_request:
     paths:
@@ -32,7 +36,11 @@ on:
       - 'src/aik_vault/**'
       - 'src/aik_adapter_*/connector.py'
       - 'src/aik_host_*/connector.py'
+      - 'src/aik_workspace/**'
+      - 'src/aik_config/**'
+      - 'src/aik_scope/**'
       - 'tests/test_desktop_engine.py'
+      - 'tests/test_desktop_workspaces.py'
       - '.github/workflows/desktop-shell.yml'
   workflow_dispatch:
 
@@ -90,7 +98,7 @@ jobs:
           sudo chown root:root node_modules/electron/dist/chrome-sandbox
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Engine protocol tests
-        run: python -m unittest tests.test_desktop_engine -v
+        run: python -m unittest tests.test_desktop_engine tests.test_desktop_workspaces -v
       - name: Renderer typecheck and build
         working-directory: apps/desktop
         run: npm run build

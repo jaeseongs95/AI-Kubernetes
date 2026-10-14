@@ -164,3 +164,38 @@ input[aria-invalid="true"]{border-color:#8a4a40}
 .login-flow{display:flex;flex-direction:column;gap:6px}
 .login-status{font-size:13px}
 .other-login{margin-top:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+
+/* AIK-087 프로젝트 폴더 */
+.subtitle{overflow-wrap:anywhere}
+.path{font-family:"Cascadia Mono",Consolas,monospace;font-size:12px;color:#c0d6ca;word-break:break-all;white-space:pre-wrap;margin:0}
+.workspaces-panel{border-color:#2f5a4c}
+.workspaces-panel .panel-title button{flex:none}
+.workspaces-panel>.inline-state,.workspaces-panel>.error-panel,.workspaces-panel>.pending-panel{margin:12px 0 0}
+.vm-notice p code{font-size:10px}
+.current-project{margin-top:14px;padding:14px 16px;border:1px solid #2c4037;border-radius:10px;background:#101e1a}
+.current-project[data-current="REGISTERED"][data-status="ready"]{border-color:#2f5a4c}
+.current-project[data-current="UNREGISTERED"]{border-color:#5a4c2a}
+.current-project .sub-title{margin:0 0 10px}
+.field.wide{grid-column:1/-1}
+.register-form{margin-top:14px}
+.register-form .sub-title{margin:0 0 2px}
+.register-option{margin-top:10px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.register-option .actions{margin-top:2px}
+.register-form[data-picking="1"]{border-color:#3c8e7f}
+.workspace-list-title{margin:18px 0 10px}
+.workspace-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.workspace-list .panel+.panel{margin-top:0}
+.workspace-card{padding:16px 18px}
+.workspace-name{margin:0 0 4px;font-size:16px;font-weight:600;color:#d3e4dd;overflow-wrap:anywhere}
+.workspace-card[data-active="1"]{border-color:#3c8e7f}
+.workspace-card[data-state="archived"]{border-style:dashed;opacity:.85}
+.workspace-card .card-head>div:first-child{min-width:0}
+.badge[data-current="1"]{color:#b9eed5;border-color:#3c8e7f;background:#173129}
+.badge[data-workspace-status="ready"]{color:#9ce2ba;border-color:#2f5a4c}
+.badge[data-workspace-status="archived"],.badge[data-workspace-status="vm_project_unknown"]{color:#e9cc88;border-color:#5a4c2a}
+.badge[data-workspace-status="root_missing"],.badge[data-workspace-status="root_replaced"],.badge[data-workspace-status="root_unsafe"],
+.badge[data-workspace-status="access_denied"],.badge[data-workspace-status="unsupported_host"],
+.badge[data-workspace-status="vm_project_missing"],.badge[data-workspace-status="vm_project_mismatch"]{color:#ffb2a8;border-color:#5a332d}
+.workspace-card .card-actions+p{margin-top:8px}
+.scope-table{margin-top:4px}
+h5.sub-title{font-size:13px}
