@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "AIK-045 desktop GUI shell smoke",
+  "platform_family": "linux",
+  "electron_version": "44.7.0",
+  "packaged": false,
+  "window_visible": true,
+  "renderer_node_access": false,
+  "renderer_bridge": [
+    "cancelLogin",
+    "checkConnection",
+    "completeLogin",
+    "connectionCatalog",
+    "connectionImpact",
+    "connections",
+    "deleteConnection",
+    "engineInfo",
+    "handshake",
+    "loginState",
+    "logoutConnection",
+    "readmodelSources",
+    "renameConnection",
+    "requestKeyEntry",
+    "startLogin",
+    "status"
+  ],
+  "connection": "connected",
+  "engine": {
+    "ok": true,
+    "result": {
+      "engine_version": "0.1.0",
+      "protocol_version": 1,
+      "platform_family": "linux",
+      "python_version": "3.13.16",
+      "frozen": false,
+      "state_root": "ABSENT",
+      "readmodel": "NOT_CONFIGURED",
+      "director_state": "NOT_CONFIGURED"
+    }
+  },
+  "system_status": {
+    "ok": true,
+    "result": {
+      "state": "DEGRADED",
+      "director_state": "NOT_CONFIGURED"
+    }
+  },
+  "readmodel_sources": {
+    "ok": true,
+    "result": {
+      "readmodel": "NOT_CONFIGURED",
+      "authoritative": false,
+      "sources": []
+    }
+  },
+  "connections": {
+    "ok": true,
+    "result": {
+      "store": "ABSENT",
+      "connections": []
+    }
+  },
+  "key_entry": {
+    "status": "PASS",
+    "provider": "anthropic",
+    "isolated": true,
+    "input_type": "password",
+    "outcome": "cancelled",
+    "screenshot": "key-entry.png"
+  },
+  "routes": [
+    {
+      "route": "connections",
+      "rendered": true,
+      "state": "EMPTY",
+      "screenshot": "route-connections.png"
+    },
+    {
+      "route": "overview",
+      "rendered": true,
+      "state": "NOT_CONFIGURED",
+      "screenshot": "route-overview.png"
+    },
+    {
+      "route": "goals",
+      "rendered": true,
+      "state": "NOT_CONNECTED",
+      "screenshot": "route-goals.png"
+    },
+    {
+      "route": "workers",
+      "rendered": true,
+      "state": "NOT_CONNECTED",
+      "screenshot": "route-workers.png"
+    },
+    {
+      "route": "evidence",
+      "rendered": true,
+      "state": "NOT_CONNECTED",
+      "screenshot": "route-evidence.png"
+    },
+    {
+      "route": "usage",
+      "rendered": true,
+      "state": "NOT_CONNECTED",
+      "screenshot": "route-usage.png"
+    },
+    {
+      "route": "settings",
+      "rendered": true,
+      "state": "DEGRADED",
+      "screenshot": "route-settings.png"
+    }
+  ],
+  "metrics": {
+    "elapsed_ms": 986,
+    "main_rss_bytes": 192151552,
+    "renderer_working_set_kb": 117880
+  },
+  "not_run": [
+    "packaged frozen engine (AIK-057)",
+    "typing and saving a real API key, official vendor login",
+    "real VM/AGS data (AIK-044)"
+  ]
+}

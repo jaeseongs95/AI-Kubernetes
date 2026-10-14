@@ -88,3 +88,79 @@ p{color:#a7b9b2;font-size:13px;line-height:1.7;margin:0}
 .pending-panel strong{font-size:14px;color:#c2d6c7;font-weight:600}
 
 footer{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #22362f;margin:0 32px;padding:14px 0 18px;color:#6f897a;font-size:10px}
+
+/* AIK-046·047 연결 관리·온보딩 */
+button{font:inherit;font-size:13px;color:#d3e4dd;background:#183029;border:1px solid #2f5a4c;border-radius:8px;padding:7px 14px;cursor:pointer}
+button:hover:not(:disabled){background:#1e3b32;border-color:#3c8e7f}
+button:focus-visible,input:focus-visible,h3:focus-visible{outline:2px solid #f2fff8;outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:#2a6b58;border-color:#3c8e7f;color:#f2fff8;font-weight:600}
+button.primary:hover:not(:disabled){background:#327c66}
+button.danger{background:#2a1817;border-color:#5a332d;color:#ffb2a8}
+button.danger:hover:not(:disabled){background:#3a201e;border-color:#8a4a40}
+button.ghost{background:transparent;border-color:transparent;color:#91a99e}
+input[type="text"]{font:inherit;font-size:14px;color:#dbe7e4;background:#0f1d1a;border:1px solid #355046;border-radius:8px;padding:8px 10px;width:100%;max-width:420px}
+input[aria-invalid="true"]{border-color:#8a4a40}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.header-actions{margin-top:14px}
+.code-tag{display:inline-block;font-size:10px;border:1px solid #2c4037;border-radius:6px;padding:1px 6px;vertical-align:middle;color:#94aea0}
+.state-text{font-weight:600;color:#dbe7e4}
+.small{font-size:12px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.field-label{display:block;font-size:12px;color:#a7b9b2;margin:10px 0 6px}
+.field-error{color:#ffb2a8;font-size:12px;margin-top:6px}
+.provider-id{margin-left:6px;font-family:"Cascadia Mono",Consolas,monospace;font-size:10px;color:#7f978c}
+.notice-slot:empty{display:none}
+.notice{margin-top:12px;font-size:12px;padding:8px 12px;border-radius:8px;border:1px solid #2c4037;background:#101e1a}
+.notice.ok{border-color:#2f5a4c;color:#9ce2ba}
+.notice.warn{border-color:#5a4c2a;color:#e9cc88}
+.notice.error{border-color:#5a332d;color:#ffb2a8}
+.notice.info{color:#b9cdc5}
+.inline-error{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.inline-error p{color:#ffb2a8}
+
+.connection-list{display:flex;flex-direction:column;gap:16px;margin-top:16px}
+.connection-list .panel+.panel{margin-top:0}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.card-head h2{margin:0 0 4px;font-size:17px}
+.card-badges{display:flex;gap:8px;flex-wrap:wrap}
+.badge[data-connection-state="verified"]{color:#9ce2ba;border-color:#2f5a4c}
+.badge[data-connection-state="unverified"],.badge[data-connection-state="unknown"]{color:#e9cc88;border-color:#5a4c2a}
+.badge[data-connection-state="unauthenticated"],.badge[data-connection-state="account_changed"],.badge[data-connection-state="unsupported"]{color:#ffb2a8;border-color:#5a332d}
+.badge[data-connection-state="locked"]{color:#f7b8d6;border-color:#4b2b3c;background:#22161d}
+.connection-card[data-locked="1"]{border-color:#4b2b3c}
+.state-detail{margin-top:12px;font-size:12px}
+.card-actions{border-top:1px solid #22362f;padding-top:12px}
+.sub-panel{margin-top:12px;padding:14px 16px;border:1px solid #2c4037;border-radius:10px;background:#101e1a;display:flex;flex-direction:column;gap:6px}
+.delete-panel{border-color:#5a332d}
+.delete-panel>strong{color:#ffb2a8}
+.sub-title{font-size:13px;margin:6px 0 2px;color:#d3e4dd}
+.impact-list{margin:0;padding-left:18px;font-size:12px;color:#a7b9b2;display:flex;flex-direction:column;gap:4px}
+.choice{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:#c0d6ca}
+.choice:hover{background:#16292a}
+.choice input{margin-top:3px}
+.choice-text{display:flex;flex-direction:column;gap:2px}
+.choice-hint{font-size:12px}
+
+.onboarding{margin-top:16px;border-color:#2f5a4c}
+.stepper{list-style:none;margin:6px 0 18px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stepper li{display:flex;align-items:center;gap:8px;font-size:12px;color:#7f978c;padding:8px 10px;border:1px solid #22362f;border-radius:8px}
+.stepper li.current{color:#b9eed5;border-color:#3c8e7f;background:#173129;font-weight:600}
+.stepper li.done{color:#9ce2ba}
+.step-no{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1px solid currentColor;font-size:11px;flex:none}
+.step-body h3{font-size:14px;margin:0 0 10px;color:#d3e4dd}
+.vendor-group{border:1px solid #2c4037;border-radius:10px;padding:8px 12px 10px;margin:0 0 10px}
+.vendor-group legend{font-size:13px;font-weight:600;color:#d3e4dd;padding:0 6px}
+.fields.compact{margin-bottom:12px}
+.result-box{padding:12px 14px;border-radius:10px;border:1px solid #2c4037;background:#101e1a;display:flex;flex-direction:column;gap:6px}
+.result-box.ok{border-color:#2f5a4c}
+.result-box.ok>strong{color:#9ce2ba}
+.result-box.warn{border-color:#5a4c2a}
+.result-box.warn>strong{color:#e9cc88}
+.result-box.error{border-color:#5a332d}
+.result-box.error>strong{color:#ffb2a8}
+.next-step{margin-top:14px;padding:12px 14px;border:1px dashed #355046;border-radius:10px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.next-step h4{margin:0;font-size:14px;color:#c2d6c7;display:flex;gap:8px;align-items:center}
+.login-flow{display:flex;flex-direction:column;gap:6px}
+.login-status{font-size:13px}
+.other-login{margin-top:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}

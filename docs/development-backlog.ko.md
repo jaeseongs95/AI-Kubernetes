@@ -3,12 +3,12 @@
 > 이 문서는 [정본 SQLite 데이터베이스](../planning/backlog.sqlite3)에서 생성한 Markdown 스냅샷입니다. 태스크·요구사항·결정·출처의 기준은 DB이며, 이 파일의 수동 수정은 다음 생성에서 덮어써집니다.
 
 - 작성일 (UTC): `2026-10-12T05:36:30Z`
-- 수정일 (UTC): `2026-10-14T03:25:08Z`
+- 수정일 (UTC): `2026-10-14T04:48:09Z`
 - 검토일 (UTC): `2026-10-12T09:06:04Z`
 - SQLite `user_version`: `2` · 메타데이터 스키마 버전: `2`
 - 태스크 93개 · 요구사항 31개 · 결정 14개 · 출처 19개
-- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 342건
-- 상태: 미착수 41개 · 진행 중 0개 · 진행 차단 50개 · 완료 2개 · 취소 0개
+- 설계 원칙 3개 · 플랫폼 2개 · 외부 선행 2개(미해소 2개) · 변경 이력 348건
+- 상태: 미착수 39개 · 진행 중 0개 · 진행 차단 52개 · 완료 2개 · 취소 0개
 
 ## 유지보수 방법
 
@@ -38,7 +38,7 @@ python tools/backlog.py report
 | M0 · 통합 계약·플랫폼 기반 결정 | 첫 출시 | 10 | 0 | 0 | 8 | 2 | 0 | 0 |
 | M1 · 인증 보관·멀티벤더 자원 연결 | 첫 출시 | 15 | 0 | 0 | 15 | 0 | 0 | 0 |
 | M2 · 총괄 에이전트·AGS/VM 실행 통합 | 첫 출시 | 28 | 2 | 0 | 26 | 0 | 0 | 0 |
-| M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
+| M3 · 데스크톱 GUI 실제 연결 | 첫 출시 | 13 | 10 | 0 | 3 | 0 | 0 | 0 |
 | M4 · 첫 배포 검증(Windows·Linux) | 첫 출시 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 · 탄력 운영·원격 PEER 연합 | 후속 개발 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
 | M6 · 추가 자원·조직·배포 확장 | 향후 확장 | 6 | 6 | 0 | 0 | 0 | 0 | 0 |
@@ -86,8 +86,8 @@ python tools/backlog.py report
 | M1 | WIN-X64 | 15 | 1 | 0 | 14 | 0 | 0 | 0 |
 | M2 | LINUX-X64 | 28 | 1 | 0 | 27 | 0 | 0 | 0 |
 | M2 | WIN-X64 | 28 | 2 | 0 | 26 | 0 | 0 | 0 |
-| M3 | LINUX-X64 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
-| M3 | WIN-X64 | 13 | 12 | 0 | 1 | 0 | 0 | 0 |
+| M3 | LINUX-X64 | 13 | 10 | 0 | 3 | 0 | 0 | 0 |
+| M3 | WIN-X64 | 13 | 10 | 0 | 3 | 0 | 0 | 0 |
 | M4 | LINUX-X64 | 9 | 6 | 0 | 3 | 0 | 0 | 0 |
 | M4 | WIN-X64 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
 | M5 | LINUX-X64 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -2188,13 +2188,13 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 53 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T01:54:45Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T04:48:09Z` |
 
 설치 후 연결 추가와 공식 로그인/API 키 등록을 터미널 명령 없이 수행하게 한다.
 
@@ -2205,7 +2205,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-USER](#s-user)
 - **관련 결정:** 없음
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI 결과 대기. 선행 작업 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2216,7 +2216,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-046-IMPL-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-14-connections-gui/README.ko.md` · aik_connect(ConnectionService·벤더 중립 KeyVerifier/HostLogin), 엔진 connections.* 명령(연결 전용 처리 줄), renderer 연결 명령(비밀 없음)·main 소유 키 입력 창, 벤더 connector 4개(OpenAI·Anthropic API, Claude Code·Codex 구독), composition root, 연결 관리·온보딩 화면 구현. 로컬 Linux 전체 회귀 Ran 1575 OK(skip 18), connector 34·서비스 14·엔진 16, IPC node 48·desktop 15 pass. xvfb Electron smoke PASS(key_entry probe PASS: 창 격리·password·취소)·엔진 없음 BLOCKED. 기준 1·3의 실제 API 키 저장·벤더 검사·공식 로그인과 Windows 실행은 NOT_RUN. 총괄 모델 설정은 AIK-049. · `2026-10-14T04:48:09Z` · 플랫폼 `LINUX-X64`
 
 ### AIK-047
 
@@ -2224,13 +2224,13 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | 미착수 (`todo`) |
+| 상태 | 진행 차단 (`blocked`) |
 | 우선순위 | P0 |
 | 담당 컴포넌트 | Desktop GUI |
 | 작업 유형 | 기능 개발 (`feature`) |
 | 에픽 | E08 · 데스크톱 GUI |
 | 실행 순서 | 54 |
-| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-12T06:45:00Z` |
+| 작성 / 수정 | `2026-10-12T05:36:30Z` / `2026-10-14T04:48:09Z` |
 
 여러 벤더 연결을 한곳에서 확인·교체·해제하며 사용 중인 작업과의 관계를 보여준다.
 
@@ -2241,7 +2241,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 - **출처:** [S-DESIGN](https://github.com/jaeseongs95/AI-Kubernetes/blob/0367932ce2fa9369a3420a4867283167ea319188/docs/initial-design.ko.md) ([색인](#s-design)), [S-USER](#s-user)
 - **관련 결정:** [DEC03](#dec03) (확정)
 - **설계 원칙:** [PRN-OS](#prn-os), [PRN-SOLID](#prn-solid)
-- **플랫폼:** LINUX-X64 미착수, WIN-X64 미착수
+- **플랫폼:** LINUX-X64 진행 차단 (로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료), WIN-X64 진행 차단 (Windows CI 결과 대기. 선행 작업 미완료)
 - **외부 선행:** 없음
 
 **완료 기준**
@@ -2252,7 +2252,7 @@ GUI 연결 전에 설치형 통합 패키지에서 RAW Goal→실제 프로젝�
 
 **기록된 증거**
 
-기록 없음.
+- `EV-AIK-047-IMPL-20261014` · partial_implementation_validation · `evidence/implementation/2026-10-14-connections-gui/README.ko.md` · aik_connect(ConnectionService·벤더 중립 KeyVerifier/HostLogin), 엔진 connections.* 명령(연결 전용 처리 줄), renderer 연결 명령(비밀 없음)·main 소유 키 입력 창, 벤더 connector 4개(OpenAI·Anthropic API, Claude Code·Codex 구독), composition root, 연결 관리·온보딩 화면 구현. 로컬 Linux 전체 회귀 Ran 1575 OK(skip 18), connector 34·서비스 14·엔진 16, IPC node 48·desktop 15 pass. xvfb Electron smoke PASS(key_entry probe PASS: 창 격리·password·취소)·엔진 없음 BLOCKED. 연결이 있는 목록의 실제 렌더, 실제 키 교체·로그아웃·재인증, 실행 중 작업 영향(VM 미연결, AIK-044)과 Windows 실행은 NOT_RUN. · `2026-10-14T04:48:09Z` · 플랫폼 `LINUX-X64`
 
 ### AIK-048
 
@@ -4580,6 +4580,12 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | 340 | task_platform `AIK-093/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 작업 선행 미완료 | `2026-10-14T03:12:43Z` |
 | 341 | task_evidence `EV-AIK-093-WIN-CI-20261014` | created | — | AIK-093 partial_ci_validation WIN-X64 | AIK-093 Windows CI 근거 | `2026-10-14T03:24:55Z` |
 | 342 | task_platform `AIK-093/WIN-X64` | note | Windows CI 결과 대기. 작업 선행 미완료 | Windows CI(windows-2022) 전체 회귀 근거 EV-AIK-093-WIN-CI-20261014. 작업 선행 미완료 | Windows CI 근거 기록 | `2026-10-14T03:25:08Z` |
+| 343 | task_evidence `EV-AIK-046-IMPL-20261014` | created | — | AIK-046 partial_implementation_validation LINUX-X64 | AIK-046·047 구현·Linux smoke 근거 | `2026-10-14T04:48:09Z` |
+| 344 | task_evidence `EV-AIK-047-IMPL-20261014` | created | — | AIK-047 partial_implementation_validation LINUX-X64 | AIK-046·047 구현·Linux smoke 근거 | `2026-10-14T04:48:09Z` |
+| 345 | task_platform `AIK-046/LINUX-X64` | status | todo | blocked | 로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료 | `2026-10-14T04:48:09Z` |
+| 346 | task_platform `AIK-046/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 선행 작업 미완료 | `2026-10-14T04:48:09Z` |
+| 347 | task_platform `AIK-047/LINUX-X64` | status | todo | blocked | 로컬 Linux 회귀·xvfb smoke 근거. 선행 작업 미완료 | `2026-10-14T04:48:09Z` |
+| 348 | task_platform `AIK-047/WIN-X64` | status | todo | blocked | Windows CI 결과 대기. 선행 작업 미완료 | `2026-10-14T04:48:09Z` |
 
 ## DB 메타데이터
 
@@ -4608,7 +4614,7 @@ Tauri 2+React/TypeScript+Python sidecar 제안과 비권위 EngineClient를 재�
 | `secret_policy` | Development metadata only; runtime credentials and operational ledgers never belong in this database. |
 | `selected_stack_comparison_commit` | a20d3bef3f4865fc81cd3495ecc437b7a9b57cea |
 | `task_status_policy` | Task states reflect reviewed implementation evidence. in_progress/done require all prerequisites done; done requires acceptance criteria, task.verification and reviewed task_evidence. Adapter implementation, actual preflight probe, governed qualification and same-build product acceptance remain distinct. |
-| `updated_at` | 2026-10-14T03:25:08Z |
+| `updated_at` | 2026-10-14T04:48:09Z |
 | `upstream_ags_commit` | 56fef8bd189377b80f4020f506e717ab292b260a |
 | `upstream_vm_commit` | 32bb0f9dd9f024045d24487312b50f5b703573a3 |
 | `user_request_date` | 2026-10-12 |

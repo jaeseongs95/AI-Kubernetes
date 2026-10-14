@@ -9,13 +9,10 @@
 - main이 띄우는 API 키 입력 창(`apps/desktop/electron/key-entry.cjs`, `src/aik_ipc/key_entry_preload.cjs`)
 - smoke의 키 입력 창 probe
 
-다른 작업자가 작성 중인 부분은 다음과 같다.
+- 벤더 connector 4개(각 벤더 패키지의 `connector.py`)와 composition root(`apps/desktop/engine/aik_engine_entry.py`)
+- renderer 화면(연결 관리 route, 온보딩 4단계, `public/key-entry.html`)
 
-- 벤더 connector 4개
-- composition root
-- renderer 화면(연결 관리 route, 온보딩 단계, `public/key-entry.html`)
-
-이 문서의 시험 결과는 모두 기록이 없다(**NOT_RUN**). 이 문서는 `planning/` 장부의 상태와 완료 판정을 바꾸지 않는다.
+시험과 Linux smoke 결과는 §8에 있다. 실제 키·공식 로그인·Windows 실행은 NOT_RUN이다. 이 문서는 `planning/` 장부의 상태와 완료 판정을 바꾸지 않는다.
 
 ## 1. 목적과 수용 기준 대응
 
@@ -24,20 +21,16 @@
 - 사용자가 GUI에서 벤더 연결(API 키 또는 공식 호스트 구독 로그인)을 추가·확인·교체·삭제할 수 있게 한다.
 - 이 과정에서 앱 renderer가 API 키를 보지 않게 한다.
 
-수용 기준 원문은 장부에 있다. 아래 표는 두 태스크의 범위를 구현 위치와 짝지은 것이다. 장부의 기준 번호와 이 표의 대응은 확인하지 않았다.
+수용 기준은 장부(`planning/backlog.sqlite3`) 원문이다. 상태 열은 코드·시험 근거이며 원장 판정이 아니다.
 
-| 범위 | 구현 위치 | 상태 |
+| 기준 | 구현 | 상태 |
 | --- | --- | --- |
-| 첫 실행에서 벤더·실행 경로 고르기 | `connections.catalog`, renderer 온보딩 단계 | 엔진·IPC 코드 있음. 화면 작성 중 |
-| API 키로 연결 추가 | `connections.request_key_entry`(add) → 키 입력 창 → 엔진 `connections.add_key` | 코드 있음. 실제 키 저장 NOT_RUN |
-| 구독 로그인(공식 호스트) 시작·관찰·취소·완료 | `connections.start_login`·`login_state`·`cancel_login`·`complete_login` | 코드 있음. connector 작성 중. 실제 로그인 NOT_RUN |
-| 연결 목록·상태·사용처 보기 | `connections.list`·`connections.impact` | 코드 있음. 화면 작성 중 |
-| 연결 다시 확인 | `connections.check` | 코드 있음 |
-| 표시 이름(account label) 변경 | `connections.rename` | 코드 있음 |
-| API 키 교체 | `connections.request_key_entry`(rotate) → 엔진 `connections.rotate_key` | 코드 있음. 실제 키 NOT_RUN |
-| 구독 로그아웃 | `connections.logout` | 코드 있음. 실제 호스트 NOT_RUN |
-| 연결 삭제(API 키 삭제 포함) | `connections.delete` | 코드 있음 |
-| renderer가 키를 보지 않음 | 키 입력 창, IPC 명령 집합 | 코드 있음. smoke probe는 창 격리만 본다 |
+| 046-1 벤더·계정·구독/API 실행 경로를 선택하고 공식 인증 흐름을 시작/완료한다 | 온보딩 1~3단계: `connections.catalog`에서 connector 선택 → 별칭 → API는 `request_key_entry`(add), 구독은 `start_login`·`login_state`·`cancel_login`·`complete_login` | 코드·시험 있음. 실제 키 저장·공식 로그인 NOT_RUN |
+| 046-2 API 키 입력은 마스킹하고 저장 후 실비밀을 화면 상태에 유지하지 않는다 | main 소유 키 입력 창(password 입력, 제출 즉시 입력란 비움). 앱 renderer에는 키 입력란·키 명령이 없다 | 시험·Linux smoke(창 격리·password) 있음 |
+| 046-3 연결 확인→총괄 모델 설정으로 이어지며 만료/취소/오류 후 재시도 지점을 표시한다 | 온보딩 4단계: 확인되면 "총괄 모델 설정(AIK-049, 준비 중)" 안내, 취소·오류 때 실패 단계 재시도 버튼, `LOGIN_PENDING`·`NOT_SIGNED_IN`·`ACCOUNT_CHANGED`·`KEY_REJECTED` 재시도 | 화면 있음. 총괄 모델 설정 자체는 AIK-049 |
+| 047-1 계정 별칭·벤더·인증 유형·연결 상태·최종 확인 시각·사용 범위를 표시한다 | 연결 관리 목록: `connections.list` DTO(`account_label`, `display_name`, `method`, `state`, `verified_at`·`last_check`, `usage`) | 화면 있음. 연결이 있는 목록은 실제 키 없이 렌더하지 않았다 |
+| 047-2 연결 검사·키 교체·로그아웃·재인증·삭제를 GUI에서 수행한다 | `check`, `request_key_entry`(rotate), `logout`(구독), `start_login`(재인증), `delete`(영향 확인 후) | 코드·시험 있음. API 연결의 로그아웃은 연결 삭제(§7) |
+| 047-3 원문 비밀과 민감 오류는 표시하지 않고 잠금 상태와 진행 중 작업 영향을 보여준다 | 고정 코드만 한국어 문구로 표시, `locked` → "잠김", `usage.external_checked=false` → "실행 중 작업 영향: 확인 불가(VM 미연결)" | 화면 있음. 실제 작업 영향은 VM 연결(AIK-044) 뒤 |
 
 ## 2. 구성
 
@@ -45,14 +38,14 @@
 | --- | --- |
 | `src/aik_connect/ports.py` | 벤더 중립 port. `ConnectorInfo`, `KeyVerifier`(API 경로), `HostLogin`(구독 경로), 결과 타입 `CheckResult`·`LoginStatus`. 벤더 패키지를 import하지 않는다 |
 | `src/aik_connect/service.py` | `ConnectionService`. `aik_connection.ConnectionStore`(metadata), 사용자별 vault(비밀), connector를 묶는다. 모든 결과는 고정 코드가 든 plain DTO다 |
-| 벤더 패키지의 `connector.py` (작성 중) | OpenAI API, Anthropic API, Claude 구독(Claude Code), ChatGPT 구독(Codex). 각 port를 구현한다 |
-| `apps/desktop/engine/aik_engine_entry.py` (미작성) | composition root. connector 목록을 만들어 엔진 `main`의 `connectors` 인자로 넘긴다. `src` 밖에 둔다 |
+| 벤더 패키지의 `connector.py` | OpenAI API, Anthropic API, Claude 구독(Claude Code), ChatGPT 구독(Codex). 각 port를 기존 adapter·host bridge 위에 얇게 구현한다 |
+| `apps/desktop/engine/aik_engine_entry.py` | composition root. connector를 만들어 엔진 `main`의 `connectors`·`vault_factory`로 넘긴다. vault는 처음 쓸 때 연다(`LazyUserVault`). 만들 수 없는 connector는 catalog에서 빠진다. `src` 밖에 둔다 |
 | `src/aik_desktop_engine/server.py` | 엔진. `connections.*` 명령을 주입된 `ConnectionService`로 보낸다 |
 | `apps/desktop/electron/engine.cjs` | `EngineClient`. 연결 명령과 payload를 엔진에 전달한다. `connections.*`는 엔진에서 순서를 기다릴 수 있어 기한이 150초다 |
 | `src/aik_ipc/connections.cjs`, `desktop.cjs`, `preload.cjs` | renderer IPC. payload를 필드별로 검사하고, 결과를 동결 DTO로 복사한다. 경계 규칙은 [desktop-ipc](desktop-ipc.ko.md)에 있다 |
 | `apps/desktop/electron/key-entry.cjs`, `src/aik_ipc/key_entry_preload.cjs` | main이 띄우는 키 입력 창과 그 전용 채널 `aik:key-entry:v1` |
 | `apps/desktop/electron/main.cjs` | 위를 조립한다. 명령별 handler·기한, 키 입력 창 생성, smoke probe |
-| renderer 화면 (작성 중) | 연결 관리 route(`#/connections`), 온보딩 단계, `public/key-entry.html` |
+| `apps/desktop/src/connections.tsx`, `onboarding.tsx`, `loginFlow.tsx`, `connectionText.ts`, `public/key-entry.*` | 연결 관리 route(`#/connections`), 온보딩 4단계, 공식 로그인 흐름, 한국어 문구·오류 코드 번역, 키 입력 창 페이지 |
 
 데이터 흐름은 두 갈래다.
 
@@ -82,16 +75,18 @@
 - 한 번에 창 하나만 연다. 두 번째 요청은 `KEY_ENTRY_BUSY`다.
 - 제출이 실패하면 창이 열린 채로 오류 코드를 받는다. 사용자는 고쳐서 다시 낼 수 있다. 저장되면 창이 닫히고, renderer는 키 없는 결과(`outcome`, `connection`, `check`)만 받는다.
 
-### 2.4 renderer 화면 (작성 중, 수용 기준 수준)
+### 2.4 renderer 화면
 
-화면은 다음을 지켜야 한다. 이 문서 작성 시점에 화면 코드는 확인하지 않았다.
+화면은 다음을 지킨다. Linux smoke에서 연결 관리 화면(`EMPTY`, 온보딩 1단계)과 키 입력 창을 렌더해 스크린샷으로 확인했다. 단계별 실제 동작(키 저장, 로그인)은 NOT_RUN이다.
 
 - 앱 화면에 키 입력 칸을 두지 않는다. 키 추가·교체는 `requestKeyEntry`로만 한다.
 - `connections.list`의 `store`가 `ABSENT`이면 첫 실행 전 상태로 보여 주고, 오류로 표시하지 않는다.
 - 연결마다 label, `display_name`, method, `state`, `verified_at`, `last_check`, `usage`를 보여 준다. `usage.references`가 `null`이면 사용처를 "확인 불가"로 표시한다. `external_checked`가 `false`이면 외부 사용 여부를 "알 수 없음"으로 표시한다.
 - 쓰기 명령에는 마지막으로 받은 `revision`을 보낸다. `REVISION_CONFLICT`를 받으면 목록을 다시 읽는다.
 - 삭제 전에 `connections.impact`를 보여 준다. 사용자가 확인했을 때만 `acknowledge_impact=true`로 보낸다.
-- 키 저장 결과의 `check.state`가 `verified`가 아니면 "저장됐지만 확인되지 않음"으로 표시한다(§7 참조).
+- 키 저장 결과의 `check.state`가 `verified`가 아니면 "저장됐지만 확인되지 않음"으로 표시하고 다시 검사·재입력을 제공한다(§7 참조).
+- 확인되면 다음 단계 "총괄 모델 설정(AIK-049, 준비 중)"을 비활성 버튼과 설명으로 보여 준다. 취소·오류 때는 실패한 단계(키 입력/로그인, 별칭, connector 선택)를 다시 시도하는 버튼을 보여 준다.
+- `#route-connections`의 `data-state`는 첫 응답 전 `LOADING`, 그 뒤 `NOT_CONFIGURED`·`UNAVAILABLE`·`EMPTY`·`READY` 중 하나다. smoke는 첫 로드가 끝난 뒤의 값을 기록한다.
 - 온보딩은 `connections.catalog`의 connector에서 고르게 한다. API는 `requestKeyEntry("add")`, 구독은 `startLogin` → `loginState` 관찰 → `completeLogin` 순서로 진행한다.
 - `public/key-entry.html`은 `aikKeyEntry`만 쓴다. 입력 칸은 `id="key-input"`, `type="password"`이고, 준비되면 `document.body.dataset.ready = "1"`을 설정한다. smoke probe가 이 둘을 확인한다.
 
@@ -293,14 +288,20 @@ node --test tests/test_desktop_ipc_connections.cjs
 node --test apps/desktop/tests/key-entry.test.cjs
 ```
 
-| 시험 | 대상 | 상태 |
+2026-10-14 Linux(x64) 개발 컨테이너에서 실행한 결과다. Windows 결과는 CI로만 기록한다.
+
+| 시험 | 대상 | 결과 |
 | --- | --- | --- |
-| `tests/test_connect_service.py` | `ConnectionService`(fake connector·fake vault, 합성 데이터) | 실행 결과 기록 없음(NOT_RUN) |
-| `tests/test_desktop_engine.py`의 `ConnectionCommandTests` | 엔진 `connections.*` 명령 payload·오류 코드 | 실행 결과 기록 없음(NOT_RUN) |
-| `tests/test_desktop_ipc_connections.cjs` | IPC payload 검사, 결과 DTO 검사 | 실행 결과 기록 없음(NOT_RUN) |
-| `apps/desktop/tests/key-entry.test.cjs` | `KeyEntry` 발신자 검사·키 형식·재시도·취소 | 실행 결과 기록 없음(NOT_RUN) |
-| `tests/test_connectors.py` | 벤더 connector 4개 | 작성 중 |
-| smoke `key_entry` probe | 키 입력 창 격리 | 실행 결과 기록 없음(NOT_RUN) |
+| `tests/test_connect_service.py` | `ConnectionService`(fake connector·fake vault, 합성 데이터) | 14개 OK |
+| `tests/test_desktop_engine.py` | 엔진 `connections.*` 명령, 연결 전용 처리 줄, composition root 실제 프로세스 | 16개 OK |
+| `tests/test_connectors.py` | 벤더 connector 4개(가짜 transport·runner)와 서비스 결합 | 34개 OK |
+| `tests/test_desktop_ipc_connections.cjs` | IPC payload 검사, 결과 DTO 검사, 키 입력 창 preload | 7개 pass |
+| `apps/desktop/tests/key-entry.test.cjs` | `KeyEntry` 발신자 검사·키 형식·재시도·취소 | 5개 pass |
+| 전체 Python 회귀 | — | Ran 1575, OK(skip 18) |
+| smoke(엔진 있음) | 7개 경로, `key_entry` probe | `PASS`, `key_entry` `PASS` |
+| smoke(엔진 없음) | 엔진 불가 표시 | `BLOCKED`(예상값) |
+
+smoke 보고서·스크린샷은 [근거](../evidence/implementation/2026-10-14-connections-gui/README.ko.md)에 있다.
 
 smoke `key_entry` probe의 동작은 다음과 같다.
 
@@ -324,5 +325,6 @@ smoke `key_entry` probe의 동작은 다음과 같다.
 - **vault backend 위 실행**: Windows DPAPI와 Linux 키링 위에서 연결 서비스를 실행하지 않았다(NOT_RUN). Windows 화면 캡처 차단(`setContentProtection`)도 NOT_RUN이다.
 - **실행 중 작업 영향**: VM이 연결되지 않았다(AIK-044). 그래서 키 교체·로그아웃·삭제가 실행 중인 작업에 주는 영향을 확인하지 않았다. 엔진은 외부 참조 원천(`reference_sources`)을 주입하지 않는다. 따라서 `usage.external_checked`는 `false`이고, 외부 사용 여부는 알 수 없다.
 - **총괄 모델 설정**: 어떤 연결을 총괄이 쓸지 고르는 설정은 AIK-049다. 이 문서 범위 밖이다.
-- **화면과 조립**: renderer 화면, `public/key-entry.html`, composition root가 아직 없다. 패키지 모드의 preload 배치는 AIK-057·061에 남아 있다.
+- **패키징**: 패키지 모드의 preload·키 입력 창 페이지 배치와 frozen 엔진의 connector 조립은 AIK-057·061에 남아 있다.
+- **목록 자동 갱신**: 연결 목록은 동작 뒤와 "새로고침"에서만 다시 읽는다.
 - **고아 vault 항목**: `SECRET_CLEANUP_UNCONFIRMED`와 `secret_deleted=false` 뒤 남은 vault 항목을 찾거나 지우는 기능은 없다.

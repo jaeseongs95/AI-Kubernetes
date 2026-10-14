@@ -156,6 +156,6 @@ node --test apps/desktop/tests/key-entry.test.cjs
 python tools/backlog.py validate
 ```
 
-첫 줄의 세 파일은 기존 10개 테스트와 AIK-045 시점의 신규 25개 테스트다. 초기 소스에 대한 8개 실패 반례와 수정 후 실행은 [근거 기록](../evidence/desktop-ipc/2026-10-13-lifecycle/README.ko.md)에 구분한다. 연결 명령을 더한 뒤 이 세 파일을 다시 실행한 기록은 없다(NOT_RUN). `tests/test_desktop_ipc_connections.cjs`와 `apps/desktop/tests/key-entry.test.cjs`의 실행 결과도 기록이 없다(NOT_RUN).
+첫 줄의 세 파일은 기존 10개 테스트와 AIK-045 시점의 신규 25개 테스트다. 초기 소스에 대한 8개 실패 반례와 수정 후 실행은 [근거 기록](../evidence/desktop-ipc/2026-10-13-lifecycle/README.ko.md)에 구분한다. 2026-10-14 연결 명령을 더한 뒤 네 파일 48개가 모두 통과했고, `apps/desktop/tests/key-entry.test.cjs`를 포함한 `apps/desktop` 시험 15개도 통과했다(Linux). Windows 결과는 CI로만 기록한다.
 
 정본 `planning/backlog.sqlite3`에는 AIK-004의 구현 근거와 상태 이력을 기록하고, 미완료 AIK-083 및 제품 통합 조건 때문에 **blocked**로 유지한다. 다른 태스크·완료 기준·의존성은 변경하지 않는다. 단위시험 통과는 Windows 11 설치형 제품·OS principal 격리·VM/AGS 통합의 완료가 아니다.

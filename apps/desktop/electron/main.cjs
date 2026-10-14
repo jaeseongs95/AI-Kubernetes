@@ -235,7 +235,7 @@ async function probeKeyEntry() {
   const connector = (catalog?.connectors ?? []).find((item) => item?.execution_kind === "api");
   if (!connector) return {status: "NOT_RUN", reason: "no_api_connector"};
   await page(`window.__aikKeyProbe = window.aikDesktop.requestKeyEntry("${WORKSPACE_ID}", "add",
-    ${JSON.stringify(connector.provider)}, "smoke probe", null, null)`);
+    ${JSON.stringify(connector.provider)}, "smoke probe", null, null); true`); // do not await the open window
   await waitFor(() => Boolean(keyEntry.current) && !keyEntry.current.window.webContents.isLoading());
   const keyWindow = keyEntry.current.window;
   const keyPage = (expression) => keyWindow.webContents.executeJavaScript(expression);

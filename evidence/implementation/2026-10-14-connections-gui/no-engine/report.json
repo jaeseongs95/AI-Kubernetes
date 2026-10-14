@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "status": "BLOCKED",
+  "scope": "AIK-045 desktop GUI shell smoke",
+  "platform_family": "linux",
+  "electron_version": "44.7.0",
+  "packaged": false,
+  "window_visible": true,
+  "renderer_node_access": false,
+  "renderer_bridge": [
+    "cancelLogin",
+    "checkConnection",
+    "completeLogin",
+    "connectionCatalog",
+    "connectionImpact",
+    "connections",
+    "deleteConnection",
+    "engineInfo",
+    "handshake",
+    "loginState",
+    "logoutConnection",
+    "readmodelSources",
+    "renameConnection",
+    "requestKeyEntry",
+    "startLogin",
+    "status"
+  ],
+  "connection": "unavailable",
+  "engine": {
+    "ok": false,
+    "code": "BACKEND_UNAVAILABLE"
+  },
+  "system_status": {
+    "ok": false,
+    "code": "BACKEND_UNAVAILABLE"
+  },
+  "readmodel_sources": {
+    "ok": false,
+    "code": "BACKEND_UNAVAILABLE"
+  },
+  "connections": {
+    "ok": false,
+    "code": "BACKEND_UNAVAILABLE"
+  },
+  "key_entry": {
+    "status": "NOT_RUN",
+    "reason": "catalog_unavailable"
+  },
+  "routes": [
+    {
+      "route": "connections",
+      "rendered": true,
+      "state": "UNAVAILABLE",
+      "screenshot": "route-connections.png"
+    },
+    {
+      "route": "overview",
+      "rendered": true,
+      "state": "ERROR",
+      "screenshot": "route-overview.png"
+    },
+    {
+      "route": "goals",
+      "rendered": true,
+      "state": "NOT_CONNECTED",
+      "screenshot": "route-goals.png"
+    },
+    {
+      "route": "workers",
+      "rendered": true,
+      "state": "NOT_CONNECTED",
+      "screenshot": "route-workers.png"
+    },
+    {
+      "route": "evidence",
+      "rendered": true,
+      "state": "NOT_CONNECTED",
+      "screenshot": "route-evidence.png"
+    },
+    {
+      "route": "usage",
+      "rendered": true,
+      "state": "NOT_CONNECTED",
+      "screenshot": "route-usage.png"
+    },
+    {
+      "route": "settings",
+      "rendered": true,
+      "state": "ERROR",
+      "screenshot": "route-settings.png"
+    }
+  ],
+  "metrics": {
+    "elapsed_ms": 606,
+    "main_rss_bytes": 188526592,
+    "renderer_working_set_kb": 114280
+  },
+  "not_run": [
+    "packaged frozen engine (AIK-057)",
+    "typing and saving a real API key, official vendor login",
+    "real VM/AGS data (AIK-044)"
+  ]
+}
