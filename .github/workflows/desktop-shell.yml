@@ -64,6 +64,10 @@ jobs:
       - name: Install the locked shell dependencies
         working-directory: apps/desktop
         run: npm ci --no-audit --no-fund
+      - name: Download the pinned Electron binary (checked against the package checksums)
+        working-directory: apps/desktop
+        # Electron 44 has no postinstall download; fetch it now so the sandbox helper exists.
+        run: node node_modules/electron/install.js
       - name: Linux display and Chromium sandbox helper
         if: runner.os == 'Linux'
         working-directory: apps/desktop
